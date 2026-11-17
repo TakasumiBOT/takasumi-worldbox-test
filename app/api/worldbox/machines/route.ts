@@ -8,12 +8,27 @@ import { presenceIdFor } from "@/lib/worldbox/player/presence";
 import { parseSave } from "@/lib/worldbox/core/save";
 import { loadWorldBoxSave } from "@/lib/worldbox/core/save-online";
 import { isOverrideActive, tileKey, type TileOverride } from "@/lib/worldbox/world/tiles";
-import { isTilesEnabled, loadTileOverride, loadTileOverrides, storeTileOverride } from "@/lib/worldbox/world/tiles-online";
 import {
-  decodeProgram, defaultProgram, encodeProgram, evaluateMachine, isMachineItem,
-  machineBufferCount, parseProgram, type MachineState,
+  isTilesEnabled,
+  loadTileOverride,
+  loadTileOverrides,
+  storeTileOverride,
+} from "@/lib/worldbox/world/tiles-online";
+import {
+  decodeProgram,
+  defaultProgram,
+  encodeProgram,
+  evaluateMachine,
+  isMachineItem,
+  machineBufferCount,
+  parseProgram,
+  type MachineState,
 } from "@/lib/worldbox/economy/machines";
-import { isMachinesEnabled, loadMachine, storeMachine } from "@/lib/worldbox/economy/machines-online";
+import {
+  isMachinesEnabled,
+  loadMachine,
+  storeMachine,
+} from "@/lib/worldbox/economy/machines-online";
 import { withUserLock } from "@/lib/worldbox/core/user-lock";
 
 export const runtime = "nodejs";
@@ -61,7 +76,9 @@ async function actorWorldPosition(ownerKey: string): Promise<{ x: number; y: num
 async function nearMachine(request: Request, ownerKey: string, x: number, y: number) {
   const pos = await actorWorldPosition(ownerKey);
   if (!pos) return err("position_unknown", 409);
-  if (Math.max(Math.abs(Math.floor(pos.x) - x), Math.abs(Math.floor(pos.y) - y)) > MAX_ACTION_DISTANCE) {
+  if (
+    Math.max(Math.abs(Math.floor(pos.x) - x), Math.abs(Math.floor(pos.y) - y)) > MAX_ACTION_DISTANCE
+  ) {
     return err("too_far", 409);
   }
   return null;
@@ -82,7 +99,13 @@ async function ensureMachine(
   if (ov.block.ownerId !== selfId) return { response: err("not_owner", 403) };
   let state = await loadMachine(x, y);
   if (!state) {
-    state = { ownerId: selfId, program: defaultProgram(), buffer: {}, lastEvalAt: now, updatedAt: now };
+    state = {
+      ownerId: selfId,
+      program: defaultProgram(),
+      buffer: {},
+      lastEvalAt: now,
+      updatedAt: now,
+    };
     await storeMachine(x, y, state);
   }
   return { state };
@@ -91,7 +114,8 @@ async function ensureMachine(
 /** 遅延評価: 隣接タイルを読み、育ち切った自分の作物をバッファへ移す。 */
 async function runEvaluation(x: number, y: number, state: MachineState): Promise<MachineState> {
   const now = Date.now();
-  if (!state.program.enabled || now - state.lastEvalAt < state.program.intervalSec * 1000) return state;
+  if (!state.program.enabled || now - state.lastEvalAt < state.program.intervalSec * 1000)
+    return state;
   const all = await loadTileOverrides();
   const neighbors = new Map<string, TileOverride>();
   for (let dy = -1; dy <= 1; dy++) {
@@ -151,8 +175,11 @@ export async function POST(request: Request) {
     return err("invalid_request", 400);
   }
   const fields = (body ?? {}) as {
-    action?: unknown; x?: unknown; y?: unknown;
-    program?: unknown; code?: unknown;
+    action?: unknown;
+    x?: unknown;
+    y?: unknown;
+    program?: unknown;
+    code?: unknown;
   };
   const coord = checkedCoord(
     typeof fields.x === "number" ? fields.x : Number(fields.x),

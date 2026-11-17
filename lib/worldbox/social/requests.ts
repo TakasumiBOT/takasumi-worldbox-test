@@ -9,9 +9,7 @@
 // べき額を CoinMovement（economy.ts と同じ形）として返す。保存は呼び出し側
 // （API ルート）が bot_kv へ read-modify-write する。
 import { itemById } from "../economy/items";
-import {
-  addItem, removeItem, type PlayerProfile,
-} from "../player/profile";
+import { addItem, removeItem, type PlayerProfile } from "../player/profile";
 import type { CoinMovement } from "../economy/economy";
 
 /** 保存形式の版。 */
@@ -46,10 +44,17 @@ export function emptyRequestsState(): RequestsState {
 }
 
 export type RequestError =
-  | "unknown_item" | "invalid_count" | "invalid_reward"
-  | "not_enough_coins" | "not_enough_items"
-  | "too_many_guild" | "too_many_poster"
-  | "not_found" | "not_poster" | "self_fulfill" | "wrong_guild";
+  | "unknown_item"
+  | "invalid_count"
+  | "invalid_reward"
+  | "not_enough_coins"
+  | "not_enough_items"
+  | "too_many_guild"
+  | "too_many_poster"
+  | "not_found"
+  | "not_poster"
+  | "self_fulfill"
+  | "wrong_guild";
 
 export type PostResult =
   | { ok: true; state: RequestsState; request: GuildRequest; coin: CoinMovement }
@@ -59,19 +64,33 @@ export type PostResult =
 export function postRequest(
   state: RequestsState,
   input: {
-    id: string; guildId: string; posterKey: string; posterName: string;
-    itemId: unknown; count: unknown; reward: unknown; now: number;
+    id: string;
+    guildId: string;
+    posterKey: string;
+    posterName: string;
+    itemId: unknown;
+    count: unknown;
+    reward: unknown;
+    now: number;
   },
   balance: number,
 ): PostResult {
   const item = itemById(input.itemId);
   if (!item) return { ok: false, error: "unknown_item" };
-  if (typeof input.count !== "number" || !Number.isInteger(input.count)
-    || input.count < 1 || input.count > 99) {
+  if (
+    typeof input.count !== "number" ||
+    !Number.isInteger(input.count) ||
+    input.count < 1 ||
+    input.count > 99
+  ) {
     return { ok: false, error: "invalid_count" };
   }
-  if (typeof input.reward !== "number" || !Number.isInteger(input.reward)
-    || input.reward < 1 || input.reward > 1_000_000) {
+  if (
+    typeof input.reward !== "number" ||
+    !Number.isInteger(input.reward) ||
+    input.reward < 1 ||
+    input.reward > 1_000_000
+  ) {
     return { ok: false, error: "invalid_reward" };
   }
   if (balance < input.reward) return { ok: false, error: "not_enough_coins" };
@@ -100,10 +119,13 @@ export function postRequest(
 
 export type FulfillResult =
   | {
-    ok: true; state: RequestsState; request: GuildRequest;
-    fulfillerProfile: PlayerProfile; posterProfile: PlayerProfile;
-    coin: CoinMovement;
-  }
+      ok: true;
+      state: RequestsState;
+      request: GuildRequest;
+      fulfillerProfile: PlayerProfile;
+      posterProfile: PlayerProfile;
+      coin: CoinMovement;
+    }
   | { ok: false; error: RequestError };
 
 /** 納品する。納品者の所持からアイテムを減らし、投稿者へ足す（全量のみ）。 */
@@ -168,14 +190,26 @@ const REQUEST_ID_RE = /^[A-Za-z0-9-]{8,64}$/;
 function isValidRequest(value: unknown): value is GuildRequest {
   if (typeof value !== "object" || value === null) return false;
   const r = value as Record<string, unknown>;
-  return typeof r.id === "string" && REQUEST_ID_RE.test(r.id)
-    && typeof r.guildId === "string" && r.guildId.length > 0
-    && typeof r.posterKey === "string" && r.posterKey.length > 0
-    && typeof r.posterName === "string"
-    && itemById(r.itemId) !== null
-    && typeof r.count === "number" && Number.isInteger(r.count) && r.count >= 1 && r.count <= 99
-    && typeof r.reward === "number" && Number.isInteger(r.reward) && r.reward >= 1 && r.reward <= 1_000_000
-    && typeof r.createdAt === "number" && Number.isFinite(r.createdAt);
+  return (
+    typeof r.id === "string" &&
+    REQUEST_ID_RE.test(r.id) &&
+    typeof r.guildId === "string" &&
+    r.guildId.length > 0 &&
+    typeof r.posterKey === "string" &&
+    r.posterKey.length > 0 &&
+    typeof r.posterName === "string" &&
+    itemById(r.itemId) !== null &&
+    typeof r.count === "number" &&
+    Number.isInteger(r.count) &&
+    r.count >= 1 &&
+    r.count <= 99 &&
+    typeof r.reward === "number" &&
+    Number.isInteger(r.reward) &&
+    r.reward >= 1 &&
+    r.reward <= 1_000_000 &&
+    typeof r.createdAt === "number" &&
+    Number.isFinite(r.createdAt)
+  );
 }
 
 /** 保存済みの値（オブジェクト、または JSON 文字列）を依頼の状態として解釈する。壊れた要素は捨てる。 */

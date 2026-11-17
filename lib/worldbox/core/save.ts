@@ -77,7 +77,9 @@ export function serializeSave(state: WorldBoxState): string {
     space: state.space,
     x: pos.x,
     y: pos.y,
-    worldReturn: state.worldReturn ? clampToSpace("world", state.worldReturn.x, state.worldReturn.y) : null,
+    worldReturn: state.worldReturn
+      ? clampToSpace("world", state.worldReturn.x, state.worldReturn.y)
+      : null,
   });
 }
 
@@ -88,7 +90,13 @@ export function serializeSave(state: WorldBoxState): string {
 export function parseSave(json: string | null | undefined): WorldBoxState | null {
   if (!json) return null;
   try {
-    const data = JSON.parse(json) as { version?: unknown; space?: unknown; x?: unknown; y?: unknown; worldReturn?: unknown };
+    const data = JSON.parse(json) as {
+      version?: unknown;
+      space?: unknown;
+      x?: unknown;
+      y?: unknown;
+      worldReturn?: unknown;
+    };
     if (data.version !== SAVE_VERSION) return null;
     if (typeof data.x !== "number" || typeof data.y !== "number") return null;
     if (!Number.isFinite(data.x) || !Number.isFinite(data.y)) return null;

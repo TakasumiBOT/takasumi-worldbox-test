@@ -69,7 +69,13 @@ export function airPose(vy: number, forwardRatio: number): { scaleY: number; til
 export type SpringState = { x: number; v: number };
 
 /** 半陰的オイラーでバネを1ステップ進める。十分な時間で target に収束する。 */
-export function springStep(s: SpringState, target: number, stiffness: number, damping: number, dt: number): SpringState {
+export function springStep(
+  s: SpringState,
+  target: number,
+  stiffness: number,
+  damping: number,
+  dt: number,
+): SpringState {
   if (dt <= 0) return { x: s.x, v: s.v };
   const v = (s.v + (target - s.x) * stiffness * dt) * Math.exp(-damping * dt);
   return { x: s.x + v * dt, v };

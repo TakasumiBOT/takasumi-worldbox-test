@@ -44,12 +44,33 @@ function loadBundle(files, names) {
 }
 
 const eco = loadBundle(
-  ["worldbox/economy/items.ts", "worldbox/player/profile.ts", "worldbox/player/roles.ts", "worldbox/player/vitals.ts", "worldbox/economy/economy.ts"],
   [
-    "ITEMS", "itemById", "RECIPES", "recipeById", "sellPrice",
-    "DEFAULT_PROFILE", "parseProfile", "serializeProfile", "countItem",
-    "buyItem", "sellItem", "eatItem", "doWork", "craftItem", "craftFromInputs", "resolveSteal",
-    "STEAL_MAX_AMOUNT", "STEAL_TARGET_MIN_COINS", "STEAL_FINE_AMOUNT",
+    "worldbox/economy/items.ts",
+    "worldbox/player/profile.ts",
+    "worldbox/player/roles.ts",
+    "worldbox/player/vitals.ts",
+    "worldbox/economy/economy.ts",
+  ],
+  [
+    "ITEMS",
+    "itemById",
+    "RECIPES",
+    "recipeById",
+    "sellPrice",
+    "DEFAULT_PROFILE",
+    "parseProfile",
+    "serializeProfile",
+    "countItem",
+    "buyItem",
+    "sellItem",
+    "eatItem",
+    "doWork",
+    "craftItem",
+    "craftFromInputs",
+    "resolveSteal",
+    "STEAL_MAX_AMOUNT",
+    "STEAL_TARGET_MIN_COINS",
+    "STEAL_FINE_AMOUNT",
   ],
 );
 
@@ -64,10 +85,17 @@ test("アイテムの母数が厚い（28種以上）・IDが一意・価格が�
     if (item.category === "food") assert.ok(item.hunger > 0, item.id);
   }
   const categories = new Set(eco.ITEMS.map((i) => i.category));
-  assert.deepEqual(
-    [...categories].sort(),
-    ["block", "crafted", "crop", "food", "furniture", "material", "seed", "special", "tool"],
-  );
+  assert.deepEqual([...categories].sort(), [
+    "block",
+    "crafted",
+    "crop",
+    "food",
+    "furniture",
+    "material",
+    "seed",
+    "special",
+    "tool",
+  ]);
 });
 
 test("レシピの参照がすべて実在し、合成品は売ると素材代より高くなる", () => {
@@ -152,7 +180,10 @@ test("自由セット合成: 完全一致は成果物と hint exact、不一致�
 
 test("自由セット合成: near は素材種の半分超を共有するレシピがある時", () => {
   // potion は herb×2 + glass×1（2種）。herb×1 + glass×1 は種は一致するが数が違う
-  const near = eco.craftFromInputs({ ...fresh(), items: { herb: 1, glass: 1 } }, { herb: 1, glass: 1 });
+  const near = eco.craftFromInputs(
+    { ...fresh(), items: { herb: 1, glass: 1 } },
+    { herb: 1, glass: 1 },
+  );
   assert.equal(near.ok, true);
   assert.equal(near.matched, false);
   assert.equal(near.hint, "near");
@@ -168,9 +199,16 @@ test("自由セット合成: 素材不足は消費せずエラー、不正入力
   assert.equal(lack.error, "not_enough_items");
   assert.equal(eco.countItem(before, "herb"), 1, "失敗時に素材を消費しない");
   // 完全一致レシピでも素材が足りなければ not_enough_items
-  assert.equal(eco.craftFromInputs({ ...fresh(), items: { wood: 2 } }, { wood: 3 }).error, "not_enough_items");
+  assert.equal(
+    eco.craftFromInputs({ ...fresh(), items: { wood: 2 } }, { wood: 3 }).error,
+    "not_enough_items",
+  );
   const rich = { ...fresh(), items: { wood: 9, stone: 9, herb: 9, glass: 9, cloth: 9 } };
-  assert.equal(eco.craftFromInputs(rich, { wood: 1, stone: 1, herb: 1, glass: 1, cloth: 1 }).error, "invalid_request", "5種は不可");
+  assert.equal(
+    eco.craftFromInputs(rich, { wood: 1, stone: 1, herb: 1, glass: 1, cloth: 1 }).error,
+    "invalid_request",
+    "5種は不可",
+  );
   assert.equal(eco.craftFromInputs(rich, { wood: 7 }).error, "invalid_request", "1種7個は不可");
   assert.equal(eco.craftFromInputs(rich, { wood: 0 }).error, "invalid_request");
   assert.equal(eco.craftFromInputs(rich, { wood: 1.5 }).error, "invalid_request");
@@ -186,7 +224,9 @@ test("自由セット合成: 素材不足は消費せずエラー、不正入力
 });
 
 test("発見レシピはプロフィールに往復し、文字列だけが残る", () => {
-  const parsed = eco.parseProfile({ discoveredRecipes: ["carving", "potion", 42, "carving", null] });
+  const parsed = eco.parseProfile({
+    discoveredRecipes: ["carving", "potion", 42, "carving", null],
+  });
   assert.deepEqual(parsed.discoveredRecipes, ["carving", "potion"]);
   const back = eco.parseProfile(eco.serializeProfile(parsed));
   assert.deepEqual(back.discoveredRecipes, ["carving", "potion"]);
@@ -195,7 +235,10 @@ test("発見レシピはプロフィールに往復し、文字列だけが残�
 });
 
 test("合成の作り直し配線: パネルはレシピ一覧を出さず台UI、ルートは自由セット式を使う", () => {
-  const panel = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxEconomyPanel.tsx"), "utf8");
+  const panel = fs.readFileSync(
+    path.join(rootDir, "app/games/worldbox/WorldBoxEconomyPanel.tsx"),
+    "utf8",
+  );
   assert.ok(!panel.includes("RECIPES"), "旧レシピ全件リストが残っている");
   assert.ok(!panel.includes("レア: "), "レア名の事前表示が残っている");
   assert.match(panel, /火を入れる/);
@@ -221,19 +264,35 @@ test("steal 成功: 対象の実残高の5%（上限つき）を奪い、両者�
   assert.equal(result.target.coins, 400);
   assert.equal(result.actor.stealActorAt, 100_000_000);
   assert.equal(result.target.stealTargetAt, 100_000_000);
-  const capped = eco.resolveSteal(fresh(), fresh(), 100_000_000, () => 0, { actorCoins: 0, targetCoins: 100000 });
+  const capped = eco.resolveSteal(fresh(), fresh(), 100_000_000, () => 0, {
+    actorCoins: 0,
+    targetCoins: 100000,
+  });
   assert.equal(capped.amount, eco.STEAL_MAX_AMOUNT);
 });
 
 test("steal 失敗: 罰金は spend オプ（実残高が上限）", () => {
-  const result = eco.resolveSteal(fresh(), fresh(), 100_000_000, () => 0.99, { actorCoins: 100, targetCoins: 400 });
+  const result = eco.resolveSteal(fresh(), fresh(), 100_000_000, () => 0.99, {
+    actorCoins: 100,
+    targetCoins: 400,
+  });
   assert.equal(result.success, false);
   assert.equal(result.amount, eco.STEAL_FINE_AMOUNT);
-  assert.deepEqual(result.coin, { kind: "spend", amount: eco.STEAL_FINE_AMOUNT, reason: "steal_fine" });
+  assert.deepEqual(result.coin, {
+    kind: "spend",
+    amount: eco.STEAL_FINE_AMOUNT,
+    reason: "steal_fine",
+  });
   assert.equal(result.actor.coins, 100, "プロフィールの coins は触らない");
-  const broke = eco.resolveSteal(fresh(), fresh(), 100_000_000, () => 0.99, { actorCoins: 5, targetCoins: 400 });
+  const broke = eco.resolveSteal(fresh(), fresh(), 100_000_000, () => 0.99, {
+    actorCoins: 5,
+    targetCoins: 400,
+  });
   assert.equal(broke.amount, 5);
-  const penniless = eco.resolveSteal(fresh(), fresh(), 100_000_000, () => 0.99, { actorCoins: 0, targetCoins: 400 });
+  const penniless = eco.resolveSteal(fresh(), fresh(), 100_000_000, () => 0.99, {
+    actorCoins: 0,
+    targetCoins: 400,
+  });
   assert.equal(penniless.amount, 0);
   assert.equal(penniless.coin, undefined, "罰金0ならオプも積まない");
 });
@@ -248,7 +307,10 @@ test("steal の保護: 少額の相手・防犯チャーム・クールダウン
   const cooling = { ...fresh(), stealActorAt: now - 1000 };
   assert.equal(eco.resolveSteal(cooling, fresh(), now, () => 0, rich).error, "steal_cooldown");
   const recent = { ...fresh(), stealTargetAt: now - 1000 };
-  assert.equal(eco.resolveSteal(fresh(), recent, now, () => 0, rich).error, "target_recently_stolen");
+  assert.equal(
+    eco.resolveSteal(fresh(), recent, now, () => 0, rich).error,
+    "target_recently_stolen",
+  );
 });
 
 test("怪盗マスクで成功率が上がる（素の成功率では失敗する目でも成功）", () => {
@@ -260,19 +322,30 @@ test("怪盗マスクで成功率が上がる（素の成功率では失敗す�
 });
 
 test("プロフィールの検証: 未定義アイテムは捨てられ、所持数はクランプされる", () => {
-  const parsed = eco.parseProfile('{"coins": 50, "hunger": 40, "items": {"wood": 3, "unknown_thing": 5, "stone": -2}}');
+  const parsed = eco.parseProfile(
+    '{"coins": 50, "hunger": 40, "items": {"wood": 3, "unknown_thing": 5, "stone": -2}}',
+  );
   assert.deepEqual(parsed.items, { wood: 3 });
   assert.equal(parsed.coins, 50);
 });
 
 test("クライアント配線: 経済パネルと API がつながっている", () => {
-  const client = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"), "utf8");
+  const client = fs.readFileSync(
+    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    "utf8",
+  );
   assert.match(client, /WorldBoxEconomyPanel/);
   assert.match(client, /経済/);
   assert.match(client, /座標 X/);
-  const presenceOnline = fs.readFileSync(path.join(libDir, "worldbox/player/presence-online.ts"), "utf8");
+  const presenceOnline = fs.readFileSync(
+    path.join(libDir, "worldbox/player/presence-online.ts"),
+    "utf8",
+  );
   assert.match(presenceOnline, /findPresenceOwnerKey/);
-  const panel = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxEconomyPanel.tsx"), "utf8");
+  const panel = fs.readFileSync(
+    path.join(rootDir, "app/games/worldbox/WorldBoxEconomyPanel.tsx"),
+    "utf8",
+  );
   for (const action of ["buy", "sell", "eat", "craft"]) {
     assert.ok(panel.includes(`"${action}"`) || panel.includes(action), action);
   }
@@ -294,9 +367,18 @@ test("クライアント配線: 経済パネルと API がつながっている"
 });
 
 test("売買・合成・送金は施設の前でのみ開く（クライアントがステーションを渡し、パネルと API が制限する）", () => {
-  const client = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"), "utf8");
-  assert.match(client, /<WorldBoxEconomyPanel space=\{spaceUi\} station=\{stationUi\} genre=\{stationGenre\} worldStationKinds=\{worldStationKinds\} onClose=\{\(\) => setShowEconomy\(false\)\} \/>/);
-  const panel = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxEconomyPanel.tsx"), "utf8");
+  const client = fs.readFileSync(
+    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    "utf8",
+  );
+  assert.match(
+    client,
+    /<WorldBoxEconomyPanel space=\{spaceUi\} station=\{stationUi\} genre=\{stationGenre\} worldStationKinds=\{worldStationKinds\} onClose=\{\(\) => setShowEconomy\(false\)\} \/>/,
+  );
+  const panel = fs.readFileSync(
+    path.join(rootDir, "app/games/worldbox/WorldBoxEconomyPanel.tsx"),
+    "utf8",
+  );
   assert.match(panel, /space === "lobby"/);
   // タブは「ロビーにいる」だけでは出ない。対応する施設の前にいる時だけ
   assert.match(panel, /station === "shop"/);
@@ -306,11 +388,17 @@ test("売買・合成・送金は施設の前でのみ開く（クライアン�
   assert.match(panel, /station === "bank"/);
   assert.match(panel, /atBank && tabBtn\("bank"/);
   // サーバー側もプレゼンスで位置検証する（表示だけの制限にしない）
-  const profileRoute = fs.readFileSync(path.join(rootDir, "app/api/worldbox/profile/route.ts"), "utf8");
+  const profileRoute = fs.readFileSync(
+    path.join(rootDir, "app/api/worldbox/profile/route.ts"),
+    "utf8",
+  );
   assert.match(profileRoute, /loadMyLobbyStation/);
   assert.match(profileRoute, /not_at_shop/);
   assert.match(profileRoute, /not_at_workbench/);
-  const economyRoute = fs.readFileSync(path.join(rootDir, "app/api/worldbox/economy/route.ts"), "utf8");
+  const economyRoute = fs.readFileSync(
+    path.join(rootDir, "app/api/worldbox/economy/route.ts"),
+    "utf8",
+  );
   assert.match(economyRoute, /loadMyLobbyStation/);
   assert.match(economyRoute, /not_at_bank/);
   // 共有ノートの方針: 画面内に説明文を置かない（制限の案内文も置かない）

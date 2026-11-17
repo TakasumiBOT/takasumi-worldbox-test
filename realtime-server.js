@@ -60,7 +60,9 @@ function broadcast(space, exceptWs, obj) {
     if (ws === exceptWs || info.space !== space || ws.readyState !== 1) continue;
     try {
       ws.send(text);
-    } catch { /* noop */ }
+    } catch {
+      /* noop */
+    }
   }
 }
 
@@ -74,7 +76,8 @@ function parsePresenceBaseline(raw) {
   if (typeof raw !== "string" || !raw) return null;
   try {
     const v = JSON.parse(raw);
-    if (!v || typeof v.x !== "number" || typeof v.y !== "number" || typeof v.ts !== "number") return null;
+    if (!v || typeof v.x !== "number" || typeof v.y !== "number" || typeof v.ts !== "number")
+      return null;
     if (!Number.isFinite(v.x) || !Number.isFinite(v.y) || !Number.isFinite(v.ts)) return null;
     return { x: v.x, y: v.y, space: typeof v.space === "string" ? v.space : "world", ts: v.ts };
   } catch {
@@ -111,12 +114,22 @@ if (wss) {
   /** ハートビート1件の処理（中継・集約書き込み・配信）。却下された申告は
    * 保存せず、送り主へ保管位置（jump）を返してそこへ戻させる。 */
   const handleHeartbeat = (ws, info, msg, now) => {
-    const entry = core.acceptHeartbeat(room, info.pid, info.name, msg, now, info.baseline, info.avatar);
+    const entry = core.acceptHeartbeat(
+      room,
+      info.pid,
+      info.name,
+      msg,
+      now,
+      info.baseline,
+      info.avatar,
+    );
     if (!entry) return;
     if (entry.rejected) {
       try {
         ws.send(JSON.stringify({ t: "jump", x: entry.x, y: entry.y, space: entry.space }));
-      } catch { /* noop */ }
+      } catch {
+        /* noop */
+      }
       return;
     }
     info.lastEntry = entry;
@@ -129,15 +142,35 @@ if (wss) {
     if (!info.joined) {
       info.joined = true;
       try {
-        ws.send(JSON.stringify({ t: "snap", now, players: core.snapshot(room, entry.space, info.pid, now) }));
-      } catch { /* noop */ }
+        ws.send(
+          JSON.stringify({
+            t: "snap",
+            now,
+            players: core.snapshot(room, entry.space, info.pid, now),
+          }),
+        );
+      } catch {
+        /* noop */
+      }
     }
     broadcast(entry.space, ws, { t: "up", now, p: entry });
   };
 
   wss.on("connection", (ws) => {
     const auth = ws._rtAuth;
-    const info = { pid: auth.pid, name: auth.name, ok: auth.ok ?? null, avatar: auth.av ?? null, space: null, joined: false, lastMsgAt: 0, alive: true, lastEntry: null, baseline: undefined, pendingHbs: [] };
+    const info = {
+      pid: auth.pid,
+      name: auth.name,
+      ok: auth.ok ?? null,
+      avatar: auth.av ?? null,
+      space: null,
+      joined: false,
+      lastMsgAt: 0,
+      alive: true,
+      lastEntry: null,
+      baseline: undefined,
+      pendingHbs: [],
+    };
     clients.set(ws, info);
     // タブ世代（同一アカウントの分身防止）: 旧世代の接続は受け付けず、
     // 世代交代時は旧世代の接続をすべて閉じる（閉じられた側は再接続しない）。
@@ -146,7 +179,9 @@ if (wss) {
       clients.delete(ws);
       try {
         ws.close(4001, "tab_superseded");
-      } catch { /* noop */ }
+      } catch {
+        /* noop */
+      }
       return;
     }
     if (admit.evict) {
@@ -154,7 +189,9 @@ if (wss) {
         if (otherWs !== ws && otherInfo.pid === auth.pid) {
           try {
             otherWs.close(4001, "tab_superseded");
-          } catch { /* noop */ }
+          } catch {
+            /* noop */
+          }
         }
       }
     }
@@ -176,7 +213,9 @@ if (wss) {
     if (aggState.on && info.ok) {
       try {
         ws.send(JSON.stringify({ t: "hello", now: Date.now(), agg: 1 }));
-      } catch { /* noop */ }
+      } catch {
+        /* noop */
+      }
     }
     ws.on("pong", () => {
       info.alive = true;
@@ -234,13 +273,17 @@ if (wss) {
       if (!info.alive) {
         try {
           ws.terminate();
-        } catch { /* noop */ }
+        } catch {
+          /* noop */
+        }
         continue;
       }
       info.alive = false;
       try {
         ws.ping();
-      } catch { /* noop */ }
+      } catch {
+        /* noop */
+      }
     }
   }, 30_000);
 
@@ -261,7 +304,9 @@ if (wss) {
       if (ws.readyState !== 1) continue;
       try {
         ws.send(text);
-      } catch { /* noop */ }
+      } catch {
+        /* noop */
+      }
     }
   }, 15_000);
 
@@ -287,35 +332,42 @@ if (wss) {
       if (ws.readyState !== 1) continue;
       try {
         ws.send(text);
-      } catch { /* noop */ }
+      } catch {
+        /* noop */
+      }
     }
   };
   const writePresenceKv = (info, entry, force) => {
     if (!kvCfg || !info.ok) return;
     if (!core.planPresenceWrite(aggregator, info.pid, entry, Date.now(), force)) return;
-    botkv.kvSet(kvCfg, "worldbox_presence", info.ok, core.presenceKvValue(entry)).then(
-      () => {
-        // 失敗が続いて集約を止めた後の復旧（書き込み自体は止めずに試し続け、
-        // 成功が戻ったらクライアントへ再開を知らせる）
-        if (aggState.failStreak >= 3) {
-          aggState.failStreak = 0;
-          aggState.on = true;
-          broadcastAggState();
-        } else {
-          aggState.failStreak = 0;
-        }
-      },
-      (err) => {
-        aggState.failStreak += 1;
-        if (aggState.failStreak === 1) {
-          console.error("[realtime] presence kv write failed:", err && err.message);
-        }
-        if (aggState.failStreak >= 3 && aggState.on) {
-          aggState.on = false;
-          broadcastAggState();
-        }
-      },
-    ).catch(() => { /* noop */ });
+    botkv
+      .kvSet(kvCfg, "worldbox_presence", info.ok, core.presenceKvValue(entry))
+      .then(
+        () => {
+          // 失敗が続いて集約を止めた後の復旧（書き込み自体は止めずに試し続け、
+          // 成功が戻ったらクライアントへ再開を知らせる）
+          if (aggState.failStreak >= 3) {
+            aggState.failStreak = 0;
+            aggState.on = true;
+            broadcastAggState();
+          } else {
+            aggState.failStreak = 0;
+          }
+        },
+        (err) => {
+          aggState.failStreak += 1;
+          if (aggState.failStreak === 1) {
+            console.error("[realtime] presence kv write failed:", err && err.message);
+          }
+          if (aggState.failStreak >= 3 && aggState.on) {
+            aggState.on = false;
+            broadcastAggState();
+          }
+        },
+      )
+      .catch(() => {
+        /* noop */
+      });
   };
 
   if (kvCfg) {
@@ -325,7 +377,9 @@ if (wss) {
         if (ws.readyState !== 1 || !predicate(info)) continue;
         try {
           ws.send(text);
-        } catch { /* noop */ }
+        } catch {
+          /* noop */
+        }
       }
     };
     const routeWatchChanges = (kind, changes, prev) => {
@@ -352,10 +406,12 @@ if (wss) {
           if (scope) scopes.set(c.key, scope);
         }
         for (const scope of scopes.values()) {
-          sendTo(
-            (info) => info.space === scope.space,
-            { t: "sync", kind: "chat", channel: scope.channel, space: scope.space },
-          );
+          sendTo((info) => info.space === scope.space, {
+            t: "sync",
+            kind: "chat",
+            channel: scope.channel,
+            space: scope.space,
+          });
         }
       } else if (kind === "unionChat") {
         const guilds = new Set();
@@ -391,7 +447,9 @@ if (wss) {
         }
         if (spaces.size > 0 || prefixes.size > 0) {
           sendTo(
-            (info) => !!info.space && (spaces.has(info.space) || [...prefixes].some((p) => info.space.startsWith(p))),
+            (info) =>
+              !!info.space &&
+              (spaces.has(info.space) || [...prefixes].some((p) => info.space.startsWith(p))),
             { t: "sync", kind: "instances" },
           );
         }
@@ -426,12 +484,17 @@ if (wss) {
           state.busy = false;
         }
       };
-      setTimeout(() => {
-        void run();
-        setInterval(() => void run(), plan.intervalMs);
-      }, 500 + idx * 300);
+      setTimeout(
+        () => {
+          void run();
+          setInterval(() => void run(), plan.intervalMs);
+        },
+        500 + idx * 300,
+      );
     });
-    console.log("[realtime] kv watch enabled (chat/party/requests/tiles/mobs/board/nations/instances/economy/objects/fishing/guildShop)");
+    console.log(
+      "[realtime] kv watch enabled (chat/party/requests/tiles/mobs/board/nations/instances/economy/objects/fishing/guildShop)",
+    );
   } else {
     console.log("[realtime] kv watch disabled (bot api not configured)");
   }
@@ -441,7 +504,9 @@ server.on("upgrade", (req, socket, head) => {
   let url = null;
   try {
     url = new URL(req.url || "", "http://localhost");
-  } catch { /* noop */ }
+  } catch {
+    /* noop */
+  }
   if (wss && url && url.pathname === REALTIME_PATH) {
     const auth = core.verifyToken(url.searchParams.get("t") || "", secret, Date.now());
     if (!auth) {
@@ -452,7 +517,8 @@ server.on("upgrade", (req, socket, head) => {
     // タブ世代の申告（任意。無い接続は世代管理の対象外）
     const tabParam = url.searchParams.get("tab");
     const tabAtParam = Number(url.searchParams.get("tabAt"));
-    auth.tab = typeof tabParam === "string" && tabParam.length > 0 ? tabParam.slice(0, 64) : undefined;
+    auth.tab =
+      typeof tabParam === "string" && tabParam.length > 0 ? tabParam.slice(0, 64) : undefined;
     auth.tabAt = Number.isFinite(tabAtParam) && tabAtParam > 0 ? tabAtParam : undefined;
     wss.handleUpgrade(req, socket, head, (ws) => {
       ws._rtAuth = auth;
@@ -465,5 +531,7 @@ server.on("upgrade", (req, socket, head) => {
 });
 
 server.listen(PUBLIC_PORT, HOSTNAME, () => {
-  console.log(`[realtime] wrapper listening on ${HOSTNAME}:${PUBLIC_PORT} (next: ${NEXT_PORT}, relay: ${wss ? "on" : "off"})`);
+  console.log(
+    `[realtime] wrapper listening on ${HOSTNAME}:${PUBLIC_PORT} (next: ${NEXT_PORT}, relay: ${wss ? "on" : "off"})`,
+  );
 });

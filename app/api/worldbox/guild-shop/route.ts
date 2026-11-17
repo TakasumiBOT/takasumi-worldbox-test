@@ -2,18 +2,36 @@ import { NextResponse } from "next/server";
 import { getRequestSession, publicOrigin, sessionOwnerKey } from "@/lib/auth";
 import { buildEconomyOp } from "@/lib/worldbox/economy/economy-bridge";
 import {
-  enqueueEconomyOpOnce, isEconomyEnabled, loadMyEconomyOps, readUserBalance, submitEconomyOp,
+  enqueueEconomyOpOnce,
+  isEconomyEnabled,
+  loadMyEconomyOps,
+  readUserBalance,
+  submitEconomyOp,
 } from "@/lib/worldbox/economy/economy-bridge-online";
 import {
-  GUILD_LISTING_MAX, GUILD_PLOT_ANCHORS, GUILD_PLOT_COUNT, GUILD_PLOT_FEE,
-  findListing, listingAvailable, plotOfGuild, saleTaxAmount, sellerProceeds,
+  GUILD_LISTING_MAX,
+  GUILD_PLOT_ANCHORS,
+  GUILD_PLOT_COUNT,
+  GUILD_PLOT_FEE,
+  findListing,
+  listingAvailable,
+  plotOfGuild,
+  saleTaxAmount,
+  sellerProceeds,
   type GuildShopState,
 } from "@/lib/worldbox/economy/guild-shop";
-import { isGuildShopEnabled, loadGuildShopState, storeGuildShopState } from "@/lib/worldbox/economy/guild-shop-online";
+import {
+  isGuildShopEnabled,
+  loadGuildShopState,
+  storeGuildShopState,
+} from "@/lib/worldbox/economy/guild-shop-online";
 import { itemById } from "@/lib/worldbox/economy/items";
 import { loadNationsState } from "@/lib/worldbox/social/nations-online";
 import { memberKeysOf, resolveMemberRole, taxRateOf } from "@/lib/worldbox/social/nation-settings";
-import { loadNationSettings, updateNationSettings } from "@/lib/worldbox/social/nation-settings-online";
+import {
+  loadNationSettings,
+  updateNationSettings,
+} from "@/lib/worldbox/social/nation-settings-online";
 import { listPresence } from "@/lib/worldbox/player/presence-online";
 import { presenceIdFor } from "@/lib/worldbox/player/presence";
 import { addItem, countItem, removeItem } from "@/lib/worldbox/player/profile";
@@ -102,7 +120,11 @@ async function resolvedRole(
   if (!nation) return membership.role;
   const settings = await loadNationSettings(membership.nationId);
   const resolved = resolveMemberRole(
-    nation, settings, ownerKey, membership.role, memberKeysOf(nations, membership.nationId),
+    nation,
+    settings,
+    ownerKey,
+    membership.role,
+    memberKeysOf(nations, membership.nationId),
   );
   return resolved?.role ?? membership.role;
 }
@@ -138,8 +160,12 @@ export async function POST(request: Request) {
     return err("invalid_request", 400);
   }
   const fields = (body ?? {}) as {
-    action?: unknown; plotIdx?: unknown; listingId?: unknown;
-    itemId?: unknown; count?: unknown; price?: unknown;
+    action?: unknown;
+    plotIdx?: unknown;
+    listingId?: unknown;
+    itemId?: unknown;
+    count?: unknown;
+    price?: unknown;
   };
   const ownerKey = sessionOwnerKey(session);
 
@@ -168,17 +194,29 @@ export async function POST(request: Request) {
 
     if (fields.action === "register") {
       if (!myGuild || !isLeader) return err("leader_only", 403);
-      const idx = typeof fields.plotIdx === "number" && Number.isFinite(fields.plotIdx) ? Math.floor(fields.plotIdx) : -1;
+      const idx =
+        typeof fields.plotIdx === "number" && Number.isFinite(fields.plotIdx)
+          ? Math.floor(fields.plotIdx)
+          : -1;
       if (idx < 0 || idx >= GUILD_PLOT_COUNT) return err("invalid_plot", 400);
       if (state.plots[idx]) return err("plot_taken", 409);
       if (plotOfGuild(state, myGuild)) return err("already_has_plot", 409);
       const balance = await readUserBalance(discordId);
       const ops = await loadMyEconomyOps(ownerKey);
-      const pending = ops.filter((o) => o.status === "pending" && o.kind === "spend").reduce((s, o) => s + o.amount, 0);
-      if (balance === null || balance - pending < GUILD_PLOT_FEE) return err("insufficient_balance", 409);
+      const pending = ops
+        .filter((o) => o.status === "pending" && o.kind === "spend")
+        .reduce((s, o) => s + o.amount, 0);
+      if (balance === null || balance - pending < GUILD_PLOT_FEE)
+        return err("insufficient_balance", 409);
       const feeSeq = state.feeSeq + 1;
       const op = buildEconomyOp(
-        { kind: "spend", userKey: ownerKey, discordId, amount: GUILD_PLOT_FEE, reason: "guild_plot_fee" },
+        {
+          kind: "spend",
+          userKey: ownerKey,
+          discordId,
+          amount: GUILD_PLOT_FEE,
+          reason: "guild_plot_fee",
+        },
         `gshop-fee-${discordId}-${feeSeq}`,
         Date.now(),
       );
@@ -213,8 +251,14 @@ export async function POST(request: Request) {
       }
       const itemId = typeof fields.itemId === "string" ? fields.itemId : "";
       const def = itemById(itemId);
-      const count = typeof fields.count === "number" && Number.isFinite(fields.count) ? Math.floor(fields.count) : 0;
-      const price = typeof fields.price === "number" && Number.isFinite(fields.price) ? Math.floor(fields.price) : 0;
+      const count =
+        typeof fields.count === "number" && Number.isFinite(fields.count)
+          ? Math.floor(fields.count)
+          : 0;
+      const price =
+        typeof fields.price === "number" && Number.isFinite(fields.price)
+          ? Math.floor(fields.price)
+          : 0;
       if (!def || count <= 0 || count > 999 || price <= 0 || price > 1_000_000) {
         return err("invalid_listing", 400);
       }
@@ -232,7 +276,8 @@ export async function POST(request: Request) {
     }
 
     if (fields.action === "unlist") {
-      const found = typeof fields.listingId === "string" ? findListing(state, fields.listingId) : null;
+      const found =
+        typeof fields.listingId === "string" ? findListing(state, fields.listingId) : null;
       if (!found) return err("no_listing", 404);
       const mine = found.listing.sellerKey === ownerKey;
       const leaderOfPlot = myGuild === found.plot.guildId && isLeader;
@@ -240,7 +285,10 @@ export async function POST(request: Request) {
       const left = listingAvailable(found.listing);
       if (left > 0) {
         const sellerProfile = await loadProfile(found.listing.sellerKey);
-        await storeProfile(found.listing.sellerKey, addItem(sellerProfile, found.listing.itemId, left));
+        await storeProfile(
+          found.listing.sellerKey,
+          addItem(sellerProfile, found.listing.itemId, left),
+        );
       }
       const plots = state.plots.map((p) =>
         p && p.idx === found.plot.idx
@@ -251,10 +299,15 @@ export async function POST(request: Request) {
     }
 
     if (fields.action === "buy") {
-      const found = typeof fields.listingId === "string" ? findListing(state, fields.listingId) : null;
+      const found =
+        typeof fields.listingId === "string" ? findListing(state, fields.listingId) : null;
       if (!found) return err("no_listing", 404);
-      const count = typeof fields.count === "number" && Number.isFinite(fields.count) ? Math.floor(fields.count) : 1;
-      if (count <= 0 || count > listingAvailable(found.listing)) return err("not_enough_stock", 409);
+      const count =
+        typeof fields.count === "number" && Number.isFinite(fields.count)
+          ? Math.floor(fields.count)
+          : 1;
+      if (count <= 0 || count > listingAvailable(found.listing))
+        return err("not_enough_stock", 409);
       if (found.listing.sellerKey === ownerKey) return err("own_listing", 409);
       // 区画カウンターの近くにいること（プレゼンス/セーブで検証）
       const pos = await lobbyPosition(ownerKey);
@@ -266,7 +319,9 @@ export async function POST(request: Request) {
       const cost = found.listing.price * count;
       const balance = await readUserBalance(discordId);
       const ops = await loadMyEconomyOps(ownerKey);
-      const pending = ops.filter((o) => o.status === "pending" && o.kind === "spend").reduce((s, o) => s + o.amount, 0);
+      const pending = ops
+        .filter((o) => o.status === "pending" && o.kind === "spend")
+        .reduce((s, o) => s + o.amount, 0);
       if (balance === null || balance - pending < cost) return err("insufficient_balance", 409);
       const newSold = found.listing.sold + count;
       const buyOp = buildEconomyOp(
@@ -289,7 +344,13 @@ export async function POST(request: Request) {
         : null;
       if (sellerDiscord) {
         const saleOp = buildEconomyOp(
-          { kind: "earn", userKey: found.listing.sellerKey, discordId: sellerDiscord, amount: sellerProceeds(found.listing.price, count, taxRate), reason: "guild_shop_sale" },
+          {
+            kind: "earn",
+            userKey: found.listing.sellerKey,
+            discordId: sellerDiscord,
+            amount: sellerProceeds(found.listing.price, count, taxRate),
+            reason: "guild_shop_sale",
+          },
           `gshop-sale-${found.listing.id}-${newSold}`,
           Date.now(),
         );
@@ -298,7 +359,8 @@ export async function POST(request: Request) {
       const tax = saleTaxAmount(found.listing.price, count, taxRate);
       if (tax > 0) {
         await updateNationSettings(found.plot.guildId, (cur) => ({
-          ...cur, taxCollected: cur.taxCollected + tax,
+          ...cur,
+          taxCollected: cur.taxCollected + tax,
         }));
       }
       const profile = await loadProfile(ownerKey);
@@ -308,7 +370,9 @@ export async function POST(request: Request) {
         p && p.idx === found.plot.idx
           ? {
               ...p,
-              listings: p.listings.map((l) => (l.id === found.listing.id ? { ...l, sold: newSold } : l)),
+              listings: p.listings.map((l) =>
+                l.id === found.listing.id ? { ...l, sold: newSold } : l,
+              ),
             }
           : p,
       );

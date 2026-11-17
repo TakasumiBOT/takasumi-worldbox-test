@@ -1,6 +1,12 @@
 import crypto from "node:crypto";
 import { NextResponse } from "next/server";
-import { SESSION_COOKIE, createSession, getRequestSession, publicOrigin, sessionCookieOptions } from "@/lib/auth";
+import {
+  SESSION_COOKIE,
+  createSession,
+  getRequestSession,
+  publicOrigin,
+  sessionCookieOptions,
+} from "@/lib/auth";
 
 export const runtime = "nodejs";
 

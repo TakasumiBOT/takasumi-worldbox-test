@@ -42,12 +42,21 @@ function loadBundle(files, names) {
 }
 
 const {
-  PRESENCE_POLL_MS, PRESENCE_SAFETY_POLL_MS, WS_ALIVE_WINDOW_MS,
-  isWsHealthy, presencePollDue,
-} = loadBundle(["worldbox/core/realtime-poll.ts"], [
-  "PRESENCE_POLL_MS", "PRESENCE_SAFETY_POLL_MS", "WS_ALIVE_WINDOW_MS",
-  "isWsHealthy", "presencePollDue",
-]);
+  PRESENCE_POLL_MS,
+  PRESENCE_SAFETY_POLL_MS,
+  WS_ALIVE_WINDOW_MS,
+  isWsHealthy,
+  presencePollDue,
+} = loadBundle(
+  ["worldbox/core/realtime-poll.ts"],
+  [
+    "PRESENCE_POLL_MS",
+    "PRESENCE_SAFETY_POLL_MS",
+    "WS_ALIVE_WINDOW_MS",
+    "isWsHealthy",
+    "presencePollDue",
+  ],
+);
 
 test("realtime-poll: 間隔定数が設計どおり", () => {
   assert.equal(PRESENCE_POLL_MS, 1_000);
@@ -82,7 +91,13 @@ test("realtime-poll: relay は定期 tick を送り、クライアントは生�
   const server = fs.readFileSync(path.join(rootDir, "realtime-server.js"), "utf8");
   assert.ok(server.includes('t: "tick"'), "relay に tick 送信が無い");
   assert.ok(server.includes("15_000"), "tick 間隔が15秒でない");
-  const client = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"), "utf8");
+  const client = fs.readFileSync(
+    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    "utf8",
+  );
   assert.ok(client.includes("lastWsMsgAt = arrivedAt"), "受信時刻を記録していない");
-  assert.ok(client.includes("checkNearDungeonEntrance"), "入口近接判定が tick から分離されていない");
+  assert.ok(
+    client.includes("checkNearDungeonEntrance"),
+    "入口近接判定が tick から分離されていない",
+  );
 });

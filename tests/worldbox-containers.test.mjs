@@ -56,21 +56,46 @@ const inv = await import(invUrl);
 const containersUrl = bundleModule(
   ["worldbox/economy/items.ts", "worldbox/player/profile.ts", "worldbox/economy/containers.ts"],
   [
-    "CONTAINER_DEFS", "containerCapacity", "isContainerItem", "emptyContainer",
-    "containerIsEmpty", "parseContainerState", "serializeContainerState",
-    "parseContainerSlotRef", "moveContainerSlot",
+    "CONTAINER_DEFS",
+    "containerCapacity",
+    "isContainerItem",
+    "emptyContainer",
+    "containerIsEmpty",
+    "parseContainerState",
+    "serializeContainerState",
+    "parseContainerSlotRef",
+    "moveContainerSlot",
   ],
 );
 const C = await import(containersUrl);
 
 const tilesUrl = bundleModule(
-  ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/economy/items.ts", "worldbox/player/profile.ts", "worldbox/player/presence.ts", "worldbox/world/seasons.ts", "worldbox/world/tiles.ts"],
   [
-    "worldTileSource", "mapTileAt", "T_GRASS",
-    "applyTileAction", "applyPlaceBlock", "applyMineBlock", "applyFlowerAction", "applyToggleGate",
-    "applySetSign", "applyDisplayAction", "applyDrawWater",
-    "tileKey", "parseTileOverride", "parseTileOverrides",
-    "presenceIdFor", "isOverrideActive",
+    "worldbox/core/rng.ts",
+    "worldbox/world/mapgen.ts",
+    "worldbox/economy/items.ts",
+    "worldbox/player/profile.ts",
+    "worldbox/player/presence.ts",
+    "worldbox/world/seasons.ts",
+    "worldbox/world/tiles.ts",
+  ],
+  [
+    "worldTileSource",
+    "mapTileAt",
+    "T_GRASS",
+    "applyTileAction",
+    "applyPlaceBlock",
+    "applyMineBlock",
+    "applyFlowerAction",
+    "applyToggleGate",
+    "applySetSign",
+    "applyDisplayAction",
+    "applyDrawWater",
+    "tileKey",
+    "parseTileOverride",
+    "parseTileOverrides",
+    "presenceIdFor",
+    "isOverrideActive",
   ],
 );
 const T = await import(tilesUrl);
@@ -123,7 +148,10 @@ test("状態: 空コンテナの生成と serialize/parse の往復", () => {
   const parsed = C.parseContainerState(C.serializeContainerState(state), "chest_box");
   assert.deepEqual(parsed, state);
   // オブジェクトのまま渡しても読める
-  assert.deepEqual(C.parseContainerState(JSON.parse(C.serializeContainerState(state)), "chest_box"), state);
+  assert.deepEqual(
+    C.parseContainerState(JSON.parse(C.serializeContainerState(state)), "chest_box"),
+    state,
+  );
 });
 
 test("状態: 壊れたデータは null、枠は容量に整えられ不正な中身は落ちる", () => {
@@ -131,9 +159,16 @@ test("状態: 壊れたデータは null、枠は容量に整えられ不正な�
   assert.equal(C.parseContainerState(null, "barrel"), null);
   assert.equal(C.parseContainerState({ ownerId: "", slots: [] }, "barrel"), null);
   assert.equal(C.parseContainerState({ ownerId: ME_ID }, "barrel"), null, "slots が無い");
-  assert.equal(C.parseContainerState({ ownerId: ME_ID, slots: [] }, "bench"), null, "コンテナでない");
+  assert.equal(
+    C.parseContainerState({ ownerId: ME_ID, slots: [] }, "bench"),
+    null,
+    "コンテナでない",
+  );
   const wide = C.parseContainerState(
-    { ownerId: ME_ID, slots: [...emptySlots(9), slot("wood", 500), slot("stone", 1), slot("nope_item", 1)] },
+    {
+      ownerId: ME_ID,
+      slots: [...emptySlots(9), slot("wood", 500), slot("stone", 1), slot("nope_item", 1)],
+    },
     "barrel",
   );
   assert.equal(wide.slots.length, 10, "容量を超えた分は切る");
@@ -166,9 +201,25 @@ const containerTotal = (state, id) =>
   state.slots.reduce((n, s) => n + (s && s.id === id ? s.count : 0), 0);
 
 test("移動: プロフィール→コンテナ（枠ごと移動し、集計も減る）", () => {
-  const p = profWith(emptySlots(5), [null, null, slot("wood", 5), null, null, null, null, null, null, null]);
+  const p = profWith(emptySlots(5), [
+    null,
+    null,
+    slot("wood", 5),
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+  ]);
   const c = C.emptyContainer(ME_ID, "barrel");
-  const r = C.moveContainerSlot(p, c, { side: "profile_storage", index: 2 }, { side: "container", index: 0 });
+  const r = C.moveContainerSlot(
+    p,
+    c,
+    { side: "profile_storage", index: 2 },
+    { side: "container", index: 0 },
+  );
   assert.deepEqual(r.container.slots[0], { id: "wood", count: 5 });
   assert.equal(r.profile.storage[2], null);
   assert.equal(inv.countItem(r.profile, "wood"), 0, "プロフィールの集計からも消える");
@@ -180,7 +231,12 @@ test("移動: プロフィール→コンテナ（枠ごと移動し、集計も
 test("移動: コンテナ→プロフィール（ホットバーへ戻り、集計も増える）", () => {
   const p = profWith(emptySlots(5), emptySlots(10));
   const c = containerWith("chest_box", [[4, slot("stone", 7)]]);
-  const r = C.moveContainerSlot(p, c, { side: "container", index: 4 }, { side: "profile_hotbar", index: 1 });
+  const r = C.moveContainerSlot(
+    p,
+    c,
+    { side: "container", index: 4 },
+    { side: "profile_hotbar", index: 1 },
+  );
   assert.deepEqual(r.profile.hotbar[1], { id: "stone", count: 7 });
   assert.equal(r.container.slots[4], null);
   assert.equal(inv.countItem(r.profile, "stone"), 7);
@@ -190,26 +246,50 @@ test("移動: コンテナ→プロフィール（ホットバーへ戻り、集
 test("移動: 同種は合算し、上限を超えた分は元の枠に残る", () => {
   const p = profWith([slot("wood", 20), null, null, null, null], emptySlots(10));
   const c = containerWith("barrel", [[0, slot("wood", 90)]]);
-  const r = C.moveContainerSlot(p, c, { side: "profile_hotbar", index: 0 }, { side: "container", index: 0 });
+  const r = C.moveContainerSlot(
+    p,
+    c,
+    { side: "profile_hotbar", index: 0 },
+    { side: "container", index: 0 },
+  );
   assert.deepEqual(r.container.slots[0], { id: "wood", count: 99 });
   assert.deepEqual(r.profile.hotbar[0], { id: "wood", count: 11 });
-  assert.equal(inv.countItem(r.profile, "wood") + containerTotal(r.container, "wood"), 110, "総量は保存される");
+  assert.equal(
+    inv.countItem(r.profile, "wood") + containerTotal(r.container, "wood"),
+    110,
+    "総量は保存される",
+  );
 });
 
 test("移動: 異種は入れ替え、コンテナ内・プロフィール内の移動もできる", () => {
   const p = profWith([slot("wood", 5), null, null, null, null], emptySlots(10));
   const c = containerWith("barrel", [[0, slot("stone", 3)]]);
-  const swapped = C.moveContainerSlot(p, c, { side: "profile_hotbar", index: 0 }, { side: "container", index: 0 });
+  const swapped = C.moveContainerSlot(
+    p,
+    c,
+    { side: "profile_hotbar", index: 0 },
+    { side: "container", index: 0 },
+  );
   assert.deepEqual(swapped.container.slots[0], { id: "wood", count: 5 });
   assert.deepEqual(swapped.profile.hotbar[0], { id: "stone", count: 3 });
   assert.equal(inv.countItem(swapped.profile, "wood"), 0);
   assert.equal(inv.countItem(swapped.profile, "stone"), 3);
 
-  const within = C.moveContainerSlot(swapped.profile, swapped.container, { side: "container", index: 0 }, { side: "container", index: 9 });
+  const within = C.moveContainerSlot(
+    swapped.profile,
+    swapped.container,
+    { side: "container", index: 0 },
+    { side: "container", index: 9 },
+  );
   assert.equal(within.container.slots[0], null);
   assert.deepEqual(within.container.slots[9], { id: "wood", count: 5 });
 
-  const inProfile = C.moveContainerSlot(within.profile, within.container, { side: "profile_hotbar", index: 0 }, { side: "profile_storage", index: 6 });
+  const inProfile = C.moveContainerSlot(
+    within.profile,
+    within.container,
+    { side: "profile_hotbar", index: 0 },
+    { side: "profile_storage", index: 6 },
+  );
   assert.equal(inProfile.profile.hotbar[0], null);
   assert.deepEqual(inProfile.profile.storage[6], { id: "stone", count: 3 });
   assert.equal(inv.countItem(inProfile.profile, "stone"), 3, "プロフィール内移動では集計は不変");
@@ -218,16 +298,44 @@ test("移動: 異種は入れ替え、コンテナ内・プロフィール内の
 test("移動: 空枠から・同枠は現状維持、不正な住所は null", () => {
   const p = profWith([slot("wood", 5), null, null, null, null], emptySlots(10));
   const c = C.emptyContainer(ME_ID, "barrel");
-  const noop1 = C.moveContainerSlot(p, c, { side: "container", index: 0 }, { side: "profile_hotbar", index: 1 });
+  const noop1 = C.moveContainerSlot(
+    p,
+    c,
+    { side: "container", index: 0 },
+    { side: "profile_hotbar", index: 1 },
+  );
   assert.equal(noop1.profile, p, "空枠からは動かない");
   assert.equal(noop1.container, c);
-  const noop2 = C.moveContainerSlot(p, c, { side: "profile_hotbar", index: 0 }, { side: "profile_hotbar", index: 0 });
+  const noop2 = C.moveContainerSlot(
+    p,
+    c,
+    { side: "profile_hotbar", index: 0 },
+    { side: "profile_hotbar", index: 0 },
+  );
   assert.equal(noop2.profile, p, "同枠は現状維持");
-  assert.equal(C.moveContainerSlot(p, c, { side: "vault", index: 0 }, { side: "container", index: 0 }), null);
-  assert.equal(C.moveContainerSlot(p, c, { side: "container", index: 10 }, { side: "container", index: 0 }), null, "樽の容量は10枠");
-  assert.equal(C.moveContainerSlot(p, c, { side: "profile_hotbar", index: 5 }, { side: "container", index: 0 }), null);
+  assert.equal(
+    C.moveContainerSlot(p, c, { side: "vault", index: 0 }, { side: "container", index: 0 }),
+    null,
+  );
+  assert.equal(
+    C.moveContainerSlot(p, c, { side: "container", index: 10 }, { side: "container", index: 0 }),
+    null,
+    "樽の容量は10枠",
+  );
+  assert.equal(
+    C.moveContainerSlot(
+      p,
+      c,
+      { side: "profile_hotbar", index: 5 },
+      { side: "container", index: 0 },
+    ),
+    null,
+  );
   assert.equal(C.moveContainerSlot(p, c, null, { side: "container", index: 0 }), null);
-  assert.deepEqual(C.parseContainerSlotRef({ side: "container", index: 14 }, 15), { side: "container", index: 14 });
+  assert.deepEqual(C.parseContainerSlotRef({ side: "container", index: 14 }, 15), {
+    side: "container",
+    index: 14,
+  });
   assert.equal(C.parseContainerSlotRef({ side: "container", index: 15 }, 15), null);
 });
 
@@ -293,9 +401,13 @@ test("containers-online(S4): 旧形式のワールド分は読めて、書き込
 // ---------- API（コンテナ＋タイルの not_empty） ----------
 
 const subdomainUrl = dataUrl(transpile("subdomain.ts"));
-const headersStubUrl = dataUrl("export async function cookies() { throw new Error('tests do not use cookies()'); }");
+const headersStubUrl = dataUrl(
+  "export async function cookies() { throw new Error('tests do not use cookies()'); }",
+);
 const authUrl = dataUrl(
-  transpile("auth.ts").replaceAll('"./subdomain"', JSON.stringify(subdomainUrl)).replaceAll('"next/headers"', JSON.stringify(headersStubUrl)),
+  transpile("auth.ts")
+    .replaceAll('"./subdomain"', JSON.stringify(subdomainUrl))
+    .replaceAll('"next/headers"', JSON.stringify(headersStubUrl)),
 );
 const auth = await import(authUrl);
 
@@ -350,15 +462,46 @@ function routeImport(file, replacements) {
 }
 const userLockUrl = dataUrl(transpile("worldbox/core/user-lock.ts"));
 const tentUrl = bundleModule(
-  ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/economy/items.ts", "worldbox/player/profile.ts", "worldbox/player/presence.ts", "worldbox/world/seasons.ts", "worldbox/world/tiles.ts", "worldbox/world/lobby.ts", "worldbox/world/tent.ts"],
+  [
+    "worldbox/core/rng.ts",
+    "worldbox/world/mapgen.ts",
+    "worldbox/economy/items.ts",
+    "worldbox/player/profile.ts",
+    "worldbox/player/presence.ts",
+    "worldbox/world/seasons.ts",
+    "worldbox/world/tiles.ts",
+    "worldbox/world/lobby.ts",
+    "worldbox/world/tent.ts",
+  ],
   ["buildTent", "TENT_H", "SEAT_SPRITES"],
 );
 const lobbyUrl = bundleModule(
-  ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/economy/items.ts", "worldbox/player/profile.ts", "worldbox/player/presence.ts", "worldbox/world/seasons.ts", "worldbox/world/tiles.ts", "worldbox/world/lobby.ts", "worldbox/economy/shops.ts"],
+  [
+    "worldbox/core/rng.ts",
+    "worldbox/world/mapgen.ts",
+    "worldbox/economy/items.ts",
+    "worldbox/player/profile.ts",
+    "worldbox/player/presence.ts",
+    "worldbox/world/seasons.ts",
+    "worldbox/world/tiles.ts",
+    "worldbox/world/lobby.ts",
+    "worldbox/economy/shops.ts",
+  ],
   ["buildLobby"],
 );
 const lobbyFloorsUrl = bundleModule(
-  ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/economy/items.ts", "worldbox/player/profile.ts", "worldbox/player/presence.ts", "worldbox/world/seasons.ts", "worldbox/world/tiles.ts", "worldbox/world/lobby.ts", "worldbox/economy/shops.ts", "worldbox/world/lobby-floors.ts"],
+  [
+    "worldbox/core/rng.ts",
+    "worldbox/world/mapgen.ts",
+    "worldbox/economy/items.ts",
+    "worldbox/player/profile.ts",
+    "worldbox/player/presence.ts",
+    "worldbox/world/seasons.ts",
+    "worldbox/world/tiles.ts",
+    "worldbox/world/lobby.ts",
+    "worldbox/economy/shops.ts",
+    "worldbox/world/lobby-floors.ts",
+  ],
   ["buildLobby2", "buildLobby3"],
 );
 const tentMod = await import(tentUrl);
@@ -380,7 +523,10 @@ const containersRoute = await routeImport("api/worldbox/containers/route.ts", [
   ['"@/lib/worldbox/world/lobby-floors"', lobbyFloorsUrl],
   ['"@/lib/worldbox/core/user-lock"', userLockUrl],
 ]);
-const machinesUrl = bundleModule(["worldbox/economy/items.ts", "worldbox/economy/machines.ts"], ["isMachineItem", "machineBufferCount"]);
+const machinesUrl = bundleModule(
+  ["worldbox/economy/items.ts", "worldbox/economy/machines.ts"],
+  ["isMachineItem", "machineBufferCount"],
+);
 const opsOnlineStubUrl = dataUrl(`
 export async function loadFrozen() { return false; }
 export async function appendTileJournal() {}
@@ -397,7 +543,10 @@ const machinesOnlineStubUrl = dataUrl(`
 export async function loadMachine() { return null; }
 export async function deleteMachine() {}
 `);
-const stallsUrl = bundleModule(["worldbox/economy/items.ts", "worldbox/economy/stalls.ts"], ["isStallItem"]);
+const stallsUrl = bundleModule(
+  ["worldbox/economy/items.ts", "worldbox/economy/stalls.ts"],
+  ["isStallItem"],
+);
 const stallsOnlineStubUrl = dataUrl(`
 export async function loadStall() { return null; }
 export async function storeStall() { return true; }
@@ -490,9 +639,13 @@ test("API(containers): 未ログインは 401、コンテナが無いタイル�
   assert.equal(none.status, 404);
   assert.equal((await none.json()).error, "no_container");
   // コンテナでないブロックも 404
-  globalThis.__wbContainerTiles.set(KEY, JSON.stringify({
-    block: { itemId: "dirt_block", ownerId: MY_ID }, ownerId: MY_ID,
-  }));
+  globalThis.__wbContainerTiles.set(
+    KEY,
+    JSON.stringify({
+      block: { itemId: "dirt_block", ownerId: MY_ID },
+      ownerId: MY_ID,
+    }),
+  );
   const notContainer = await containersRoute.GET(apiRequest(url, "GET", cookie));
   assert.equal(notContainer.status, 404);
   assert.equal((await notContainer.json()).error, "no_container");
@@ -502,7 +655,9 @@ test("API(containers): 樽の中身は全員共有（他人の設置した樽も
   resetStores();
   seedBarrel(MY_ID);
   const cookie = sessionCookie(ME, "owner");
-  const res = await containersRoute.GET(apiRequest(`${URL_C}?x=${GRASS.x}&y=${GRASS.y}`, "GET", cookie));
+  const res = await containersRoute.GET(
+    apiRequest(`${URL_C}?x=${GRASS.x}&y=${GRASS.y}`, "GET", cookie),
+  );
   assert.equal(res.status, 200);
   const data = await res.json();
   assert.equal(data.itemId, "barrel");
@@ -514,16 +669,29 @@ test("API(containers): 樽の中身は全員共有（他人の設置した樽も
   // 設置者以外も開ける（共有）
   seedProfile(OTHER_KEY, profWith([slot("stone", 3), null, null, null, null], emptySlots(10)));
   const otherCookie = sessionCookie(OTHER, "guest");
-  const opened = await containersRoute.GET(apiRequest(`${URL_C}?x=${GRASS.x}&y=${GRASS.y}`, "GET", otherCookie));
+  const opened = await containersRoute.GET(
+    apiRequest(`${URL_C}?x=${GRASS.x}&y=${GRASS.y}`, "GET", otherCookie),
+  );
   assert.equal(opened.status, 200, "他人の樽も開ける");
   // 設置者以外も出し入れでき、設置者にも同じ中身が見える
-  const guestMove = await containersRoute.POST(apiRequest(URL_C, "POST", otherCookie, {
-    action: "move", x: GRASS.x, y: GRASS.y,
-    from: { side: "profile_hotbar", index: 0 }, to: { side: "container", index: 0 },
-  }));
+  const guestMove = await containersRoute.POST(
+    apiRequest(URL_C, "POST", otherCookie, {
+      action: "move",
+      x: GRASS.x,
+      y: GRASS.y,
+      from: { side: "profile_hotbar", index: 0 },
+      to: { side: "container", index: 0 },
+    }),
+  );
   assert.equal(guestMove.status, 200, "他人も出し入れできる");
-  const ownerView = await containersRoute.GET(apiRequest(`${URL_C}?x=${GRASS.x}&y=${GRASS.y}`, "GET", cookie));
-  assert.deepEqual((await ownerView.json()).container.slots[0], { id: "stone", count: 3 }, "中身は共有される");
+  const ownerView = await containersRoute.GET(
+    apiRequest(`${URL_C}?x=${GRASS.x}&y=${GRASS.y}`, "GET", cookie),
+  );
+  assert.deepEqual(
+    (await ownerView.json()).container.slots[0],
+    { id: "stone", count: 3 },
+    "中身は共有される",
+  );
 });
 
 test("API(containers): 出し入れが保存され、GET に反映される", async () => {
@@ -531,32 +699,49 @@ test("API(containers): 出し入れが保存され、GET に反映される", as
   seedBarrel(MY_ID);
   seedProfile(MY_KEY, profWith([slot("wood", 5), null, null, null, null], emptySlots(10)));
   const cookie = sessionCookie(ME, "owner");
-  const moved = await containersRoute.POST(apiRequest(URL_C, "POST", cookie, {
-    action: "move", x: GRASS.x, y: GRASS.y,
-    from: { side: "profile_hotbar", index: 0 }, to: { side: "container", index: 2 },
-  }));
+  const moved = await containersRoute.POST(
+    apiRequest(URL_C, "POST", cookie, {
+      action: "move",
+      x: GRASS.x,
+      y: GRASS.y,
+      from: { side: "profile_hotbar", index: 0 },
+      to: { side: "container", index: 2 },
+    }),
+  );
   assert.equal(moved.status, 200);
   const movedData = await moved.json();
   assert.deepEqual(movedData.container.slots[2], { id: "wood", count: 5 });
   assert.equal(inv.countItem(movedData.profile, "wood"), 0);
   assert.ok(globalThis.__wbContainers.has(CKEY), "コンテナ状態が保存される");
 
-  const got = await containersRoute.GET(apiRequest(`${URL_C}?x=${GRASS.x}&y=${GRASS.y}`, "GET", cookie));
+  const got = await containersRoute.GET(
+    apiRequest(`${URL_C}?x=${GRASS.x}&y=${GRASS.y}`, "GET", cookie),
+  );
   assert.deepEqual((await got.json()).container.slots[2], { id: "wood", count: 5 });
 
-  const back = await containersRoute.POST(apiRequest(URL_C, "POST", cookie, {
-    action: "move", x: GRASS.x, y: GRASS.y,
-    from: { side: "container", index: 2 }, to: { side: "profile_storage", index: 0 },
-  }));
+  const back = await containersRoute.POST(
+    apiRequest(URL_C, "POST", cookie, {
+      action: "move",
+      x: GRASS.x,
+      y: GRASS.y,
+      from: { side: "container", index: 2 },
+      to: { side: "profile_storage", index: 0 },
+    }),
+  );
   assert.equal(back.status, 200);
   const backData = await back.json();
   assert.equal(backData.container.slots[2], null);
   assert.equal(inv.countItem(backData.profile, "wood"), 5);
 
-  const bad = await containersRoute.POST(apiRequest(URL_C, "POST", cookie, {
-    action: "move", x: GRASS.x, y: GRASS.y,
-    from: { side: "vault", index: 0 }, to: { side: "container", index: 0 },
-  }));
+  const bad = await containersRoute.POST(
+    apiRequest(URL_C, "POST", cookie, {
+      action: "move",
+      x: GRASS.x,
+      y: GRASS.y,
+      from: { side: "vault", index: 0 },
+      to: { side: "container", index: 0 },
+    }),
+  );
   assert.equal(bad.status, 400, "不正な住所は 400");
 });
 
@@ -568,53 +753,88 @@ test("API(containers): 遠くのコンテナは隣接検証で 409", async () =>
     { id: MY_ID, space: "world", x: GRASS.x + 10, y: GRASS.y, ts: Date.now() },
   ];
   const cookie = sessionCookie(ME, "owner");
-  const res = await containersRoute.POST(apiRequest(URL_C, "POST", cookie, {
-    action: "move", x: GRASS.x, y: GRASS.y,
-    from: { side: "profile_hotbar", index: 0 }, to: { side: "container", index: 0 },
-  }));
+  const res = await containersRoute.POST(
+    apiRequest(URL_C, "POST", cookie, {
+      action: "move",
+      x: GRASS.x,
+      y: GRASS.y,
+      from: { side: "profile_hotbar", index: 0 },
+      to: { side: "container", index: 0 },
+    }),
+  );
   assert.equal(res.status, 409);
   assert.equal((await res.json()).error, "too_far");
 });
 
 test("API(tiles): 中身がある樽は掘れず、空にすると回収できて状態も消える", async () => {
   resetStores();
-  seedProfile(MY_KEY, profWith([slot("barrel", 1), slot("wood", 5), null, null, null], emptySlots(10)));
+  seedProfile(
+    MY_KEY,
+    profWith([slot("barrel", 1), slot("wood", 5), null, null, null], emptySlots(10)),
+  );
   const cookie = sessionCookie(ME, "owner");
-  const placed = await tilesRoute.POST(apiRequest(URL_T, "POST", cookie, {
-    action: "place_block", x: GRASS.x, y: GRASS.y, itemId: "barrel",
-  }));
+  const placed = await tilesRoute.POST(
+    apiRequest(URL_T, "POST", cookie, {
+      action: "place_block",
+      x: GRASS.x,
+      y: GRASS.y,
+      itemId: "barrel",
+    }),
+  );
   assert.equal(placed.status, 200);
 
-  const put = await containersRoute.POST(apiRequest(URL_C, "POST", cookie, {
-    action: "move", x: GRASS.x, y: GRASS.y,
-    from: { side: "profile_hotbar", index: 1 }, to: { side: "container", index: 0 },
-  }));
+  const put = await containersRoute.POST(
+    apiRequest(URL_C, "POST", cookie, {
+      action: "move",
+      x: GRASS.x,
+      y: GRASS.y,
+      from: { side: "profile_hotbar", index: 1 },
+      to: { side: "container", index: 0 },
+    }),
+  );
   assert.equal(put.status, 200);
 
-  const blocked = await tilesRoute.POST(apiRequest(URL_T, "POST", cookie, {
-    action: "mine_block", x: GRASS.x, y: GRASS.y,
-  }));
+  const blocked = await tilesRoute.POST(
+    apiRequest(URL_T, "POST", cookie, {
+      action: "mine_block",
+      x: GRASS.x,
+      y: GRASS.y,
+    }),
+  );
   assert.equal(blocked.status, 409);
   assert.equal((await blocked.json()).error, "not_empty");
   assert.ok(globalThis.__wbContainerTiles.has(KEY), "ブロックは残る");
 
-  const take = await containersRoute.POST(apiRequest(URL_C, "POST", cookie, {
-    action: "move", x: GRASS.x, y: GRASS.y,
-    from: { side: "container", index: 0 }, to: { side: "profile_hotbar", index: 1 },
-  }));
+  const take = await containersRoute.POST(
+    apiRequest(URL_C, "POST", cookie, {
+      action: "move",
+      x: GRASS.x,
+      y: GRASS.y,
+      from: { side: "container", index: 0 },
+      to: { side: "profile_hotbar", index: 1 },
+    }),
+  );
   assert.equal(take.status, 200);
 
   // HP制: 樽（既定 HP10）は素手6で2ヒット。1ヒットでは残り、状態も消えない
-  const hit = await tilesRoute.POST(apiRequest(URL_T, "POST", cookie, {
-    action: "mine_block", x: GRASS.x, y: GRASS.y,
-  }));
+  const hit = await tilesRoute.POST(
+    apiRequest(URL_T, "POST", cookie, {
+      action: "mine_block",
+      x: GRASS.x,
+      y: GRASS.y,
+    }),
+  );
   assert.equal(hit.status, 200);
   assert.deepEqual((await hit.json()).gained, {});
   assert.ok(globalThis.__wbContainerTiles.has(KEY), "1ヒットではブロックは残る");
 
-  const dug = await tilesRoute.POST(apiRequest(URL_T, "POST", cookie, {
-    action: "mine_block", x: GRASS.x, y: GRASS.y,
-  }));
+  const dug = await tilesRoute.POST(
+    apiRequest(URL_T, "POST", cookie, {
+      action: "mine_block",
+      x: GRASS.x,
+      y: GRASS.y,
+    }),
+  );
   assert.equal(dug.status, 200);
   assert.deepEqual((await dug.json()).gained, { barrel: 1 });
   assert.equal(globalThis.__wbContainerTiles.has(KEY), false, "上書きが消える");
@@ -630,20 +850,32 @@ test("API(tiles): 空の樽は設置者以外でも回収できる（中身が�
   const filled = C.emptyContainer(MY_ID, "barrel");
   filled.slots[0] = slot("stone", 1);
   globalThis.__wbContainers.set(CKEY, C.serializeContainerState(filled));
-  const blocked = await tilesRoute.POST(apiRequest(URL_T, "POST", otherCookie, {
-    action: "mine_block", x: GRASS.x, y: GRASS.y,
-  }));
+  const blocked = await tilesRoute.POST(
+    apiRequest(URL_T, "POST", otherCookie, {
+      action: "mine_block",
+      x: GRASS.x,
+      y: GRASS.y,
+    }),
+  );
   assert.equal(blocked.status, 409);
   assert.equal((await blocked.json()).error, "not_empty");
   // 空なら設置者以外でも回収でき、樽は掘った者のものになる
   globalThis.__wbContainers.set(CKEY, C.serializeContainerState(C.emptyContainer(MY_ID, "barrel")));
-  const hit = await tilesRoute.POST(apiRequest(URL_T, "POST", otherCookie, {
-    action: "mine_block", x: GRASS.x, y: GRASS.y,
-  }));
+  const hit = await tilesRoute.POST(
+    apiRequest(URL_T, "POST", otherCookie, {
+      action: "mine_block",
+      x: GRASS.x,
+      y: GRASS.y,
+    }),
+  );
   assert.equal(hit.status, 200, "他人の空樽でもヒットできる");
-  const dug = await tilesRoute.POST(apiRequest(URL_T, "POST", otherCookie, {
-    action: "mine_block", x: GRASS.x, y: GRASS.y,
-  }));
+  const dug = await tilesRoute.POST(
+    apiRequest(URL_T, "POST", otherCookie, {
+      action: "mine_block",
+      x: GRASS.x,
+      y: GRASS.y,
+    }),
+  );
   assert.equal(dug.status, 200);
   assert.deepEqual((await dug.json()).gained, { barrel: 1 }, "回収した樽は掘った者に入る");
   assert.equal(globalThis.__wbContainerTiles.has(KEY), false);
@@ -651,13 +883,22 @@ test("API(tiles): 空の樽は設置者以外でも回収できる（中身が�
   resetStores();
   seedProfile(MY_KEY, profWith([slot("dirt_block", 1), null, null, null, null], emptySlots(10)));
   const cookie = sessionCookie(ME, "owner");
-  const placed = await tilesRoute.POST(apiRequest(URL_T, "POST", cookie, {
-    action: "place_block", x: GRASS.x, y: GRASS.y, itemId: "dirt_block",
-  }));
+  const placed = await tilesRoute.POST(
+    apiRequest(URL_T, "POST", cookie, {
+      action: "place_block",
+      x: GRASS.x,
+      y: GRASS.y,
+      itemId: "dirt_block",
+    }),
+  );
   assert.equal(placed.status, 200);
-  const denied = await tilesRoute.POST(apiRequest(URL_T, "POST", otherCookie, {
-    action: "mine_block", x: GRASS.x, y: GRASS.y,
-  }));
+  const denied = await tilesRoute.POST(
+    apiRequest(URL_T, "POST", otherCookie, {
+      action: "mine_block",
+      x: GRASS.x,
+      y: GRASS.y,
+    }),
+  );
   assert.equal(denied.status, 403);
   assert.equal((await denied.json()).error, "not_owner");
 });
@@ -666,28 +907,43 @@ test("API(tiles, S4): 同じ樽への並行 mine_block でも回収は1回だけ
   resetStores();
   seedProfile(MY_KEY, profWith([slot("barrel", 1), null, null, null, null], emptySlots(10)));
   const cookie = sessionCookie(ME, "owner");
-  const placed = await tilesRoute.POST(apiRequest(URL_T, "POST", cookie, {
-    action: "place_block", x: GRASS.x, y: GRASS.y, itemId: "barrel",
-  }));
+  const placed = await tilesRoute.POST(
+    apiRequest(URL_T, "POST", cookie, {
+      action: "place_block",
+      x: GRASS.x,
+      y: GRASS.y,
+      itemId: "barrel",
+    }),
+  );
   assert.equal(placed.status, 200);
   // 二重タップ/リトライを再現して同時に掘る（HP制: 樽 HP10 を素手6で
   // 3連打すると ヒット→破壊→no_block になり、回収は1回だけ起きる）
-  const responses = await Promise.all([0, 1, 2].map(() =>
-    tilesRoute.POST(apiRequest(URL_T, "POST", cookie, { action: "mine_block", x: GRASS.x, y: GRASS.y })),
-  ));
+  const responses = await Promise.all(
+    [0, 1, 2].map(() =>
+      tilesRoute.POST(
+        apiRequest(URL_T, "POST", cookie, { action: "mine_block", x: GRASS.x, y: GRASS.y }),
+      ),
+    ),
+  );
   const bodies = [];
   for (const res of responses) bodies.push({ status: res.status, body: await res.json() });
-  assert.deepEqual(bodies.map((b) => b.status).sort(), [200, 200, 409], "ヒットと破壊が1回ずつ、残りは失敗する");
+  assert.deepEqual(
+    bodies.map((b) => b.status).sort(),
+    [200, 200, 409],
+    "ヒットと破壊が1回ずつ、残りは失敗する",
+  );
   assert.equal(bodies.filter((b) => b.body.gained?.barrel === 1).length, 1, "回収は1回だけ");
-  assert.equal(bodies.find((b) => b.status === 409).body.error, "no_block", "掘られた後のブロックは無い");
+  assert.equal(
+    bodies.find((b) => b.status === 409).body.error,
+    "no_block",
+    "掘られた後のブロックは無い",
+  );
 });
 
 test("API(containers): テントの備え付け樽が収納として開け、出し入れできる", async () => {
   resetStores();
   // tier 0 のテント内装: 樽は (2, 8)、木箱は (1, 8)
-  globalThis.__wbContainerPresence = [
-    { id: MY_ID, space: "tent", x: 2, y: 7, ts: Date.now() },
-  ];
+  globalThis.__wbContainerPresence = [{ id: MY_ID, space: "tent", x: 2, y: 7, ts: Date.now() }];
   seedProfile(MY_KEY, profWith([slot("wood", 5), null, null, null, null], emptySlots(10)));
   const cookie = sessionCookie(ME, "owner");
   const res = await containersRoute.GET(apiRequest(`${URL_C}?x=2&y=8&space=tent`, "GET", cookie));
@@ -701,23 +957,25 @@ test("API(containers): テントの備え付け樽が収納として開け、出
   assert.equal(crate.status, 200);
   assert.equal((await crate.json()).itemId, "crate");
   // 収納でない家具（ソファ）は 404（隣に立って確認する）
-  globalThis.__wbContainerPresence = [
-    { id: MY_ID, space: "tent", x: 11, y: 7, ts: Date.now() },
-  ];
+  globalThis.__wbContainerPresence = [{ id: MY_ID, space: "tent", x: 11, y: 7, ts: Date.now() }];
   const sofa = await containersRoute.GET(apiRequest(`${URL_C}?x=11&y=8&space=tent`, "GET", cookie));
   assert.equal(sofa.status, 404);
-  globalThis.__wbContainerPresence = [
-    { id: MY_ID, space: "tent", x: 2, y: 7, ts: Date.now() },
-  ];
+  globalThis.__wbContainerPresence = [{ id: MY_ID, space: "tent", x: 2, y: 7, ts: Date.now() }];
   // space 無し（world 扱い）ではテントの位置が無いので開けない
   const asWorld = await containersRoute.GET(apiRequest(`${URL_C}?x=2&y=8`, "GET", cookie));
   assert.equal(asWorld.status, 409);
   assert.equal((await asWorld.json()).error, "position_unknown");
   // 出し入れは tent キーで保存される
-  const moved = await containersRoute.POST(apiRequest(URL_C, "POST", cookie, {
-    action: "move", space: "tent", x: 2, y: 8,
-    from: { side: "profile_hotbar", index: 0 }, to: { side: "container", index: 0 },
-  }));
+  const moved = await containersRoute.POST(
+    apiRequest(URL_C, "POST", cookie, {
+      action: "move",
+      space: "tent",
+      x: 2,
+      y: 8,
+      from: { side: "profile_hotbar", index: 0 },
+      to: { side: "container", index: 0 },
+    }),
+  );
   assert.equal(moved.status, 200);
   assert.deepEqual((await moved.json()).container.slots[0], { id: "wood", count: 5 });
   assert.ok(globalThis.__wbContainers.has("tent|2,8"), "tent キーで保存される");
@@ -731,9 +989,7 @@ test("API(containers): テントを拡張しても樽の中身が付いてくる
   const prof2 = profWith(emptySlots(5), emptySlots(10));
   prof2.tentTier = 2; // tier 2 では樽は (2, 15) に移る
   seedProfile(MY_KEY, prof2);
-  globalThis.__wbContainerPresence = [
-    { id: MY_ID, space: "tent", x: 2, y: 14, ts: Date.now() },
-  ];
+  globalThis.__wbContainerPresence = [{ id: MY_ID, space: "tent", x: 2, y: 14, ts: Date.now() }];
   const cookie = sessionCookie(ME, "owner");
   const res = await containersRoute.GET(apiRequest(`${URL_C}?x=2&y=15&space=tent`, "GET", cookie));
   assert.equal(res.status, 200);
@@ -745,21 +1001,27 @@ test("API(containers): テントを拡張しても樽の中身が付いてくる
 test("API(containers): ロビーの備え付け樽が収納として開け、中身は全員共有で保存される", async () => {
   resetStores();
   // ロビー1Fの備え付け樽は (15, 24)、木箱は (16, 23)
-  globalThis.__wbContainerPresence = [
-    { id: MY_ID, space: "lobby", x: 14, y: 24, ts: Date.now() },
-  ];
+  globalThis.__wbContainerPresence = [{ id: MY_ID, space: "lobby", x: 14, y: 24, ts: Date.now() }];
   seedProfile(MY_KEY, profWith([slot("wood", 5), null, null, null, null], emptySlots(10)));
   const cookie = sessionCookie(ME, "owner");
-  const res = await containersRoute.GET(apiRequest(`${URL_C}?x=15&y=24&space=lobby`, "GET", cookie));
+  const res = await containersRoute.GET(
+    apiRequest(`${URL_C}?x=15&y=24&space=lobby`, "GET", cookie),
+  );
   assert.equal(res.status, 200);
   const data = await res.json();
   assert.equal(data.itemId, "barrel");
   assert.equal(data.capacity, 10);
   assert.ok(data.container.slots.every((s) => s === null));
-  const moved = await containersRoute.POST(apiRequest(URL_C, "POST", cookie, {
-    action: "move", space: "lobby", x: 15, y: 24,
-    from: { side: "profile_hotbar", index: 0 }, to: { side: "container", index: 0 },
-  }));
+  const moved = await containersRoute.POST(
+    apiRequest(URL_C, "POST", cookie, {
+      action: "move",
+      space: "lobby",
+      x: 15,
+      y: 24,
+      from: { side: "profile_hotbar", index: 0 },
+      to: { side: "container", index: 0 },
+    }),
+  );
   assert.equal(moved.status, 200);
   assert.deepEqual((await moved.json()).container.slots[0], { id: "wood", count: 5 });
   // 保存キーは共有（lobby|15,24）
@@ -770,14 +1032,20 @@ test("API(containers): ロビーの備え付け樽が収納として開け、中
   ];
   seedProfile(OTHER_KEY, profWith(emptySlots(5), emptySlots(10)));
   const otherCookie = sessionCookie(OTHER, "guest");
-  const resB = await containersRoute.GET(apiRequest(`${URL_C}?x=15&y=24&space=lobby`, "GET", otherCookie));
+  const resB = await containersRoute.GET(
+    apiRequest(`${URL_C}?x=15&y=24&space=lobby`, "GET", otherCookie),
+  );
   assert.equal(resB.status, 200);
-  assert.deepEqual((await resB.json()).container.slots[0], { id: "wood", count: 5 }, "中身は全員に共有される");
+  assert.deepEqual(
+    (await resB.json()).container.slots[0],
+    { id: "wood", count: 5 },
+    "中身は全員に共有される",
+  );
   // 収納でない備え付け（ベンチ）は 404
-  globalThis.__wbContainerPresence = [
-    { id: MY_ID, space: "lobby", x: 9, y: 6, ts: Date.now() },
-  ];
-  const bench = await containersRoute.GET(apiRequest(`${URL_C}?x=9&y=7&space=lobby`, "GET", cookie));
+  globalThis.__wbContainerPresence = [{ id: MY_ID, space: "lobby", x: 9, y: 6, ts: Date.now() }];
+  const bench = await containersRoute.GET(
+    apiRequest(`${URL_C}?x=9&y=7&space=lobby`, "GET", cookie),
+  );
   assert.equal(bench.status, 404);
 });
 
@@ -792,7 +1060,10 @@ test("座席リスト: 室内（lobby の SEAT_SPRITES）とタイル側（tiles
 // ---------- クライアント配線 ----------
 
 test("クライアント: コンテナのタップ分岐・パネル・回収が配線されている", () => {
-  const client = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"), "utf8");
+  const client = fs.readFileSync(
+    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    "utf8",
+  );
   assert.ok(client.includes("isContainerItem(view.block.itemId)"), "タップ時のコンテナ判定が無い");
   assert.ok(client.includes("openContainerRef.current"), "コンテナを開く導線が無い");
   assert.ok(client.includes("/api/worldbox/containers"), "コンテナ API を呼んでいない");
@@ -802,23 +1073,50 @@ test("クライアント: コンテナのタップ分岐・パネル・回収が
   // 室内タップ: 座席に座る配線と、室内の収納家具を開く配線
   assert.ok(client.includes("handleIndoorTap"), "室内タップ処理が無い");
   assert.ok(client.includes("openContainerRef.current("), "室内収納を開く導線が無い");
-  assert.ok(client.includes("space as \"tent\" | \"lobby\" | \"lobby2\" | \"lobby3\""), "室内の空間がコンテナ取得に渡っていない");
-  const containersRouteSrc2 = fs.readFileSync(path.join(rootDir, "app/api/worldbox/containers/route.ts"), "utf8");
-  assert.ok(containersRouteSrc2.includes("buildTent"), "コンテナルートがテント内装を解決していない");
-  assert.ok(containersRouteSrc2.includes("buildLobby"), "コンテナルートがロビー内装を解決していない");
+  assert.ok(
+    client.includes('space as "tent" | "lobby" | "lobby2" | "lobby3"'),
+    "室内の空間がコンテナ取得に渡っていない",
+  );
+  const containersRouteSrc2 = fs.readFileSync(
+    path.join(rootDir, "app/api/worldbox/containers/route.ts"),
+    "utf8",
+  );
+  assert.ok(
+    containersRouteSrc2.includes("buildTent"),
+    "コンテナルートがテント内装を解決していない",
+  );
+  assert.ok(
+    containersRouteSrc2.includes("buildLobby"),
+    "コンテナルートがロビー内装を解決していない",
+  );
   assert.ok(containersRouteSrc2.includes("fixtureStoreSpace"), "備え付け収納の保存キーが無い");
   assert.ok(client.includes("not_empty"), "not_empty のラベルが無い");
   assert.ok(client.includes("中身が入っている"), "not_empty の文面が無い");
   // 空のときだけ回収ボタンを出し、mine_block を送る
   assert.ok(client.includes("containerEmpty"), "空判定が無い");
-  assert.ok(client.includes('postTileAction("mine_block", p.x, p.y)'), "回収が mine_block を送っていない");
+  assert.ok(
+    client.includes('postTileAction("mine_block", p.x, p.y)'),
+    "回収が mine_block を送っていない",
+  );
   const routeSrc = fs.readFileSync(path.join(rootDir, "app/api/worldbox/tiles/route.ts"), "utf8");
   assert.ok(routeSrc.includes("not_empty"), "タイルルートに not_empty 検証が無い");
   assert.ok(routeSrc.includes("loadContainer"), "タイルルートがコンテナ状態を見ていない");
   // S4: コンテナキーは空間修飾つき、出し入れはユーザー単位ロックで直列化する
-  const containersRouteSrc = fs.readFileSync(path.join(rootDir, "app/api/worldbox/containers/route.ts"), "utf8");
-  assert.ok(containersRouteSrc.includes("withUserLock(ownerKey"), "コンテナルートがユーザー単位で直列化されていない（S4）");
-  assert.ok(containersRouteSrc.includes('loadContainer("world"'), "コンテナルートが空間つきキーを使っていない（S4）");
-  const containersOnlineSrc = fs.readFileSync(path.join(libDir, "worldbox/economy/containers-online.ts"), "utf8");
+  const containersRouteSrc = fs.readFileSync(
+    path.join(rootDir, "app/api/worldbox/containers/route.ts"),
+    "utf8",
+  );
+  assert.ok(
+    containersRouteSrc.includes("withUserLock(ownerKey"),
+    "コンテナルートがユーザー単位で直列化されていない（S4）",
+  );
+  assert.ok(
+    containersRouteSrc.includes('loadContainer("world"'),
+    "コンテナルートが空間つきキーを使っていない（S4）",
+  );
+  const containersOnlineSrc = fs.readFileSync(
+    path.join(libDir, "worldbox/economy/containers-online.ts"),
+    "utf8",
+  );
   assert.ok(containersOnlineSrc.includes("containerKey"), "空間修飾キー containerKey が無い（S4）");
 });

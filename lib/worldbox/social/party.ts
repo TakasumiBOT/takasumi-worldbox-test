@@ -42,8 +42,20 @@ export function partyKeyOf(party: Party | null, ownerKey: string): string {
   return party ? party.id : `solo:${ownerKey}`;
 }
 
-export function createParty(id: string, leader: PartyMember, entrance: { x: number; y: number }, now: number): Party {
-  return { id, leaderKey: leader.ownerKey, entrance, members: [leader], invites: [], createdAt: now };
+export function createParty(
+  id: string,
+  leader: PartyMember,
+  entrance: { x: number; y: number },
+  now: number,
+): Party {
+  return {
+    id,
+    leaderKey: leader.ownerKey,
+    entrance,
+    members: [leader],
+    invites: [],
+    createdAt: now,
+  };
 }
 
 export function isPartyMember(party: Party, ownerKey: string): boolean {
@@ -57,7 +69,10 @@ export function isPartyLeader(party: Party, ownerKey: string): boolean {
 export type PartyJoinError = "full" | "already_member";
 
 /** 参加する。成功したら新しい Party、失敗したら理由を返す。 */
-export function joinParty(party: Party, member: PartyMember): { party: Party } | { error: PartyJoinError } {
+export function joinParty(
+  party: Party,
+  member: PartyMember,
+): { party: Party } | { error: PartyJoinError } {
   if (isPartyMember(party, member.ownerKey)) return { error: "already_member" };
   if (party.members.length >= MAX_PARTY_MEMBERS) return { error: "full" };
   return {
@@ -123,7 +138,11 @@ export function parseParty(raw: unknown): Party | null {
     for (const i of data.invites) {
       const ii = i as Partial<PartyInvite>;
       if (typeof ii.toKey === "string" && typeof ii.at === "number") {
-        invites.push({ toKey: ii.toKey, name: typeof ii.name === "string" ? ii.name.slice(0, 40) : "", at: ii.at });
+        invites.push({
+          toKey: ii.toKey,
+          name: typeof ii.name === "string" ? ii.name.slice(0, 40) : "",
+          at: ii.at,
+        });
       }
     }
   }

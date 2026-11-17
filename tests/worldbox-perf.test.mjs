@@ -6,7 +6,10 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-const client = await readFile(new URL("../app/games/worldbox/WorldBoxClient.tsx", import.meta.url), "utf8");
+const client = await readFile(
+  new URL("../app/games/worldbox/WorldBoxClient.tsx", import.meta.url),
+  "utf8",
+);
 
 test("オンラインセーブは間引かれ、keepalive は即時送信される", () => {
   assert.match(client, /const wait = 3000 - \(performance\.now\(\) - lastOnlineSaveAt\)/);

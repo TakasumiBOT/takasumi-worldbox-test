@@ -67,7 +67,7 @@ export async function GET(request: Request) {
     });
     if (!tokenResponse.ok) throw new Error("token exchange failed");
 
-    const token = await tokenResponse.json() as { access_token?: string };
+    const token = (await tokenResponse.json()) as { access_token?: string };
     if (!token.access_token) throw new Error("missing access token");
 
     const userResponse = await fetch("https://openidconnect.googleapis.com/v1/userinfo", {
@@ -75,7 +75,7 @@ export async function GET(request: Request) {
     });
     if (!userResponse.ok) throw new Error("user lookup failed");
 
-    const user = await userResponse.json() as {
+    const user = (await userResponse.json()) as {
       sub?: string;
       name?: string;
       email?: string;

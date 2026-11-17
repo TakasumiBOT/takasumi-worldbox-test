@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { getRequestSession, publicOrigin, sessionOwnerKey } from "@/lib/auth";
 import type { UnionChatMode } from "@/lib/worldbox/social/chat";
-import { isChatEnabled, loadUnionChatSettings, storeUnionChatSettings } from "@/lib/worldbox/social/chat-online";
+import {
+  isChatEnabled,
+  loadUnionChatSettings,
+  storeUnionChatSettings,
+} from "@/lib/worldbox/social/chat-online";
 import { loadDiscordDirectory } from "@/lib/worldbox/social/discord-directory-online";
 import { loadNationsState } from "@/lib/worldbox/social/nations-online";
 import { memberKeysOf, resolveMemberRole } from "@/lib/worldbox/social/nation-settings";
@@ -33,7 +37,13 @@ async function myRole(ownerKey: string) {
   const nation = nations.nations[membership.nationId];
   const nationSettings = await loadNationSettings(membership.nationId);
   const resolved = nation
-    ? resolveMemberRole(nation, nationSettings, ownerKey, membership.role, memberKeysOf(nations, membership.nationId))
+    ? resolveMemberRole(
+        nation,
+        nationSettings,
+        ownerKey,
+        membership.role,
+        memberKeysOf(nations, membership.nationId),
+      )
     : null;
   return { guildId: membership.nationId, role: resolved?.role ?? membership.role };
 }
@@ -92,7 +102,10 @@ export async function POST(request: Request) {
       if (!directory.globalChatChannelId) return err("global_not_available", 400);
     } else {
       // 専用チャンネルはディレクトリに載っているものだけを受け付ける
-      if (typeof channelIdRaw !== "string" || !directory.channels.some((c) => c.id === channelIdRaw)) {
+      if (
+        typeof channelIdRaw !== "string" ||
+        !directory.channels.some((c) => c.id === channelIdRaw)
+      ) {
         return err("channel_not_listed", 400);
       }
       channelId = channelIdRaw;

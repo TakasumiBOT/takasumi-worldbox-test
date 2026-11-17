@@ -56,25 +56,51 @@ async function loadBundle(files, exportNames) {
 const st = await loadBundle(
   ["worldbox/player/stamina.ts"],
   [
-    "STAMINA_MAX", "DASH_DRAIN_PER_SEC", "SWIM_DRAIN_PER_SEC", "SWIM_DASH_DRAIN_PER_SEC",
-    "STAMINA_REGEN_PER_SEC", "STAMINA_REGEN_DELAY_SEC", "DASH_RELOCK_STAMINA", "SWIM_RESCUE_STAMINA",
-    "createStamina", "staminaDrainRate", "canDash", "stepStamina", "rescueStamina",
-    "staminaGaugeVisible", "isStickDash", "createTapTracker", "registerKeyTap",
+    "STAMINA_MAX",
+    "DASH_DRAIN_PER_SEC",
+    "SWIM_DRAIN_PER_SEC",
+    "SWIM_DASH_DRAIN_PER_SEC",
+    "STAMINA_REGEN_PER_SEC",
+    "STAMINA_REGEN_DELAY_SEC",
+    "DASH_RELOCK_STAMINA",
+    "SWIM_RESCUE_STAMINA",
+    "createStamina",
+    "staminaDrainRate",
+    "canDash",
+    "stepStamina",
+    "rescueStamina",
+    "staminaGaugeVisible",
+    "isStickDash",
+    "createTapTracker",
+    "registerKeyTap",
   ],
 );
 
 const mv = await loadBundle(
   ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/player/move.ts"],
   [
-    "T_GRASS", "T_WATER", "T_TREE", "WALK_SPEED", "SWIM_SPEED", "DASH_SPEED", "tilesSource",
-    "stepMove", "canStandAt", "findFreeNear", "isWaterAt",
+    "T_GRASS",
+    "T_WATER",
+    "T_TREE",
+    "WALK_SPEED",
+    "SWIM_SPEED",
+    "DASH_SPEED",
+    "tilesSource",
+    "stepMove",
+    "canStandAt",
+    "findFreeNear",
+    "isWaterAt",
   ],
 );
 
 const rm = await loadBundle(
   ["worldbox/player/presence.ts", "worldbox/core/remote.ts"],
   [
-    "REMOTE_SNAP_DISTANCE", "createRemoteTrack", "updateRemoteTrack", "stepRemoteTrack", "predictPosition",
+    "REMOTE_SNAP_DISTANCE",
+    "createRemoteTrack",
+    "updateRemoteTrack",
+    "stepRemoteTrack",
+    "predictPosition",
   ],
 );
 
@@ -91,7 +117,10 @@ test("stamina: 使い道ごとの消費レート", () => {
   assert.equal(st.staminaDrainRate("dash"), st.DASH_DRAIN_PER_SEC);
   assert.equal(st.staminaDrainRate("swim"), st.SWIM_DRAIN_PER_SEC);
   assert.equal(st.staminaDrainRate("swimDash"), st.SWIM_DASH_DRAIN_PER_SEC);
-  assert.ok(st.SWIM_DASH_DRAIN_PER_SEC > st.DASH_DRAIN_PER_SEC, "ダッシュ泳ぎは陸ダッシュより速く減る");
+  assert.ok(
+    st.SWIM_DASH_DRAIN_PER_SEC > st.DASH_DRAIN_PER_SEC,
+    "ダッシュ泳ぎは陸ダッシュより速く減る",
+  );
   assert.ok(st.SWIM_DRAIN_PER_SEC < st.DASH_DRAIN_PER_SEC, "泳ぎはダッシュよりゆっくり減る");
   const dash = st.stepStamina(st.createStamina(), "dash", 1).state;
   assert.equal(dash.value, st.STAMINA_MAX - st.DASH_DRAIN_PER_SEC);
@@ -121,7 +150,10 @@ test("stamina: 回復は遅延の後に始まり、満タンで止まる", () =>
   assert.equal(s.value, 50, "遅延内は回復しない");
   s = st.stepStamina(s, "none", 0.5).state;
   const expected = 50 + st.STAMINA_REGEN_PER_SEC * (1.0 - st.STAMINA_REGEN_DELAY_SEC);
-  assert.ok(Math.abs(s.value - expected) < 1e-9, `遅延超過ぶんだけ回復する: ${s.value} != ${expected}`);
+  assert.ok(
+    Math.abs(s.value - expected) < 1e-9,
+    `遅延超過ぶんだけ回復する: ${s.value} != ${expected}`,
+  );
   const full = st.stepStamina({ value: 99, exhausted: false, idleSec: 5 }, "none", 5).state;
   assert.equal(full.value, st.STAMINA_MAX);
 });
@@ -145,8 +177,14 @@ test("stamina: 水中帰還後は下限値が置かれ、ダッシュ封じが�
 
 test("stamina: ゲージは減っている間と使った直後だけ出る", () => {
   assert.equal(st.staminaGaugeVisible({ value: 40, exhausted: false, idleSec: 99 }), true);
-  assert.equal(st.staminaGaugeVisible({ value: st.STAMINA_MAX, exhausted: false, idleSec: 0 }), true);
-  assert.equal(st.staminaGaugeVisible({ value: st.STAMINA_MAX, exhausted: false, idleSec: 99 }), false);
+  assert.equal(
+    st.staminaGaugeVisible({ value: st.STAMINA_MAX, exhausted: false, idleSec: 0 }),
+    true,
+  );
+  assert.equal(
+    st.staminaGaugeVisible({ value: st.STAMINA_MAX, exhausted: false, idleSec: 99 }),
+    false,
+  );
 });
 
 // ---------- ダッシュ入力 ----------
@@ -182,7 +220,13 @@ test("dash入力: 同じキーの2度押し（300ms以内）だけダッシュ",
 
 function tinyMap() {
   const tiles = new Uint8Array(36).fill(mv.T_GRASS);
-  for (const [x, y] of [[2, 2], [3, 2], [2, 3], [3, 3]]) tiles[y * 6 + x] = mv.T_WATER;
+  for (const [x, y] of [
+    [2, 2],
+    [3, 2],
+    [2, 3],
+    [3, 3],
+  ])
+    tiles[y * 6 + x] = mv.T_WATER;
   tiles[2 * 6 + 4] = mv.T_TREE;
   return mv.tilesSource(0, 6, 6, tiles);
 }
@@ -198,7 +242,9 @@ test("swim: オプションなしでは水に入れない", () => {
 
 test("swim: オプションありでは水に入って進める", () => {
   const map = tinyMap();
-  const r = mv.stepMove(map, { x: 1.5, y: 2.5 }, { x: mv.SWIM_SPEED, y: 0 }, 0.5, undefined, { swim: true });
+  const r = mv.stepMove(map, { x: 1.5, y: 2.5 }, { x: mv.SWIM_SPEED, y: 0 }, 0.5, undefined, {
+    swim: true,
+  });
   assert.equal(r.hitX, false);
   assert.ok(Math.abs(r.x - 3.0) < 1e-9);
   assert.equal(mv.isWaterAt(map, r.x, r.y), true);
@@ -207,7 +253,9 @@ test("swim: オプションありでは水に入って進める", () => {
 
 test("swim: 泳ぎ中も木などの固体にはぶつかる", () => {
   const map = tinyMap();
-  const r = mv.stepMove(map, { x: 3.5, y: 2.5 }, { x: mv.SWIM_SPEED, y: 0 }, 0.5, undefined, { swim: true });
+  const r = mv.stepMove(map, { x: 3.5, y: 2.5 }, { x: mv.SWIM_SPEED, y: 0 }, 0.5, undefined, {
+    swim: true,
+  });
   assert.equal(r.hitX, true);
   assert.equal(r.x, 3.5);
 });
@@ -223,7 +271,17 @@ test("swim: findFreeNear は泳ぎ可なら水上をそのまま認める", () =
 // ---------- 他プレイヤーの描画補間 ----------
 
 const BOUNDS = { minX: 0, maxX: 1024, minY: 0, maxY: 1024 };
-const entry = (x, y, vx, vy, ts, face = 1) => ({ id: "a", name: "n", x, y, vx, vy, face, space: "world", ts });
+const entry = (x, y, vx, vy, ts, face = 1) => ({
+  id: "a",
+  name: "n",
+  x,
+  y,
+  vx,
+  vy,
+  face,
+  space: "world",
+  ts,
+});
 
 test("remote: 初見は予測位置から始まる", () => {
   const tr = rm.createRemoteTrack(entry(10, 10, 0, 0, 1000), 1000, BOUNDS);
@@ -258,7 +316,12 @@ test("remote: 歩行中の更新では描画位置が飛ばず、なめらかに
 
 test("remote: 大きく離れた更新（ワープ）は即座に合わせる", () => {
   let tr = rm.createRemoteTrack(entry(10, 10, 0, 0, 0), 0, BOUNDS);
-  tr = rm.updateRemoteTrack(tr, entry(10 + rm.REMOTE_SNAP_DISTANCE + 12, 10, 0, 0, 100), 100, BOUNDS);
+  tr = rm.updateRemoteTrack(
+    tr,
+    entry(10 + rm.REMOTE_SNAP_DISTANCE + 12, 10, 0, 0, 100),
+    100,
+    BOUNDS,
+  );
   assert.equal(tr.rx, 10 + rm.REMOTE_SNAP_DISTANCE + 12);
   assert.equal(tr.ry, 10);
 });
@@ -280,13 +343,28 @@ test("remote: 向きはスナップショットの face がそのまま使われ
 // ---------- クライアント配線 ----------
 
 test("クライアント: スタミナ・ダッシュ・泳ぎ・補間が配線されている", () => {
-  const client = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"), "utf8");
+  const client = fs.readFileSync(
+    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    "utf8",
+  );
   for (const needle of [
-    "stepStamina", "canDash", "isStickDash", "registerKeyTap", "rescueStamina",
-    "staminaGaugeVisible", "createRemoteTrack", "updateRemoteTrack", "stepRemoteTrack",
-    "isWaterAt", "SWIM_SPEED", "DASH_SPEED",
+    "stepStamina",
+    "canDash",
+    "isStickDash",
+    "registerKeyTap",
+    "rescueStamina",
+    "staminaGaugeVisible",
+    "createRemoteTrack",
+    "updateRemoteTrack",
+    "stepRemoteTrack",
+    "isWaterAt",
+    "SWIM_SPEED",
+    "DASH_SPEED",
   ]) {
     assert.ok(client.includes(needle), `クライアントに ${needle} が無い`);
   }
-  assert.ok(client.includes('{ swim: space === "world" }'), "ワールドでのみ泳ぎが有効になっていない");
+  assert.ok(
+    client.includes('{ swim: space === "world" }'),
+    "ワールドでのみ泳ぎが有効になっていない",
+  );
 });

@@ -10,10 +10,19 @@ import { parseSave } from "@/lib/worldbox/core/save";
 import { loadWorldBoxSave } from "@/lib/worldbox/core/save-online";
 import { isOverrideActive } from "@/lib/worldbox/world/tiles";
 import { isTilesEnabled, loadTileOverride } from "@/lib/worldbox/world/tiles-online";
-import { isStallItem, stallAfterSale, validStallCount, validStallPrice } from "@/lib/worldbox/economy/stalls";
+import {
+  isStallItem,
+  stallAfterSale,
+  validStallCount,
+  validStallPrice,
+} from "@/lib/worldbox/economy/stalls";
 import { isStallsEnabled, loadStall, storeStall } from "@/lib/worldbox/economy/stalls-online";
 import { buildEconomyOp } from "@/lib/worldbox/economy/economy-bridge";
-import { enqueueEconomyOp, isEconomyEnabled, readUserBalance } from "@/lib/worldbox/economy/economy-bridge-online";
+import {
+  enqueueEconomyOp,
+  isEconomyEnabled,
+  readUserBalance,
+} from "@/lib/worldbox/economy/economy-bridge-online";
 import { withUserLock } from "@/lib/worldbox/core/user-lock";
 
 export const runtime = "nodejs";
@@ -65,11 +74,17 @@ async function actorWorldPosition(ownerKey: string): Promise<{ x: number; y: num
 async function nearTile(ownerKey: string, x: number, y: number): Promise<boolean> {
   const pos = await actorWorldPosition(ownerKey);
   if (!pos) return true; // 位置が分からない場合は従来どおり通す（タイル行為と同じ方針）
-  return Math.max(Math.abs(Math.floor(pos.x) - x), Math.abs(Math.floor(pos.y) - y)) <= MAX_ACTION_DISTANCE;
+  return (
+    Math.max(Math.abs(Math.floor(pos.x) - x), Math.abs(Math.floor(pos.y) - y)) <=
+    MAX_ACTION_DISTANCE
+  );
 }
 
 /** そのタイルに屋台が設置されていて、設置者が ownerKey か（設置者の presence ID で照合）。 */
-async function stallTileOwner(x: number, y: number): Promise<{ isStall: boolean; ownerId: string | null }> {
+async function stallTileOwner(
+  x: number,
+  y: number,
+): Promise<{ isStall: boolean; ownerId: string | null }> {
   const ov = await loadTileOverride(x, y);
   if (!ov?.block || !isOverrideActive(ov, Date.now()) || !isStallItem(ov.block.itemId)) {
     return { isStall: false, ownerId: null };
@@ -92,7 +107,13 @@ export async function GET(request: Request) {
   return NextResponse.json(
     {
       stall: stall
-        ? { itemId: stall.itemId, name: itemById(stall.itemId)?.name ?? stall.itemId, price: stall.price, count: stall.count, mine: stall.ownerKey === sessionOwnerKey(session) }
+        ? {
+            itemId: stall.itemId,
+            name: itemById(stall.itemId)?.name ?? stall.itemId,
+            price: stall.price,
+            count: stall.count,
+            mine: stall.ownerKey === sessionOwnerKey(session),
+          }
         : null,
     },
     { headers: NO_STORE },
@@ -111,7 +132,12 @@ export async function POST(request: Request) {
     return errorResponse("invalid_request", 400);
   }
   const data = (body ?? {}) as {
-    action?: unknown; x?: unknown; y?: unknown; itemId?: unknown; price?: unknown; count?: unknown;
+    action?: unknown;
+    x?: unknown;
+    y?: unknown;
+    itemId?: unknown;
+    price?: unknown;
+    count?: unknown;
   };
   const coord = checkedCoord(data.x, data.y);
   if (!coord) return errorResponse("invalid_request", 400);
@@ -160,13 +186,23 @@ export async function POST(request: Request) {
         if (!stall) return errorResponse("not_listed", 409);
         if (stall.ownerKey === ownerKey) return errorResponse("own_stall", 409);
         const buyerId = discordIdOf(session);
-        const sellerId = stall.ownerKey.startsWith("discord:") ? stall.ownerKey.slice("discord:".length) : null;
-        if (!buyerId || !sellerId || !isEconomyEnabled()) return errorResponse("economy_unavailable", 503);
+        const sellerId = stall.ownerKey.startsWith("discord:")
+          ? stall.ownerKey.slice("discord:".length)
+          : null;
+        if (!buyerId || !sellerId || !isEconomyEnabled())
+          return errorResponse("economy_unavailable", 503);
         const balance = await readUserBalance(buyerId);
         if (balance === null) return errorResponse("economy_unavailable", 503);
         if (balance < stall.price) return errorResponse("insufficient_balance", 409);
         const op = buildEconomyOp(
-          { kind: "transfer", userKey: ownerKey, discordId: buyerId, toDiscordId: sellerId, amount: stall.price, reason: "stall_buy" },
+          {
+            kind: "transfer",
+            userKey: ownerKey,
+            discordId: buyerId,
+            toDiscordId: sellerId,
+            amount: stall.price,
+            reason: "stall_buy",
+          },
           `stall-buy-${buyerId}-${x}-${y}-${Date.now().toString(36)}-${Math.floor(Math.random() * 0xffffff).toString(36)}`,
           Date.now(),
         );
@@ -178,7 +214,13 @@ export async function POST(request: Request) {
         return NextResponse.json(
           {
             stall: nextStall
-              ? { itemId: nextStall.itemId, name: itemById(nextStall.itemId)?.name ?? nextStall.itemId, price: nextStall.price, count: nextStall.count, mine: false }
+              ? {
+                  itemId: nextStall.itemId,
+                  name: itemById(nextStall.itemId)?.name ?? nextStall.itemId,
+                  price: nextStall.price,
+                  count: nextStall.count,
+                  mine: false,
+                }
               : null,
             profile: gained,
           },

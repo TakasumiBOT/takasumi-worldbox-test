@@ -13,7 +13,9 @@ export async function POST(request: Request) {
     executor = getSqlExecutor();
   } catch {
     return new Response(
-      serializeBotApiJson({ detail: { code: "API_NOT_READY", message: "Database API is not ready" } }),
+      serializeBotApiJson({
+        detail: { code: "API_NOT_READY", message: "Database API is not ready" },
+      }),
       { status: 503, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } },
     );
   }

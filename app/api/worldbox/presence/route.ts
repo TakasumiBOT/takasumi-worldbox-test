@@ -4,11 +4,25 @@ import { rectBounds, worldBounds } from "@/lib/worldbox/world/mapgen";
 import { LOBBY_H, LOBBY_W } from "@/lib/worldbox/world/lobby";
 import { LOBBY2_H, LOBBY2_W, LOBBY3_H, LOBBY3_W } from "@/lib/worldbox/world/lobby-floors";
 import { TENT_MAX_H, TENT_MAX_W } from "@/lib/worldbox/world/tent";
-import { isPresenceEnabled, listPresence, loadStoredPresence, putPresenceTabGuarded, removePresence } from "@/lib/worldbox/player/presence-online";
+import {
+  isPresenceEnabled,
+  listPresence,
+  loadStoredPresence,
+  putPresenceTabGuarded,
+  removePresence,
+} from "@/lib/worldbox/player/presence-online";
 import { parseSave } from "@/lib/worldbox/core/save";
 import { loadWorldBoxSave } from "@/lib/worldbox/core/save-online";
 import { recordFirstStep, recordPresenceMetric } from "@/lib/worldbox/core/metrics-online";
-import { checkMovementContinuity, checkSaveFallbackContinuity, presenceIdFor, sanitizeHeartbeat, sanitizePresenceSpace, selectVisiblePlayers, thinPresenceNear } from "@/lib/worldbox/player/presence";
+import {
+  checkMovementContinuity,
+  checkSaveFallbackContinuity,
+  presenceIdFor,
+  sanitizeHeartbeat,
+  sanitizePresenceSpace,
+  selectVisiblePlayers,
+  thinPresenceNear,
+} from "@/lib/worldbox/player/presence";
 
 export const runtime = "nodejs";
 
@@ -81,7 +95,22 @@ export async function PUT(request: Request) {
   const isCave = /^cave:-?\d+,-?\d+:\d+$/.test(space);
   const isRuins = /^ruins:-?\d+,-?\d+:\d+$/.test(space);
   const isDungeon = /^dungeon:-?\d+,-?\d+:\d+$/.test(space);
-  const bounds = space === "lobby" ? rectBounds(LOBBY_W, LOBBY_H) : space === "lobby2" ? rectBounds(LOBBY2_W, LOBBY2_H) : space === "lobby3" ? rectBounds(LOBBY3_W, LOBBY3_H) : space === "tent" ? rectBounds(TENT_MAX_W, TENT_MAX_H) : isCave ? rectBounds(64, 64) : isRuins ? rectBounds(48, 48) : isDungeon ? rectBounds(52, 52) : worldBounds();
+  const bounds =
+    space === "lobby"
+      ? rectBounds(LOBBY_W, LOBBY_H)
+      : space === "lobby2"
+        ? rectBounds(LOBBY2_W, LOBBY2_H)
+        : space === "lobby3"
+          ? rectBounds(LOBBY3_W, LOBBY3_H)
+          : space === "tent"
+            ? rectBounds(TENT_MAX_W, TENT_MAX_H)
+            : isCave
+              ? rectBounds(64, 64)
+              : isRuins
+                ? rectBounds(48, 48)
+                : isDungeon
+                  ? rectBounds(52, 52)
+                  : worldBounds();
   const heartbeat = sanitizeHeartbeat(body, bounds);
   if (!heartbeat) {
     return NextResponse.json({ error: "invalid_heartbeat" }, { status: 400, headers: NO_STORE });
@@ -114,7 +143,11 @@ export async function PUT(request: Request) {
     }
   }
   // タブ世代（分身防止）: 新しい世代のタブだけが保存できる。旧タブは 409。
-  const stored = await putPresenceTabGuarded(ownerKey, { ...heartbeat, name, ...(avatar ? { avatar } : {}) }, now);
+  const stored = await putPresenceTabGuarded(
+    ownerKey,
+    { ...heartbeat, name, ...(avatar ? { avatar } : {}) },
+    now,
+  );
   if (stored === "rejected") {
     return NextResponse.json({ error: "tab_superseded" }, { status: 409, headers: NO_STORE });
   }

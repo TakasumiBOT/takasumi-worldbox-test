@@ -80,13 +80,17 @@ export function netScore(score: CasinoTournamentScore): number {
 }
 
 /** 順位表（純益の降順、同点は先に参加した方を上位に）。 */
-export function casinoStandings(t: CasinoTournament): { discordId: string; net: number; rank: number }[] {
+export function casinoStandings(
+  t: CasinoTournament,
+): { discordId: string; net: number; rank: number }[] {
   return t.entrants
     .map((discordId) => ({
       discordId,
       net: netScore(t.scores[discordId] ?? { bet: 0, payout: 0 }),
     }))
-    .sort((a, b) => b.net - a.net || t.entrants.indexOf(a.discordId) - t.entrants.indexOf(b.discordId))
+    .sort(
+      (a, b) => b.net - a.net || t.entrants.indexOf(a.discordId) - t.entrants.indexOf(b.discordId),
+    )
     .map((row, i) => ({ ...row, rank: i + 1 }));
 }
 
@@ -111,7 +115,10 @@ export function casinoPrizeSplit(
 
 /** 1プレイの記録を加える（対局時間中の参加者だけ）。 */
 export function recordScore(
-  t: CasinoTournament, discordId: string, bet: number, payout: number,
+  t: CasinoTournament,
+  discordId: string,
+  bet: number,
+  payout: number,
 ): CasinoTournament {
   if (t.status !== "running") return t;
   if (!t.entrants.includes(discordId)) return t;
@@ -134,7 +141,12 @@ export function closeCasinoEntry(t: CasinoTournament, now: number): CasinoTourna
   }
   // 対局終了時刻は締め切り時点から数え直す（満員で早期に締め切った場合に
   // 作成時固定の playEndsAt のままだと対局時間が余分に残ってしまう）。
-  return { ...t, status: "running", playStartedAt: now, playEndsAt: now + CASINO_TOURNAMENT_PLAY_MS };
+  return {
+    ...t,
+    status: "running",
+    playStartedAt: now,
+    playEndsAt: now + CASINO_TOURNAMENT_PLAY_MS,
+  };
 }
 
 /** 対局時間の終了（賞金の支払いは route 側）。 */
@@ -148,10 +160,16 @@ export function closeCasinoPlay(t: CasinoTournament, now: number): CasinoTournam
 export function publicCasinoTournamentView(t: CasinoTournament | null, viewerDiscordId: string) {
   if (!t) {
     return {
-      status: "none" as const, fee: CASINO_TOURNAMENT_FEE,
+      status: "none" as const,
+      fee: CASINO_TOURNAMENT_FEE,
       maxEntrants: CASINO_TOURNAMENT_MAX_ENTRANTS,
-      entrantCount: 0, entryEndsAt: null as number | null, playEndsAt: null as number | null,
-      prizePool: 0, entered: false, myNet: 0, myRank: null as number | null,
+      entrantCount: 0,
+      entryEndsAt: null as number | null,
+      playEndsAt: null as number | null,
+      prizePool: 0,
+      entered: false,
+      myNet: 0,
+      myRank: null as number | null,
       standings: [] as { rank: number; net: number; you: boolean }[],
     };
   }
@@ -169,7 +187,9 @@ export function publicCasinoTournamentView(t: CasinoTournament | null, viewerDis
     myNet: mine?.net ?? 0,
     myRank: mine?.rank ?? null,
     standings: rows.slice(0, 5).map((r) => ({
-      rank: r.rank, net: r.net, you: r.discordId === viewerDiscordId,
+      rank: r.rank,
+      net: r.net,
+      you: r.discordId === viewerDiscordId,
     })),
   };
 }
@@ -183,7 +203,12 @@ export function parseCasinoTournament(raw: unknown): CasinoTournament | null {
   if (!isRecord(raw)) return null;
   if (typeof raw.id !== "string" || !/^ct-\d+$/.test(raw.id)) return null;
   if (raw.status !== "entry" && raw.status !== "running" && raw.status !== "done") return null;
-  if (typeof raw.createdAt !== "number" || typeof raw.entryEndsAt !== "number" || typeof raw.playEndsAt !== "number") return null;
+  if (
+    typeof raw.createdAt !== "number" ||
+    typeof raw.entryEndsAt !== "number" ||
+    typeof raw.playEndsAt !== "number"
+  )
+    return null;
   if (!Array.isArray(raw.entrants) || raw.entrants.some((e) => typeof e !== "string")) return null;
   if (!isRecord(raw.scores)) return null;
   for (const [key, value] of Object.entries(raw.scores)) {

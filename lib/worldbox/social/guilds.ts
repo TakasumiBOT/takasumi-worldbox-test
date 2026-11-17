@@ -112,7 +112,10 @@ export async function getUserGuilds(session: SessionInfo): Promise<UserGuildsRes
   const fetched = await fetchDiscordGuilds(record.access_token);
   if (!fetched) return { ok: false, error: "guilds_unavailable" };
   const guilds: UserGuild[] = fetched.map((g) => ({
-    id: g.id, name: g.name, owner: g.owner, permissions: g.permissions,
+    id: g.id,
+    name: g.name,
+    owner: g.owner,
+    permissions: g.permissions,
   }));
   const cache: GuildCache = { fetchedAt: Date.now(), guilds };
   try {

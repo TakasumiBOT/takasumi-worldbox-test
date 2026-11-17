@@ -31,8 +31,12 @@ async function loadLib(name) {
 const arcade = await loadLib("worldbox/activity/arcade.ts");
 const catalog = await loadLib("games-catalog.ts");
 const rngUrl = dataUrl(transpile("worldbox/core/rng.ts"));
-const mapgenUrl = dataUrl(transpile("worldbox/world/mapgen.ts").replaceAll('"../core/rng"', JSON.stringify(rngUrl)));
-const lobbyUrl = dataUrl(transpile("worldbox/world/lobby.ts").replaceAll('"./mapgen"', JSON.stringify(mapgenUrl)));
+const mapgenUrl = dataUrl(
+  transpile("worldbox/world/mapgen.ts").replaceAll('"../core/rng"', JSON.stringify(rngUrl)),
+);
+const lobbyUrl = dataUrl(
+  transpile("worldbox/world/lobby.ts").replaceAll('"./mapgen"', JSON.stringify(mapgenUrl)),
+);
 const lobby = await import(lobbyUrl);
 const floorsUrl = dataUrl(
   transpile("worldbox/world/lobby-floors.ts")
@@ -42,7 +46,9 @@ const floorsUrl = dataUrl(
 const floors = await import(floorsUrl);
 
 const allCabinets = () =>
-  [...floors.buildLobby2().objects, ...floors.buildLobby3().objects].filter((o) => o.sprite.startsWith("arcade_"));
+  [...floors.buildLobby2().objects, ...floors.buildLobby3().objects].filter((o) =>
+    o.sprite.startsWith("arcade_"),
+  );
 
 test("panel: 全26筐体に station arcade とゲーム ID が付き、ARCADE_GAMES と過不足なく一致する", () => {
   const cabs = allCabinets();
@@ -73,7 +79,11 @@ test("panel: 筐体の前に立つと stationNear=arcade / stationArcadeNear=そ
         }
       }
       assert.ok(found, `${o.sprite} の前に立っても stationArcadeNear が ${o.arcade} を返さない`);
-      assert.equal(lobby.stationNear(data.objects, found.tx, found.ty), "arcade", `${o.sprite} の前で stationNear が arcade でない`);
+      assert.equal(
+        lobby.stationNear(data.objects, found.tx, found.ty),
+        "arcade",
+        `${o.sprite} の前で stationNear が arcade でない`,
+      );
     }
     // 入口（階段の着地点）はどの筐体の前でもない
     const entry = data === floors.buildLobby2() ? floors.LOBBY2_ENTRY : floors.LOBBY3_ENTRY;
@@ -102,23 +112,41 @@ test("panel: パネルはゲームページへ遷移せず、ゲーム本体を�
   const src = fs.readFileSync(path.join(appDir, "games/worldbox/WorldBoxArcadePanel.tsx"), "utf8");
   assert.match(src, /arcadeClientFor\(gameId\)/, "筐体のゲーム本体を引いていない");
   assert.match(src, /<Client \/>/, "ゲーム本体を描画していない");
-  assert.doesNotMatch(src, /location\.assign|location\.href|router\.push/, "ゲームページへ遷移してしまう");
-  assert.doesNotMatch(src, /\/api\/online\//, "パネルが独自に online API を叩いている（本体の OnlineShell に任せる）");
+  assert.doesNotMatch(
+    src,
+    /location\.assign|location\.href|router\.push/,
+    "ゲームページへ遷移してしまう",
+  );
+  assert.doesNotMatch(
+    src,
+    /\/api\/online\//,
+    "パネルが独自に online API を叩いている（本体の OnlineShell に任せる）",
+  );
   // 本体は明色テーマ前提の部品（文字色を継承に頼る）: 筐体の枠はダーク（#fff）でも、
   // 画面（body）はサイト標準の文字色・背景に切り替えて白文字化を防ぐ
-  assert.match(src, /background: "var\(--bg\)", color: "var\(--text\)"/, "筐体画面が明色の面＋標準文字色になっていない（白文字で読めなくなる）");
+  assert.match(
+    src,
+    /background: "var\(--bg\)", color: "var\(--text\)"/,
+    "筐体画面が明色の面＋標準文字色になっていない（白文字で読めなくなる）",
+  );
 });
 
 test("panel: 全タイトルのゲーム本体が遅延読み込みで登録され、実ファイルが存在する", () => {
   const src = fs.readFileSync(path.join(appDir, "games/worldbox/arcade-clients.tsx"), "utf8");
   assert.match(src, /from "next\/dynamic"/, "next/dynamic の遅延読み込みでない");
   for (const e of arcade.ARCADE_GAMES) {
-    const m = src.match(new RegExp(`${e.id}: lazy\\(\\(\\) => import\\("\\.\\./([a-z0-9]+)/([A-Za-z0-9]+)"\\)\\)`));
+    const m = src.match(
+      new RegExp(`${e.id}: lazy\\(\\(\\) => import\\("\\.\\./([a-z0-9]+)/([A-Za-z0-9]+)"\\)\\)`),
+    );
     assert.ok(m, `${e.id} が ARCADE_CLIENTS に遅延読み込みで登録されていない`);
     const file = path.join(appDir, "games", m[1], `${m[2]}.tsx`);
     assert.ok(fs.existsSync(file), `${e.id} の本体ファイルが無い: ${file}`);
     const clientSrc = fs.readFileSync(file, "utf8");
-    assert.match(clientSrc, /export default function \w+\(\)/, `${e.id} の本体が props 無しの default export でない`);
+    assert.match(
+      clientSrc,
+      /export default function \w+\(\)/,
+      `${e.id} の本体が props 無しの default export でない`,
+    );
     assert.match(clientSrc, /OnlineShell/, `${e.id} の本体が OnlineShell を使っていない`);
   }
 });
@@ -126,12 +154,28 @@ test("panel: 全タイトルのゲーム本体が遅延読み込みで登録さ�
 test("panel: クライアント配線（チップの名前札・遊ぶボタン・パネル描画・離脱で閉じる）", () => {
   const src = fs.readFileSync(path.join(appDir, "games/worldbox/WorldBoxClient.tsx"), "utf8");
   assert.match(src, /arcade: "アーケード"/, "STATION_LABEL に arcade が無い");
-  assert.match(src, /stationArcadeNear\(indoorData\(\)\.objects, tx, ty\)/, "フレームループで stationArcadeNear を引いていない");
-  assert.match(src, /stationUi === "arcade" && stationArcade/, "チップの名前札が筐体のゲーム名になっていない");
+  assert.match(
+    src,
+    /stationArcadeNear\(indoorData\(\)\.objects, tx, ty\)/,
+    "フレームループで stationArcadeNear を引いていない",
+  );
+  assert.match(
+    src,
+    /stationUi === "arcade" && stationArcade/,
+    "チップの名前札が筐体のゲーム名になっていない",
+  );
   assert.match(src, /stationUi === "arcade" && \(/, "チップにアーケードのボタンが無い");
   assert.match(src, /setArcadeOpen\(\(v\) => !v\)/, "チップのボタンがパネルを開閉しない");
-  assert.match(src, /if \(stationUi !== "arcade"\) setArcadeOpen\(false\)/, "筐体から離れたらパネルが閉じない");
-  assert.match(src, /arcadeOpen && stationArcade && \(spaceUi === "lobby2" \|\| spaceUi === "lobby3"\)/, "パネル描画の条件が 2F/3F になっていない");
+  assert.match(
+    src,
+    /if \(stationUi !== "arcade"\) setArcadeOpen\(false\)/,
+    "筐体から離れたらパネルが閉じない",
+  );
+  assert.match(
+    src,
+    /arcadeOpen && stationArcade && \(spaceUi === "lobby2" \|\| spaceUi === "lobby3"\)/,
+    "パネル描画の条件が 2F/3F になっていない",
+  );
   assert.match(src, /<WorldBoxArcadePanel/, "WorldBoxArcadePanel が描画されていない");
   // 筐体で遊んでいる間はワールド側の移動キーを受けない（ゲーム側のキー入力と競合するため）
   assert.match(src, /if \(arcadeOpenRef\.current\) return;/, "筐体プレイ中のキー入力ガードが無い");

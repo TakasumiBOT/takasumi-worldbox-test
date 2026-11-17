@@ -14,13 +14,7 @@ export type Card = {
 
 export type BjPhase = "betting" | "player" | "settled";
 
-export type BjOutcome =
-  | "blackjack"
-  | "dealer_blackjack"
-  | "win"
-  | "lose"
-  | "push"
-  | "bust";
+export type BjOutcome = "blackjack" | "dealer_blackjack" | "win" | "lose" | "push" | "bust";
 
 export type BjResult = {
   outcome: BjOutcome;
@@ -180,9 +174,11 @@ export function startRound(state: BjState, bet: number): BjState {
   };
   const playerBj = isBlackjack(playerHand);
   const dealerBj = isBlackjack(dealerHand);
-  if (playerBj && dealerBj) return settle(s, "push", "両方ブラックジャック。引き分けで賭け金が戻ります。");
+  if (playerBj && dealerBj)
+    return settle(s, "push", "両方ブラックジャック。引き分けで賭け金が戻ります。");
   if (playerBj) return settle(s, "blackjack", "ブラックジャック！ 配当 3:2 です。");
-  if (dealerBj) return settle(s, "dealer_blackjack", "ディーラーのブラックジャック。あなたの負けです。");
+  if (dealerBj)
+    return settle(s, "dealer_blackjack", "ディーラーのブラックジャック。あなたの負けです。");
   return s;
 }
 

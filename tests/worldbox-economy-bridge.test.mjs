@@ -58,7 +58,14 @@ test("economy: Discord ID は数字 5..25 桁だけ通る", () => {
 
 test("economy: buildEconomyOp は種類ごとの制約を守る", () => {
   const transfer = eco.buildEconomyOp(
-    { kind: "transfer", userKey: MY_KEY, discordId: ME, amount: 500, reason: "transfer", toDiscordId: OTHER },
+    {
+      kind: "transfer",
+      userKey: MY_KEY,
+      discordId: ME,
+      amount: 500,
+      reason: "transfer",
+      toDiscordId: OTHER,
+    },
     "12345678-abcd-4abc-8abc-1234567890ab",
     1_700_000_000_000,
   );
@@ -74,63 +81,127 @@ test("economy: buildEconomyOp は種類ごとの制約を守る", () => {
     toDiscordId: OTHER,
   });
   // 自分宛ての送金は不可
-  assert.equal(eco.buildEconomyOp(
-    { kind: "transfer", userKey: MY_KEY, discordId: ME, amount: 1, reason: "transfer", toDiscordId: ME },
-    "12345678-abcd-4abc-8abc-1234567890ab", 1,
-  ), null);
+  assert.equal(
+    eco.buildEconomyOp(
+      {
+        kind: "transfer",
+        userKey: MY_KEY,
+        discordId: ME,
+        amount: 1,
+        reason: "transfer",
+        toDiscordId: ME,
+      },
+      "12345678-abcd-4abc-8abc-1234567890ab",
+      1,
+    ),
+    null,
+  );
   // 受け手が無い送金は不可
-  assert.equal(eco.buildEconomyOp(
-    { kind: "transfer", userKey: MY_KEY, discordId: ME, amount: 1, reason: "transfer" },
-    "12345678-abcd-4abc-8abc-1234567890ab", 1,
-  ), null);
+  assert.equal(
+    eco.buildEconomyOp(
+      { kind: "transfer", userKey: MY_KEY, discordId: ME, amount: 1, reason: "transfer" },
+      "12345678-abcd-4abc-8abc-1234567890ab",
+      1,
+    ),
+    null,
+  );
   // earn はホワイトリストの理由だけ
-  for (const reason of ["harvest", "guild_shop_sale", "arena_prize", "arena_pvp_fee_refund", "shop_sale"]) {
+  for (const reason of [
+    "harvest",
+    "guild_shop_sale",
+    "arena_prize",
+    "arena_pvp_fee_refund",
+    "shop_sale",
+  ]) {
     const op = eco.buildEconomyOp(
       { kind: "earn", userKey: MY_KEY, discordId: ME, amount: 10, reason },
-      "12345678-abcd-4abc-8abc-1234567890ab", 1,
+      "12345678-abcd-4abc-8abc-1234567890ab",
+      1,
     );
     assert.equal(op?.kind, "earn");
   }
-  assert.equal(eco.buildEconomyOp(
-    { kind: "earn", userKey: MY_KEY, discordId: ME, amount: 10, reason: "cheat" },
-    "12345678-abcd-4abc-8abc-1234567890ab", 1,
-  ), null);
+  assert.equal(
+    eco.buildEconomyOp(
+      { kind: "earn", userKey: MY_KEY, discordId: ME, amount: 10, reason: "cheat" },
+      "12345678-abcd-4abc-8abc-1234567890ab",
+      1,
+    ),
+    null,
+  );
   // 労働は廃止（2026-11-16）: earn の許可リストから外れたため作れない
-  assert.equal(eco.buildEconomyOp(
-    { kind: "earn", userKey: MY_KEY, discordId: ME, amount: 10, reason: "work" },
-    "12345678-abcd-4abc-8abc-1234567890ab", 1,
-  ), null);
+  assert.equal(
+    eco.buildEconomyOp(
+      { kind: "earn", userKey: MY_KEY, discordId: ME, amount: 10, reason: "work" },
+      "12345678-abcd-4abc-8abc-1234567890ab",
+      1,
+    ),
+    null,
+  );
   // spend は理由自由（サーバー側の呼び出し専用）
   const spend = eco.buildEconomyOp(
     { kind: "spend", userKey: MY_KEY, discordId: ME, amount: 300, reason: "build_house" },
-    "12345678-abcd-4abc-8abc-1234567890ab", 1,
+    "12345678-abcd-4abc-8abc-1234567890ab",
+    1,
   );
   assert.equal(spend?.kind, "spend");
   // steal は一旦廃止（2026-11-16）: 形が正しくても作れない
-  assert.equal(eco.buildEconomyOp(
-    { kind: "steal", userKey: MY_KEY, discordId: ME, amount: 20, reason: "steal", fromDiscordId: OTHER },
-    "12345678-abcd-4abc-8abc-1234567890ab", 1,
-  ), null);
+  assert.equal(
+    eco.buildEconomyOp(
+      {
+        kind: "steal",
+        userKey: MY_KEY,
+        discordId: ME,
+        amount: 20,
+        reason: "steal",
+        fromDiscordId: OTHER,
+      },
+      "12345678-abcd-4abc-8abc-1234567890ab",
+      1,
+    ),
+    null,
+  );
 });
 
 test("economy: parseEconomyOp はオブジェクトと JSON 文字列を受け、壊れた値を落とす", () => {
   const raw = {
-    id: "12345678-abcd-4abc-8abc-1234567890ab", kind: "earn", userKey: MY_KEY,
-    discordId: ME, amount: 250, reason: "harvest", status: "done",
-    appliedAmount: 120, appliedAt: 99, createdAt: 10, claim: { token: "x" },
+    id: "12345678-abcd-4abc-8abc-1234567890ab",
+    kind: "earn",
+    userKey: MY_KEY,
+    discordId: ME,
+    amount: 250,
+    reason: "harvest",
+    status: "done",
+    appliedAmount: 120,
+    appliedAt: 99,
+    createdAt: 10,
+    claim: { token: "x" },
   };
   const parsed = eco.parseEconomyOp(raw);
   assert.equal(parsed?.appliedAmount, 120);
   assert.equal(parsed?.appliedAt, 99);
   assert.equal("claim" in (parsed ?? {}), false, "未知フィールドは捨てる");
   assert.deepEqual(eco.parseEconomyOp(JSON.stringify(raw)), parsed);
-  for (const bad of [null, 42, "{壊れた", [], { ...raw, status: "processing" }, { ...raw, amount: 0 }, { ...raw, kind: "gift" }]) {
+  for (const bad of [
+    null,
+    42,
+    "{壊れた",
+    [],
+    { ...raw, status: "processing" },
+    { ...raw, amount: 0 },
+    { ...raw, kind: "gift" },
+  ]) {
     assert.equal(eco.parseEconomyOp(bad), null);
   }
   // steal は fromDiscordId を保持し、欠けていれば落とす
   const stealRaw = {
-    id: "12345678-abcd-4abc-8abc-1234567890ab", kind: "steal", userKey: MY_KEY,
-    discordId: ME, amount: 20, reason: "steal", status: "pending", createdAt: 10,
+    id: "12345678-abcd-4abc-8abc-1234567890ab",
+    kind: "steal",
+    userKey: MY_KEY,
+    discordId: ME,
+    amount: 20,
+    reason: "steal",
+    status: "pending",
+    createdAt: 10,
     fromDiscordId: OTHER,
   };
   assert.equal(eco.parseEconomyOp(stealRaw)?.fromDiscordId, OTHER);
@@ -141,15 +212,21 @@ test("economy: parseEconomyOp はオブジェクトと JSON 文字列を受け�
 test("economy: recentEconomyOps は自分のオプだけを新しい順に最大20件", () => {
   const ops = [];
   for (let i = 0; i < 25; i++) {
-    ops.push(eco.buildEconomyOp(
-      { kind: "spend", userKey: MY_KEY, discordId: ME, amount: 1, reason: "r" },
-      `12345678-abcd-4abc-8abc-${String(i).padStart(12, "0")}`, 1000 + i,
-    ));
+    ops.push(
+      eco.buildEconomyOp(
+        { kind: "spend", userKey: MY_KEY, discordId: ME, amount: 1, reason: "r" },
+        `12345678-abcd-4abc-8abc-${String(i).padStart(12, "0")}`,
+        1000 + i,
+      ),
+    );
   }
-  ops.push(eco.buildEconomyOp(
-    { kind: "spend", userKey: `discord:${OTHER}`, discordId: OTHER, amount: 1, reason: "r" },
-    "12345678-abcd-4abc-8abc-999999999999", 5000,
-  ));
+  ops.push(
+    eco.buildEconomyOp(
+      { kind: "spend", userKey: `discord:${OTHER}`, discordId: OTHER, amount: 1, reason: "r" },
+      "12345678-abcd-4abc-8abc-999999999999",
+      5000,
+    ),
+  );
   const mine = eco.recentEconomyOps(ops, MY_KEY);
   assert.equal(mine.length, 20);
   assert.equal(mine[0].createdAt, 1024);
@@ -232,9 +309,13 @@ export async function rpc(name, params) {
 }
 `);
 const subdomainUrl = dataUrl(transpile("subdomain.ts"));
-const headersStubUrl = dataUrl("export async function cookies() { throw new Error('tests do not use cookies()'); }");
+const headersStubUrl = dataUrl(
+  "export async function cookies() { throw new Error('tests do not use cookies()'); }",
+);
 const authUrl = dataUrl(
-  transpile("auth.ts").replaceAll('"./subdomain"', JSON.stringify(subdomainUrl)).replaceAll('"next/headers"', JSON.stringify(headersStubUrl)),
+  transpile("auth.ts")
+    .replaceAll('"./subdomain"', JSON.stringify(subdomainUrl))
+    .replaceAll('"next/headers"', JSON.stringify(headersStubUrl)),
 );
 const auth = await import(authUrl);
 const economyOnlineUrl = dataUrl(
@@ -263,9 +344,12 @@ const economyRoute = await import(
       .replaceAll('"next/server"', JSON.stringify(nextServerStubUrl))
       .replaceAll('"@/lib/auth"', JSON.stringify(authUrl))
       .replaceAll('"@/lib/worldbox/economy/economy-bridge"', JSON.stringify(economyUrl))
-      .replaceAll('"@/lib/worldbox/economy/economy-bridge-online"', JSON.stringify(economyOnlineUrl))
+      .replaceAll(
+        '"@/lib/worldbox/economy/economy-bridge-online"',
+        JSON.stringify(economyOnlineUrl),
+      )
       .replaceAll('"@/lib/worldbox/world/station-online"', JSON.stringify(stationStubUrl)),
-  ),
+  )
 );
 
 process.env.DISCORD_SESSION_SECRET = ["worldbox", "economy", "test", "secret"].join("-");
@@ -288,7 +372,14 @@ const URL_E = "http://localhost/api/worldbox/economy";
 
 test("API(economy): 未ログインは 401、Google セッションは 403", async () => {
   assert.equal((await economyRoute.GET(apiRequest(URL_E, "GET", null))).status, 401);
-  assert.equal((await economyRoute.POST(apiRequest(URL_E, "POST", null, { action: "transfer", toDiscordId: OTHER, amount: 1 }))).status, 401);
+  assert.equal(
+    (
+      await economyRoute.POST(
+        apiRequest(URL_E, "POST", null, { action: "transfer", toDiscordId: OTHER, amount: 1 }),
+      )
+    ).status,
+    401,
+  );
   const google = sessionCookie("633333333333333333", "g-user", "google");
   assert.equal((await economyRoute.GET(apiRequest(URL_E, "GET", google))).status, 403);
 });
@@ -299,16 +390,33 @@ test("API(economy): GET は残高（users の読み取り）と自分のオプ�
   // 他人のオプと自分の完了オプを直接キューへ入れておく
   const store = globalThis.__wbEconomyStore;
   store.set(`worldbox_economy op-other-1`, {
-    id: "op-other-1", kind: "spend", userKey: `discord:${OTHER}`, discordId: OTHER,
-    amount: 1, reason: "r", status: "pending", createdAt: 10,
+    id: "op-other-1",
+    kind: "spend",
+    userKey: `discord:${OTHER}`,
+    discordId: OTHER,
+    amount: 1,
+    reason: "r",
+    status: "pending",
+    createdAt: 10,
   });
   store.set(`worldbox_economy op-mine-01`, {
-    id: "op-mine-01", kind: "earn", userKey: MY_KEY, discordId: ME,
-    amount: 250, reason: "harvest", status: "done", appliedAmount: 250, createdAt: 20, appliedAt: 30,
+    id: "op-mine-01",
+    kind: "earn",
+    userKey: MY_KEY,
+    discordId: ME,
+    amount: 250,
+    reason: "harvest",
+    status: "done",
+    appliedAmount: 250,
+    createdAt: 20,
+    appliedAt: 30,
   });
   const data = await (await economyRoute.GET(apiRequest(URL_E, "GET", cookie))).json();
   assert.equal(data.balance, 12345);
-  assert.deepEqual(data.ops.map((op) => op.id), ["op-mine-01"]);
+  assert.deepEqual(
+    data.ops.map((op) => op.id),
+    ["op-mine-01"],
+  );
   assert.equal(data.ops[0].appliedAmount, 250);
   // 行が無いユーザーの残高は 0
   const fresh = sessionCookie("699999999999999999", "fresh-user");
@@ -322,7 +430,9 @@ test("API(economy): POST transfer は RPC で即時適用され、オプは done
   globalThis.__wbEconomyUsers.set(ME, 12345);
   globalThis.__wbEconomyUsers.set(OTHER, 1000);
   const cookie = sessionCookie(ME, "eco-user");
-  const res = await economyRoute.POST(apiRequest(URL_E, "POST", cookie, { action: "transfer", toDiscordId: OTHER, amount: 700 }));
+  const res = await economyRoute.POST(
+    apiRequest(URL_E, "POST", cookie, { action: "transfer", toDiscordId: OTHER, amount: 700 }),
+  );
   assert.equal(res.status, 200);
   const data = await res.json();
   assert.equal(data.ok, true);
@@ -346,25 +456,37 @@ test("API(bridge): waitForOpDone は done への遷移をその場で拾う", as
   const bridge = await import(economyOnlineUrl);
   const op = eco.buildEconomyOp(
     { kind: "spend", userKey: MY_KEY, discordId: ME, amount: 10, reason: "arena_entry" },
-    "op-wait-01", Date.now(),
+    "op-wait-01",
+    Date.now(),
   );
   globalThis.__wbEconomyStore.set(`worldbox_economy ${op.id}`, { ...op });
   setTimeout(() => {
     const cur = globalThis.__wbEconomyStore.get(`worldbox_economy ${op.id}`);
-    globalThis.__wbEconomyStore.set(`worldbox_economy ${op.id}`, { ...cur, status: "done", appliedAmount: 10 });
+    globalThis.__wbEconomyStore.set(`worldbox_economy ${op.id}`, {
+      ...cur,
+      status: "done",
+      appliedAmount: 10,
+    });
   }, 60);
   const settled = await bridge.waitForOpDone(MY_KEY, op.id, { timeoutMs: 2_000, intervalMs: 20 });
   assert.equal(settled.status, "done");
   assert.equal(settled.appliedAmount, 10);
   // 他人のオプは待っても引けない（userKey で弾く）
-  assert.equal(await bridge.waitForOpDone("discord:699999999999999999", op.id, { timeoutMs: 50, intervalMs: 10 }), null);
+  assert.equal(
+    await bridge.waitForOpDone("discord:699999999999999999", op.id, {
+      timeoutMs: 50,
+      intervalMs: 10,
+    }),
+    null,
+  );
 });
 
 test("API(bridge): waitForOpDone はタイムアウトで pending のまま返し、waitForOpsDone は混在を扱う", async () => {
   const bridge = await import(economyOnlineUrl);
   const op = eco.buildEconomyOp(
     { kind: "spend", userKey: MY_KEY, discordId: ME, amount: 10, reason: "arena_entry" },
-    "op-wait-02", Date.now(),
+    "op-wait-02",
+    Date.now(),
   );
   globalThis.__wbEconomyStore.set(`worldbox_economy ${op.id}`, { ...op });
   const started = Date.now();
@@ -372,7 +494,10 @@ test("API(bridge): waitForOpDone はタイムアウトで pending のまま返�
   assert.equal(result.status, "pending");
   assert.ok(Date.now() - started >= 100, "予算までは待つ");
   const many = await bridge.waitForOpsDone(
-    [{ userKey: MY_KEY, opId: op.id }, { userKey: MY_KEY, opId: "op-wait-missing" }],
+    [
+      { userKey: MY_KEY, opId: op.id },
+      { userKey: MY_KEY, opId: "op-wait-missing" },
+    ],
     { timeoutMs: 50, intervalMs: 10 },
   );
   assert.equal(many[0].status, "pending");
@@ -382,7 +507,9 @@ test("API(bridge): waitForOpDone はタイムアウトで pending のまま返�
 test("API(economy): spend / earn はクライアントから積めない（400）", async () => {
   const cookie = sessionCookie(ME, "eco-user");
   for (const action of ["spend", "earn", "gift", undefined]) {
-    const res = await economyRoute.POST(apiRequest(URL_E, "POST", cookie, { action, amount: 10, reason: "harvest" }));
+    const res = await economyRoute.POST(
+      apiRequest(URL_E, "POST", cookie, { action, amount: 10, reason: "harvest" }),
+    );
     assert.equal(res.status, 400, `action=${String(action)}`);
     assert.equal((await res.json()).error, "invalid_action");
   }
@@ -390,18 +517,32 @@ test("API(economy): spend / earn はクライアントから積めない（400�
 
 test("API(economy): 送金の検証（自分宛て・金額・受け手・他オリジン）", async () => {
   const cookie = sessionCookie(ME, "eco-user");
-  const self = await economyRoute.POST(apiRequest(URL_E, "POST", cookie, { action: "transfer", toDiscordId: ME, amount: 10 }));
+  const self = await economyRoute.POST(
+    apiRequest(URL_E, "POST", cookie, { action: "transfer", toDiscordId: ME, amount: 10 }),
+  );
   assert.equal(self.status, 400);
   assert.equal((await self.json()).error, "self_transfer");
   for (const amount of [0, -1, 1.5, 1_000_001, "100"]) {
-    const res = await economyRoute.POST(apiRequest(URL_E, "POST", cookie, { action: "transfer", toDiscordId: OTHER, amount }));
+    const res = await economyRoute.POST(
+      apiRequest(URL_E, "POST", cookie, { action: "transfer", toDiscordId: OTHER, amount }),
+    );
     assert.equal(res.status, 400, `amount=${String(amount)}`);
     assert.equal((await res.json()).error, "invalid_amount");
   }
-  const badTo = await economyRoute.POST(apiRequest(URL_E, "POST", cookie, { action: "transfer", toDiscordId: "abc", amount: 10 }));
+  const badTo = await economyRoute.POST(
+    apiRequest(URL_E, "POST", cookie, { action: "transfer", toDiscordId: "abc", amount: 10 }),
+  );
   assert.equal(badTo.status, 400);
   assert.equal((await badTo.json()).error, "invalid_recipient");
-  const cross = await economyRoute.POST(apiRequest(URL_E, "POST", cookie, { action: "transfer", toDiscordId: OTHER, amount: 10 }, { origin: "http://evil.example" }));
+  const cross = await economyRoute.POST(
+    apiRequest(
+      URL_E,
+      "POST",
+      cookie,
+      { action: "transfer", toDiscordId: OTHER, amount: 10 },
+      { origin: "http://evil.example" },
+    ),
+  );
   assert.equal(cross.status, 403);
 });
 
@@ -429,7 +570,12 @@ function bundleModule(files, names) {
   return dataUrl(`${code}\nexport { ${names.join(", ")} };`);
 }
 const profileEcoUrl = bundleModule(
-  ["worldbox/economy/items.ts", "worldbox/player/profile.ts", "worldbox/player/vitals.ts", "worldbox/economy/economy.ts"],
+  [
+    "worldbox/economy/items.ts",
+    "worldbox/player/profile.ts",
+    "worldbox/player/vitals.ts",
+    "worldbox/economy/economy.ts",
+  ],
   ["buyItem", "sellItem", "eatItem", "doWork", "craftItem", "craftFromInputs", "resolveSteal"],
 );
 const bridgeOnlineStubUrl = dataUrl(`
@@ -458,9 +604,26 @@ export function isPresenceEnabled() { return true; }
 export async function findPresenceOwnerKey(id) { return map.has(id) ? map.get(id) : null; }
 `);
 await import(presenceStubUrl); // ルートはもう presence-online を読まないため、状態だけ先に作る
-const profileSwapUrl = bundleModule(["worldbox/economy/items.ts", "worldbox/player/profile.ts"], ["swapSlots", "moveSlot", "countItem", "removeItem", "ENHANCE_BASE_COST", "ENHANCE_MATERIALS", "ENHANCE_MAX_LEVEL"]);
-const rolesUrl = bundleModule(["worldbox/economy/items.ts", "worldbox/player/profile.ts", "worldbox/player/roles.ts"], ["addMasteryXp"]);
-const shopsRealUrl = bundleModule(["worldbox/economy/items.ts", "worldbox/economy/shops.ts"], ["checkBuyGenre", "checkBuySold", "checkDailyStock", "dailyPriceFor", "shopDayKeyOf"]);
+const profileSwapUrl = bundleModule(
+  ["worldbox/economy/items.ts", "worldbox/player/profile.ts"],
+  [
+    "swapSlots",
+    "moveSlot",
+    "countItem",
+    "removeItem",
+    "ENHANCE_BASE_COST",
+    "ENHANCE_MATERIALS",
+    "ENHANCE_MAX_LEVEL",
+  ],
+);
+const rolesUrl = bundleModule(
+  ["worldbox/economy/items.ts", "worldbox/player/profile.ts", "worldbox/player/roles.ts"],
+  ["addMasteryXp"],
+);
+const shopsRealUrl = bundleModule(
+  ["worldbox/economy/items.ts", "worldbox/economy/shops.ts"],
+  ["checkBuyGenre", "checkBuySold", "checkDailyStock", "dailyPriceFor", "shopDayKeyOf"],
+);
 // 日次ローテーションは日付依存なので、このブリッジテストでは中立化する
 // （日次そのものの検証は worldbox-shop-daily / worldbox-shops が担う）。
 const shopsUrl = dataUrl(`
@@ -471,15 +634,23 @@ export function checkDailyStock() { return null; }
 export function dailyPriceFor(item) { return item.price; }
 export function shopDayKeyOf() { return "test-day"; }
 `);
-const itemsOnlyUrl = bundleModule(["worldbox/economy/items.ts"], ["itemById", "recipeById", "recipeKind"]);
-const tentStubUrl = dataUrl(`export const TENT_MAX_TIER = 2; export const TENT_TIERS = [{ w: 13, h: 10, price: 0 }, { w: 17, h: 13, price: 3000 }, { w: 22, h: 17, price: 10000 }];`);
+const itemsOnlyUrl = bundleModule(
+  ["worldbox/economy/items.ts"],
+  ["itemById", "recipeById", "recipeKind"],
+);
+const tentStubUrl = dataUrl(
+  `export const TENT_MAX_TIER = 2; export const TENT_TIERS = [{ w: 13, h: 10, price: 0 }, { w: 17, h: 13, price: 3000 }, { w: 22, h: 17, price: 10000 }];`,
+);
 
 const profileRoute = await import(
   dataUrl(
     transpile("api/worldbox/profile/route.ts", rootDir + "/app")
       .replaceAll('"next/server"', JSON.stringify(nextServerStubUrl))
       .replaceAll('"@/lib/auth"', JSON.stringify(authUrl))
-      .replaceAll('"@/lib/worldbox/economy/economy-bridge-online"', JSON.stringify(bridgeOnlineStubUrl))
+      .replaceAll(
+        '"@/lib/worldbox/economy/economy-bridge-online"',
+        JSON.stringify(bridgeOnlineStubUrl),
+      )
       .replaceAll('"@/lib/worldbox/economy/economy-bridge"', JSON.stringify(economyUrl))
       .replaceAll('"@/lib/worldbox/economy/economy"', JSON.stringify(profileEcoUrl))
       .replaceAll('"@/lib/worldbox/player/presence-online"', JSON.stringify(presenceStubUrl))
@@ -491,7 +662,7 @@ const profileRoute = await import(
       .replaceAll('"@/lib/worldbox/player/profile"', JSON.stringify(profileSwapUrl))
       .replaceAll('"@/lib/worldbox/core/user-lock"', JSON.stringify(userLockUrl))
       .replaceAll('"@/lib/worldbox/player/roles"', JSON.stringify(rolesUrl)),
-  ),
+  )
 );
 const URL_P = "http://localhost/api/worldbox/profile";
 function resetBridgeState() {
@@ -507,7 +678,9 @@ test("API(profile): buy は spend オプを積み、アイテムだけが増え�
   resetBridgeState();
   globalThis.__wbBridge.balances.set(ME, 1000);
   const cookie = sessionCookie(ME, "eco-user");
-  const res = await profileRoute.POST(apiRequest(URL_P, "POST", cookie, { action: "buy", itemId: "wood", count: 2 }));
+  const res = await profileRoute.POST(
+    apiRequest(URL_P, "POST", cookie, { action: "buy", itemId: "wood", count: 2 }),
+  );
   assert.equal(res.status, 200);
   const data = await res.json();
   assert.equal(data.profile.items.wood, 2);
@@ -525,7 +698,9 @@ test("API(profile): buy は実残高不足で 409、オプもアイテムも増�
   resetBridgeState();
   globalThis.__wbBridge.balances.set(ME, 3);
   const cookie = sessionCookie(ME, "eco-user");
-  const res = await profileRoute.POST(apiRequest(URL_P, "POST", cookie, { action: "buy", itemId: "wood" }));
+  const res = await profileRoute.POST(
+    apiRequest(URL_P, "POST", cookie, { action: "buy", itemId: "wood" }),
+  );
   assert.equal(res.status, 409);
   assert.equal((await res.json()).error, "not_enough_coins");
   assert.equal(globalThis.__wbBridge.ops.length, 0);
@@ -534,20 +709,35 @@ test("API(profile): buy は実残高不足で 409、オプもアイテムも増�
 test("API(profile): sell は earn(shop_sale) オプを積む", async () => {
   resetBridgeState();
   const cookie = sessionCookie(ME, "eco-user");
-  globalThis.__wbProfiles.set(MY_KEY, { coins: 100, hunger: 100, items: { wood: 1 }, stealActorAt: 0, stealTargetAt: 0 });
-  const sold = await profileRoute.POST(apiRequest(URL_P, "POST", cookie, { action: "sell", itemId: "wood" }));
+  globalThis.__wbProfiles.set(MY_KEY, {
+    coins: 100,
+    hunger: 100,
+    items: { wood: 1 },
+    stealActorAt: 0,
+    stealTargetAt: 0,
+  });
+  const sold = await profileRoute.POST(
+    apiRequest(URL_P, "POST", cookie, { action: "sell", itemId: "wood" }),
+  );
   assert.equal(sold.status, 200);
   assert.equal((await sold.json()).profile.items.wood, undefined);
   const ops = globalThis.__wbBridge.ops;
-  assert.deepEqual(ops.map((op) => [op.kind, op.reason, op.amount]), [
-    ["earn", "shop_sale", 48],
-  ]);
+  assert.deepEqual(
+    ops.map((op) => [op.kind, op.reason, op.amount]),
+    [["earn", "shop_sale", 48]],
+  );
 });
 
 test("API(profile): work は廃止され、オプもプロフィールも動かない", async () => {
   resetBridgeState();
   const cookie = sessionCookie(ME, "eco-user");
-  globalThis.__wbProfiles.set(MY_KEY, { coins: 100, hunger: 100, items: {}, stealActorAt: 0, stealTargetAt: 0 });
+  globalThis.__wbProfiles.set(MY_KEY, {
+    coins: 100,
+    hunger: 100,
+    items: {},
+    stealActorAt: 0,
+    stealTargetAt: 0,
+  });
   const res = await profileRoute.POST(apiRequest(URL_P, "POST", cookie, { action: "work" }));
   assert.equal(res.status, 409);
   assert.equal((await res.json()).error, "work_disabled");
@@ -558,8 +748,16 @@ test("API(profile): work は廃止され、オプもプロフィールも動か�
 test("API(profile): eat はオプを積まない", async () => {
   resetBridgeState();
   const cookie = sessionCookie(ME, "eco-user");
-  globalThis.__wbProfiles.set(MY_KEY, { coins: 100, hunger: 30, items: { bread: 1 }, stealActorAt: 0, stealTargetAt: 0 });
-  const res = await profileRoute.POST(apiRequest(URL_P, "POST", cookie, { action: "eat", itemId: "bread" }));
+  globalThis.__wbProfiles.set(MY_KEY, {
+    coins: 100,
+    hunger: 30,
+    items: { bread: 1 },
+    stealActorAt: 0,
+    stealTargetAt: 0,
+  });
+  const res = await profileRoute.POST(
+    apiRequest(URL_P, "POST", cookie, { action: "eat", itemId: "bread" }),
+  );
   assert.equal(res.status, 200);
   assert.equal((await res.json()).profile.hunger, 50);
   assert.equal(globalThis.__wbBridge.ops.length, 0);
@@ -571,13 +769,17 @@ test("API(profile): steal は廃止され、オプもプロフィールも動か
   globalThis.__wbBridge.balances.set(ME, 100);
   globalThis.__wbBridge.balances.set(OTHER, 400);
   const cookie = sessionCookie(ME, "eco-user");
-  const res = await profileRoute.POST(apiRequest(URL_P, "POST", cookie, { action: "steal", targetId: "pres-1" }));
+  const res = await profileRoute.POST(
+    apiRequest(URL_P, "POST", cookie, { action: "steal", targetId: "pres-1" }),
+  );
   assert.equal(res.status, 409);
   assert.equal((await res.json()).error, "steal_disabled");
   assert.equal(globalThis.__wbBridge.ops.length, 0);
   assert.equal(globalThis.__wbProfiles.get(MY_KEY)?.stealActorAt ?? 0, 0);
   const google = sessionCookie("633333333333333333", "g-user", "google");
-  const denied = await profileRoute.POST(apiRequest(URL_P, "POST", google, { action: "buy", itemId: "wood" }));
+  const denied = await profileRoute.POST(
+    apiRequest(URL_P, "POST", google, { action: "buy", itemId: "wood" }),
+  );
   assert.equal(denied.status, 403);
   assert.equal((await denied.json()).error, "discord_required");
 });
@@ -585,9 +787,15 @@ test("API(profile): steal は廃止され、オプもプロフィールも動か
 // ---------- クライアント配線 ----------
 
 test("クライアント: 経済パネルに残高・銀行タブ・処理中表示がある", () => {
-  const client = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"), "utf8");
+  const client = fs.readFileSync(
+    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    "utf8",
+  );
   assert.ok(client.includes("WorldBoxEconomyPanel"), "経済パネルが配線されていない");
-  const panel = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxEconomyPanel.tsx"), "utf8");
+  const panel = fs.readFileSync(
+    path.join(rootDir, "app/games/worldbox/WorldBoxEconomyPanel.tsx"),
+    "utf8",
+  );
   assert.ok(panel.includes("/api/worldbox/economy"), "経済ブリッジ API を使っていない");
   assert.ok(panel.includes("残高"), "残高表示が無い");
   assert.ok(panel.includes("銀行"), "銀行タブが無い");
@@ -605,7 +813,8 @@ test("API(bridge): submitEconomyOp は spend を CAS で即時適用し、台帳
   globalThis.__wbEconomyUsers.set(user, 5000);
   const op = eco.buildEconomyOp(
     { kind: "spend", userKey: key, discordId: user, amount: 800, reason: "shop_buy" },
-    "op-direct-spend-1", Date.now(),
+    "op-direct-spend-1",
+    Date.now(),
   );
   const historyBefore = (globalThis.__wbHistory ?? []).length;
   const result = await bridge.submitEconomyOp(op);
@@ -620,7 +829,9 @@ test("API(bridge): submitEconomyOp は spend を CAS で即時適用し、台帳
   assert.equal(ledger.status, "applied");
   assert.equal(ledger.appliedAmount, 800);
   const history = (globalThis.__wbHistory ?? []).slice(historyBefore);
-  assert.deepEqual(history, [{ sender_id: user, receiver_id: "WORLD_BOX", amount: 800, reason: "shop_buy" }]);
+  assert.deepEqual(history, [
+    { sender_id: user, receiver_id: "WORLD_BOX", amount: 800, reason: "shop_buy" },
+  ]);
   const date = new Date().toISOString().slice(0, 10);
   const metric = globalThis.__wbEconomyStore.get(`worldbox_metrics_econ ${date}`);
   assert.equal(metric.spend.shop_buy, 800);
@@ -633,7 +844,8 @@ test("API(bridge): submitEconomyOp は残高不足の spend を failed で終端
   globalThis.__wbEconomyUsers.set(user, 100);
   const op = eco.buildEconomyOp(
     { kind: "spend", userKey: key, discordId: user, amount: 800, reason: "shop_buy" },
-    "op-direct-spend-2", Date.now(),
+    "op-direct-spend-2",
+    Date.now(),
   );
   const result = await bridge.submitEconomyOp(op);
   assert.equal(result.state, "failed");
@@ -651,7 +863,8 @@ test("API(bridge): submitEconomyOp は同一オプの再提出で二重に引か
   globalThis.__wbEconomyUsers.set(user, 3000);
   const op = eco.buildEconomyOp(
     { kind: "spend", userKey: key, discordId: user, amount: 500, reason: "tent_expand" },
-    "op-direct-spend-3", Date.now(),
+    "op-direct-spend-3",
+    Date.now(),
   );
   const first = await bridge.submitEconomyOp(op);
   assert.equal(first.state, "done");
@@ -667,9 +880,13 @@ test("API(bridge): submitEconomyOp は台帳が applying のオプに触らず p
   globalThis.__wbEconomyUsers.set(user, 3000);
   const op = eco.buildEconomyOp(
     { kind: "spend", userKey: key, discordId: user, amount: 500, reason: "shop_buy" },
-    "op-direct-spend-4", Date.now(),
+    "op-direct-spend-4",
+    Date.now(),
   );
-  globalThis.__wbEconomyStore.set(`worldbox_economy_applied ${op.id}`, { status: "applying", at: Date.now() });
+  globalThis.__wbEconomyStore.set(`worldbox_economy_applied ${op.id}`, {
+    status: "applying",
+    at: Date.now(),
+  });
   const result = await bridge.submitEconomyOp(op);
   assert.equal(result.state, "pending");
   assert.equal(globalThis.__wbEconomyUsers.get(user), 3000, "成否曖昧なオプは再適用しない");
@@ -684,7 +901,8 @@ test("API(bridge): submitEconomyOp は原資 DB が無い環境では earn を�
   globalThis.__wbEconomyUsers.set(user, 3000);
   const op = eco.buildEconomyOp(
     { kind: "earn", userKey: key, discordId: user, amount: 500, reason: "harvest" },
-    "op-direct-earn-1", Date.now(),
+    "op-direct-earn-1",
+    Date.now(),
   );
   const result = await bridge.submitEconomyOp(op);
   assert.equal(result.state, "pending");
@@ -701,8 +919,16 @@ test("API(bridge): submitEconomyOp は transfer の残高不足を failed(insuff
   const key = `discord:${user}`;
   globalThis.__wbEconomyUsers.set(user, 50);
   const op = eco.buildEconomyOp(
-    { kind: "transfer", userKey: key, discordId: user, amount: 700, reason: "transfer", toDiscordId: OTHER },
-    "op-direct-transfer-1", Date.now(),
+    {
+      kind: "transfer",
+      userKey: key,
+      discordId: user,
+      amount: 700,
+      reason: "transfer",
+      toDiscordId: OTHER,
+    },
+    "op-direct-transfer-1",
+    Date.now(),
   );
   const result = await bridge.submitEconomyOp(op);
   assert.equal(result.state, "failed");
@@ -730,7 +956,8 @@ test("API(bridge): submitEconomyOp は earn を pay_house 経由で即時適用�
   globalThis.__wbEconomyUsers.set(user, 100);
   const op = eco.buildEconomyOp(
     { kind: "earn", userKey: key, discordId: user, amount: 800, reason: "shop_sale" },
-    "op-direct-earn-2", Date.now(),
+    "op-direct-earn-2",
+    Date.now(),
   );
   const historyBefore = (globalThis.__wbHistory ?? []).length;
   const result = await bridge.submitEconomyOp(op);
@@ -740,7 +967,9 @@ test("API(bridge): submitEconomyOp は earn を pay_house 経由で即時適用�
   assert.equal(globalThis.__wbPool.pool, 200, "原資はプールから先に引かれる");
   assert.equal(globalThis.__wbPool.treasury, 500);
   const history = (globalThis.__wbHistory ?? []).slice(historyBefore);
-  assert.deepEqual(history, [{ sender_id: "WORLD_BOX", receiver_id: user, amount: 800, reason: "shop_sale" }]);
+  assert.deepEqual(history, [
+    { sender_id: "WORLD_BOX", receiver_id: user, amount: 800, reason: "shop_sale" },
+  ]);
   // 再提出しても二重に入金されない
   const again = await bridge.submitEconomyOp(op);
   assert.equal(again.state, "done");
@@ -755,7 +984,8 @@ test("API(bridge): submitEconomyOp の earn は原資の残りだけを払う（
   globalThis.__wbEconomyUsers.set(user, 0);
   const op = eco.buildEconomyOp(
     { kind: "earn", userKey: key, discordId: user, amount: 800, reason: "harvest" },
-    "op-direct-earn-3", Date.now(),
+    "op-direct-earn-3",
+    Date.now(),
   );
   const result = await bridge.submitEconomyOp(op);
   assert.equal(result.state, "done");
@@ -764,7 +994,8 @@ test("API(bridge): submitEconomyOp の earn は原資の残りだけを払う（
   // 原資が空なら done で 0（発行しない）
   const op2 = eco.buildEconomyOp(
     { kind: "earn", userKey: key, discordId: user, amount: 800, reason: "harvest" },
-    "op-direct-earn-4", Date.now(),
+    "op-direct-earn-4",
+    Date.now(),
   );
   const result2 = await bridge.submitEconomyOp(op2);
   assert.equal(result2.state, "done");
@@ -779,8 +1010,16 @@ test("API(bridge): submitEconomyOp は gamble の勝ちをベット・原資・�
   await setupPool(1000, 0);
   globalThis.__wbEconomyUsers.set(user, 1000);
   const op = eco.buildEconomyOp(
-    { kind: "gamble", userKey: key, discordId: user, amount: 100, reason: "casino_dice", payout: 300 },
-    "op-direct-gamble-1", Date.now(),
+    {
+      kind: "gamble",
+      userKey: key,
+      discordId: user,
+      amount: 100,
+      reason: "casino_dice",
+      payout: 300,
+    },
+    "op-direct-gamble-1",
+    Date.now(),
   );
   const result = await bridge.submitEconomyOp(op);
   assert.equal(result.state, "done");
@@ -796,8 +1035,16 @@ test("API(bridge): submitEconomyOp は gamble の負けを還流し、残高不�
   await setupPool(1000, 0);
   globalThis.__wbEconomyUsers.set(user, 1000);
   const lose = eco.buildEconomyOp(
-    { kind: "gamble", userKey: key, discordId: user, amount: 100, reason: "casino_dice", payout: 0 },
-    "op-direct-gamble-2", Date.now(),
+    {
+      kind: "gamble",
+      userKey: key,
+      discordId: user,
+      amount: 100,
+      reason: "casino_dice",
+      payout: 0,
+    },
+    "op-direct-gamble-2",
+    Date.now(),
   );
   const loseResult = await bridge.submitEconomyOp(lose);
   assert.equal(loseResult.state, "done");
@@ -811,8 +1058,16 @@ test("API(bridge): submitEconomyOp は gamble の負けを還流し、残高不�
   globalThis.__wbEconomyUsers.set(poor, 50);
   const poolBefore = globalThis.__wbPool.pool;
   const op = eco.buildEconomyOp(
-    { kind: "gamble", userKey: poorKey, discordId: poor, amount: 100, reason: "casino_dice", payout: 300 },
-    "op-direct-gamble-3", Date.now(),
+    {
+      kind: "gamble",
+      userKey: poorKey,
+      discordId: poor,
+      amount: 100,
+      reason: "casino_dice",
+      payout: 300,
+    },
+    "op-direct-gamble-3",
+    Date.now(),
   );
   const result = await bridge.submitEconomyOp(op);
   assert.equal(result.state, "failed");
@@ -828,8 +1083,17 @@ test("API(bridge): submitEconomyOp は prepaid gamble の部分返しを還流�
   await setupPool(1000, 0);
   globalThis.__wbEconomyUsers.set(user, 500);
   const op = eco.buildEconomyOp(
-    { kind: "gamble", userKey: key, discordId: user, amount: 100, reason: "casino_slot7", payout: 40, prepaid: true },
-    "op-direct-gamble-4", Date.now(),
+    {
+      kind: "gamble",
+      userKey: key,
+      discordId: user,
+      amount: 100,
+      reason: "casino_slot7",
+      payout: 40,
+      prepaid: true,
+    },
+    "op-direct-gamble-4",
+    Date.now(),
   );
   const result = await bridge.submitEconomyOp(op);
   assert.equal(result.state, "done");

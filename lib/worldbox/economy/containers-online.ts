@@ -7,9 +7,7 @@
 // 中身はタイルに設置されたコンテナ（樽・宝箱）と対で存在し、
 // 容量の解釈には設置ブロックのアイテム ID が要る。
 import { isBotApiConfigured, kvDelete, kvGet, kvSet } from "../../bot-api";
-import {
-  parseContainerState, serializeContainerState, type ContainerState,
-} from "./containers";
+import { parseContainerState, serializeContainerState, type ContainerState } from "./containers";
 import { tileKey } from "../world/tiles";
 
 export const WORLDBOX_CONTAINERS_NAMESPACE = "worldbox_containers";
@@ -58,7 +56,11 @@ export async function storeContainer(
       // 旧形式の残存も一緒に消す（ワールド分のみ）。
       if (space === "world") await kvDelete(WORLDBOX_CONTAINERS_NAMESPACE, tileKey(x, y));
     } else {
-      await kvSet(WORLDBOX_CONTAINERS_NAMESPACE, containerKey(space, x, y), serializeContainerState(state));
+      await kvSet(
+        WORLDBOX_CONTAINERS_NAMESPACE,
+        containerKey(space, x, y),
+        serializeContainerState(state),
+      );
     }
     return true;
   } catch {

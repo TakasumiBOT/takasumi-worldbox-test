@@ -1,9 +1,16 @@
 import { NextResponse } from "next/server";
 import { getRequestSession } from "@/lib/auth";
 import { kvList } from "@/lib/bot-api";
-import { dayKeyOf, funnelRates, parseUserFirstSteps, retentionRate } from "@/lib/worldbox/core/metrics";
 import {
-  WORLDBOX_METRICS_USERS_NAMESPACE, loadDayMetrics, loadEconDay,
+  dayKeyOf,
+  funnelRates,
+  parseUserFirstSteps,
+  retentionRate,
+} from "@/lib/worldbox/core/metrics";
+import {
+  WORLDBOX_METRICS_USERS_NAMESPACE,
+  loadDayMetrics,
+  loadEconDay,
 } from "@/lib/worldbox/core/metrics-online";
 import { loadNationsState } from "@/lib/worldbox/social/nations-online";
 import { worldboxAdminIds } from "@/lib/worldbox/core/ops-online";
@@ -21,7 +28,8 @@ const DAYS = 14;
 
 export async function GET(request: Request) {
   const session = getRequestSession(request);
-  if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401, headers: NO_STORE });
+  if (!session)
+    return NextResponse.json({ error: "unauthorized" }, { status: 401, headers: NO_STORE });
   // 運営用データ（経済集計を含む）なので管理者のみ。ops ルートと同じ判定。
   if (session.provider !== "discord" || !worldboxAdminIds().has(session.id)) {
     return NextResponse.json({ error: "forbidden" }, { status: 403, headers: NO_STORE });

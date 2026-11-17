@@ -3,7 +3,10 @@
 // 依頼は投稿・納品・取消で相互参照するため、read-modify-write でまとめて扱う。
 import { isBotApiConfigured, kvGet, kvSet } from "../../bot-api";
 import {
-  emptyRequestsState, parseRequestsState, serializeRequestsState, type RequestsState,
+  emptyRequestsState,
+  parseRequestsState,
+  serializeRequestsState,
+  type RequestsState,
 } from "./requests";
 
 export const WORLDBOX_REQUESTS_NAMESPACE = "worldbox_requests";

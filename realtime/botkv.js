@@ -31,13 +31,17 @@ async function kvQuery(cfg, body, fetchImpl = fetch) {
 
 /** 名前空間を全件読む（bot-api.ts の kvList と同じ。Map で返す）。 */
 async function kvList(cfg, namespace, fetchImpl = fetch) {
-  const rows = await kvQuery(cfg, {
-    table: "bot_kv",
-    action: "select",
-    columns: "key,value",
-    filters: [{ column: "namespace", op: "eq", value: namespace }],
-    limit: 10_000,
-  }, fetchImpl);
+  const rows = await kvQuery(
+    cfg,
+    {
+      table: "bot_kv",
+      action: "select",
+      columns: "key,value",
+      filters: [{ column: "namespace", op: "eq", value: namespace }],
+      limit: 10_000,
+    },
+    fetchImpl,
+  );
   const map = new Map();
   for (const row of rows) map.set(String(row.key), row.value ?? null);
   return map;
@@ -45,40 +49,52 @@ async function kvList(cfg, namespace, fetchImpl = fetch) {
 
 /** 1件読む（bot-api.ts の kvGet と同じ。無ければ null）。 */
 async function kvGet(cfg, namespace, key, fetchImpl = fetch) {
-  const rows = await kvQuery(cfg, {
-    table: "bot_kv",
-    action: "select",
-    columns: "key,value",
-    filters: [
-      { column: "namespace", op: "eq", value: namespace },
-      { column: "key", op: "eq", value: key },
-    ],
-    limit: 1,
-  }, fetchImpl);
+  const rows = await kvQuery(
+    cfg,
+    {
+      table: "bot_kv",
+      action: "select",
+      columns: "key,value",
+      filters: [
+        { column: "namespace", op: "eq", value: namespace },
+        { column: "key", op: "eq", value: key },
+      ],
+      limit: 1,
+    },
+    fetchImpl,
+  );
   if (rows.length === 0) return null;
   return rows[0].value ?? null;
 }
 
 /** 1件書く（bot-api.ts の kvSet と同じ upsert）。 */
 async function kvSet(cfg, namespace, key, value, fetchImpl = fetch) {
-  await kvQuery(cfg, {
-    table: "bot_kv",
-    action: "upsert",
-    values: { namespace, key, value, updated_at: new Date().toISOString() },
-    on_conflict: "namespace,key",
-  }, fetchImpl);
+  await kvQuery(
+    cfg,
+    {
+      table: "bot_kv",
+      action: "upsert",
+      values: { namespace, key, value, updated_at: new Date().toISOString() },
+      on_conflict: "namespace,key",
+    },
+    fetchImpl,
+  );
 }
 
 /** 1件消す（bot-api.ts の kvDelete と同じ）。 */
 async function kvDelete(cfg, namespace, key, fetchImpl = fetch) {
-  await kvQuery(cfg, {
-    table: "bot_kv",
-    action: "delete",
-    filters: [
-      { column: "namespace", op: "eq", value: namespace },
-      { column: "key", op: "eq", value: key },
-    ],
-  }, fetchImpl);
+  await kvQuery(
+    cfg,
+    {
+      table: "bot_kv",
+      action: "delete",
+      filters: [
+        { column: "namespace", op: "eq", value: namespace },
+        { column: "key", op: "eq", value: key },
+      ],
+    },
+    fetchImpl,
+  );
 }
 
 module.exports = { botKvConfig, kvList, kvGet, kvSet, kvDelete };

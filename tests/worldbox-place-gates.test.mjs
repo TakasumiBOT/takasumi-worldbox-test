@@ -102,16 +102,26 @@ export async function rpc(name, params) {
 }
 `);
 const subdomainUrl = dataUrl(transpile("subdomain.ts"));
-const headersStubUrl = dataUrl("export async function cookies() { throw new Error('tests do not use cookies()'); }");
+const headersStubUrl = dataUrl(
+  "export async function cookies() { throw new Error('tests do not use cookies()'); }",
+);
 const authUrl = dataUrl(
-  transpile("auth.ts").replaceAll('"./subdomain"', JSON.stringify(subdomainUrl)).replaceAll('"next/headers"', JSON.stringify(headersStubUrl)),
+  transpile("auth.ts")
+    .replaceAll('"./subdomain"', JSON.stringify(subdomainUrl))
+    .replaceAll('"next/headers"', JSON.stringify(headersStubUrl)),
 );
 const auth = await import(authUrl);
 const rngUrl = dataUrl(transpile("worldbox/core/rng.ts"));
-const mapgenUrl = dataUrl(transpile("worldbox/world/mapgen.ts").replaceAll('"../core/rng"', JSON.stringify(rngUrl)));
-const lobbyUrl = dataUrl(transpile("worldbox/world/lobby.ts").replaceAll('"./mapgen"', JSON.stringify(mapgenUrl)));
+const mapgenUrl = dataUrl(
+  transpile("worldbox/world/mapgen.ts").replaceAll('"../core/rng"', JSON.stringify(rngUrl)),
+);
+const lobbyUrl = dataUrl(
+  transpile("worldbox/world/lobby.ts").replaceAll('"./mapgen"', JSON.stringify(mapgenUrl)),
+);
 const itemsUrl = dataUrl(transpile("worldbox/economy/items.ts"));
-const shopsRealUrl = dataUrl(transpile("worldbox/economy/shops.ts").replaceAll('"./items"', JSON.stringify(itemsUrl)));
+const shopsRealUrl = dataUrl(
+  transpile("worldbox/economy/shops.ts").replaceAll('"./items"', JSON.stringify(itemsUrl)),
+);
 // 日次ローテーションは日付依存なので、この場所ゲートテストでは中立化する。
 const shopsUrl = dataUrl(`
 import * as real from ${JSON.stringify(shopsRealUrl)};
@@ -121,12 +131,22 @@ export function checkDailyStock() { return null; }
 export function dailyPriceFor(item) { return item.price; }
 export function shopDayKeyOf() { return "test-day"; }
 `);
-const profileUrl = dataUrl(transpile("worldbox/player/profile.ts").replaceAll('"../economy/items"', JSON.stringify(itemsUrl)));
+const profileUrl = dataUrl(
+  transpile("worldbox/player/profile.ts").replaceAll(
+    '"../economy/items"',
+    JSON.stringify(itemsUrl),
+  ),
+);
 const vitalsUrl = dataUrl(
-  transpile("worldbox/player/vitals.ts").replaceAll('"../economy/items"', JSON.stringify(itemsUrl)).replaceAll('"./profile"', JSON.stringify(profileUrl)),
+  transpile("worldbox/player/vitals.ts")
+    .replaceAll('"../economy/items"', JSON.stringify(itemsUrl))
+    .replaceAll('"./profile"', JSON.stringify(profileUrl)),
 );
 const economyLogicUrl = dataUrl(
-  transpile("worldbox/economy/economy.ts").replaceAll('"./items"', JSON.stringify(itemsUrl)).replaceAll('"../player/profile"', JSON.stringify(profileUrl)).replaceAll('"../player/vitals"', JSON.stringify(vitalsUrl)),
+  transpile("worldbox/economy/economy.ts")
+    .replaceAll('"./items"', JSON.stringify(itemsUrl))
+    .replaceAll('"../player/profile"', JSON.stringify(profileUrl))
+    .replaceAll('"../player/vitals"', JSON.stringify(vitalsUrl)),
 );
 const bridgeUrl = dataUrl(transpile("worldbox/economy/economy-bridge.ts"));
 const economyOnlineUrl = dataUrl(
@@ -157,7 +177,10 @@ const saveUrl = dataUrl(
     .replaceAll('"../world/mapgen"', JSON.stringify(mapgenUrl)),
 );
 const saveOnlineUrl = dataUrl(
-  transpile("worldbox/core/save-online.ts").replaceAll('"../../bot-api"', JSON.stringify(botApiStubUrl)),
+  transpile("worldbox/core/save-online.ts").replaceAll(
+    '"../../bot-api"',
+    JSON.stringify(botApiStubUrl),
+  ),
 );
 const profileOnlineUrl = dataUrl(
   transpile("worldbox/player/profile-online.ts")
@@ -194,8 +217,12 @@ export class NextResponse {
   }
 }
 `);
-const rolesUrl = dataUrl(transpile("worldbox/player/roles.ts").replaceAll('"./profile"', JSON.stringify(profileUrl)));
-const tentStubUrl = dataUrl(`export const TENT_MAX_TIER = 2; export const TENT_TIERS = [{ w: 13, h: 10, price: 0 }, { w: 17, h: 13, price: 3000 }, { w: 22, h: 17, price: 10000 }];`);
+const rolesUrl = dataUrl(
+  transpile("worldbox/player/roles.ts").replaceAll('"./profile"', JSON.stringify(profileUrl)),
+);
+const tentStubUrl = dataUrl(
+  `export const TENT_MAX_TIER = 2; export const TENT_TIERS = [{ w: 13, h: 10, price: 0 }, { w: 17, h: 13, price: 3000 }, { w: 22, h: 17, price: 10000 }];`,
+);
 const profileRoute = await import(
   dataUrl(
     transpile("api/worldbox/profile/route.ts", rootDir + "/app")
@@ -203,7 +230,10 @@ const profileRoute = await import(
       .replaceAll('"@/lib/auth"', JSON.stringify(authUrl))
       .replaceAll('"@/lib/worldbox/economy/economy"', JSON.stringify(economyLogicUrl))
       .replaceAll('"@/lib/worldbox/economy/economy-bridge"', JSON.stringify(bridgeUrl))
-      .replaceAll('"@/lib/worldbox/economy/economy-bridge-online"', JSON.stringify(economyOnlineUrl))
+      .replaceAll(
+        '"@/lib/worldbox/economy/economy-bridge-online"',
+        JSON.stringify(economyOnlineUrl),
+      )
       .replaceAll('"@/lib/worldbox/player/profile"', JSON.stringify(profileUrl))
       .replaceAll('"@/lib/worldbox/player/presence-online"', JSON.stringify(presenceOnlineUrl))
       .replaceAll('"@/lib/worldbox/economy/shops"', JSON.stringify(shopsUrl))
@@ -213,7 +243,7 @@ const profileRoute = await import(
       .replaceAll('"@/lib/worldbox/player/profile-online"', JSON.stringify(profileOnlineUrl))
       .replaceAll('"@/lib/worldbox/core/user-lock"', JSON.stringify(userLockUrl))
       .replaceAll('"@/lib/worldbox/player/roles"', JSON.stringify(rolesUrl)),
-  ),
+  )
 );
 const economyRoute = await import(
   dataUrl(
@@ -221,9 +251,12 @@ const economyRoute = await import(
       .replaceAll('"next/server"', JSON.stringify(nextServerStubUrl))
       .replaceAll('"@/lib/auth"', JSON.stringify(authUrl))
       .replaceAll('"@/lib/worldbox/economy/economy-bridge"', JSON.stringify(bridgeUrl))
-      .replaceAll('"@/lib/worldbox/economy/economy-bridge-online"', JSON.stringify(economyOnlineUrl))
+      .replaceAll(
+        '"@/lib/worldbox/economy/economy-bridge-online"',
+        JSON.stringify(economyOnlineUrl),
+      )
       .replaceAll('"@/lib/worldbox/world/station-online"', JSON.stringify(stationOnlineUrl)),
-  ),
+  )
 );
 const boardRoute = await import(
   dataUrl(
@@ -233,7 +266,7 @@ const boardRoute = await import(
       .replaceAll('"@/lib/worldbox/social/board"', JSON.stringify(boardUrl))
       .replaceAll('"@/lib/worldbox/social/board-online"', JSON.stringify(boardOnlineUrl))
       .replaceAll('"@/lib/worldbox/world/station-online"', JSON.stringify(stationOnlineUrl)),
-  ),
+  )
 );
 
 process.env.DISCORD_SESSION_SECRET = ["worldbox", "place", "gates", "test"].join("-");
@@ -250,17 +283,34 @@ function apiRequest(url, method, body) {
   });
 }
 function setPresence(x, y, space = "lobby") {
-  globalThis.__wbGateStore.set(`worldbox_presence ${MY_KEY}`, JSON.stringify({
-    name: "gate-user", x, y, vx: 0, vy: 0, face: 1, space, ts: Date.now(),
-  }));
+  globalThis.__wbGateStore.set(
+    `worldbox_presence ${MY_KEY}`,
+    JSON.stringify({
+      name: "gate-user",
+      x,
+      y,
+      vx: 0,
+      vy: 0,
+      face: 1,
+      space,
+      ts: Date.now(),
+    }),
+  );
 }
 function clearPresence() {
   globalThis.__wbGateStore.delete(`worldbox_presence ${MY_KEY}`);
 }
 function seedProfile(items) {
-  globalThis.__wbGateStore.set(`worldbox_profiles ${MY_KEY}`, JSON.stringify({
-    coins: 100, hunger: 100, items, stealActorAt: 0, stealTargetAt: 0,
-  }));
+  globalThis.__wbGateStore.set(
+    `worldbox_profiles ${MY_KEY}`,
+    JSON.stringify({
+      coins: 100,
+      hunger: 100,
+      items,
+      stealActorAt: 0,
+      stealTargetAt: 0,
+    }),
+  );
 }
 function economyOpCount() {
   let n = 0;
@@ -284,7 +334,9 @@ test("API(place): buy はショップの前でのみ通る", async () => {
   seedProfile({});
   setPresence(AT_SHOP.x, AT_SHOP.y);
   // AT_SHOP は道具屋のカウンター前なので、買えるのは道具ジャンル
-  const ok = await profileRoute.POST(apiRequest(URL_P, "POST", { action: "buy", itemId: "wooden_axe" }));
+  const ok = await profileRoute.POST(
+    apiRequest(URL_P, "POST", { action: "buy", itemId: "wooden_axe" }),
+  );
   assert.equal(ok.status, 200);
   assert.equal((await ok.json()).profile.items.wooden_axe, 1);
 
@@ -295,12 +347,16 @@ test("API(place): buy はショップの前でのみ通る", async () => {
   ]) {
     seedProfile({});
     setPresence(pos.x, pos.y, space);
-    const res = await profileRoute.POST(apiRequest(URL_P, "POST", { action: "buy", itemId: "wood" }));
+    const res = await profileRoute.POST(
+      apiRequest(URL_P, "POST", { action: "buy", itemId: "wood" }),
+    );
     assert.equal(res.status, 409, name);
     assert.equal((await res.json()).error, "not_at_shop", name);
   }
   clearPresence();
-  const noPresence = await profileRoute.POST(apiRequest(URL_P, "POST", { action: "buy", itemId: "wood" }));
+  const noPresence = await profileRoute.POST(
+    apiRequest(URL_P, "POST", { action: "buy", itemId: "wood" }),
+  );
   assert.equal(noPresence.status, 409);
   assert.equal((await noPresence.json()).error, "not_at_shop");
 });
@@ -321,7 +377,9 @@ test("API(place): buy は店のジャンルと合う品目だけ買える（wron
   seedProfile({});
   // 道具屋の前で素材（種・素材屋の品目）は買えない
   setPresence(AT_SHOP.x, AT_SHOP.y);
-  const wrong = await profileRoute.POST(apiRequest(URL_P, "POST", { action: "buy", itemId: "wood" }));
+  const wrong = await profileRoute.POST(
+    apiRequest(URL_P, "POST", { action: "buy", itemId: "wood" }),
+  );
   assert.equal(wrong.status, 409);
   assert.equal((await wrong.json()).error, "wrong_shop");
   // 種・素材屋の前では買える
@@ -333,13 +391,19 @@ test("API(place): buy は店のジャンルと合う品目だけ買える（wron
   // ジャンル違いは wrong_shop が優先し、売却はジャンル不問で通る
   seedProfile({ wood: 1 });
   setPresence(AT_SMITH.x, AT_SMITH.y);
-  const smithOk = await profileRoute.POST(apiRequest(URL_P, "POST", { action: "buy", itemId: "carving" }));
+  const smithOk = await profileRoute.POST(
+    apiRequest(URL_P, "POST", { action: "buy", itemId: "carving" }),
+  );
   assert.equal(smithOk.status, 409);
   assert.equal((await smithOk.json()).error, "not_sold");
-  const smithWrong = await profileRoute.POST(apiRequest(URL_P, "POST", { action: "buy", itemId: "wood" }));
+  const smithWrong = await profileRoute.POST(
+    apiRequest(URL_P, "POST", { action: "buy", itemId: "wood" }),
+  );
   assert.equal(smithWrong.status, 409);
   assert.equal((await smithWrong.json()).error, "wrong_shop");
-  const sold = await profileRoute.POST(apiRequest(URL_P, "POST", { action: "sell", itemId: "wood" }));
+  const sold = await profileRoute.POST(
+    apiRequest(URL_P, "POST", { action: "sell", itemId: "wood" }),
+  );
   assert.equal(sold.status, 200);
 });
 
@@ -348,39 +412,53 @@ test("API(place): ホワイトリスト外はジャンルが合っても買え�
   seedProfile({});
   // 鍛冶屋で特殊（ジャンルは合う）を買おうとしても not_sold
   setPresence(AT_SMITH.x, AT_SMITH.y);
-  const special = await profileRoute.POST(apiRequest(URL_P, "POST", { action: "buy", itemId: "star_shard" }));
+  const special = await profileRoute.POST(
+    apiRequest(URL_P, "POST", { action: "buy", itemId: "star_shard" }),
+  );
   assert.equal(special.status, 409);
   assert.equal((await special.json()).error, "not_sold");
   // 道具屋でミスリル tier4（ジャンルは合う）も not_sold
   setPresence(AT_SHOP.x, AT_SHOP.y);
-  const mithril = await profileRoute.POST(apiRequest(URL_P, "POST", { action: "buy", itemId: "mithril_axe" }));
+  const mithril = await profileRoute.POST(
+    apiRequest(URL_P, "POST", { action: "buy", itemId: "mithril_axe" }),
+  );
   assert.equal(mithril.status, 409);
   assert.equal((await mithril.json()).error, "not_sold");
   // 建築屋カウンター前で宝石ブロックも not_sold
   setPresence(9.5, 21.5);
-  const gem = await profileRoute.POST(apiRequest(URL_P, "POST", { action: "buy", itemId: "diamond_block" }));
+  const gem = await profileRoute.POST(
+    apiRequest(URL_P, "POST", { action: "buy", itemId: "diamond_block" }),
+  );
   assert.equal(gem.status, 409);
   assert.equal((await gem.json()).error, "not_sold");
   // ジャンルも合わないレア品は wrong_shop が優先される
   setPresence(AT_SHOP.x, AT_SHOP.y);
-  const both = await profileRoute.POST(apiRequest(URL_P, "POST", { action: "buy", itemId: "star_shard" }));
+  const both = await profileRoute.POST(
+    apiRequest(URL_P, "POST", { action: "buy", itemId: "star_shard" }),
+  );
   assert.equal(both.status, 409);
   assert.equal((await both.json()).error, "wrong_shop");
   // レア品の売却はジャンル不問で通る
   seedProfile({ star_shard: 1 });
   setPresence(AT_SMITH.x, AT_SMITH.y);
-  const sold = await profileRoute.POST(apiRequest(URL_P, "POST", { action: "sell", itemId: "star_shard" }));
+  const sold = await profileRoute.POST(
+    apiRequest(URL_P, "POST", { action: "sell", itemId: "star_shard" }),
+  );
   assert.equal(sold.status, 200);
 });
 
 test("API(place): craft は作業台（鍛冶屋）の前でのみ通る", async () => {
   seedProfile({ wood: 3 });
   setPresence(AT_SHOP.x, AT_SHOP.y);
-  const ng = await profileRoute.POST(apiRequest(URL_P, "POST", { action: "craft", recipeId: "carving" }));
+  const ng = await profileRoute.POST(
+    apiRequest(URL_P, "POST", { action: "craft", recipeId: "carving" }),
+  );
   assert.equal(ng.status, 409);
   assert.equal((await ng.json()).error, "not_at_workbench");
   setPresence(AT_SMITH.x, AT_SMITH.y);
-  const ok = await profileRoute.POST(apiRequest(URL_P, "POST", { action: "craft", recipeId: "carving" }));
+  const ok = await profileRoute.POST(
+    apiRequest(URL_P, "POST", { action: "craft", recipeId: "carving" }),
+  );
   assert.equal(ok.status, 200);
   const data = await ok.json();
   assert.equal(data.profile.items.carving, 1);
@@ -391,12 +469,16 @@ test("API(place): transfer は銀行の前でのみ通り、弾かれたらオ�
   globalThis.__wbGateUsers.set(ME, 1000);
   const before = economyOpCount();
   setPresence(AT_SHOP.x, AT_SHOP.y);
-  const ng = await economyRoute.POST(apiRequest(URL_E, "POST", { action: "transfer", toDiscordId: OTHER, amount: 100 }));
+  const ng = await economyRoute.POST(
+    apiRequest(URL_E, "POST", { action: "transfer", toDiscordId: OTHER, amount: 100 }),
+  );
   assert.equal(ng.status, 409);
   assert.equal((await ng.json()).error, "not_at_bank");
   assert.equal(economyOpCount(), before, "場所が違う送金でオプが積まれている");
   setPresence(AT_BANK.x, AT_BANK.y);
-  const ok = await economyRoute.POST(apiRequest(URL_E, "POST", { action: "transfer", toDiscordId: OTHER, amount: 100 }));
+  const ok = await economyRoute.POST(
+    apiRequest(URL_E, "POST", { action: "transfer", toDiscordId: OTHER, amount: 100 }),
+  );
   assert.equal(ok.status, 200);
   assert.equal(economyOpCount(), before + 1);
 });
@@ -416,7 +498,10 @@ test("API(place): 掲示板の投稿は掲示板の前でのみ通り、閲覧�
 // ---------- クライアント配線 ----------
 
 test("クライアント: スティックは固定式で、タイルタップと分離されている", () => {
-  const client = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"), "utf8");
+  const client = fs.readFileSync(
+    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    "utf8",
+  );
   assert.ok(client.includes("stickBase"), "固定基点を使っていない");
   assert.ok(client.includes("isStickTouch"), "スティックの当たり判定を使っていない");
   assert.ok(client.includes("stickVector"), "固定基点からの倒し量を使っていない");
@@ -425,14 +510,23 @@ test("クライアント: スティックは固定式で、タイルタップと
 });
 
 test("クライアント: 施設パネルは離れたら閉じる（掲示板・カジノ・ギルドボード）", () => {
-  const client = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"), "utf8");
+  const client = fs.readFileSync(
+    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    "utf8",
+  );
   assert.ok(client.includes('if (stationUi !== "board") setBoardOpen(false);'));
   assert.ok(client.includes('if (stationUi !== "casino") setCasinoOpen(false);'));
-  assert.ok(client.includes('if (stationUi !== "guild") setGuildBoardOpen(false);'), "ギルドボードが自動で閉じない");
+  assert.ok(
+    client.includes('if (stationUi !== "guild") setGuildBoardOpen(false);'),
+    "ギルドボードが自動で閉じない",
+  );
   // 役職操作の場所エラーに専用ラベルがある
   assert.ok(client.includes('not_at_guild_board: "ギルドボードの前で操作してください"'));
   // サーバー側も役職の操作をギルドボード前で検証する
-  const nationsRoute = fs.readFileSync(path.join(rootDir, "app/api/worldbox/nations/route.ts"), "utf8");
+  const nationsRoute = fs.readFileSync(
+    path.join(rootDir, "app/api/worldbox/nations/route.ts"),
+    "utf8",
+  );
   assert.match(nationsRoute, /loadMyLobbyStation/);
   assert.match(nationsRoute, /not_at_guild_board/);
 });
@@ -451,7 +545,14 @@ test("API(place): sell の並行リクエストでも earn オプは1件だけ�
   assert.equal(results.filter((r) => r.status === 409).length, 2);
   let earns = 0;
   for (const [k, v] of store) {
-    if (k.startsWith("worldbox_economy ") && v && typeof v === "object" && v.kind === "earn" && v.reason === "shop_sale") earns++;
+    if (
+      k.startsWith("worldbox_economy ") &&
+      v &&
+      typeof v === "object" &&
+      v.kind === "earn" &&
+      v.reason === "shop_sale"
+    )
+      earns++;
   }
   assert.equal(earns, 1, "売却の earn は1件だけ積まれる（同じ木材が二重に売れない）");
 });

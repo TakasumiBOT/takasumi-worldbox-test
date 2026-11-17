@@ -41,14 +41,22 @@ export async function kvList(ns) {
 }
 `);
 const subdomainUrl = dataUrl(transpile("subdomain.ts"));
-const headersStubUrl = dataUrl("export async function cookies() { throw new Error('tests do not use cookies()'); }");
+const headersStubUrl = dataUrl(
+  "export async function cookies() { throw new Error('tests do not use cookies()'); }",
+);
 const authUrl = dataUrl(
-  transpile("auth.ts").replaceAll('"./subdomain"', JSON.stringify(subdomainUrl)).replaceAll('"next/headers"', JSON.stringify(headersStubUrl)),
+  transpile("auth.ts")
+    .replaceAll('"./subdomain"', JSON.stringify(subdomainUrl))
+    .replaceAll('"next/headers"', JSON.stringify(headersStubUrl)),
 );
 const auth = await import(authUrl);
 const rngUrl = dataUrl(transpile("worldbox/core/rng.ts"));
-const mapgenUrl = dataUrl(transpile("worldbox/world/mapgen.ts").replaceAll('"../core/rng"', JSON.stringify(rngUrl)));
-const lobbyUrl = dataUrl(transpile("worldbox/world/lobby.ts").replaceAll('"./mapgen"', JSON.stringify(mapgenUrl)));
+const mapgenUrl = dataUrl(
+  transpile("worldbox/world/mapgen.ts").replaceAll('"../core/rng"', JSON.stringify(rngUrl)),
+);
+const lobbyUrl = dataUrl(
+  transpile("worldbox/world/lobby.ts").replaceAll('"./mapgen"', JSON.stringify(mapgenUrl)),
+);
 const tentUrl = dataUrl(
   transpile("worldbox/world/tent.ts")
     .replaceAll('"./mapgen"', JSON.stringify(mapgenUrl))
@@ -75,11 +83,17 @@ const presenceOnlineUrl = dataUrl(
     .replaceAll('"./presence"', JSON.stringify(presenceUrl)),
 );
 const saveOnlineUrl = dataUrl(
-  transpile("worldbox/core/save-online.ts").replaceAll('"../../bot-api"', JSON.stringify(botApiStubUrl)),
+  transpile("worldbox/core/save-online.ts").replaceAll(
+    '"../../bot-api"',
+    JSON.stringify(botApiStubUrl),
+  ),
 );
 const itemsUrl = dataUrl(transpile("worldbox/economy/items.ts"));
 const profileUrl = dataUrl(
-  transpile("worldbox/player/profile.ts").replaceAll('"../economy/items"', JSON.stringify(itemsUrl)),
+  transpile("worldbox/player/profile.ts").replaceAll(
+    '"../economy/items"',
+    JSON.stringify(itemsUrl),
+  ),
 );
 const profileOnlineUrl = dataUrl(
   transpile("worldbox/player/profile-online.ts")
@@ -132,7 +146,7 @@ const presenceRoute = await import(
       .replaceAll('"@/lib/worldbox/core/save"', JSON.stringify(saveUrl))
       .replaceAll('"@/lib/worldbox/core/save-online"', JSON.stringify(saveOnlineUrl))
       .replaceAll('"@/lib/worldbox/core/metrics-online"', JSON.stringify(metricsOnlineStubUrl)),
-  ),
+  )
 );
 
 process.env.DISCORD_SESSION_SECRET = ["worldbox", "lobby", "floors", "test"].join("-");
@@ -140,23 +154,44 @@ const ME = "633333333333333333";
 const OTHER = "644444444444444444";
 const MY_KEY = `discord:${ME}`;
 const OTHER_KEY = `discord:${OTHER}`;
-const cookieFor = (id) => `ago_session=${encodeURIComponent(auth.createSession({ id, username: `floor-user-${id.slice(-2)}` }))}`;
+const cookieFor = (id) =>
+  `ago_session=${encodeURIComponent(auth.createSession({ id, username: `floor-user-${id.slice(-2)}` }))}`;
 function apiRequest(url, method, body, id = ME) {
   return new Request(url, {
     method,
-    headers: { cookie: cookieFor(id), ...(body !== undefined ? { "Content-Type": "application/json" } : {}) },
+    headers: {
+      cookie: cookieFor(id),
+      ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
+    },
     ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
   });
 }
 function putPresenceRaw(key, x, y, space) {
-  globalThis.__wbFloorsStore.set(`worldbox_presence ${key}`, JSON.stringify({
-    name: "floor-user", x, y, vx: 0, vy: 0, face: 1, space, ts: Date.now(),
-  }));
+  globalThis.__wbFloorsStore.set(
+    `worldbox_presence ${key}`,
+    JSON.stringify({
+      name: "floor-user",
+      x,
+      y,
+      vx: 0,
+      vy: 0,
+      face: 1,
+      space,
+      ts: Date.now(),
+    }),
+  );
 }
 function putSaveRaw(key, space, x, y) {
-  globalThis.__wbFloorsStore.set(`worldbox_save ${key}`, JSON.stringify({
-    version: 6, space, x, y, worldReturn: { x: 512.5, y: 512.5 },
-  }));
+  globalThis.__wbFloorsStore.set(
+    `worldbox_save ${key}`,
+    JSON.stringify({
+      version: 6,
+      space,
+      x,
+      y,
+      worldReturn: { x: 512.5, y: 512.5 },
+    }),
+  );
 }
 
 const URL_PRESENCE = "http://localhost/api/worldbox/presence";
@@ -179,9 +214,17 @@ function reachableFrom(data, sx, sy) {
   const q = [[sx, sy]];
   while (q.length) {
     const [x, y] = q.pop();
-    for (const [nx, ny] of [[x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]]) {
+    for (const [nx, ny] of [
+      [x + 1, y],
+      [x - 1, y],
+      [x, y + 1],
+      [x, y - 1],
+    ]) {
       const k = `${nx},${ny}`;
-      if (walk.has(k) && !seen.has(k)) { seen.add(k); q.push([nx, ny]); }
+      if (walk.has(k) && !seen.has(k)) {
+        seen.add(k);
+        q.push([nx, ny]);
+      }
     }
   }
   return seen;
@@ -221,8 +264,13 @@ test("floors: 外形は図形の和集合（長方形ではない）", () => {
     for (let y = 0; y < h; y++) {
       for (let x = 0; x < w; x++) {
         if (!inShape(x, y)) continue;
-        const edge = !inShape(x - 1, y) || !inShape(x + 1, y) || !inShape(x, y - 1) || !inShape(x, y + 1);
-        assert.equal(data.tiles[y * w + x] === 1, edge, `${name} (${x},${y}) の壁/床が境界と不一致`);
+        const edge =
+          !inShape(x - 1, y) || !inShape(x + 1, y) || !inShape(x, y - 1) || !inShape(x, y + 1);
+        assert.equal(
+          data.tiles[y * w + x] === 1,
+          edge,
+          `${name} (${x},${y}) の壁/床が境界と不一致`,
+        );
       }
     }
   }
@@ -231,7 +279,10 @@ test("floors: 外形は図形の和集合（長方形ではない）", () => {
 test("floors: 全オブジェクトは床の上にあり重ならず、スプライトは既存素材だけ", () => {
   const spriteDir = path.join(rootDir, "public/img/worldbox/lobby");
   const existing = new Set(fs.readdirSync(spriteDir).map((f) => f.replace(/\.png$/, "")));
-  for (const [name, data] of [["2F", floors.buildLobby2()], ["3F", floors.buildLobby3()]]) {
+  for (const [name, data] of [
+    ["2F", floors.buildLobby2()],
+    ["3F", floors.buildLobby3()],
+  ]) {
     const seen = new Set();
     for (const o of data.objects) {
       assert.ok(existing.has(o.sprite), `${name} のスプライト ${o.sprite} が素材に無い`);
@@ -251,7 +302,11 @@ test("floors: 全オブジェクトは床の上にあり重ならず、スプラ
       const expected = o.solid && !["bench", "chair", "sofa"].includes(o.sprite);
       for (let dy = 0; dy < o.h; dy++) {
         for (let dx = 0; dx < o.w; dx++) {
-          assert.equal(data.blocked.has(`${o.x + dx},${o.y + dy}`), expected, `${name} ${o.sprite} の blocked が想定と不一致`);
+          assert.equal(
+            data.blocked.has(`${o.x + dx},${o.y + dy}`),
+            expected,
+            `${name} ${o.sprite} の blocked が想定と不一致`,
+          );
         }
       }
     }
@@ -260,8 +315,22 @@ test("floors: 全オブジェクトは床の上にあり重ならず、スプラ
 
 test("floors: 階段・入口・着地点は歩行可能で、入口から全階が連結している", () => {
   const cases = [
-    { name: "2F", data: floors.buildLobby2(), entry: floors.LOBBY2_ENTRY, down: floors.LOBBY2_STAIRS_DOWN, up: floors.LOBBY2_STAIRS_UP, landing: floors.LOBBY2_UP_LANDING },
-    { name: "3F", data: floors.buildLobby3(), entry: floors.LOBBY3_ENTRY, down: floors.LOBBY3_STAIRS_DOWN, up: [], landing: null },
+    {
+      name: "2F",
+      data: floors.buildLobby2(),
+      entry: floors.LOBBY2_ENTRY,
+      down: floors.LOBBY2_STAIRS_DOWN,
+      up: floors.LOBBY2_STAIRS_UP,
+      landing: floors.LOBBY2_UP_LANDING,
+    },
+    {
+      name: "3F",
+      data: floors.buildLobby3(),
+      entry: floors.LOBBY3_ENTRY,
+      down: floors.LOBBY3_STAIRS_DOWN,
+      up: [],
+      landing: null,
+    },
   ];
   for (const c of cases) {
     const walk = walkableTiles(c.data);
@@ -285,7 +354,8 @@ test("floors: 階段・入口・着地点は歩行可能で、入口から全階
       let adjacent = false;
       for (let dy = -1; dy <= o.h; dy++) {
         for (let dx = -1; dx <= o.w; dx++) {
-          if (walk.has(`${o.x + dx},${o.y + dy}`) || reach.has(`${o.x + dx},${o.y + dy}`)) adjacent = true;
+          if (walk.has(`${o.x + dx},${o.y + dy}`) || reach.has(`${o.x + dx},${o.y + dy}`))
+            adjacent = true;
         }
       }
       assert.ok(adjacent, `${c.name} の休憩 (${o.x},${o.y}) の前に立てない`);
@@ -297,14 +367,35 @@ test("floors: 2F はラウンジ＋休憩、3F は展望＋休憩の構成", () 
   const f2 = floors.buildLobby2();
   const f3 = floors.buildLobby3();
   // 2F: 中央にテーブル＋椅子、西翼にソファ、東翼に休憩の本棚＋ソファ
-  assert.ok(f2.objects.some((o) => o.sprite === "table_round" && o.x === 20 && o.y === 14), "2F 中央にテーブルが無い");
-  assert.ok(f2.objects.some((o) => o.sprite === "sofa" && o.station === "rest"), "2F に休憩ソファが無い");
-  assert.ok(f2.objects.some((o) => o.sprite === "bookshelf" && o.station === "rest"), "2F に休憩の本棚が無い");
+  assert.ok(
+    f2.objects.some((o) => o.sprite === "table_round" && o.x === 20 && o.y === 14),
+    "2F 中央にテーブルが無い",
+  );
+  assert.ok(
+    f2.objects.some((o) => o.sprite === "sofa" && o.station === "rest"),
+    "2F に休憩ソファが無い",
+  );
+  assert.ok(
+    f2.objects.some((o) => o.sprite === "bookshelf" && o.station === "rest"),
+    "2F に休憩の本棚が無い",
+  );
   // 3F: 北デッキに北向きベンチ、南に休憩コーナー、北の本棚 2 つが L5 の入口アンカー
-  assert.ok(f3.objects.some((o) => o.sprite === "bench" && o.y === 3), "3F 北デッキにベンチが無い");
-  assert.ok(f3.objects.some((o) => o.sprite === "sofa" && o.station === "rest"), "3F に休憩ソファが無い");
-  assert.ok(f3.objects.some((o) => o.sprite === "bookshelf" && o.x === 13 && o.y === 4), "3F の L5 アンカー本棚が無い");
-  assert.ok(f3.objects.some((o) => o.sprite === "bookshelf" && o.x === 14 && o.y === 4), "3F の L5 アンカー本棚が無い");
+  assert.ok(
+    f3.objects.some((o) => o.sprite === "bench" && o.y === 3),
+    "3F 北デッキにベンチが無い",
+  );
+  assert.ok(
+    f3.objects.some((o) => o.sprite === "sofa" && o.station === "rest"),
+    "3F に休憩ソファが無い",
+  );
+  assert.ok(
+    f3.objects.some((o) => o.sprite === "bookshelf" && o.x === 13 && o.y === 4),
+    "3F の L5 アンカー本棚が無い",
+  );
+  assert.ok(
+    f3.objects.some((o) => o.sprite === "bookshelf" && o.x === 14 && o.y === 4),
+    "3F の L5 アンカー本棚が無い",
+  );
   // 階段の行き先が対応している（2F 上→3F、3F 下→2F の着地点は同じ南踊り場）
   assert.deepEqual(floors.LOBBY3_DOWN_LANDING, floors.LOBBY2_UP_LANDING);
 });
@@ -322,23 +413,39 @@ test("floors: タイル取得は範囲外で 0 を返す", () => {
 // ---------- セーブ / プレゼンス ----------
 
 test("save: lobby2/lobby3 を空間として保持し、座標を階の範囲へ丸める", () => {
-  const s2 = save.parseSave(JSON.stringify({ version: 6, space: "lobby2", x: 999, y: -5, worldReturn: null }));
+  const s2 = save.parseSave(
+    JSON.stringify({ version: 6, space: "lobby2", x: 999, y: -5, worldReturn: null }),
+  );
   assert.equal(s2.space, "lobby2");
   assert.equal(s2.x, 39.5);
   assert.equal(s2.y, 0.5);
-  const s3 = save.parseSave(JSON.stringify({ version: 6, space: "lobby3", x: 20, y: 20, worldReturn: null }));
+  const s3 = save.parseSave(
+    JSON.stringify({ version: 6, space: "lobby3", x: 20, y: 20, worldReturn: null }),
+  );
   assert.equal(s3.space, "lobby3");
   assert.deepEqual([s3.x, s3.y], [20, 20]);
   // 往復で空間が保たれる
-  const round = save.parseSave(save.serializeSave({ space: "lobby3", x: 15.5, y: 5.5, worldReturn: { x: 1, y: 2 } }));
+  const round = save.parseSave(
+    save.serializeSave({ space: "lobby3", x: 15.5, y: 5.5, worldReturn: { x: 1, y: 2 } }),
+  );
   assert.equal(round.space, "lobby3");
   assert.deepEqual([round.x, round.y], [15.5, 5.5]);
   // 未知の階はワールドに寄せる（lobby4 は無い）
-  const unknown = save.parseSave(JSON.stringify({ version: 6, space: "lobby4", x: 5, y: 5, worldReturn: null }));
+  const unknown = save.parseSave(
+    JSON.stringify({ version: 6, space: "lobby4", x: 5, y: 5, worldReturn: null }),
+  );
   assert.equal(unknown.space, "world");
   // 1F/テントは従来どおり
-  assert.equal(save.parseSave(JSON.stringify({ version: 6, space: "lobby", x: 5, y: 5, worldReturn: null })).space, "lobby");
-  assert.equal(save.parseSave(JSON.stringify({ version: 6, space: "tent", x: 5, y: 5, worldReturn: null })).space, "tent");
+  assert.equal(
+    save.parseSave(JSON.stringify({ version: 6, space: "lobby", x: 5, y: 5, worldReturn: null }))
+      .space,
+    "lobby",
+  );
+  assert.equal(
+    save.parseSave(JSON.stringify({ version: 6, space: "tent", x: 5, y: 5, worldReturn: null }))
+      .space,
+    "tent",
+  );
 });
 
 test("presence: lobby2/lobby3 を空間として保持し、未知はワールドに寄せる", () => {
@@ -385,17 +492,33 @@ test("station: プレゼンスが無い/古い場合はセーブで代替する�
 // ---------- プレゼンスルート ----------
 
 test("presence route: 2F/3F のハートビートを階の範囲へ丸めて保存する", async () => {
-  const put2 = await presenceRoute.PUT(apiRequest(URL_PRESENCE, "PUT", {
-    name: "floor-user", x: 999, y: -10, vx: 0, vy: 0, face: 1, space: "lobby2",
-  }));
+  const put2 = await presenceRoute.PUT(
+    apiRequest(URL_PRESENCE, "PUT", {
+      name: "floor-user",
+      x: 999,
+      y: -10,
+      vx: 0,
+      vy: 0,
+      face: 1,
+      space: "lobby2",
+    }),
+  );
   assert.equal(put2.status, 200);
   const stored2 = JSON.parse(globalThis.__wbFloorsStore.get(`worldbox_presence ${MY_KEY}`));
   assert.equal(stored2.space, "lobby2");
   assert.equal(stored2.x, 40);
   assert.equal(stored2.y, 0);
-  const put3 = await presenceRoute.PUT(apiRequest(URL_PRESENCE, "PUT", {
-    name: "floor-user", x: 999, y: 999, vx: 0, vy: 0, face: 1, space: "lobby3",
-  }));
+  const put3 = await presenceRoute.PUT(
+    apiRequest(URL_PRESENCE, "PUT", {
+      name: "floor-user",
+      x: 999,
+      y: 999,
+      vx: 0,
+      vy: 0,
+      face: 1,
+      space: "lobby3",
+    }),
+  );
   assert.equal(put3.status, 200);
   const stored3 = JSON.parse(globalThis.__wbFloorsStore.get(`worldbox_presence ${MY_KEY}`));
   assert.equal(stored3.space, "lobby3");

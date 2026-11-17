@@ -5,8 +5,16 @@
 // 現在の 1024×1024 固定マップでも、将来のチャンク式無制限マップでも
 // 同じロジックが使える（マップ配列に依存しない）。
 import {
-  CHUNK_SIZE, MAP_SEED, T_GRASS, T_ROCK, T_SAND, T_SNOW_TREE, T_TREE, T_WATER,
-  fbm, snowBoundaryAt,
+  CHUNK_SIZE,
+  MAP_SEED,
+  T_GRASS,
+  T_ROCK,
+  T_SAND,
+  T_SNOW_TREE,
+  T_TREE,
+  T_WATER,
+  fbm,
+  snowBoundaryAt,
 } from "./mapgen";
 
 // チャンク一辺は mapgen の定義が正。利用側（combat 等）がこのモジュール経由で
@@ -15,9 +23,18 @@ export { CHUNK_SIZE };
 
 // ---------------------------------------------------------------- バイオーム
 export type BiomeId =
-  | "lake" | "beach" | "plains" | "forest" | "dense_forest"
-  | "dryland" | "wetland" | "highland" | "snowfield" | "snow_forest"
-  | "cave_deep" | "ruins_belt";
+  | "lake"
+  | "beach"
+  | "plains"
+  | "forest"
+  | "dense_forest"
+  | "dryland"
+  | "wetland"
+  | "highland"
+  | "snowfield"
+  | "snow_forest"
+  | "cave_deep"
+  | "ruins_belt";
 
 export type BiomeDef = {
   id: BiomeId;
@@ -31,7 +48,11 @@ export const BIOMES: readonly BiomeDef[] = [
   { id: "beach", name: "浜辺", resources: ["salt", "pearl", "fish", "stone"] },
   { id: "plains", name: "平原", resources: ["fiber", "flower", "herb", "egg"] },
   { id: "forest", name: "森", resources: ["wood", "mushroom", "berry", "herb", "honey"] },
-  { id: "dense_forest", name: "深い森", resources: ["wood", "mushroom", "berry", "honey", "feather"] },
+  {
+    id: "dense_forest",
+    name: "深い森",
+    resources: ["wood", "mushroom", "berry", "honey", "feather"],
+  },
   { id: "dryland", name: "乾いた土地", resources: ["fiber", "flint", "stone"] },
   { id: "wetland", name: "湿地", resources: ["herb", "flower", "fish", "clay"] },
   { id: "highland", name: "岩場", resources: ["stone", "copper_ore", "iron_ore", "coal", "flint"] },
@@ -52,7 +73,7 @@ export function biomeForInstanceSpace(space: unknown): BiomeId | null {
 
 const BIOME_BY_ID = new Map(BIOMES.map((b) => [b.id, b]));
 export function biomeById(id: unknown): BiomeDef | null {
-  return typeof id === "string" ? BIOME_BY_ID.get(id as BiomeId) ?? null : null;
+  return typeof id === "string" ? (BIOME_BY_ID.get(id as BiomeId) ?? null) : null;
 }
 
 // mapgen.ts の内部定数と同じ値（生成規則と一致させるため複製して明示する）。
@@ -81,7 +102,12 @@ export function isSnowZone(seed: number, x: number, y: number): boolean {
 }
 
 /** (標高, 湿度, 雪) からバイオームを分類する純粋関数。 */
-export function classifyBiome(elevation: number, moisture: number, snow: boolean, tile: number): BiomeId {
+export function classifyBiome(
+  elevation: number,
+  moisture: number,
+  snow: boolean,
+  tile: number,
+): BiomeId {
   if (tile === T_WATER || elevation < 0.35) return "lake";
   if (tile === T_SAND || elevation < 0.385) return "beach";
   if (tile === T_ROCK || elevation > 0.745) return "highland";
@@ -89,7 +115,7 @@ export function classifyBiome(elevation: number, moisture: number, snow: boolean
   if (tile === T_TREE) return moisture > 0.68 ? "dense_forest" : "forest";
   if (moisture > 0.68) return "dense_forest";
   if (moisture > 0.585) return "forest";
-  if (moisture < 0.30) return "dryland";
+  if (moisture < 0.3) return "dryland";
   if (elevation < 0.45 && moisture > 0.5) return "wetland";
   return "plains";
 }
@@ -98,7 +124,9 @@ export function classifyBiome(elevation: number, moisture: number, snow: boolean
 export function biomeAt(seed: number, x: number, y: number, tile?: number): BiomeId {
   const e = elevationAt(seed, x, y);
   const m = moistureAt(seed, x, y);
-  const t = tile ?? (e < 0.35 ? T_WATER : e < 0.385 ? T_SAND : e > 0.745 ? T_ROCK : m > 0.585 ? T_TREE : T_GRASS);
+  const t =
+    tile ??
+    (e < 0.35 ? T_WATER : e < 0.385 ? T_SAND : e > 0.745 ? T_ROCK : m > 0.585 ? T_TREE : T_GRASS);
   return classifyBiome(e, m, isSnowZone(seed, x, y), t);
 }
 
@@ -155,18 +183,77 @@ export type StructureDef = {
 };
 
 export const STRUCTURES: readonly StructureDef[] = [
-  { id: "cave_entrance", name: "洞窟の入口", kind: "entrance", targetSpace: "cave", biomes: ["highland", "forest", "dense_forest"], cellChunks: 3, chance: 0.55, trait: "rare_ore" },
-  { id: "dungeon_entrance", name: "ダンジョンの入口", kind: "entrance", targetSpace: "dungeon", biomes: ["highland", "dense_forest", "snowfield"], cellChunks: 6, chance: 0.4, trait: "strong_enemy" },
-  { id: "ruins_entrance", name: "遺跡の入口", kind: "entrance", targetSpace: "ruins", biomes: ["plains", "forest", "dryland"], cellChunks: 5, chance: 0.45, trait: "treasure_trap" },
-  { id: "abandoned_camp", name: "廃れた野営地", kind: "site", biomes: ["plains", "forest", "beach"], cellChunks: 4, chance: 0.5, trait: "landmark" },
-  { id: "ancient_shrine", name: "古い祠", kind: "site", biomes: ["forest", "dense_forest", "snow_forest", "plains"], cellChunks: 5, chance: 0.4, trait: "rest" },
-  { id: "watchtower_ruins", name: "見張り塔の跡", kind: "ruin", biomes: ["plains", "highland", "dryland"], cellChunks: 6, chance: 0.35, trait: "landmark" },
-  { id: "sunken_ruins", name: "水辺の遺構", kind: "ruin", biomes: ["beach", "wetland", "lake"], cellChunks: 6, chance: 0.3, trait: "treasure_trap" },
+  {
+    id: "cave_entrance",
+    name: "洞窟の入口",
+    kind: "entrance",
+    targetSpace: "cave",
+    biomes: ["highland", "forest", "dense_forest"],
+    cellChunks: 3,
+    chance: 0.55,
+    trait: "rare_ore",
+  },
+  {
+    id: "dungeon_entrance",
+    name: "ダンジョンの入口",
+    kind: "entrance",
+    targetSpace: "dungeon",
+    biomes: ["highland", "dense_forest", "snowfield"],
+    cellChunks: 6,
+    chance: 0.4,
+    trait: "strong_enemy",
+  },
+  {
+    id: "ruins_entrance",
+    name: "遺跡の入口",
+    kind: "entrance",
+    targetSpace: "ruins",
+    biomes: ["plains", "forest", "dryland"],
+    cellChunks: 5,
+    chance: 0.45,
+    trait: "treasure_trap",
+  },
+  {
+    id: "abandoned_camp",
+    name: "廃れた野営地",
+    kind: "site",
+    biomes: ["plains", "forest", "beach"],
+    cellChunks: 4,
+    chance: 0.5,
+    trait: "landmark",
+  },
+  {
+    id: "ancient_shrine",
+    name: "古い祠",
+    kind: "site",
+    biomes: ["forest", "dense_forest", "snow_forest", "plains"],
+    cellChunks: 5,
+    chance: 0.4,
+    trait: "rest",
+  },
+  {
+    id: "watchtower_ruins",
+    name: "見張り塔の跡",
+    kind: "ruin",
+    biomes: ["plains", "highland", "dryland"],
+    cellChunks: 6,
+    chance: 0.35,
+    trait: "landmark",
+  },
+  {
+    id: "sunken_ruins",
+    name: "水辺の遺構",
+    kind: "ruin",
+    biomes: ["beach", "wetland", "lake"],
+    cellChunks: 6,
+    chance: 0.3,
+    trait: "treasure_trap",
+  },
 ];
 
 const STRUCTURE_BY_ID = new Map(STRUCTURES.map((s) => [s.id, s]));
 export function structureById(id: unknown): StructureDef | null {
-  return typeof id === "string" ? STRUCTURE_BY_ID.get(id) ?? null : null;
+  return typeof id === "string" ? (STRUCTURE_BY_ID.get(id) ?? null) : null;
 }
 
 export type PlacedStructure = {
@@ -189,8 +276,10 @@ export function structuresForChunk(seed: number, cx: number, cy: number): Placed
   for (const def of STRUCTURES) {
     const cellX = floorDiv(cx, def.cellChunks);
     const cellY = floorDiv(cy, def.cellChunks);
-    const candCx = cellX * def.cellChunks + Math.floor(chunkHash(seed, cellX, cellY, 11) * def.cellChunks);
-    const candCy = cellY * def.cellChunks + Math.floor(chunkHash(seed, cellX, cellY, 23) * def.cellChunks);
+    const candCx =
+      cellX * def.cellChunks + Math.floor(chunkHash(seed, cellX, cellY, 11) * def.cellChunks);
+    const candCy =
+      cellY * def.cellChunks + Math.floor(chunkHash(seed, cellX, cellY, 23) * def.cellChunks);
     if (candCx !== cx || candCy !== cy) continue;
     if (chunkHash(seed, cx, cy, 37) >= def.chance) continue;
     const lx = 4 + Math.floor(chunkHash(seed, cx, cy, 41) * (CHUNK_SIZE - 8));

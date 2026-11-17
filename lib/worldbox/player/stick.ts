@@ -23,7 +23,11 @@ export function isStickTouch(x: number, y: number, base: { x: number; y: number 
 }
 
 /** タッチ点 → スティックの倒し量（長さ1でクランプ）。 */
-export function stickVector(x: number, y: number, base: { x: number; y: number }): { dx: number; dy: number } {
+export function stickVector(
+  x: number,
+  y: number,
+  base: { x: number; y: number },
+): { dx: number; dy: number } {
   let dx = (x - base.x) / STICK_RADIUS;
   let dy = (y - base.y) / STICK_RADIUS;
   const len = Math.hypot(dx, dy);

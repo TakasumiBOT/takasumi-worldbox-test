@@ -4,7 +4,14 @@
 // しても同じ出走表・着順になる。確定結果は呼び出し側が保存してよいが、
 // 再計算でも一致する。乱数は makeRng（mulberry32）＋文字列シードのハッシュ。
 import { makeRng } from "../core/rng";
-import { HORSES, type Horse, type RunningStyle, type Surface, type DistanceBand, DISTANCE_BANDS } from "./racing/horses";
+import {
+  HORSES,
+  type Horse,
+  type RunningStyle,
+  type Surface,
+  type DistanceBand,
+  DISTANCE_BANDS,
+} from "./racing/horses";
 
 // ---------- 定数（仕様 §5/§7/§8） ----------
 
@@ -47,23 +54,23 @@ export const RACE_TRACKS: readonly RaceTrack[] = [
 
 /** 距離帯の中心距離（m）。距離補正の「ドンピシャ/守備範囲」の判定に使う。 */
 export const BAND_CENTER_M: Record<DistanceBand, number> = {
-  "スプリント": 1200,
-  "マイル": 1600,
-  "中距離": 2000,
-  "中長距離": 2400,
-  "ステイヤー": 3000,
+  スプリント: 1200,
+  マイル: 1600,
+  中距離: 2000,
+  中長距離: 2400,
+  ステイヤー: 3000,
 };
 
 /** 毛色 → 描画色（観戦アニメの馬ドットの色分け、仕様 §9）。 */
 export const COAT_COLORS: Record<string, string> = {
-  "鹿毛": "#8a5a2b",
-  "栗毛": "#c07a30",
-  "黒鹿毛": "#4a3220",
-  "芦毛": "#b9bcc2",
-  "青鹿毛": "#3a2e28",
-  "青毛": "#23232b",
-  "栃栗毛": "#6e3b16",
-  "白毛": "#f2f2ee",
+  鹿毛: "#8a5a2b",
+  栗毛: "#c07a30",
+  黒鹿毛: "#4a3220",
+  芦毛: "#b9bcc2",
+  青鹿毛: "#3a2e28",
+  青毛: "#23232b",
+  栃栗毛: "#6e3b16",
+  白毛: "#f2f2ee",
 };
 
 // ---------- シード ----------
@@ -185,18 +192,26 @@ export function surfaceCorrection(horse: Horse, surface: Surface): number {
 export function goingCorrection(horse: Horse, going: Going): number {
   const muddy = horse.trait === "道悪巧者";
   switch (going) {
-    case "良": return 0;
-    case "稍重": return muddy ? 2 : 0;
-    case "重": return muddy ? 5 : -1;
-    case "不良": return muddy ? 6 : -2;
+    case "良":
+      return 0;
+    case "稍重":
+      return muddy ? 2 : 0;
+    case "重":
+      return muddy ? 5 : -1;
+    case "不良":
+      return muddy ? 6 : -2;
   }
 }
 
 /** 個性補正（回り・小回り・鉄砲・季節）。夏馬・冬馬は id 偶数=夏/奇数=冬に割る。 */
-export function traitCorrection(horse: Horse, ctx: { track: RaceTrack; rested: boolean; month: number }): number {
+export function traitCorrection(
+  horse: Horse,
+  ctx: { track: RaceTrack; rested: boolean; month: number },
+): number {
   let c = 0;
   if (horse.trait === "左回り巧者" && ctx.track.direction === "左") c += 4;
-  if (horse.trait === "右回り・小回り巧者" && (ctx.track.direction === "右" || ctx.track.small)) c += 4;
+  if (horse.trait === "右回り・小回り巧者" && (ctx.track.direction === "右" || ctx.track.small))
+    c += 4;
   if (horse.trait === "鉄砲巧者" && ctx.rested) c += 4;
   if (horse.trait === "夏馬・冬馬") {
     const summer = ctx.month >= 6 && ctx.month <= 8;
@@ -216,9 +231,9 @@ export function paceForRoll(roll: number): Pace {
 export function paceCorrection(style: RunningStyle, pace: Pace): number {
   if (pace === "平均") return 0;
   const table: Record<Pace, Partial<Record<RunningStyle, number>>> = {
-    "スロー": { "大逃げ": 3, "逃げ": 3, "先行": 2, "差し": -1, "追込": -3, "マクリ": 1 },
-    "平均": {},
-    "ハイ": { "大逃げ": -3, "逃げ": -3, "先行": -1, "差し": 2, "追込": 3, "マクリ": 1 },
+    スロー: { 大逃げ: 3, 逃げ: 3, 先行: 2, 差し: -1, 追込: -3, マクリ: 1 },
+    平均: {},
+    ハイ: { 大逃げ: -3, 逃げ: -3, 先行: -1, 差し: 2, 追込: 3, マクリ: 1 },
   };
   return table[pace][style] ?? 0;
 }
@@ -226,7 +241,11 @@ export function paceCorrection(style: RunningStyle, pace: Pace): number {
 /** 頭数・年齢補正。 */
 export function fieldCorrection(horse: Horse, fieldSize: number, hasVeteran: boolean): number {
   let c = 0;
-  if (fieldSize <= 8 && (horse.style === "逃げ" || horse.style === "大逃げ" || horse.style === "先行")) c += 1;
+  if (
+    fieldSize <= 8 &&
+    (horse.style === "逃げ" || horse.style === "大逃げ" || horse.style === "先行")
+  )
+    c += 1;
   if (fieldSize >= 14 && (horse.style === "差し" || horse.style === "追込")) c += 1;
   if (horse.age === 2 && hasVeteran) c += 2;
   return c;
@@ -298,17 +317,38 @@ export function selectEntries(
  */
 export function prevRaceHorseIds(postMs: number): Set<number> {
   const prev = raceShape(postMs - RACE_INTERVAL_MS);
-  const entries = selectEntries(postMs - RACE_INTERVAL_MS, prev.surface, prev.band, prev.fieldSize, new Set());
+  const entries = selectEntries(
+    postMs - RACE_INTERVAL_MS,
+    prev.surface,
+    prev.band,
+    prev.fieldSize,
+    new Set(),
+  );
   return new Set(entries.map((e) => e.horse.id));
 }
 
 /** レースの形（開催場・馬場・距離・頭数）だけを決める軽量版（選定の前段）。 */
-export function raceShape(postMs: number): { track: RaceTrack; surface: Surface; distanceM: number; band: DistanceBand; fieldSize: number } {
+export function raceShape(postMs: number): {
+  track: RaceTrack;
+  surface: Surface;
+  distanceM: number;
+  band: DistanceBand;
+  fieldSize: number;
+} {
   const rng = makeRng(hashSeed(`shape:${postMs}`));
   const track = RACE_TRACKS[Math.floor(rng() * RACE_TRACKS.length)];
   const surface: Surface = rng() < 0.65 ? "芝" : "ダート";
   const bandRoll = rng();
-  const band: DistanceBand = bandRoll < 0.2 ? "スプリント" : bandRoll < 0.5 ? "マイル" : bandRoll < 0.8 ? "中距離" : bandRoll < 0.92 ? "中長距離" : "ステイヤー";
+  const band: DistanceBand =
+    bandRoll < 0.2
+      ? "スプリント"
+      : bandRoll < 0.5
+        ? "マイル"
+        : bandRoll < 0.8
+          ? "中距離"
+          : bandRoll < 0.92
+            ? "中長距離"
+            : "ステイヤー";
   const distanceM = BAND_CENTER_M[band] + Math.floor(rng() * 5 - 2) * 100;
   const sizes = [8, 10, 12];
   const fieldSize = sizes[Math.floor(rng() * sizes.length)];
@@ -364,12 +404,27 @@ export function generateRaceCore(postMs: number): RaceCore {
     const diff = scores[order[i - 1].horse.id] - scores[order[i].horse.id];
     margins[order[i].horse.id] = marginLabel(Math.max(0, diff), marginRng);
   }
-  return { postMs, track: shape.track, surface: shape.surface, distanceM: shape.distanceM, band: shape.band, going, pace, entries, placings, scores, margins };
+  return {
+    postMs,
+    track: shape.track,
+    surface: shape.surface,
+    distanceM: shape.distanceM,
+    band: shape.band,
+    going,
+    pace,
+    entries,
+    placings,
+    scores,
+    margins,
+  };
 }
 
 // ---------- オッズ（仕様 §8: モンテカルロ推定 × K、固定オッズ） ----------
 
-export interface HorseOdds { win: number; place: number }
+export interface HorseOdds {
+  win: number;
+  place: number;
+}
 
 /** 複勝の的中範囲（8頭以上=3着以内、7頭以下=2着以内）。 */
 export function placeCut(fieldSize: number): number {
@@ -388,20 +443,25 @@ export function estimateOdds(core: RaceCore): Record<number, HorseOdds> {
   const hasVeteran = core.entries.some((e) => e.horse.age >= 4);
   const corrections = new Map<number, number>();
   for (const e of core.entries) {
-    corrections.set(e.horse.id,
+    corrections.set(
+      e.horse.id,
       distanceCorrection(e.horse, core.distanceM) +
-      surfaceCorrection(e.horse, core.surface) +
-      goingCorrection(e.horse, core.going) +
-      traitCorrection(e.horse, { track: core.track, rested: e.rested, month }) +
-      paceCorrection(e.horse.style, core.pace) +
-      fieldCorrection(e.horse, core.entries.length, hasVeteran));
+        surfaceCorrection(e.horse, core.surface) +
+        goingCorrection(e.horse, core.going) +
+        traitCorrection(e.horse, { track: core.track, rested: e.rested, month }) +
+        paceCorrection(e.horse.style, core.pace) +
+        fieldCorrection(e.horse, core.entries.length, hasVeteran),
+    );
   }
   const wins = new Map<number, number>();
   const places = new Map<number, number>();
   const cut = placeCut(core.entries.length);
   const rng = makeRng(hashSeed(`odds:${core.postMs}`));
   for (let sim = 0; sim < ODDS_SIMULATIONS; sim++) {
-    const scored = core.entries.map((e) => ({ id: e.horse.id, s: rollScore(e.horse.ability, corrections.get(e.horse.id) ?? 0, rng) }));
+    const scored = core.entries.map((e) => ({
+      id: e.horse.id,
+      s: rollScore(e.horse.ability, corrections.get(e.horse.id) ?? 0, rng),
+    }));
     scored.sort((a, b) => b.s - a.s);
     wins.set(scored[0].id, (wins.get(scored[0].id) ?? 0) + 1);
     for (let i = 0; i < Math.min(cut, scored.length); i++) {
@@ -421,7 +481,11 @@ export function estimateOdds(core: RaceCore): Record<number, HorseOdds> {
 // ---------- 近走（過去レースの実績を決定的に再計算する） ----------
 
 /** その馬の直近 n 走（新しい順）。過去レースを遡って実着順を拾う。 */
-export function recentForm(horseId: number, beforePostMs: number, count = 3): { postMs: number; placing: number; fieldSize: number }[] {
+export function recentForm(
+  horseId: number,
+  beforePostMs: number,
+  count = 3,
+): { postMs: number; placing: number; fieldSize: number }[] {
   const out: { postMs: number; placing: number; fieldSize: number }[] = [];
   let cursor = beforePostMs - RACE_INTERVAL_MS;
   // 最大で過去 24 レースまで遡る（出走間隔が空く馬でも 3 走拾えるように）。
@@ -436,7 +500,12 @@ export function recentForm(horseId: number, beforePostMs: number, count = 3): { 
 // ---------- 観戦アニメ（展開は見せ方専用、真値は着順） ----------
 
 const STYLE_EARLY: Record<RunningStyle, number> = {
-  "大逃げ": 0.0, "逃げ": 0.08, "先行": 0.25, "マクリ": 0.5, "差し": 0.65, "追込": 0.85,
+  大逃げ: 0.0,
+  逃げ: 0.08,
+  先行: 0.25,
+  マクリ: 0.5,
+  差し: 0.65,
+  追込: 0.85,
 };
 
 /**
@@ -477,7 +546,13 @@ export function validateBetAmount(value: unknown): number | null {
 }
 
 /** 的中時の払戻（固定オッズ × 金額、切り捨て）。外れは 0。 */
-export function payoutFor(betType: BetType, horseId: number, amount: number, odds: HorseOdds, core: RaceCore): number {
+export function payoutFor(
+  betType: BetType,
+  horseId: number,
+  amount: number,
+  odds: HorseOdds,
+  core: RaceCore,
+): number {
   const rankIdx = core.placings.indexOf(horseId);
   if (rankIdx < 0) return 0;
   if (betType === "win") return rankIdx === 0 ? Math.floor(amount * odds.win) : 0;

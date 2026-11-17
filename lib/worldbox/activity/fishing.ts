@@ -12,8 +12,9 @@ export function fishingSpotAt(seed: number, x: number, y: number): PlacedObject 
   const cx = Math.floor(x / CHUNK_SIZE);
   const cy = Math.floor(y / CHUNK_SIZE);
   return (
-    objectsForChunk(seed, cx, cy).find((o) => o.objectId === FISHING_SPOT_ID && o.x === x && o.y === y) ??
-    null
+    objectsForChunk(seed, cx, cy).find(
+      (o) => o.objectId === FISHING_SPOT_ID && o.x === x && o.y === y,
+    ) ?? null
   );
 }
 

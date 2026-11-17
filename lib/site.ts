@@ -324,7 +324,11 @@ export function parseBotStatusHistory(raw: unknown): BotStatusHistory | null {
   }
   days.sort((a, b) => a.date.localeCompare(b.date));
   const cmdHours: BotStatusHistory["cmdHours"] = [];
-  if (typeof record.cmd_hours === "object" && record.cmd_hours !== null && !Array.isArray(record.cmd_hours)) {
+  if (
+    typeof record.cmd_hours === "object" &&
+    record.cmd_hours !== null &&
+    !Array.isArray(record.cmd_hours)
+  ) {
     for (const [hour, value] of Object.entries(record.cmd_hours as Record<string, unknown>)) {
       if (!BOT_STATUS_HOUR_RE.test(hour)) continue;
       cmdHours.push({ hour, count: cleanCount(value) });

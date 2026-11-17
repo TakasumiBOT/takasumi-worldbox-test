@@ -63,15 +63,25 @@ function sign(value: string) {
 function safelyEqual(left: string, right: string) {
   const leftBuffer = Buffer.from(left);
   const rightBuffer = Buffer.from(right);
-  return leftBuffer.length === rightBuffer.length && crypto.timingSafeEqual(leftBuffer, rightBuffer);
+  return (
+    leftBuffer.length === rightBuffer.length && crypto.timingSafeEqual(leftBuffer, rightBuffer)
+  );
 }
 
 export function isDiscordConfigured() {
-  return Boolean(process.env.DISCORD_CLIENT_ID && process.env.DISCORD_CLIENT_SECRET && process.env.DISCORD_REDIRECT_URI);
+  return Boolean(
+    process.env.DISCORD_CLIENT_ID &&
+    process.env.DISCORD_CLIENT_SECRET &&
+    process.env.DISCORD_REDIRECT_URI,
+  );
 }
 
 export function isGoogleConfigured() {
-  return Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET && process.env.GOOGLE_REDIRECT_URI);
+  return Boolean(
+    process.env.GOOGLE_CLIENT_ID &&
+    process.env.GOOGLE_CLIENT_SECRET &&
+    process.env.GOOGLE_REDIRECT_URI,
+  );
 }
 
 export function createSession(user: DiscordUser, sid?: string) {
@@ -86,7 +96,8 @@ export function createSession(user: DiscordUser, sid?: string) {
   const encoded = Buffer.from(JSON.stringify(payload)).toString("base64url");
   // ゲストだけは、セッション秘密が未設定でもフォールバック鍵で署名する
   // （Discord OAuth が一切未設定の環境でもゲスト入場を成立させるため）。
-  const secret = sessionSecret() || (user.provider === "guest" ? GUEST_SESSION_FALLBACK_SECRET : "");
+  const secret =
+    sessionSecret() || (user.provider === "guest" ? GUEST_SESSION_FALLBACK_SECRET : "");
   const signature = signWith(secret, encoded);
   if (!signature) throw new Error("session secret is not configured");
   return `${encoded}.${signature}`;
@@ -94,7 +105,9 @@ export function createSession(user: DiscordUser, sid?: string) {
 
 export function readSession(value?: string): DiscordUser | null {
   const info = readSessionInfo(value);
-  return info ? { id: info.id, username: info.username, avatar: info.avatar ?? null, provider: info.provider } : null;
+  return info
+    ? { id: info.id, username: info.username, avatar: info.avatar ?? null, provider: info.provider }
+    : null;
 }
 
 const GUEST_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -106,7 +119,9 @@ export function readSessionInfo(value?: string): SessionInfo | null {
 
   let payload: Partial<SessionPayload>;
   try {
-    payload = JSON.parse(Buffer.from(encoded, "base64url").toString("utf8")) as Partial<SessionPayload>;
+    payload = JSON.parse(
+      Buffer.from(encoded, "base64url").toString("utf8"),
+    ) as Partial<SessionPayload>;
   } catch {
     return null;
   }
@@ -114,10 +129,12 @@ export function readSessionInfo(value?: string): SessionInfo | null {
   // フォールバック鍵も候補に入れる（未検証ペイロードは鍵の選択にしか
   // 使わない。discord / google のつもりでフォールバック鍵の署名を
   // 受理することは決してない）。
-  const candidates = payload.provider === "guest"
-    ? [sessionSecret(), GUEST_SESSION_FALLBACK_SECRET]
-    : [sessionSecret()];
-  if (!candidates.some((secret) => secret && safelyEqual(signature, signWith(secret, encoded)))) return null;
+  const candidates =
+    payload.provider === "guest"
+      ? [sessionSecret(), GUEST_SESSION_FALLBACK_SECRET]
+      : [sessionSecret()];
+  if (!candidates.some((secret) => secret && safelyEqual(signature, signWith(secret, encoded))))
+    return null;
 
   try {
     // provider が無い旧セッションは Discord ログインとして扱う（後方互換）
@@ -130,9 +147,18 @@ export function readSessionInfo(value?: string): SessionInfo | null {
     if (!idOk) return null;
     if (typeof payload.username !== "string" || !payload.username.trim()) return null;
     if (typeof payload.expiresAt !== "number" || payload.expiresAt <= Date.now()) return null;
-    const sid = typeof payload.sid === "string" && /^[0-9a-f]{64}$/.test(payload.sid) ? payload.sid : undefined;
+    const sid =
+      typeof payload.sid === "string" && /^[0-9a-f]{64}$/.test(payload.sid)
+        ? payload.sid
+        : undefined;
     const avatar = typeof payload.avatar === "string" && payload.avatar ? payload.avatar : null;
-    return { id: payload.id as string, username: payload.username, avatar, provider, ...(sid ? { sid } : {}) };
+    return {
+      id: payload.id as string,
+      username: payload.username,
+      avatar,
+      provider,
+      ...(sid ? { sid } : {}),
+    };
   } catch {
     return null;
   }
@@ -219,11 +245,23 @@ function isSecureRequest(request: Request) {
 
 export function sessionCookieOptions(request: Request, maxAge = SESSION_MAX_AGE) {
   const secure = isSecureRequest(request);
-  return { httpOnly: true, secure, sameSite: secure ? "none" as const : "lax" as const, path: "/", maxAge };
+  return {
+    httpOnly: true,
+    secure,
+    sameSite: secure ? ("none" as const) : ("lax" as const),
+    path: "/",
+    maxAge,
+  };
 }
 
 export function stateCookieOptions(request: Request, maxAge = 600) {
-  return { httpOnly: true, secure: isSecureRequest(request), sameSite: "lax" as const, path: "/", maxAge };
+  return {
+    httpOnly: true,
+    secure: isSecureRequest(request),
+    sameSite: "lax" as const,
+    path: "/",
+    maxAge,
+  };
 }
 
 /**
@@ -231,7 +269,10 @@ export function stateCookieOptions(request: Request, maxAge = 600) {
  * それ以外は fallback に倒す（オープンリダイレクト防止）。"//host" 形式や
  * バックスラッシュ混じりはプロトコル相対 URL として解釈され得るため弾く。
  */
-export function resolveOAuthNext(value: string | null | undefined, fallback = "/dashboard"): string {
+export function resolveOAuthNext(
+  value: string | null | undefined,
+  fallback = "/dashboard",
+): string {
   if (
     typeof value === "string" &&
     value.length > 0 &&
@@ -253,7 +294,11 @@ export function resolveOAuthNext(value: string | null | undefined, fallback = "/
  * 始まると state が照合できない。別ホストからのリクエストなら、正規ホスト側の
  * 認可 URL（クエリ引き継ぎ）へ飛ばす絶対 URL を返す。正規ホストなら null。
  */
-export function canonicalAuthorizeRedirect(request: Request, pathname: string, redirectUri: string | undefined): string | null {
+export function canonicalAuthorizeRedirect(
+  request: Request,
+  pathname: string,
+  redirectUri: string | undefined,
+): string | null {
   if (!redirectUri) return null;
   let canonical: URL;
   try {

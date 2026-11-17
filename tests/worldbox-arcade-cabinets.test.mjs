@@ -33,8 +33,12 @@ async function loadLib(name) {
 
 const arcade = await loadLib("worldbox/activity/arcade.ts");
 const rngUrl = dataUrl(transpile("worldbox/core/rng.ts"));
-const mapgenUrl = dataUrl(transpile("worldbox/world/mapgen.ts").replaceAll('"../core/rng"', JSON.stringify(rngUrl)));
-const lobbyUrl = dataUrl(transpile("worldbox/world/lobby.ts").replaceAll('"./mapgen"', JSON.stringify(mapgenUrl)));
+const mapgenUrl = dataUrl(
+  transpile("worldbox/world/mapgen.ts").replaceAll('"../core/rng"', JSON.stringify(rngUrl)),
+);
+const lobbyUrl = dataUrl(
+  transpile("worldbox/world/lobby.ts").replaceAll('"./mapgen"', JSON.stringify(mapgenUrl)),
+);
 const lobby = await import(lobbyUrl);
 const floorsUrl = dataUrl(
   transpile("worldbox/world/lobby-floors.ts")
@@ -62,9 +66,17 @@ function reachableFrom(data, sx, sy) {
   const q = [[sx, sy]];
   while (q.length) {
     const [x, y] = q.pop();
-    for (const [nx, ny] of [[x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]]) {
+    for (const [nx, ny] of [
+      [x + 1, y],
+      [x - 1, y],
+      [x, y + 1],
+      [x, y - 1],
+    ]) {
       const k = `${nx},${ny}`;
-      if (walk.has(k) && !seen.has(k)) { seen.add(k); q.push([nx, ny]); }
+      if (walk.has(k) && !seen.has(k)) {
+        seen.add(k);
+        q.push([nx, ny]);
+      }
     }
   }
   return seen;
@@ -76,9 +88,18 @@ test("cabinets: 2F に第1弾6台が ARCADE_FIRST_WAVE の順に北弧へ並ぶ"
   const ids = cabs.map((o) => o.sprite.slice("arcade_".length));
   assert.deepEqual(ids, [...arcade.ARCADE_FIRST_WAVE], "筐体の並びが第1弾の順と違う");
   // 左から右へ 1 マス空けで並ぶ（カジノの機器列と同じ間隔）
-  assert.deepEqual(cabs.map((o) => o.x), [15, 17, 19, 21, 23, 25]);
-  assert.ok(cabs.every((o) => o.y === 9), "筐体が北弧の y=9 に無い");
-  assert.ok(cabs.every((o) => o.w === 1 && o.h === 1), "筐体が 1タイルでない");
+  assert.deepEqual(
+    cabs.map((o) => o.x),
+    [15, 17, 19, 21, 23, 25],
+  );
+  assert.ok(
+    cabs.every((o) => o.y === 9),
+    "筐体が北弧の y=9 に無い",
+  );
+  assert.ok(
+    cabs.every((o) => o.w === 1 && o.h === 1),
+    "筐体が 1タイルでない",
+  );
 });
 
 test("cabinets: 筐体はラウンジのカーペットの床の上にあり重ならず、固体で blocked に載る", () => {
@@ -86,7 +107,11 @@ test("cabinets: 筐体はラウンジのカーペットの床の上にあり重�
   const seen = new Set();
   for (const o of cabinets()) {
     const tile = data.tiles[o.y * data.width + o.x];
-    assert.equal(tile, lobby.L_CARPET, `${o.sprite} (${o.x},${o.y}) がカーペットの上でない: ${tile}`);
+    assert.equal(
+      tile,
+      lobby.L_CARPET,
+      `${o.sprite} (${o.x},${o.y}) がカーペットの上でない: ${tile}`,
+    );
     assert.ok(!seen.has(`${o.x},${o.y}`), `${o.sprite} が重なっている`);
     seen.add(`${o.x},${o.y}`);
     assert.equal(o.solid, true, `${o.sprite} が固体でない`);
@@ -96,7 +121,11 @@ test("cabinets: 筐体はラウンジのカーペットの床の上にあり重�
 
 test("cabinets: 南側の前列（y=10）に立て、入口から届く。列の隙間も歩行可", () => {
   const data = floors.buildLobby2();
-  const reach = reachableFrom(data, Math.floor(floors.LOBBY2_ENTRY.x), Math.floor(floors.LOBBY2_ENTRY.y));
+  const reach = reachableFrom(
+    data,
+    Math.floor(floors.LOBBY2_ENTRY.x),
+    Math.floor(floors.LOBBY2_ENTRY.y),
+  );
   const walk = walkableTiles(data);
   for (const o of cabinets()) {
     const front = `${o.x},${o.y + 1}`;
@@ -119,7 +148,11 @@ test("cabinets: スプライト PNG が 64x64 RGBA で存在し、textures.ts �
     const file = path.join(spriteDir, `${name}.png`);
     assert.ok(fs.existsSync(file), `スプライトが無い: ${name}.png`);
     const buf = fs.readFileSync(file);
-    assert.deepEqual([...buf.subarray(0, 8)], [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a], `${name} が PNG でない`);
+    assert.deepEqual(
+      [...buf.subarray(0, 8)],
+      [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a],
+      `${name} が PNG でない`,
+    );
     assert.equal(buf.readUInt32BE(16), 64, `${name} の幅が 64 でない`);
     assert.equal(buf.readUInt32BE(20), 64, `${name} の高さが 64 でない`);
     assert.equal(buf[24], 8, `${name} のビット深度が 8 でない`);
@@ -134,13 +167,19 @@ test("cabinets: スプライト PNG が 64x64 RGBA で存在し、textures.ts �
 test("cabinets: 筐体に station arcade とゲーム ID が付いている（L4）", () => {
   for (const o of cabinets()) {
     assert.equal(o.station, "arcade", `${o.sprite} に station arcade が付いていない`);
-    assert.equal(o.arcade, o.sprite.slice("arcade_".length), `${o.sprite} のゲーム ID がスプライト名と一致しない`);
+    assert.equal(
+      o.arcade,
+      o.sprite.slice("arcade_".length),
+      `${o.sprite} のゲーム ID がスプライト名と一致しない`,
+    );
   }
 });
 
 test("cabinets: 第1弾以外のアーケード筐体は 2F 南弧の第2弾6台だけ", () => {
   const data = floors.buildLobby2();
-  const placed = new Set(data.objects.filter((o) => o.sprite.startsWith("arcade_")).map((o) => o.sprite));
+  const placed = new Set(
+    data.objects.filter((o) => o.sprite.startsWith("arcade_")).map((o) => o.sprite),
+  );
   assert.deepEqual(
     [...placed].sort(),
     [...arcade.ARCADE_FIRST_WAVE, ...arcade.ARCADE_SECOND_WAVE_2F]

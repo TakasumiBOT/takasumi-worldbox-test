@@ -20,8 +20,24 @@ function loadTsModule(rel, requireStub) {
   }).outputText;
   const mod = { exports: {} };
   const ctx = vm.createContext({
-    module: mod, exports: mod.exports, console, require: requireStub,
-    Math, JSON, Set, Map, Date, Number, String, Array, Object, Promise, Error, Symbol, Reflect, globalThis: {},
+    module: mod,
+    exports: mod.exports,
+    console,
+    require: requireStub,
+    Math,
+    JSON,
+    Set,
+    Map,
+    Date,
+    Number,
+    String,
+    Array,
+    Object,
+    Promise,
+    Error,
+    Symbol,
+    Reflect,
+    globalThis: {},
   });
   vm.runInContext(`(function(module, exports, require){ ${js} })(module, exports, require);`, ctx);
   return mod.exports;
@@ -32,8 +48,19 @@ const presence = loadTsModule("../lib/worldbox/player/presence.ts", () => ({}));
 
 test("presenceKvValue は putPresence 互換: parsePresenceEntry で読み戻せる", () => {
   const entry = {
-    id: watch.presenceIdFor("discord:123"), name: "でし", x: 10.5, y: 20.25, vx: 1, vy: 0,
-    face: "left", space: "world", role: "miner", rank: 3, party: "party:9", sit: true, ts: 1_700_000_000_000,
+    id: watch.presenceIdFor("discord:123"),
+    name: "でし",
+    x: 10.5,
+    y: 20.25,
+    vx: 1,
+    vy: 0,
+    face: "left",
+    space: "world",
+    role: "miner",
+    rank: 3,
+    party: "party:9",
+    sit: true,
+    ts: 1_700_000_000_000,
   };
   const value = core.presenceKvValue(entry);
   const parsed = presence.parsePresenceEntry(watch.presenceIdFor("discord:123"), value);
@@ -55,7 +82,13 @@ test("presenceKvValue は putPresence 互換: parsePresenceEntry で読み戻せ
 
 test("sanitize は sit を通す（REST の sanitizeHeartbeat と同形）", () => {
   const room = core.createRoom();
-  const seated = core.acceptHeartbeat(room, "p1", "A", { x: 1, y: 1, space: "lobby", sit: true }, 1000);
+  const seated = core.acceptHeartbeat(
+    room,
+    "p1",
+    "A",
+    { x: 1, y: 1, space: "lobby", sit: true },
+    1000,
+  );
   assert.equal(seated.sit, true);
   const standing = core.acceptHeartbeat(room, "p2", "B", { x: 1, y: 1, space: "lobby" }, 1000);
   assert.equal("sit" in standing, false);
@@ -76,7 +109,10 @@ test("planPresenceWrite: 初回・遷移・ジャンプは即時、移動1秒/�
   // 4タイル超のジャンプは即時
   assert.equal(core.planPresenceWrite(agg, "p", { ...base, x: 20, space: "cave" }, 3200), true);
   // force（切断時の最終書き込み）は常に書く
-  assert.equal(core.planPresenceWrite(agg, "p", { ...base, x: 20, space: "cave" }, 3300, true), true);
+  assert.equal(
+    core.planPresenceWrite(agg, "p", { ...base, x: 20, space: "cave" }, 3300, true),
+    true,
+  );
   core.forgetPresenceWrite(agg, "p");
   assert.equal(core.planPresenceWrite(agg, "p", base, 3400), true, "忘却後は初回扱い");
 });
@@ -84,7 +120,10 @@ test("planPresenceWrite: 初回・遷移・ジャンプは即時、移動1秒/�
 test("トークンは所有者キー（ok）を運ぶ。旧トークンでは ok は null", () => {
   const secret = "phase2-secret";
   const now = 1_000_000;
-  const token = core.signToken({ pid: "p1", name: "A", ok: "discord:123", exp: now + 60_000 }, secret);
+  const token = core.signToken(
+    { pid: "p1", name: "A", ok: "discord:123", exp: now + 60_000 },
+    secret,
+  );
   const auth = core.verifyToken(token, secret, now);
   assert.equal(auth.pid, "p1");
   assert.equal(auth.ok, "discord:123");
@@ -93,13 +132,25 @@ test("トークンは所有者キー（ok）を運ぶ。旧トークンでは ok
 });
 
 test("配線: トークン発行・relay 集約・クライアントの停止条件", () => {
-  const tokenTs = readFileSync(new URL("../lib/worldbox/core/realtime-token.ts", import.meta.url), "utf8");
+  const tokenTs = readFileSync(
+    new URL("../lib/worldbox/core/realtime-token.ts", import.meta.url),
+    "utf8",
+  );
   assert.ok(tokenTs.includes("ok: sessionOwnerKey(session)"), "トークンに所有者キーが無い");
   const server = readFileSync(new URL("../realtime-server.js", import.meta.url), "utf8");
-  assert.ok(server.includes('botkv.kvSet(kvCfg, "worldbox_presence", info.ok'), "relay が bot_kv プレゼンスへ書いていない");
+  assert.ok(
+    server.includes('botkv.kvSet(kvCfg, "worldbox_presence", info.ok'),
+    "relay が bot_kv プレゼンスへ書いていない",
+  );
   assert.ok(server.includes('t: "hello", now: Date.now(), agg: 1'), "集約の合図が無い");
-  const client = readFileSync(new URL("../app/games/worldbox/WorldBoxClient.tsx", import.meta.url), "utf8");
-  assert.ok(client.includes('if (!rtAggOn && (movedDist > 4'), "REST ハートビートの停止条件が集約合図に紐付いていない");
+  const client = readFileSync(
+    new URL("../app/games/worldbox/WorldBoxClient.tsx", import.meta.url),
+    "utf8",
+  );
+  assert.ok(
+    client.includes("if (!rtAggOn && (movedDist > 4"),
+    "REST ハートビートの停止条件が集約合図に紐付いていない",
+  );
   assert.ok(client.includes("rtAggOn = false;"), "切断時に REST へ復帰していない");
   assert.ok(client.includes('msg.t === "hello" && msg.agg === 1'), "合図の受信処理が無い");
 });

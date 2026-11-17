@@ -1,11 +1,18 @@
 import { NextResponse } from "next/server";
 import { getRequestSession, publicOrigin, sessionOwnerKey } from "@/lib/auth";
 import {
-  isChatChannel, sanitizeChatText, visibleChatMessages, CHAT_MIN_INTERVAL_MS,
+  isChatChannel,
+  sanitizeChatText,
+  visibleChatMessages,
+  CHAT_MIN_INTERVAL_MS,
   type ChatMessage,
 } from "@/lib/worldbox/social/chat";
 import {
-  appendChatMessage, enqueueChatOutbox, isChatEnabled, loadChatMessages, loadUnionChatSettings,
+  appendChatMessage,
+  enqueueChatOutbox,
+  isChatEnabled,
+  loadChatMessages,
+  loadUnionChatSettings,
 } from "@/lib/worldbox/social/chat-online";
 import { resolveLinkedChannelId } from "@/lib/worldbox/social/discord-directory";
 import { loadDiscordDirectory } from "@/lib/worldbox/social/discord-directory-online";
@@ -58,7 +65,8 @@ export async function GET(request: Request) {
   const guildId = nations.members[ownerKey]?.nationId ?? null;
   const all = await loadChatMessages(channel, space, guildId ?? undefined);
   const viewer = {
-    x: me?.x ?? 0, y: me?.y ?? 0,
+    x: me?.x ?? 0,
+    y: me?.y ?? 0,
     space: me?.space ?? space,
     guildId,
   };
@@ -104,7 +112,11 @@ export async function POST(request: Request) {
   if (!(await appendChatMessage(message))) return err("store_failed", 503);
   lastPostAt.set(ownerKey, now);
   void bumpMetric(
-    fields.channel === "proximity" ? "chatsNear" : fields.channel === "global" ? "chatsGlobal" : "chatsUnion",
+    fields.channel === "proximity"
+      ? "chatsNear"
+      : fields.channel === "global"
+        ? "chatsGlobal"
+        : "chatsUnion",
     1,
     now,
   );
@@ -112,7 +124,8 @@ export async function POST(request: Request) {
   // 宛先は連携 mode と Bot 公開ディレクトリから解決する（ID 手入力は無い）。
   if (fields.channel === "union" && membership) {
     const settings = await loadUnionChatSettings(membership.nationId);
-    const directory = settings.mode === "global" ? await loadDiscordDirectory(membership.nationId) : null;
+    const directory =
+      settings.mode === "global" ? await loadDiscordDirectory(membership.nationId) : null;
     const channelId = resolveLinkedChannelId(settings, directory);
     if (channelId) {
       await enqueueChatOutbox({

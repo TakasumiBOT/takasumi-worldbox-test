@@ -57,18 +57,61 @@ async function loadBundle(files, exportNames) {
 }
 
 const wb = await loadBundle(
-  ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/world/lobby.ts", "worldbox/player/presence.ts", "worldbox/core/save.ts", "worldbox/social/board.ts"],
   [
-    "T_GRASS", "T_ROCK",
-    "LOBBY_W", "LOBBY_H", "L_VOID", "L_WALL", "L_MARBLE", "L_PLAZA", "L_RING", "L_CARPET", "L_WOOD",
-    "L_SAND", "L_DARK", "L_CHECK", "LOBBY_FLOOR_SPRITE", "LOBBY_FLOOR_FALLBACK", "isSolidLobbyTile",
-    "inLobbyShape", "LOBBY_OBJECTS", "LOBBY_NPCS", "LOBBY_ENTRY", "LOBBY_WARP_PAD",
-    "RACETRACK", "RACE_CORRIDOR", "RACECOURSE", "isRaceTrackTile", "isRaceInfieldTile",
-    "LOBBY_STAIRS_UP", "LOBBY_STAIRS_DOWN", "LOBBY_UP_LANDING", "LOBBY_DOWN_LANDING",
-    "buildLobby", "lobbyTileAt", "stationNear",
-    "sanitizeHeartbeat", "sanitizePresenceSpace", "parsePresenceEntry", "selectVisiblePlayers",
-    "SAVE_VERSION", "serializeSave", "parseSave",
-    "BOARD_MAX_POSTS", "BOARD_TEXT_MAX", "sanitizeBoardText", "parseBoardPosts", "appendBoardPost",
+    "worldbox/core/rng.ts",
+    "worldbox/world/mapgen.ts",
+    "worldbox/world/lobby.ts",
+    "worldbox/player/presence.ts",
+    "worldbox/core/save.ts",
+    "worldbox/social/board.ts",
+  ],
+  [
+    "T_GRASS",
+    "T_ROCK",
+    "LOBBY_W",
+    "LOBBY_H",
+    "L_VOID",
+    "L_WALL",
+    "L_MARBLE",
+    "L_PLAZA",
+    "L_RING",
+    "L_CARPET",
+    "L_WOOD",
+    "L_SAND",
+    "L_DARK",
+    "L_CHECK",
+    "LOBBY_FLOOR_SPRITE",
+    "LOBBY_FLOOR_FALLBACK",
+    "isSolidLobbyTile",
+    "inLobbyShape",
+    "LOBBY_OBJECTS",
+    "LOBBY_NPCS",
+    "LOBBY_ENTRY",
+    "LOBBY_WARP_PAD",
+    "RACETRACK",
+    "RACE_CORRIDOR",
+    "RACECOURSE",
+    "isRaceTrackTile",
+    "isRaceInfieldTile",
+    "LOBBY_STAIRS_UP",
+    "LOBBY_STAIRS_DOWN",
+    "LOBBY_UP_LANDING",
+    "LOBBY_DOWN_LANDING",
+    "buildLobby",
+    "lobbyTileAt",
+    "stationNear",
+    "sanitizeHeartbeat",
+    "sanitizePresenceSpace",
+    "parsePresenceEntry",
+    "selectVisiblePlayers",
+    "SAVE_VERSION",
+    "serializeSave",
+    "parseSave",
+    "BOARD_MAX_POSTS",
+    "BOARD_TEXT_MAX",
+    "sanitizeBoardText",
+    "parseBoardPosts",
+    "appendBoardPost",
   ],
 );
 
@@ -115,7 +158,17 @@ test("lobby: ゾーンごとの床（カジノ=カーペット、ショップ=�
   assert.equal(tile(10, 52), wb.L_CHECK);
   assert.equal(tile(28, 6), wb.L_SAND);
   // 床種は拡張可能な列挙で、スプライトか平色のどちらかで必ず描ける
-  for (const id of [wb.L_WALL, wb.L_MARBLE, wb.L_PLAZA, wb.L_RING, wb.L_CARPET, wb.L_WOOD, wb.L_SAND, wb.L_DARK, wb.L_CHECK]) {
+  for (const id of [
+    wb.L_WALL,
+    wb.L_MARBLE,
+    wb.L_PLAZA,
+    wb.L_RING,
+    wb.L_CARPET,
+    wb.L_WOOD,
+    wb.L_SAND,
+    wb.L_DARK,
+    wb.L_CHECK,
+  ]) {
     assert.ok(id in wb.LOBBY_FLOOR_SPRITE, `床 ${id} のスプライト対応が無い`);
     assert.ok(typeof wb.LOBBY_FLOOR_FALLBACK[id] === "string", `床 ${id} の平色が無い`);
   }
@@ -126,14 +179,20 @@ test("lobby: ゾーンごとの床（カジノ=カーペット、ショップ=�
 test("lobby: オブジェクトに重なりが無く、全て壁・無効でない床の上にあり、グリッド内にある", () => {
   const seen = new Set();
   for (const o of wb.LOBBY_OBJECTS) {
-    assert.ok(o.x >= 0 && o.y >= 0 && o.x + o.w <= wb.LOBBY_W && o.y + o.h <= wb.LOBBY_H, `範囲外: ${o.sprite} ${o.x},${o.y}`);
+    assert.ok(
+      o.x >= 0 && o.y >= 0 && o.x + o.w <= wb.LOBBY_W && o.y + o.h <= wb.LOBBY_H,
+      `範囲外: ${o.sprite} ${o.x},${o.y}`,
+    );
     for (let dy = 0; dy < o.h; dy++) {
       for (let dx = 0; dx < o.w; dx++) {
         const key = `${o.x + dx},${o.y + dy}`;
         assert.ok(!seen.has(key), `重なり: ${key} (${o.sprite})`);
         seen.add(key);
         const t = tile(o.x + dx, o.y + dy);
-        assert.ok(t !== wb.L_WALL && t !== wb.L_VOID, `壁・無効の上に置かれている: ${o.sprite} ${key}`);
+        assert.ok(
+          t !== wb.L_WALL && t !== wb.L_VOID,
+          `壁・無効の上に置かれている: ${o.sprite} ${key}`,
+        );
       }
     }
   }
@@ -163,7 +222,10 @@ test("lobby: 7つのステーションが全て存在し、隣接で検出でき
   ];
   for (const [station, x, y] of cases) {
     assert.equal(wb.stationNear(wb.LOBBY_OBJECTS, x, y), station, `${station} が検出できない`);
-    assert.ok(wb.LOBBY_OBJECTS.some((o) => o.station === station), `${station} のオブジェクトが無い`);
+    assert.ok(
+      wb.LOBBY_OBJECTS.some((o) => o.station === station),
+      `${station} のオブジェクトが無い`,
+    );
   }
   // 広場の真ん中（噴水の南）では何も検出しない
   assert.equal(wb.stationNear(wb.LOBBY_OBJECTS, 24, 28), null);
@@ -174,17 +236,26 @@ test("lobby: 店員NPCはカウンターの背面に立ち、当たり判定が�
   const counterTiles = new Set();
   for (const o of wb.LOBBY_OBJECTS) {
     if (o.sprite !== "shop_counter") continue;
-    for (let dy = 0; dy < o.h; dy++) for (let dx = 0; dx < o.w; dx++) counterTiles.add(`${o.x + dx},${o.y + dy}`);
+    for (let dy = 0; dy < o.h; dy++)
+      for (let dx = 0; dx < o.w; dx++) counterTiles.add(`${o.x + dx},${o.y + dy}`);
   }
   for (const n of wb.LOBBY_NPCS) {
     assert.ok(!lobby.blocked.has(`${n.x},${n.y}`), `NPCが固体タイルにいる: ${n.x},${n.y}`);
     const t = tile(n.x, n.y);
     assert.ok(t !== wb.L_WALL && t !== wb.L_VOID);
-    const adjacent = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => counterTiles.has(`${n.x + dx},${n.y + dy}`));
+    const adjacent = [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1],
+    ].some(([dx, dy]) => counterTiles.has(`${n.x + dx},${n.y + dy}`));
     assert.ok(adjacent, `NPC ${n.x},${n.y} の隣にカウンターが無い`);
   }
   // 自販機はショップ翼（x<20, y<31）に置かない
-  assert.ok(!wb.LOBBY_OBJECTS.some((o) => o.sprite === "vending" && o.x < 20 && o.y < 31), "ショップ翼に自販機がある");
+  assert.ok(
+    !wb.LOBBY_OBJECTS.some((o) => o.sprite === "vending" && o.x < 20 && o.y < 31),
+    "ショップ翼に自販機がある",
+  );
 });
 
 test("lobby: ワープパッドと階段は歩行可タイルで、着地点も立てる", () => {
@@ -193,7 +264,8 @@ test("lobby: ワープパッドと階段は歩行可タイルで、着地点も�
     return t !== wb.L_WALL && t !== wb.L_VOID && !lobby.blocked.has(`${x},${y}`);
   };
   assert.ok(walkable(wb.LOBBY_WARP_PAD.x, wb.LOBBY_WARP_PAD.y));
-  for (const s of [...wb.LOBBY_STAIRS_UP, ...wb.LOBBY_STAIRS_DOWN]) assert.ok(walkable(s.x, s.y), `階段 ${s.x},${s.y}`);
+  for (const s of [...wb.LOBBY_STAIRS_UP, ...wb.LOBBY_STAIRS_DOWN])
+    assert.ok(walkable(s.x, s.y), `階段 ${s.x},${s.y}`);
   assert.ok(walkable(Math.floor(wb.LOBBY_ENTRY.x), Math.floor(wb.LOBBY_ENTRY.y)));
   assert.ok(walkable(Math.floor(wb.LOBBY_UP_LANDING.x), Math.floor(wb.LOBBY_UP_LANDING.y)));
   assert.ok(walkable(Math.floor(wb.LOBBY_DOWN_LANDING.x), Math.floor(wb.LOBBY_DOWN_LANDING.y)));
@@ -207,13 +279,22 @@ function reachableFrom(sx, sy) {
   const W = wb.LOBBY_W;
   const H = wb.LOBBY_H;
   const walk = (x, y) =>
-    x >= 0 && y >= 0 && x < W && y < H &&
-    lobby.moveMap.tileAt(x, y) !== wb.T_ROCK && !lobby.blocked.has(`${x},${y}`);
+    x >= 0 &&
+    y >= 0 &&
+    x < W &&
+    y < H &&
+    lobby.moveMap.tileAt(x, y) !== wb.T_ROCK &&
+    !lobby.blocked.has(`${x},${y}`);
   const seen = new Set([`${sx},${sy}`]);
   const queue = [[sx, sy]];
   while (queue.length > 0) {
     const [x, y] = queue.pop();
-    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+    for (const [dx, dy] of [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1],
+    ]) {
       const nx = x + dx;
       const ny = y + dy;
       const key = `${nx},${ny}`;
@@ -275,7 +356,10 @@ test("lobby: トラックは楕円の砂の帯、内側はインフィールド"
 });
 
 test("lobby: 競馬場の station race がカウンターと掲示板で検出できる", () => {
-  assert.ok(wb.LOBBY_OBJECTS.some((o) => o.station === "race"), "race のオブジェクトが無い");
+  assert.ok(
+    wb.LOBBY_OBJECTS.some((o) => o.station === "race"),
+    "race のオブジェクトが無い",
+  );
   assert.equal(wb.stationNear(wb.LOBBY_OBJECTS, 71, 25), "race"); // 馬券カウンターの正面（西）
   assert.equal(wb.stationNear(wb.LOBBY_OBJECTS, 71, 21), "race"); // 結果掲示板の正面（西）
   assert.equal(wb.stationNear(wb.LOBBY_OBJECTS, 60, 21), "race"); // 入口の看板の正面
@@ -305,13 +389,17 @@ test("lobby: 入場点から通路を通って競馬場の各所へ歩いて届�
 });
 
 test("lobby: 競馬場に厩舎と東・南スタンド増設、インフィールド南の植栽がある", () => {
-  const at = (x, y) => wb.LOBBY_OBJECTS.find((o) => x >= o.x && x < o.x + o.w && y >= o.y && y < o.y + o.h);
+  const at = (x, y) =>
+    wb.LOBBY_OBJECTS.find((o) => x >= o.x && x < o.x + o.w && y >= o.y && y < o.y + o.h);
   // 厩舎は柵囲いで、北側の入口（x120〜121）だけが開いている
   assert.equal(at(116, 39)?.sprite, "fence_wood");
   assert.equal(at(115, 42)?.sprite, "fence_wood");
   assert.equal(at(120, 45)?.sprite, "fence_wood");
   assert.equal(at(124, 42)?.sprite, "fence_wood");
-  assert.ok(!lobby.blocked.has("120,39") && !lobby.blocked.has("121,39"), "厩舎の入口が塞がれている");
+  assert.ok(
+    !lobby.blocked.has("120,39") && !lobby.blocked.has("121,39"),
+    "厩舎の入口が塞がれている",
+  );
   assert.equal(at(114, 39)?.sprite, "sign_board"); // 厩舎の看板
   assert.equal(at(116, 44)?.sprite, "crate"); // 餌置き場
   assert.equal(at(123, 40)?.sprite, "workbench"); // 手入れ台
@@ -340,10 +428,14 @@ test("lobby: 2階は階段着地点から区画と下り階段へ届く（1階�
 test("save v6: ロビー位置と帰還点の往復、ロビー範囲でクランプ", () => {
   const state = { space: "lobby", x: 28.5, y: 32.5, worldReturn: { x: 514.5, y: 512.5 } };
   assert.deepEqual(wb.parseSave(wb.serializeSave(state)), state);
-  const clamped = wb.parseSave(wb.serializeSave({ space: "lobby", x: 9999, y: -3, worldReturn: null }));
+  const clamped = wb.parseSave(
+    wb.serializeSave({ space: "lobby", x: 9999, y: -3, worldReturn: null }),
+  );
   assert.ok(clamped.x <= wb.LOBBY_W - 0.5 && clamped.y >= 0.5);
   // 壊れた帰還点は null に落ち、位置は残る
-  const bad = wb.parseSave(JSON.stringify({ version: 6, space: "lobby", x: 10, y: 10, worldReturn: { x: "a" } }));
+  const bad = wb.parseSave(
+    JSON.stringify({ version: 6, space: "lobby", x: 10, y: 10, worldReturn: { x: "a" } }),
+  );
   assert.equal(bad.worldReturn, null);
   assert.equal(bad.space, "lobby");
   // 空間の無い v5 は破棄（トップダウン側のテストと対）
@@ -361,9 +453,15 @@ test("presence: ハートビートの空間（lobby は保持、不正と省略�
   assert.equal(wb.sanitizePresenceSpace(null), "world");
   // 保存値の parse: 空間なしは world、ありは保持
   const now = Date.now();
-  const old = wb.parsePresenceEntry("aaaa", JSON.stringify({ name: "n", x: 1, y: 1, vx: 0, vy: 0, face: 1, ts: now }));
+  const old = wb.parsePresenceEntry(
+    "aaaa",
+    JSON.stringify({ name: "n", x: 1, y: 1, vx: 0, vy: 0, face: 1, ts: now }),
+  );
   assert.equal(old.space, "world");
-  const inLobby = wb.parsePresenceEntry("bbbb", JSON.stringify({ name: "n", x: 1, y: 1, vx: 0, vy: 0, face: 1, space: "lobby", ts: now }));
+  const inLobby = wb.parsePresenceEntry(
+    "bbbb",
+    JSON.stringify({ name: "n", x: 1, y: 1, vx: 0, vy: 0, face: 1, space: "lobby", ts: now }),
+  );
   assert.equal(inLobby.space, "lobby");
 });
 
@@ -371,8 +469,14 @@ test("presence: 空間フィルタは同じ空間の者だけを返す", () => {
   const now = 1_700_000_000_000;
   const mk = (id, space) => ({ id, name: id, x: 1, y: 1, vx: 0, vy: 0, face: 1, space, ts: now });
   const entries = [mk("w1", "world"), mk("w2", "world"), mk("l1", "lobby")];
-  assert.deepEqual(wb.selectVisiblePlayers(entries, null, now, 32, "world").map((e) => e.id), ["w1", "w2"]);
-  assert.deepEqual(wb.selectVisiblePlayers(entries, null, now, 32, "lobby").map((e) => e.id), ["l1"]);
+  assert.deepEqual(
+    wb.selectVisiblePlayers(entries, null, now, 32, "world").map((e) => e.id),
+    ["w1", "w2"],
+  );
+  assert.deepEqual(
+    wb.selectVisiblePlayers(entries, null, now, 32, "lobby").map((e) => e.id),
+    ["l1"],
+  );
   assert.equal(wb.selectVisiblePlayers(entries, null, now).length, 3); // フィルタ無しは従来どおり
 });
 
@@ -391,18 +495,24 @@ test("board: 本文の検証（空・長すぎ・非文字列は null、空白�
 
 test("board: 追加と parse（新しい順・30件で切り詰め・壊れた要素は落とす）", () => {
   let posts = [];
-  for (let i = 0; i < 35; i++) posts = wb.appendBoardPost(posts, { name: "n", text: `post${i}`, at: 1000 + i });
+  for (let i = 0; i < 35; i++)
+    posts = wb.appendBoardPost(posts, { name: "n", text: `post${i}`, at: 1000 + i });
   assert.equal(posts.length, wb.BOARD_MAX_POSTS);
   assert.equal(posts[0].text, "post34");
   assert.equal(posts[posts.length - 1].text, "post5");
-  const parsed = wb.parseBoardPosts(JSON.stringify([
-    { name: "a", text: "old", at: 100 },
-    { name: "b", text: "new", at: 200 },
-    { name: "c", text: "", at: 300 },
-    "garbage",
-    { text: "noname", at: 400 },
-  ]));
-  assert.deepEqual(parsed.map((p) => p.text), ["new", "old"]);
+  const parsed = wb.parseBoardPosts(
+    JSON.stringify([
+      { name: "a", text: "old", at: 100 },
+      { name: "b", text: "new", at: 200 },
+      { name: "c", text: "", at: 300 },
+      "garbage",
+      { text: "noname", at: 400 },
+    ]),
+  );
+  assert.deepEqual(
+    parsed.map((p) => p.text),
+    ["new", "old"],
+  );
   assert.deepEqual(wb.parseBoardPosts("{壊れた"), []);
   assert.deepEqual(wb.parseBoardPosts(null), []);
 });
@@ -423,23 +533,38 @@ export async function kvList(ns) {
 }
 `);
 const subdomainUrl = dataUrl(transpile("subdomain.ts"));
-const headersStubUrl = dataUrl("export async function cookies() { throw new Error('tests do not use cookies()'); }");
+const headersStubUrl = dataUrl(
+  "export async function cookies() { throw new Error('tests do not use cookies()'); }",
+);
 const authUrl = dataUrl(
-  transpile("auth.ts").replaceAll('"./subdomain"', JSON.stringify(subdomainUrl)).replaceAll('"next/headers"', JSON.stringify(headersStubUrl)),
+  transpile("auth.ts")
+    .replaceAll('"./subdomain"', JSON.stringify(subdomainUrl))
+    .replaceAll('"next/headers"', JSON.stringify(headersStubUrl)),
 );
 const auth = await import(authUrl);
 const rngUrl = dataUrl(transpile("worldbox/core/rng.ts"));
-const mapgenUrl = dataUrl(transpile("worldbox/world/mapgen.ts").replaceAll('"../core/rng"', JSON.stringify(rngUrl)));
-const lobbyModUrl = dataUrl(transpile("worldbox/world/lobby.ts").replaceAll('"./mapgen"', JSON.stringify(mapgenUrl)));
+const mapgenUrl = dataUrl(
+  transpile("worldbox/world/mapgen.ts").replaceAll('"../core/rng"', JSON.stringify(rngUrl)),
+);
+const lobbyModUrl = dataUrl(
+  transpile("worldbox/world/lobby.ts").replaceAll('"./mapgen"', JSON.stringify(mapgenUrl)),
+);
 const tentModUrl = dataUrl(
-  transpile("worldbox/world/tent.ts").replaceAll('"./mapgen"', JSON.stringify(mapgenUrl)).replaceAll('"./lobby"', JSON.stringify(lobbyModUrl)),
+  transpile("worldbox/world/tent.ts")
+    .replaceAll('"./mapgen"', JSON.stringify(mapgenUrl))
+    .replaceAll('"./lobby"', JSON.stringify(lobbyModUrl)),
 );
 const floorsModUrl = dataUrl(
   transpile("worldbox/world/lobby-floors.ts")
     .replaceAll('"./mapgen"', JSON.stringify(mapgenUrl))
     .replaceAll('"./lobby"', JSON.stringify(lobbyModUrl)),
 );
-const presenceUrl = dataUrl(transpile("worldbox/player/presence.ts").replaceAll('"../world/mapgen"', JSON.stringify(mapgenUrl)));
+const presenceUrl = dataUrl(
+  transpile("worldbox/player/presence.ts").replaceAll(
+    '"../world/mapgen"',
+    JSON.stringify(mapgenUrl),
+  ),
+);
 const presenceOnlineUrl = dataUrl(
   transpile("worldbox/player/presence-online.ts")
     .replaceAll('"../../bot-api"', JSON.stringify(botApiStubUrl))
@@ -452,7 +577,10 @@ const saveUrl = dataUrl(
     .replaceAll('"../world/mapgen"', JSON.stringify(mapgenUrl)),
 );
 const saveOnlineUrl = dataUrl(
-  transpile("worldbox/core/save-online.ts").replaceAll('"../../bot-api"', JSON.stringify(botApiStubUrl)),
+  transpile("worldbox/core/save-online.ts").replaceAll(
+    '"../../bot-api"',
+    JSON.stringify(botApiStubUrl),
+  ),
 );
 const boardUrl = dataUrl(transpile("worldbox/social/board.ts"));
 const boardOnlineUrl = dataUrl(
@@ -491,7 +619,7 @@ const presenceRoute = await import(
       .replaceAll('"@/lib/worldbox/core/save"', JSON.stringify(saveUrl))
       .replaceAll('"@/lib/worldbox/core/save-online"', JSON.stringify(saveOnlineUrl))
       .replaceAll('"@/lib/worldbox/core/metrics-online"', JSON.stringify(metricsOnlineStubUrl)),
-  ),
+  )
 );
 const stationStubUrl = dataUrl(`
 export async function loadMyLobbyStation() { return "board"; }
@@ -504,14 +632,14 @@ const boardRoute = await import(
       .replaceAll('"@/lib/worldbox/social/board"', JSON.stringify(boardUrl))
       .replaceAll('"@/lib/worldbox/social/board-online"', JSON.stringify(boardOnlineUrl))
       .replaceAll('"@/lib/worldbox/world/station-online"', JSON.stringify(stationStubUrl)),
-  ),
+  )
 );
 const gateRoute = await import(
   dataUrl(
     transpile("api/worldbox/gate/route.ts", rootDir + "/app")
       .replaceAll('"next/server"', JSON.stringify(nextServerStubUrl))
       .replaceAll('"@/lib/auth"', JSON.stringify(authUrl)),
-  ),
+  )
 );
 
 process.env.DISCORD_SESSION_SECRET = ["worldbox", "lobby", "test", "secret"].join("-");
@@ -534,16 +662,57 @@ function apiRequest(url, method, cookie, body, headers = {}) {
 test("API(presence): 空間ごとに分けて返し、既定は world", async () => {
   const cookieW = sessionCookie("611111111111111111", "world-user");
   const cookieL = sessionCookie("622222222222222222", "lobby-user");
-  assert.equal((await presenceRoute.PUT(apiRequest("http://localhost/api/worldbox/presence", "PUT", cookieW, { x: 100, y: 100, space: "world" }))).status, 200);
-  assert.equal((await presenceRoute.PUT(apiRequest("http://localhost/api/worldbox/presence", "PUT", cookieL, { x: 28.5, y: 32.5, space: "lobby" }))).status, 200);
-  const worldSeen = await (await presenceRoute.GET(apiRequest("http://localhost/api/worldbox/presence?space=world", "GET", null))).json();
-  assert.deepEqual(worldSeen.players.map((p) => p.name), ["world-user"]);
+  assert.equal(
+    (
+      await presenceRoute.PUT(
+        apiRequest("http://localhost/api/worldbox/presence", "PUT", cookieW, {
+          x: 100,
+          y: 100,
+          space: "world",
+        }),
+      )
+    ).status,
+    200,
+  );
+  assert.equal(
+    (
+      await presenceRoute.PUT(
+        apiRequest("http://localhost/api/worldbox/presence", "PUT", cookieL, {
+          x: 28.5,
+          y: 32.5,
+          space: "lobby",
+        }),
+      )
+    ).status,
+    200,
+  );
+  const worldSeen = await (
+    await presenceRoute.GET(
+      apiRequest("http://localhost/api/worldbox/presence?space=world", "GET", null),
+    )
+  ).json();
+  assert.deepEqual(
+    worldSeen.players.map((p) => p.name),
+    ["world-user"],
+  );
   assert.equal(worldSeen.players[0].space, "world");
-  const lobbySeen = await (await presenceRoute.GET(apiRequest("http://localhost/api/worldbox/presence?space=lobby", "GET", null))).json();
-  assert.deepEqual(lobbySeen.players.map((p) => p.name), ["lobby-user"]);
+  const lobbySeen = await (
+    await presenceRoute.GET(
+      apiRequest("http://localhost/api/worldbox/presence?space=lobby", "GET", null),
+    )
+  ).json();
+  assert.deepEqual(
+    lobbySeen.players.map((p) => p.name),
+    ["lobby-user"],
+  );
   assert.equal(lobbySeen.players[0].space, "lobby");
-  const defaultSeen = await (await presenceRoute.GET(apiRequest("http://localhost/api/worldbox/presence", "GET", null))).json();
-  assert.deepEqual(defaultSeen.players.map((p) => p.name), ["world-user"]);
+  const defaultSeen = await (
+    await presenceRoute.GET(apiRequest("http://localhost/api/worldbox/presence", "GET", null))
+  ).json();
+  assert.deepEqual(
+    defaultSeen.players.map((p) => p.name),
+    ["world-user"],
+  );
 });
 
 test("API(board): ゲストは読めるが書けない、投稿はセッション名で新しい順", async () => {
@@ -553,7 +722,9 @@ test("API(board): ゲストは読めるが書けない、投稿はセッショ�
   assert.equal(guest.loggedIn, false);
   assert.equal((await boardRoute.POST(apiRequest(url, "POST", null, { text: "hi" }))).status, 401);
   const cookie = sessionCookie("633333333333333333", "board-user");
-  const posted = await boardRoute.POST(apiRequest(url, "POST", cookie, { text: "  ロビー着いた  " }));
+  const posted = await boardRoute.POST(
+    apiRequest(url, "POST", cookie, { text: "  ロビー着いた  " }),
+  );
   assert.equal(posted.status, 200);
   const after = await (await boardRoute.GET(apiRequest(url, "GET", null))).json();
   assert.equal(after.posts.length, 1);
@@ -565,14 +736,27 @@ test("API(board): 不正な本文は 400、他オリジンは 403、上限30件�
   const url = "http://localhost/api/worldbox/board";
   const cookie = sessionCookie("644444444444444444", "board-user-2");
   assert.equal((await boardRoute.POST(apiRequest(url, "POST", cookie, { text: "" }))).status, 400);
-  assert.equal((await boardRoute.POST(apiRequest(url, "POST", cookie, { text: "x".repeat(121) }))).status, 400);
+  assert.equal(
+    (await boardRoute.POST(apiRequest(url, "POST", cookie, { text: "x".repeat(121) }))).status,
+    400,
+  );
   assert.equal((await boardRoute.POST(apiRequest(url, "POST", cookie, { text: 42 }))).status, 400);
-  assert.equal((await boardRoute.POST(apiRequest(url, "POST", cookie, { text: "ok" }, { origin: "http://evil.example" }))).status, 403);
+  assert.equal(
+    (
+      await boardRoute.POST(
+        apiRequest(url, "POST", cookie, { text: "ok" }, { origin: "http://evil.example" }),
+      )
+    ).status,
+    403,
+  );
   // 連投制限（同一ユーザーは 1.5 秒間隔）があるため、上限の検証は
   // 投稿者を変えながら行う（掲示板の蓄積は全体で数える）。
   for (let i = 0; i < 35; i++) {
     const capCookie = sessionCookie(`65${String(i).padStart(16, "0")}`, `cap-user-${i}`);
-    assert.equal((await boardRoute.POST(apiRequest(url, "POST", capCookie, { text: `cap${i}` }))).status, 200);
+    assert.equal(
+      (await boardRoute.POST(apiRequest(url, "POST", capCookie, { text: `cap${i}` }))).status,
+      200,
+    );
   }
   const after = await (await boardRoute.GET(apiRequest(url, "GET", null))).json();
   assert.equal(after.posts.length, wb.BOARD_MAX_POSTS);
@@ -582,7 +766,10 @@ test("API(board): 不正な本文は 400、他オリジンは 403、上限30件�
 test("API(board): 同一ユーザーの連投は 429（チャットと同じ最小間隔）", async () => {
   const url = "http://localhost/api/worldbox/board";
   const cookie = sessionCookie("666666666666666666", "board-user-3");
-  assert.equal((await boardRoute.POST(apiRequest(url, "POST", cookie, { text: "first" }))).status, 200);
+  assert.equal(
+    (await boardRoute.POST(apiRequest(url, "POST", cookie, { text: "first" }))).status,
+    200,
+  );
   const second = await boardRoute.POST(apiRequest(url, "POST", cookie, { text: "second" }));
   assert.equal(second.status, 429);
   assert.equal((await second.json()).error, "too_fast");
@@ -598,25 +785,36 @@ test("API(gate): Discord セッションだけが入場でき、ゲストと Goo
   const discordCookie = sessionCookie("655555555555555555", "d-user");
   const discord = await (await gateRoute.GET(apiRequest(url, "GET", discordCookie))).json();
   assert.equal(discord.allowed, true);
-  const forged = await (await gateRoute.GET(apiRequest(url, "GET", "ago_session=forged.value"))).json();
+  const forged = await (
+    await gateRoute.GET(apiRequest(url, "GET", "ago_session=forged.value"))
+  ).json();
   assert.equal(forged.allowed, false);
 });
 
 // ---------- クライアント配線 ----------
 
 test("クライアント: 入場ゲート（未ログインではワールドを描かず、Discord ログインを出す）", () => {
-  const client = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"), "utf8");
+  const client = fs.readFileSync(
+    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    "utf8",
+  );
   assert.ok(client.includes("/api/worldbox/gate"), "ゲート判定を使っていない");
   assert.ok(client.includes("ログインが必要"), "ログインゲートの文言が無い");
   assert.ok(client.includes("Discordでログイン"), "Discord ログインボタンが無い");
-  assert.ok(client.includes("/api/auth/discord/authorize?next=/games/worldbox"), "ログイン導線が無い");
+  assert.ok(
+    client.includes("/api/auth/discord/authorize?next=/games/worldbox"),
+    "ログイン導線が無い",
+  );
   // takasumi 版ではゲスト入場を許可する（本家の「ゲスト不可」から仕様変更）
   assert.ok(client.includes("ゲストで入る"), "ゲスト入場の導線が無い");
   assert.ok(client.includes("/api/auth/guest"), "ゲスト入場 API を呼んでいない");
 });
 
 test("クライアント: ハンバーガーはデータ駆動のアクションリスト（ワープ・設定トグル）", () => {
-  const client = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"), "utf8");
+  const client = fs.readFileSync(
+    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    "utf8",
+  );
   assert.ok(client.includes("menuActions"), "アクションリストが無い");
   assert.ok(client.includes('id: "warp"'), "ワープのアクションが無い");
   assert.ok(client.includes('id: "map"'), "マップ切替のアクションが無い");
@@ -626,29 +824,44 @@ test("クライアント: ハンバーガーはデータ駆動のアクション
 });
 
 test("クライアント: ハンバーガーメニューと空間ワープがある", () => {
-  const client = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"), "utf8");
+  const client = fs.readFileSync(
+    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    "utf8",
+  );
   assert.ok(client.includes("≡"), "ハンバーガーボタンが無い");
   assert.ok(client.includes("ロビーへ行く"), "ロビーへの導線が無い");
   assert.ok(client.includes("ワールドへ戻る"), "ワールドへの導線が無い");
   assert.ok(client.includes("ago-worldbox-save-v6"), "セーブキーが v6 でない");
   assert.ok(client.includes("LOBBY_WARP_PAD"), "ロビー側ワープパッド判定が無い");
   assert.ok(!client.includes("WORLD_WARP_PAD"), "ワールド側の固定ワープパッドが残っている");
-  assert.ok(client.includes("LOBBY_STAIRS_UP") && client.includes("LOBBY_STAIRS_DOWN"), "階段判定が無い");
+  assert.ok(
+    client.includes("LOBBY_STAIRS_UP") && client.includes("LOBBY_STAIRS_DOWN"),
+    "階段判定が無い",
+  );
 });
 
 test("クライアント: ロビー描画はピクセル固定（整数カメラ・補間オフ）で、ミニマップはロビーで隠す", () => {
-  const client = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"), "utf8");
+  const client = fs.readFileSync(
+    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    "utf8",
+  );
   assert.ok(client.includes("Math.round(cw / 2 - cam.x * TILE)"), "ロビーの整数カメラが無い");
   assert.ok(client.includes("Math.round(ch / 2 - cam.y * TILE)"), "ロビーの整数カメラ（縦）が無い");
   assert.ok(client.includes("imageSmoothingEnabled = false"), "補間オフが無い");
   assert.ok(client.includes('showMap && spaceUi === "world"'), "ミニマップがロビーでも出る");
-  assert.ok(client.includes('space === "world" && showMapRef.current'), "ミニマップ描画がロビーでも走る");
+  assert.ok(
+    client.includes('space === "world" && showMapRef.current'),
+    "ミニマップ描画がロビーでも走る",
+  );
   assert.ok(client.includes("loadLobbySprites"), "ロビースプライトを読み込んでいない");
   assert.ok(client.includes("indoorData().npcs"), "店員NPCを描いていない");
 });
 
 test("クライアント: プレゼンスは空間つきで送受信し、掲示板パネルがある", () => {
-  const client = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"), "utf8");
+  const client = fs.readFileSync(
+    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    "utf8",
+  );
   assert.ok(client.includes("presence?space=${space}"), "プレゼンス取得に空間が無い");
   assert.ok(client.includes("/api/worldbox/board"), "掲示板 API を使っていない");
   assert.ok(client.includes("グローバル掲示板"), "掲示板パネルが無い");
@@ -661,6 +874,9 @@ test("クライアント: プレゼンスは空間つきで送受信し、掲示
   for (const m of textures.matchAll(srcRe)) files.add(m[1]);
   assert.ok(files.size >= 30, `ロビースプライトの定義が少ない: ${files.size}`);
   for (const f of files) {
-    assert.ok(fs.existsSync(path.join(rootDir, "public/img/worldbox/lobby", f)), `スプライトが無い: ${f}`);
+    assert.ok(
+      fs.existsSync(path.join(rootDir, "public/img/worldbox/lobby", f)),
+      `スプライトが無い: ${f}`,
+    );
   }
 });

@@ -44,7 +44,15 @@ function bundleModule(files, names) {
 }
 
 const tilesUrl = bundleModule(
-  ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/economy/items.ts", "worldbox/player/profile.ts", "worldbox/player/presence.ts", "worldbox/world/seasons.ts", "worldbox/world/tiles.ts"],
+  [
+    "worldbox/core/rng.ts",
+    "worldbox/world/mapgen.ts",
+    "worldbox/economy/items.ts",
+    "worldbox/player/profile.ts",
+    "worldbox/player/presence.ts",
+    "worldbox/world/seasons.ts",
+    "worldbox/world/tiles.ts",
+  ],
   ["tileKey", "parseTileOverride", "parseTileOverrides"],
 );
 
@@ -109,7 +117,15 @@ test("tiles-online: 書き込みはキャッシュへ即時反映される（自
 
 const moveUrl = bundleModule(
   ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/player/move.ts"],
-  ["worldTileSource", "mapTileAt", "T_GRASS", "circleHitsSolid", "canStandAt", "findFreeNear", "PLAYER_RADIUS"],
+  [
+    "worldTileSource",
+    "mapTileAt",
+    "T_GRASS",
+    "circleHitsSolid",
+    "canStandAt",
+    "findFreeNear",
+    "PLAYER_RADIUS",
+  ],
 );
 const MV = await import(moveUrl);
 
@@ -120,7 +136,11 @@ test("move: 埋没判定は深い重なりだけを拾い、壁への密着で�
   let gy = 0;
   outer: for (let y = -20; y < 20; y++) {
     for (let x = -20; x < 20; x++) {
-      if (MV.mapTileAt(map, x, y) === MV.T_GRASS) { gx = x; gy = y; break outer; }
+      if (MV.mapTileAt(map, x, y) === MV.T_GRASS) {
+        gx = x;
+        gy = y;
+        break outer;
+      }
     }
   }
   const blocked = new Set([`${gx},${gy}`]);
@@ -180,7 +200,8 @@ test("tiles-online(S4): スキャン中の書き込みは古いスナップシ�
     raceBotApi.__holdLists(true);
     const loading = raceOnline.loadTileOverrides(); // スキャン開始（遅延中）
     // スキャンが kvList に到達するまで1ティック待つ
-    for (let i = 0; i < 10 && raceBotApi.__pendingLists() === 0; i++) await new Promise((r) => setTimeout(r, 0));
+    for (let i = 0; i < 10 && raceBotApi.__pendingLists() === 0; i++)
+      await new Promise((r) => setTimeout(r, 0));
     assert.equal(raceBotApi.__pendingLists(), 1, "スキャンが走っている");
     // スキャン中に書き込む（キャッシュへ即時反映されるはず）
     assert.equal(await raceOnline.storeTileOverride(9, 9, OV), true);
@@ -225,13 +246,28 @@ test("tiles-load: ルート GET はキャッシュつき読み取りを使い、
   assert.ok(route.includes("loadTileOverrides"), "タイル GET は全件読みを使う");
   const onlineSrc = fs.readFileSync(path.join(libDir, "worldbox/world/tiles-online.ts"), "utf8");
   assert.ok(onlineSrc.includes("OVERRIDES_CACHE_TTL_MS"), "全件読みは短TTLキャッシュつき");
-  assert.ok(onlineSrc.includes("overridesEpoch"), "スキャン中の書き込み競合に epoch ガードが無い（S4）");
-  assert.ok(route.includes("withUserLock(`tile:${tx},${ty}`"), "タイル行為がタイル単位で直列化されていない（S4）");
-  assert.ok(route.includes("withUserLock(ownerKey"), "タイル行為がユーザー単位で直列化されていない（S4）");
-  const client = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"), "utf8");
+  assert.ok(
+    onlineSrc.includes("overridesEpoch"),
+    "スキャン中の書き込み競合に epoch ガードが無い（S4）",
+  );
+  assert.ok(
+    route.includes("withUserLock(`tile:${tx},${ty}`"),
+    "タイル行為がタイル単位で直列化されていない（S4）",
+  );
+  assert.ok(
+    route.includes("withUserLock(ownerKey"),
+    "タイル行為がユーザー単位で直列化されていない（S4）",
+  );
+  const client = fs.readFileSync(
+    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    "utf8",
+  );
   assert.ok(client.includes("tilesCenterRef"), "取得中心を記録する");
   assert.ok(client.includes("Math.max(dx, dy) >= 48"), "範囲の端に近づいたら先読みする");
-  assert.ok((client.match(/refreshTilesRef\.current\(\)/g) ?? []).length >= 3, "スポーン/ワープ/初期位置/先読みから取得する");
+  assert.ok(
+    (client.match(/refreshTilesRef\.current\(\)/g) ?? []).length >= 3,
+    "スポーン/ワープ/初期位置/先読みから取得する",
+  );
   assert.ok(client.includes("PLAYER_RADIUS * 0.5"), "埋没救済は半径半分で判定する");
   assert.ok(client.includes("circleHitsSolid"), "埋没救済が描画ループにある");
 });

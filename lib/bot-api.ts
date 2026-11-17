@@ -61,7 +61,11 @@ export async function tableSelect<T>(
 }
 
 /** 許可テーブルへの汎用 upsert。 */
-export async function tableUpsert(table: string, values: unknown, onConflict: string): Promise<void> {
+export async function tableUpsert(
+  table: string,
+  values: unknown,
+  onConflict: string,
+): Promise<void> {
   await query({ table, action: "upsert", values, on_conflict: onConflict });
 }
 
@@ -130,7 +134,7 @@ export async function kvGet(namespace: string, key: string): Promise<unknown | n
     ],
     limit: 1,
   });
-  return rows.length > 0 ? rows[0].value ?? null : null;
+  return rows.length > 0 ? (rows[0].value ?? null) : null;
 }
 
 export async function kvList(namespace: string): Promise<Map<string, unknown>> {

@@ -3,8 +3,11 @@
 // worldbox_tile_journal（キー = 日付）に持つ。
 import { isBotApiConfigured, kvGet, kvSet } from "../../bot-api";
 import {
-  appendJournal, parseJournal, parseReports,
-  type ReportEntry, type TileJournalEntry,
+  appendJournal,
+  parseJournal,
+  parseReports,
+  type ReportEntry,
+  type TileJournalEntry,
 } from "./ops";
 import { dayKeyOf } from "./metrics";
 import { withUserLock } from "./user-lock";
@@ -15,7 +18,13 @@ export const WORLDBOX_JOURNAL_NAMESPACE = "worldbox_tile_journal";
 /** 運営操作ができる Discord ユーザー ID。独立環境では AGO 側の管理者 ID を埋め込まず、WORLDBOX_ADMIN_IDS（カンマ区切り）環境変数だけで決める。未設定なら空集合（ops は誰にも開かない）。 */
 export function worldboxAdminIds(): Set<string> {
   const env = process.env.WORLDBOX_ADMIN_IDS;
-  if (env) return new Set(env.split(",").map((s) => s.trim()).filter(Boolean));
+  if (env)
+    return new Set(
+      env
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean),
+    );
   return new Set();
 }
 
@@ -76,7 +85,11 @@ export async function appendReport(report: ReportEntry): Promise<boolean> {
   try {
     await withUserLock("ops:reports", async () => {
       const current = parseReports(await kvGet(WORLDBOX_OPS_NAMESPACE, "reports"));
-      await kvSet(WORLDBOX_OPS_NAMESPACE, "reports", JSON.stringify([...current, report].slice(-200)));
+      await kvSet(
+        WORLDBOX_OPS_NAMESPACE,
+        "reports",
+        JSON.stringify([...current, report].slice(-200)),
+      );
     });
     return true;
   } catch {

@@ -39,20 +39,38 @@ test("relay: インスタンス空間は潰さず、空間ごとに分離する"
   core.acceptHeartbeat(room, "c1", "洞窟", hb(10, 10, { space: "cave:100,200:0" }), NOW);
   core.acceptHeartbeat(room, "w1", "地上", hb(10, 10, { space: "world" }), NOW);
   core.acceptHeartbeat(room, "d1", "迷宮", hb(5, 5, { space: "dungeon:0,0:1" }), NOW);
-  assert.deepEqual(core.snapshot(room, "cave:100,200:0", "x", NOW).map((p) => p.id), ["c1"]);
-  assert.deepEqual(core.snapshot(room, "world", "x", NOW).map((p) => p.id), ["w1"]);
-  assert.deepEqual(core.snapshot(room, "dungeon:0,0:1", "x", NOW).map((p) => p.id), ["d1"]);
+  assert.deepEqual(
+    core.snapshot(room, "cave:100,200:0", "x", NOW).map((p) => p.id),
+    ["c1"],
+  );
+  assert.deepEqual(
+    core.snapshot(room, "world", "x", NOW).map((p) => p.id),
+    ["w1"],
+  );
+  assert.deepEqual(
+    core.snapshot(room, "dungeon:0,0:1", "x", NOW).map((p) => p.id),
+    ["d1"],
+  );
   // 別インスタンス同士は混ざらない（層違いも別空間）
   assert.equal(core.snapshot(room, "cave:100,200:1", "x", NOW).length, 0);
   // 旧空間からの移動もインスタンス間で効く
   core.acceptHeartbeat(room, "c1", "洞窟", hb(1, 1, { space: "cave:100,200:1" }), NOW);
   assert.equal(core.snapshot(room, "cave:100,200:0", "x", NOW).length, 0);
-  assert.deepEqual(core.snapshot(room, "cave:100,200:1", "x", NOW).map((p) => p.id), ["c1"]);
+  assert.deepEqual(
+    core.snapshot(room, "cave:100,200:1", "x", NOW).map((p) => p.id),
+    ["c1"],
+  );
 });
 
 test("relay: 役職・ランク・パーティを通し、インスタンスの境界で丸める", () => {
   const room = core.createRoom();
-  const e = core.acceptHeartbeat(room, "p1", "P", hb(999, 999, { space: "cave:0,0:0", role: "guard", rank: 7, party: "pk-1" }), NOW);
+  const e = core.acceptHeartbeat(
+    room,
+    "p1",
+    "P",
+    hb(999, 999, { space: "cave:0,0:0", role: "guard", rank: 7, party: "pk-1" }),
+    NOW,
+  );
   assert.equal(e.space, "cave:0,0:0");
   assert.equal(e.x, 64);
   assert.equal(e.y, 64);
@@ -93,16 +111,33 @@ test("relay: 外部基準（プレゼンス/セーブ）で初回ハートビー
   const room = core.createRoom();
   // 外部プレゼンス基準（ts 付き）: 1秒で 100 タイルは却下
   const base = { x: 10, y: 10, space: "world", ts: NOW };
-  assert.deepEqual(core.acceptHeartbeat(room, "p2", "P", hb(200, 10), NOW + 1000, base), { rejected: true, x: 10, y: 10, space: "world" });
+  assert.deepEqual(core.acceptHeartbeat(room, "p2", "P", hb(200, 10), NOW + 1000, base), {
+    rejected: true,
+    x: 10,
+    y: 10,
+    space: "world",
+  });
   // 空間変更は外部基準でも通る
-  const entered = core.acceptHeartbeat(room, "p2", "P", hb(5, 5, { space: "lobby" }), NOW + 1000, base);
+  const entered = core.acceptHeartbeat(
+    room,
+    "p2",
+    "P",
+    hb(5, 5, { space: "lobby" }),
+    NOW + 1000,
+    base,
+  );
   assert.equal(entered.space, "lobby");
   // 外部セーブ基準（ts 無し）: 12 タイル以内は通り、超えると却下
   const room2 = core.createRoom();
   const saveBase = { x: 50, y: 50, space: "world" };
   assert.equal(core.acceptHeartbeat(room2, "p3", "P", hb(60, 50), NOW, saveBase).x, 60);
   // 2回目は部屋の前回（60,50・ts=NOW）が基準になるため、却下の位置もそこになる
-  assert.deepEqual(core.acceptHeartbeat(room2, "p3", "P", hb(200, 50), NOW, saveBase), { rejected: true, x: 60, y: 50, space: "world" });
+  assert.deepEqual(core.acceptHeartbeat(room2, "p3", "P", hb(200, 50), NOW, saveBase), {
+    rejected: true,
+    x: 60,
+    y: 50,
+    space: "world",
+  });
   // 基準なし（初回・未保存）は受け入れる
   const room3 = core.createRoom();
   assert.equal(core.acceptHeartbeat(room3, "p4", "P", hb(999, 999), NOW, null).x, 999);
@@ -120,7 +155,10 @@ test("配線: 中継が外部基準を読み、却下を jump で返す", () => 
   assert.ok(wrapper.includes("handleHeartbeat"), "ハートビート処理の集約が無い");
   const botkv = fs.readFileSync(path.join(rootDir, "realtime", "botkv.js"), "utf8");
   assert.ok(botkv.includes("kvGet"), "kvGet が無い");
-  const client = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"), "utf8");
+  const client = fs.readFileSync(
+    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    "utf8",
+  );
   assert.ok(client.includes('msg.t === "jump"'), "クライアントが jump を受けていない");
   assert.ok(client.includes("snapBackToServer"), "保管位置への復帰が無い");
 });
@@ -132,9 +170,15 @@ test("relay: スナップショットは他者だけ・新鮮なものだけ・�
   core.acceptHeartbeat(room, "old", "古", hb(3, 3), NOW - core.FRESH_MS - 1);
   core.acceptHeartbeat(room, "lob", "L", hb(4, 4, { space: "lobby" }), NOW);
   const snap = core.snapshot(room, "world", "me", NOW);
-  assert.deepEqual(snap.map((p) => p.id), ["a"]);
+  assert.deepEqual(
+    snap.map((p) => p.id),
+    ["a"],
+  );
   const lobSnap = core.snapshot(room, "lobby", "me", NOW);
-  assert.deepEqual(lobSnap.map((p) => p.id), ["lob"]);
+  assert.deepEqual(
+    lobSnap.map((p) => p.id),
+    ["lob"],
+  );
 });
 
 test("relay: 空間移動で旧空間から消え、削除と掃除が効く", () => {
@@ -153,7 +197,12 @@ test("relay token: 署名と検証（改竄・期限切れ・鍵違いを弾く�
   const secret = "test-secret";
   const token = core.signToken({ pid: "abcd1234", name: "誰か", exp: NOW + 60_000 }, secret);
   // ok は Phase 2 の所有者キー、av はユーザーアイコン URL（どちらもこのトークンには無いので null）
-  assert.deepEqual(core.verifyToken(token, secret, NOW), { pid: "abcd1234", name: "誰か", ok: null, av: null });
+  assert.deepEqual(core.verifyToken(token, secret, NOW), {
+    pid: "abcd1234",
+    name: "誰か",
+    ok: null,
+    av: null,
+  });
   assert.equal(core.verifyToken(token, "other-secret", NOW), null);
   assert.equal(core.verifyToken(token, secret, NOW + 120_000), null, "期限切れを通した");
   const tampered = token.slice(0, -2) + (token.endsWith("aa") ? "bb" : "aa");
@@ -164,17 +213,35 @@ test("relay token: 署名と検証（改竄・期限切れ・鍵違いを弾く�
 
 test("配線: ラッパー・デプロイ・トークンルート・クライアント", () => {
   const wrapper = fs.readFileSync(path.join(rootDir, "realtime-server.js"), "utf8");
-  assert.ok(wrapper.includes('"/api/worldbox/realtime"') || wrapper.includes("REALTIME_PATH"), "中継パスが無い");
+  assert.ok(
+    wrapper.includes('"/api/worldbox/realtime"') || wrapper.includes("REALTIME_PATH"),
+    "中継パスが無い",
+  );
   assert.ok(wrapper.includes("next-server.js"), "Next 本体を内包していない");
   assert.ok(wrapper.includes("verifyToken"), "トークン検証が無い");
   const deploy = fs.readFileSync(path.join(rootDir, "../deploy/deploy-web.sh"), "utf8");
-  assert.ok(deploy.includes('mv "$RELEASE/server.js" "$RELEASE/next-server.js"'), "デプロイでラッパーが設置されない");
-  assert.ok(deploy.includes('cp -a "$BUILD/realtime-server.js" "$RELEASE/server.js"'), "ラッパーのコピーが無い");
-  assert.ok(deploy.includes('node_modules/ws'), "ws のコピーが無い");
-  const route = fs.readFileSync(path.join(rootDir, "app/api/worldbox/realtime-token/route.ts"), "utf8");
+  assert.ok(
+    deploy.includes('mv "$RELEASE/server.js" "$RELEASE/next-server.js"'),
+    "デプロイでラッパーが設置されない",
+  );
+  assert.ok(
+    deploy.includes('cp -a "$BUILD/realtime-server.js" "$RELEASE/server.js"'),
+    "ラッパーのコピーが無い",
+  );
+  assert.ok(deploy.includes("node_modules/ws"), "ws のコピーが無い");
+  const route = fs.readFileSync(
+    path.join(rootDir, "app/api/worldbox/realtime-token/route.ts"),
+    "utf8",
+  );
   assert.ok(route.includes("issueRealtimeToken"), "トークン発行ルートが無い");
-  const client = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"), "utf8");
-  assert.ok(client.includes("/api/worldbox/realtime-token"), "クライアントがトークンを取りに行かない");
+  const client = fs.readFileSync(
+    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    "utf8",
+  );
+  assert.ok(
+    client.includes("/api/worldbox/realtime-token"),
+    "クライアントがトークンを取りに行かない",
+  );
   assert.ok(client.includes("/api/worldbox/realtime?t="), "クライアントが中継へ繋がない");
   assert.ok(client.includes("sendWsHeartbeat"), "WS ハートビートが無い");
   assert.ok(client.includes('msg.t === "up"'), "中継の更新適用が無い");

@@ -24,12 +24,27 @@ export function ItemIcon({ id, size = 24 }: { id: string; size?: number }) {
 }
 
 const slotStyle: React.CSSProperties = {
-  position: "relative", boxSizing: "border-box",
-  width: 48, height: 48, minWidth: 48, minHeight: 48, padding: 4,
-  display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 1,
-  borderRadius: 10, cursor: "pointer",
-  border: "1px solid rgba(255,255,255,0.25)", background: "rgba(255,255,255,0.06)", color: "inherit",
-  touchAction: "manipulation", userSelect: "none", WebkitUserSelect: "none", WebkitTouchCallout: "none",
+  position: "relative",
+  boxSizing: "border-box",
+  width: 48,
+  height: 48,
+  minWidth: 48,
+  minHeight: 48,
+  padding: 4,
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: 1,
+  borderRadius: 10,
+  cursor: "pointer",
+  border: "1px solid rgba(255,255,255,0.25)",
+  background: "rgba(255,255,255,0.06)",
+  color: "inherit",
+  touchAction: "manipulation",
+  userSelect: "none",
+  WebkitUserSelect: "none",
+  WebkitTouchCallout: "none",
 };
 
 /**
@@ -38,7 +53,12 @@ const slotStyle: React.CSSProperties = {
  * （識別は aria-label と注釈が担う）。
  */
 export function ItemSlot({
-  itemId, count, badge, selected, disabled, onClick,
+  itemId,
+  count,
+  badge,
+  selected,
+  disabled,
+  onClick,
 }: {
   itemId: string;
   count?: number;
@@ -68,13 +88,26 @@ export function ItemSlot({
       ) : (
         <span
           aria-hidden
-          style={{ width: 18, height: 18, borderRadius: 4, border: "1px dashed rgba(255,255,255,0.45)", display: "block" }}
+          style={{
+            width: 18,
+            height: 18,
+            borderRadius: 4,
+            border: "1px dashed rgba(255,255,255,0.45)",
+            display: "block",
+          }}
         />
       )}
       {badge ? (
         <span
           aria-hidden
-          style={{ fontSize: 10, fontWeight: 700, lineHeight: 1, color: "#fff", textShadow: "0 1px 2px rgba(0,0,0,0.9)", pointerEvents: "none" }}
+          style={{
+            fontSize: 10,
+            fontWeight: 700,
+            lineHeight: 1,
+            color: "#fff",
+            textShadow: "0 1px 2px rgba(0,0,0,0.9)",
+            pointerEvents: "none",
+          }}
         >
           {badge}
         </span>
@@ -83,8 +116,15 @@ export function ItemSlot({
         <span
           aria-hidden
           style={{
-            position: "absolute", right: 3, bottom: 2, fontSize: 10, fontWeight: 700,
-            lineHeight: 1, color: "#fff", textShadow: "0 1px 2px rgba(0,0,0,0.9)", pointerEvents: "none",
+            position: "absolute",
+            right: 3,
+            bottom: 2,
+            fontSize: 10,
+            fontWeight: 700,
+            lineHeight: 1,
+            color: "#fff",
+            textShadow: "0 1px 2px rgba(0,0,0,0.9)",
+            pointerEvents: "none",
           }}
         >
           {count}
@@ -96,11 +136,7 @@ export function ItemSlot({
 
 /** スロットを flex-wrap で並べるだけのグリッド。 */
 export function ItemSlotGrid({ children }: { children: ReactNode }) {
-  return (
-    <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-      {children}
-    </div>
-  );
+  return <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>{children}</div>;
 }
 
 /**
@@ -114,8 +150,11 @@ export function ItemAnnotation({ itemId, children }: { itemId: string; children?
   return (
     <div
       style={{
-        marginTop: 10, padding: "9px 10px", borderRadius: 10,
-        border: "1px solid rgba(255,255,255,0.14)", background: "rgba(255,255,255,0.04)",
+        marginTop: 10,
+        padding: "9px 10px",
+        borderRadius: 10,
+        border: "1px solid rgba(255,255,255,0.14)",
+        background: "rgba(255,255,255,0.04)",
       }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>

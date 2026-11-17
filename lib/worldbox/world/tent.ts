@@ -5,7 +5,14 @@
 // 個人空間は拡張段階（tier）で広がる: 0=13x10 / 1=17x13 / 2=22x17。
 // 家具の配置は左上を基準に、右端・下端の物は辺に寄せて再配置する。
 import { T_GRASS, T_ROCK, tilesSource, type TopDownMap } from "./mapgen";
-import { L_WALL, L_WOOD, isSeatSprite, isSolidLobbyTile, type LobbyData, type LobbyObject } from "./lobby";
+import {
+  L_WALL,
+  L_WOOD,
+  isSeatSprite,
+  isSolidLobbyTile,
+  type LobbyData,
+  type LobbyObject,
+} from "./lobby";
 
 export interface TentTier {
   w: number;
@@ -76,7 +83,13 @@ function tentObjectsFor(tier: number): readonly LobbyObject[] {
   ];
 }
 
-export function tentTileAt(tiles: Uint8Array, width: number, height: number, x: number, y: number): number {
+export function tentTileAt(
+  tiles: Uint8Array,
+  width: number,
+  height: number,
+  x: number,
+  y: number,
+): number {
   if (x < 0 || y < 0 || x >= width || y >= height) return 0;
   return tiles[y * width + x];
 }

@@ -35,12 +35,17 @@ const E5 = "444444444444444444";
 
 function tournament(entrants, status = "entry", scores = {}) {
   return {
-    id: `ct-${NOW}`, status, createdAt: NOW,
+    id: `ct-${NOW}`,
+    status,
+    createdAt: NOW,
     entryEndsAt: NOW + C.CASINO_TOURNAMENT_ENTRY_MS,
     playEndsAt: NOW + C.CASINO_TOURNAMENT_ENTRY_MS + C.CASINO_TOURNAMENT_PLAY_MS,
     playStartedAt: null,
-    entrants: [...entrants], scores: { ...scores },
-    prizesPaid: false, refundPaid: false, closedAt: null,
+    entrants: [...entrants],
+    scores: { ...scores },
+    prizesPaid: false,
+    refundPaid: false,
+    closedAt: null,
   };
 }
 
@@ -53,14 +58,26 @@ test("casino-tournament: 順位は純益の降順、同点は先に参加した�
     [D]: { bet: 100, payout: 50 },
   });
   const rows = C.casinoStandings(t);
-  assert.deepEqual(rows.map((r) => r.discordId), [A, B, D]);
-  assert.deepEqual(rows.map((r) => r.net), [200, 200, -50]);
-  assert.deepEqual(rows.map((r) => r.rank), [1, 2, 3]);
+  assert.deepEqual(
+    rows.map((r) => r.discordId),
+    [A, B, D],
+  );
+  assert.deepEqual(
+    rows.map((r) => r.net),
+    [200, 200, -50],
+  );
+  assert.deepEqual(
+    rows.map((r) => r.rank),
+    [1, 2, 3],
+  );
 });
 
 test("casino-tournament: 未プレイは純益 0", () => {
   const t = tournament([A, B], "running");
-  assert.deepEqual(C.casinoStandings(t).map((r) => r.net), [0, 0]);
+  assert.deepEqual(
+    C.casinoStandings(t).map((r) => r.net),
+    [0, 0],
+  );
 });
 
 // ---------- 賞金の配分 ----------
@@ -144,7 +161,10 @@ test("casino-tournament: 2人未満で締め切られた大会は不成立", () 
 test("casino-tournament: 対局時間を過ぎたら終了する", () => {
   const t = tournament([A, B], "running");
   assert.equal(C.closeCasinoPlay(t, NOW + 1000), t);
-  const closed = C.closeCasinoPlay(t, NOW + C.CASINO_TOURNAMENT_ENTRY_MS + C.CASINO_TOURNAMENT_PLAY_MS + 1);
+  const closed = C.closeCasinoPlay(
+    t,
+    NOW + C.CASINO_TOURNAMENT_ENTRY_MS + C.CASINO_TOURNAMENT_PLAY_MS + 1,
+  );
   assert.equal(closed.status, "done");
 });
 
@@ -155,7 +175,10 @@ test("casino-tournament: 賞金・参加費・返金の ID は決定的", () => 
   assert.equal(C.casinoTournamentPrizeOpId(`ct-${NOW}`, 1), `ct-prize-ct-${NOW}-1`);
   assert.equal(C.casinoTournamentFeeOpId(`ct-${NOW}`, A), `ct-fee-ct-${NOW}-${A}`);
   assert.equal(C.casinoTournamentRefundOpId(`ct-${NOW}`, A), `ct-refund-ct-${NOW}-${A}`);
-  for (const id of [C.casinoTournamentPrizeOpId(`ct-${NOW}`, 1), C.casinoTournamentFeeOpId(`ct-${NOW}`, A)]) {
+  for (const id of [
+    C.casinoTournamentPrizeOpId(`ct-${NOW}`, 1),
+    C.casinoTournamentFeeOpId(`ct-${NOW}`, A),
+  ]) {
     assert.match(id, /^[A-Za-z0-9-]{8,64}$/);
   }
 });
@@ -201,9 +224,15 @@ test("casino-tournament: 表示に他者の Discord ID は出ない", () => {
 });
 
 test("casino-tournament: 順位表は上位5件まで", () => {
-  const ids = Array.from({ length: 8 }, (_, i) => String(10 + i).repeat(9).slice(0, 18));
+  const ids = Array.from({ length: 8 }, (_, i) =>
+    String(10 + i)
+      .repeat(9)
+      .slice(0, 18),
+  );
   const scores = {};
-  ids.forEach((id, i) => { scores[id] = { bet: 100, payout: 100 + (8 - i) * 10 }; });
+  ids.forEach((id, i) => {
+    scores[id] = { bet: 100, payout: 100 + (8 - i) * 10 };
+  });
   const t = tournament(ids, "running", scores);
   const view = C.publicCasinoTournamentView(t, ids[0]);
   assert.equal(view.standings.length, 5);

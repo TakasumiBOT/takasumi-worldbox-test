@@ -51,10 +51,21 @@ async function loadBundle(files, exportNames) {
 
 const F = await loadBundle(
   [
-    "worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/world/maplogic.ts", "worldbox/economy/items.ts",
-    "worldbox/world/objects.ts", "worldbox/activity/fishing.ts",
+    "worldbox/core/rng.ts",
+    "worldbox/world/mapgen.ts",
+    "worldbox/world/maplogic.ts",
+    "worldbox/economy/items.ts",
+    "worldbox/world/objects.ts",
+    "worldbox/activity/fishing.ts",
   ],
-  ["fishingSpotAt", "fishingReady", "fishingNonce", "objectsForChunk", "lootForObjectAt", "MAP_SEED"],
+  [
+    "fishingSpotAt",
+    "fishingReady",
+    "fishingNonce",
+    "objectsForChunk",
+    "lootForObjectAt",
+    "MAP_SEED",
+  ],
 );
 
 test("fishing: spots exist on water biomes and are found by coordinate", () => {
