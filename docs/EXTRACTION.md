@@ -34,5 +34,5 @@ WORLD BOX の種ファイル（`web/lib/worldbox`、`web/app/games/worldbox`、`
 ## 本家との振る舞いの差分
 
 1. アーケード筐体の中身（オンラインゲーム26タイトル）が無い → 筐体は「準備中」表示。理由は `arcade-clients.tsx` のコメント参照。
-2. WebSocket 中継が無い → プレゼンスは REST ポーリングにフォールバック（本家でも中継停止時は同じ動き）。
+2. WebSocket 中継が未実装 → プレゼンスは REST ポーリングにフォールバック（本家でも中継停止時は同じ動き）。Vercel Functions の WebSocket は 2026-10-20 に GA したので移植は可能（Fluid compute 必須、接続は最大実行時間で切れる・インスタンス跨ぎの配信は外部 pub/sub が必要、の2制約つき）。経緯と方針は README の「大事な前提」参照。
 3. サイト本体（ホーム、他のゲーム、ダッシュボード等）は無い。`/games/worldbox` と `/api/worldbox/*`、認証ルートだけのアプリ。

@@ -14,7 +14,7 @@ AGO WORLD BOX の中身だけを本家 [deshihito/BOT](https://github.com/deshih
 ## 大事な前提
 
 - **バックエンドは本家と共有**。この Web は状態を持たず、セーブ・経済・プレゼンスの正は全部 Bot 本体の API（`BOT_API_BASE_URL`）の先にある bot_kv / 経済プール。つまり Vercel 版は「同じワールド・同じ経済へのもう1つの入口」で、テスト用に分離されたワールドではない。分離したい場合は bot-api 側で名前空間を分ける必要がある。
-- **リアルタイム中継（WebSocket）は Vercel では動かない**。本家では `realtime-server.js` が Next の前段で `/api/worldbox/realtime` を中継しているが、Vercel は常駐サーバーを置けない。クライアントは中継に繋がらない場合 REST ポーリングへ自動で戻る設計（本家の共有ノート参照）なので、プレゼンスはポーリング間隔の滑らかさで遊べる。`realtime/` と `realtime-server.js` は参考として同梱してあるだけで、Vercel では使われない。
+- **リアルタイム中継（WebSocket）は未実装**。Vercel Functions は WebSocket に対応した（2026-06 public beta → 2026-10-20 GA、全プラン、Fluid compute 必須）ので移植自体は可能だが、この移行版にはまだ中継ルートが無い。現在はクライアントの REST ポーリングフォールバックで遊べる（本家の共有ノート参照）。移植する場合の制約: 接続は Function の最大実行時間（既定300秒、Pro で最大800秒）で切れる — WORLD BOX のクライアントは自動再接続＋切断中は REST 併送＋再接続時に全再同期を持つので実害は小さい。中継の接続状態はインスタンスのメモリにあるため、インスタンスを跨いだ配信には外部 pub/sub が別途要る（状態の正は bot_kv なので、跨げない場合もポーリングへ劣化するだけ）。実装するなら Next のルートハンドラで `@vercel/functions` の `upgradeWebSocket()` を使う形になる。`realtime/` と `realtime-server.js` は本家の中継実装の参考として同梱。
 - **アーケード筐体の中身は入っていない**。筐体は表示されるが中は「準備中」になる（`app/games/worldbox/arcade-clients.tsx` のコメント参照）。筐体に入っている26タイトルは AGO 本体のオンラインゲームで、WORLD BOX の中身ではないため。
 - `core/` 配下の Python は Bot 本体（Pi）側で動く WORLD BOX の中身のコピー。Vercel では動かない。参照用（テストの一部が TS↔Python の理由ホワイトリスト一致を検証するため、本家と同じ相対配置で置いてある）。
 
