@@ -1,6 +1,6 @@
 "use strict";
 // AGO WORLD BOX リアルタイム中継（relay）専用の bot_kv クライアント。
-// relay は Next の外側で動く素の Node プロセスのため、web/lib/bot-api.ts
+// relay は Next の外側で動く素の Node プロセスのため、lib/bot-api.ts
 // （TS）を直接使えない。代わりに同じ BOT 自前 API（/v1/query）を同じ
 // 環境変数（BOT_API_BASE_URL / BOT_API_KEY）・同じリクエスト形式で叩く。
 // これにより watch（読み）と Phase 2 のプレゼンス集約書き込みが、

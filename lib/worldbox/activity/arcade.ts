@@ -3,7 +3,7 @@
 // このファイルは「どのタイトルをどの区分・どの順で筐体化するか」のデータだけを持つ。
 // 人数・タイトルは registry 側（各ゲームモジュール）が正で、ここでは重複して持たない。
 // ネットコードは作らない（既存の OnlineShell / useOnlineRoom のルーム基盤に載せる）。
-// 筐体スプライトは L3/L6 で作成済み（web/public/img/worldbox/lobby/arcade_<id>.png、
+// 筐体スプライトは L3/L6 で作成済み（public/img/worldbox/lobby/arcade_<id>.png、
 // textures.ts の LOBBY_SPRITE_SRC に登録）。第1弾の配置は lobby-floors.ts の 2F 北弧、
 // 第2弾は 2F 南弧＋3F 西弧・東弧・南弧・北デッキ（26タイトル全て）。
 // 起動導線は L4/L4b で配線済み: 筐体は station "arcade" を持ち、前のプレイヤーには
@@ -20,7 +20,7 @@ export type ArcadeEntry = {
   category: ArcadeCategory;
   /** 区分内での移植順（1 から連番。小さいほど先）。 */
   order: number;
-  /** 筐体スプライト名（web/public/img/worldbox/lobby/<sprite>.png）。 */
+  /** 筐体スプライト名（public/img/worldbox/lobby/<sprite>.png）。 */
   sprite: string;
 };
 

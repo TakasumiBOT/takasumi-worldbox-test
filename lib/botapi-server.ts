@@ -81,7 +81,7 @@ export function authorizeBotApi(authorization: string | null | undefined): void 
 type ColumnType = "text" | "int8" | "int2" | "jsonb" | "timestamptz";
 
 /**
- * 許可テーブルと列（web/db/schema.sql の定義が正。app.py は
+ * 許可テーブルと列（db/schema.sql の定義が正。app.py は
  * information_schema から読むが、ここではスキーマと一致する固定表で
  * fail-closed に検証する）。列の並びは schema.sql の定義順。
  */

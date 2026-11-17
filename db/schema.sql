@@ -4,10 +4,10 @@
 -- が定義していたテーブル形をそのまま移植したもの。以後の正はこのファイル。
 -- RPC 4本（economy_pool_pay_house / economy_pool_refund_house /
 -- economy_pool_add_loss / transfer_coins）は SQL 関数として作らず、
--- web/lib/botapi-server.ts がトランザクション + 行ロックで実装する
+-- lib/botapi-server.ts がトランザクション + 行ロックで実装する
 -- （意味論は AGO 側 SQL 定義と一致）。
 --
--- 何度実行しても安全（冪等）。適用は web/scripts/setup-db.mjs から行う。
+-- 何度実行しても安全（冪等）。適用は scripts/setup-db.mjs から行う。
 
 begin;
 

@@ -4,7 +4,7 @@
 //
 // 使い方:
 //   DATABASE_URL="postgres://..." node scripts/setup-db.mjs
-// または web/.env.local に DATABASE_URL を置いて `npm run setup:db`。
+// または .env.local に DATABASE_URL を置いて `npm run setup:db`。
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";

@@ -13,7 +13,7 @@ export const TEXTURE_DATA: Record<string, string> = {
 };
 
 // Discord ダンジョンのタイル素材（64×64 ピクセルアート）をそのまま流用する。
-// 実体は web/public/img/worldbox/ に置き、アバターと同じ画像読み込みで使う。
+// 実体は public/img/worldbox/ に置き、アバターと同じ画像読み込みで使う。
 export const DUNGEON_TILE_SRC: Record<string, string> = {
   grass: "/img/worldbox/grass.png",
   dirt: "/img/worldbox/dirt.png",
@@ -36,7 +36,7 @@ export function loadTextures(): Record<string, HTMLImageElement> {
 }
 
 // ロビーのドット絵スプライト（64×64、噴水だけ 192×192 = 3タイル分）。
-// 実体は web/public/img/worldbox/lobby/ に置く。床の新種（チェック・ダーク
+// 実体は public/img/worldbox/lobby/ に置く。床の新種（チェック・ダーク
 // 大理石）もここに並べ、ファイルが無い間は読み込みが完了せず平色に落ちる。
 export const LOBBY_SPRITE_SRC: Record<string, string> = {
   floor_marble: "/img/worldbox/lobby/floor_marble.png",

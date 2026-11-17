@@ -1,6 +1,6 @@
 "use strict";
 // AGO WORLD BOX リアルタイム中継の純粋ロジック（ソケット非依存）。
-// ラッパー（web/realtime-server.js）が使い、テストもここを対象にする。
+// ラッパー（realtime-server.js）が使い、テストもここを対象にする。
 // 位置は REST プレゼンスと同じくクライアント申告制: ここでは範囲・速度の
 // 整形と鮮度管理だけを行い、経済・戦闘など実害のある検証は各 API 側が担う。
 const crypto = require("node:crypto");
