@@ -57,7 +57,7 @@ export async function GET(request: Request) {
     });
     if (!tokenResponse.ok) throw new Error("token exchange failed");
 
-    const token = await tokenResponse.json() as { access_token?: string };
+    const token = (await tokenResponse.json()) as { access_token?: string };
     if (!token.access_token) throw new Error("missing access token");
 
     const userResponse = await fetch("https://discord.com/api/users/@me", {
@@ -65,7 +65,12 @@ export async function GET(request: Request) {
     });
     if (!userResponse.ok) throw new Error("user lookup failed");
 
-    const user = await userResponse.json() as { id?: string; username?: string; global_name?: string; avatar?: string | null };
+    const user = (await userResponse.json()) as {
+      id?: string;
+      username?: string;
+      global_name?: string;
+      avatar?: string | null;
+    };
     if (!user.id) throw new Error("missing Discord user id");
 
     // avatar は identify スコープの範囲で取れる（追加の許可は不要）

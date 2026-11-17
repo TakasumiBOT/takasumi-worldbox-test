@@ -55,10 +55,23 @@ async function loadBundle(files, exportNames) {
 const R = await loadBundle(
   ["worldbox/core/rng.ts", "worldbox/activity/racing/horses.ts", "worldbox/activity/racing.ts"],
   [
-    "HORSES", "horseById", "RACE_INTERVAL_MS", "BET_CLOSE_BEFORE_MS", "ODDS_K",
-    "scheduleAt", "isBettingOpen", "raceShape", "selectEntries", "generateRaceCore",
-    "estimateOdds", "placeCut", "recentForm", "horseTrackPose", "payoutFor",
-    "validateBetAmount", "BET_PRESETS",
+    "HORSES",
+    "horseById",
+    "RACE_INTERVAL_MS",
+    "BET_CLOSE_BEFORE_MS",
+    "ODDS_K",
+    "scheduleAt",
+    "isBettingOpen",
+    "raceShape",
+    "selectEntries",
+    "generateRaceCore",
+    "estimateOdds",
+    "placeCut",
+    "recentForm",
+    "horseTrackPose",
+    "payoutFor",
+    "validateBetAmount",
+    "BET_PRESETS",
   ],
 );
 
@@ -75,17 +88,24 @@ test("登録馬: 100頭・能力54〜89・脚質/馬場/距離帯/個性の分�
     return m;
   };
   const styles = count((h) => h.style);
-  assert.deepEqual(
-    Object.fromEntries(styles),
-    { "先行": 45, "差し": 32, "追込": 11, "逃げ": 9, "マクリ": 2, "大逃げ": 1 },
-  );
+  assert.deepEqual(Object.fromEntries(styles), {
+    先行: 45,
+    差し: 32,
+    追込: 11,
+    逃げ: 9,
+    マクリ: 2,
+    大逃げ: 1,
+  });
   const surfaces = count((h) => h.surface);
-  assert.deepEqual(Object.fromEntries(surfaces), { "芝": 64, "ダート": 31, "兼用": 5 });
+  assert.deepEqual(Object.fromEntries(surfaces), { 芝: 64, ダート: 31, 兼用: 5 });
   const bands = count((h) => h.distance);
-  assert.deepEqual(
-    Object.fromEntries(bands),
-    { "中距離": 32, "マイル": 26, "スプリント": 21, "中長距離": 15, "ステイヤー": 6 },
-  );
+  assert.deepEqual(Object.fromEntries(bands), {
+    中距離: 32,
+    マイル: 26,
+    スプリント: 21,
+    中長距離: 15,
+    ステイヤー: 6,
+  });
   const traits = count((h) => h.trait);
   assert.equal(traits.get("標準"), 74);
   assert.equal(traits.get("道悪巧者"), 6);
@@ -120,7 +140,10 @@ test("出走選定: 馬場・距離帯・クラス帯のフィルタを通った
     }
     // 枠番は 1..N で重複なし
     const gates = entries.map((e) => e.gate).sort((a, b) => a - b);
-    assert.deepEqual(gates, entries.map((_, idx) => idx + 1));
+    assert.deepEqual(
+      gates,
+      entries.map((_, idx) => idx + 1),
+    );
   }
 });
 

@@ -19,7 +19,8 @@ function parsePresenceBaseline(raw) {
   if (typeof raw !== "string" || !raw) return null;
   try {
     const v = JSON.parse(raw);
-    if (!v || typeof v.x !== "number" || typeof v.y !== "number" || typeof v.ts !== "number") return null;
+    if (!v || typeof v.x !== "number" || typeof v.y !== "number" || typeof v.ts !== "number")
+      return null;
     if (!Number.isFinite(v.x) || !Number.isFinite(v.y) || !Number.isFinite(v.ts)) return null;
     return { x: v.x, y: v.y, space: typeof v.space === "string" ? v.space : "world", ts: v.ts };
   } catch {
@@ -61,7 +62,9 @@ function createHub(options = {}) {
       if (ws === exceptWs || info.space !== space || ws.readyState !== 1) continue;
       try {
         ws.send(text);
-      } catch { /* noop */ }
+      } catch {
+        /* noop */
+      }
     }
   }
 
@@ -71,7 +74,9 @@ function createHub(options = {}) {
       if (ws.readyState !== 1 || !predicate(info)) continue;
       try {
         ws.send(text);
-      } catch { /* noop */ }
+      } catch {
+        /* noop */
+      }
     }
   }
 
@@ -93,45 +98,62 @@ function createHub(options = {}) {
       if (ws.readyState !== 1) continue;
       try {
         ws.send(text);
-      } catch { /* noop */ }
+      } catch {
+        /* noop */
+      }
     }
   };
 
   const writePresenceKv = (info, entry, force) => {
     if (!kvCfg || !info.ok) return;
     if (!core.planPresenceWrite(aggregator, info.pid, entry, Date.now(), force)) return;
-    botkv.kvSet(kvCfg, "worldbox_presence", info.ok, core.presenceKvValue(entry)).then(
-      () => {
-        if (aggState.failStreak >= 3) {
-          aggState.failStreak = 0;
-          aggState.on = true;
-          broadcastAggState();
-        } else {
-          aggState.failStreak = 0;
-        }
-      },
-      (err) => {
-        aggState.failStreak += 1;
-        if (aggState.failStreak === 1) {
-          console.error("[realtime] presence kv write failed:", err && err.message);
-        }
-        if (aggState.failStreak >= 3 && aggState.on) {
-          aggState.on = false;
-          broadcastAggState();
-        }
-      },
-    ).catch(() => { /* noop */ });
+    botkv
+      .kvSet(kvCfg, "worldbox_presence", info.ok, core.presenceKvValue(entry))
+      .then(
+        () => {
+          if (aggState.failStreak >= 3) {
+            aggState.failStreak = 0;
+            aggState.on = true;
+            broadcastAggState();
+          } else {
+            aggState.failStreak = 0;
+          }
+        },
+        (err) => {
+          aggState.failStreak += 1;
+          if (aggState.failStreak === 1) {
+            console.error("[realtime] presence kv write failed:", err && err.message);
+          }
+          if (aggState.failStreak >= 3 && aggState.on) {
+            aggState.on = false;
+            broadcastAggState();
+          }
+        },
+      )
+      .catch(() => {
+        /* noop */
+      });
   };
 
   /** ハートビート1件の処理（中継・集約書き込み・配信）。却下された申告は
    * 保存せず、送り主へ保管位置（jump）を返してそこへ戻させる。 */
   const handleHeartbeat = (ws, info, msg, now) => {
-    const entry = core.acceptHeartbeat(room, info.pid, info.name, msg, now, info.baseline, info.avatar);
+    const entry = core.acceptHeartbeat(
+      room,
+      info.pid,
+      info.name,
+      msg,
+      now,
+      info.baseline,
+      info.avatar,
+    );
     if (!entry) return;
     if (entry.rejected) {
       try {
         ws.send(JSON.stringify({ t: "jump", x: entry.x, y: entry.y, space: entry.space }));
-      } catch { /* noop */ }
+      } catch {
+        /* noop */
+      }
       return;
     }
     info.lastEntry = entry;
@@ -144,8 +166,16 @@ function createHub(options = {}) {
     if (!info.joined) {
       info.joined = true;
       try {
-        ws.send(JSON.stringify({ t: "snap", now, players: core.snapshot(room, entry.space, info.pid, now) }));
-      } catch { /* noop */ }
+        ws.send(
+          JSON.stringify({
+            t: "snap",
+            now,
+            players: core.snapshot(room, entry.space, info.pid, now),
+          }),
+        );
+      } catch {
+        /* noop */
+      }
     }
     broadcast(entry.space, ws, { t: "up", now, p: entry });
   };
@@ -172,10 +202,12 @@ function createHub(options = {}) {
         if (scope) scopes.set(c.key, scope);
       }
       for (const scope of scopes.values()) {
-        sendTo(
-          (info) => info.space === scope.space,
-          { t: "sync", kind: "chat", channel: scope.channel, space: scope.space },
-        );
+        sendTo((info) => info.space === scope.space, {
+          t: "sync",
+          kind: "chat",
+          channel: scope.channel,
+          space: scope.space,
+        });
       }
     } else if (kind === "unionChat") {
       const guilds = new Set();
@@ -208,7 +240,9 @@ function createHub(options = {}) {
       }
       if (spaces.size > 0 || prefixes.size > 0) {
         sendTo(
-          (info) => !!info.space && (spaces.has(info.space) || [...prefixes].some((p) => info.space.startsWith(p))),
+          (info) =>
+            !!info.space &&
+            (spaces.has(info.space) || [...prefixes].some((p) => info.space.startsWith(p))),
           { t: "sync", kind: "instances" },
         );
       }
@@ -233,13 +267,17 @@ function createHub(options = {}) {
           try {
             if (typeof ws.terminate === "function") ws.terminate();
             else ws.close();
-          } catch { /* noop */ }
+          } catch {
+            /* noop */
+          }
           continue;
         }
         info.alive = false;
         try {
           if (typeof ws.ping === "function") ws.ping();
-        } catch { /* noop */ }
+        } catch {
+          /* noop */
+        }
       }
     }, 30_000);
     // 鮮度切れの掃除（切断通知が漏れた場合の保険）
@@ -256,7 +294,9 @@ function createHub(options = {}) {
         if (ws.readyState !== 1) continue;
         try {
           ws.send(text);
-        } catch { /* noop */ }
+        } catch {
+          /* noop */
+        }
       }
     }, 15_000);
     // watch: bot_kv のサーバー側一括監視と差分配信（Phase 1）
@@ -282,10 +322,13 @@ function createHub(options = {}) {
           }
         };
         const w = { timeout: null, interval: null };
-        w.timeout = setTimeout(() => {
-          void run();
-          w.interval = setInterval(() => void run(), plan.intervalMs);
-        }, 500 + idx * 300);
+        w.timeout = setTimeout(
+          () => {
+            void run();
+            w.interval = setInterval(() => void run(), plan.intervalMs);
+          },
+          500 + idx * 300,
+        );
         t.watch.push(w);
       });
     }
@@ -311,7 +354,8 @@ function createHub(options = {}) {
     if (!auth) return null;
     const tabParam = searchParams.get("tab");
     const tabAtParam = Number(searchParams.get("tabAt"));
-    auth.tab = typeof tabParam === "string" && tabParam.length > 0 ? tabParam.slice(0, 64) : undefined;
+    auth.tab =
+      typeof tabParam === "string" && tabParam.length > 0 ? tabParam.slice(0, 64) : undefined;
     auth.tabAt = Number.isFinite(tabAtParam) && tabAtParam > 0 ? tabAtParam : undefined;
     return auth;
   }
@@ -319,9 +363,17 @@ function createHub(options = {}) {
   /** 認証済みの接続をハブへ迎え入れる（本家の connection ハンドラと同一配線）。 */
   function handleConnection(ws, auth) {
     const info = {
-      pid: auth.pid, name: auth.name, ok: auth.ok ?? null, avatar: auth.av ?? null,
-      space: null, joined: false, lastMsgAt: 0, alive: true,
-      lastEntry: null, baseline: undefined, pendingHbs: [],
+      pid: auth.pid,
+      name: auth.name,
+      ok: auth.ok ?? null,
+      avatar: auth.av ?? null,
+      space: null,
+      joined: false,
+      lastMsgAt: 0,
+      alive: true,
+      lastEntry: null,
+      baseline: undefined,
+      pendingHbs: [],
     };
     clients.set(ws, info);
     if (clients.size === 1) startTimers();
@@ -332,7 +384,9 @@ function createHub(options = {}) {
       if (clients.size === 0) stopTimers();
       try {
         ws.close(4001, "tab_superseded");
-      } catch { /* noop */ }
+      } catch {
+        /* noop */
+      }
       return;
     }
     if (admit.evict) {
@@ -340,7 +394,9 @@ function createHub(options = {}) {
         if (otherWs !== ws && otherInfo.pid === auth.pid) {
           try {
             otherWs.close(4001, "tab_superseded");
-          } catch { /* noop */ }
+          } catch {
+            /* noop */
+          }
         }
       }
     }
@@ -359,7 +415,9 @@ function createHub(options = {}) {
     if (aggState.on && info.ok) {
       try {
         ws.send(JSON.stringify({ t: "hello", now: Date.now(), agg: 1 }));
-      } catch { /* noop */ }
+      } catch {
+        /* noop */
+      }
     }
     ws.on("pong", () => {
       info.alive = true;

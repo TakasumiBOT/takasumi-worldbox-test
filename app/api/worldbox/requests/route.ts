@@ -3,15 +3,26 @@ import { getRequestSession, publicOrigin, sessionOwnerKey } from "@/lib/auth";
 import type { CoinMovement } from "@/lib/worldbox/economy/economy";
 import { buildEconomyOp } from "@/lib/worldbox/economy/economy-bridge";
 import {
-  enqueueEconomyOpOnce, findEconomyOp, isEconomyEnabled, readUserBalance, waitForOpDone,
+  enqueueEconomyOpOnce,
+  findEconomyOp,
+  isEconomyEnabled,
+  readUserBalance,
+  waitForOpDone,
 } from "@/lib/worldbox/economy/economy-bridge-online";
 import { withUserLock } from "@/lib/worldbox/core/user-lock";
 import { loadNationsState } from "@/lib/worldbox/social/nations-online";
 import { isProfileEnabled, loadProfile, storeProfile } from "@/lib/worldbox/player/profile-online";
 import {
-  cancelRequest, fulfillRequest, postRequest, requestsForGuild,
+  cancelRequest,
+  fulfillRequest,
+  postRequest,
+  requestsForGuild,
 } from "@/lib/worldbox/social/requests";
-import { isRequestsEnabled, loadRequestsState, storeRequestsState } from "@/lib/worldbox/social/requests-online";
+import {
+  isRequestsEnabled,
+  loadRequestsState,
+  storeRequestsState,
+} from "@/lib/worldbox/social/requests-online";
 import { loadMyLobbyStation } from "@/lib/worldbox/world/station-online";
 
 export const runtime = "nodejs";
@@ -30,7 +41,11 @@ export const runtime = "nodejs";
 const NO_STORE = { "Cache-Control": "no-store, max-age=0" };
 
 const BAD_REQUEST_ERRORS = new Set([
-  "invalid_request", "invalid_action", "unknown_item", "invalid_count", "invalid_reward",
+  "invalid_request",
+  "invalid_action",
+  "unknown_item",
+  "invalid_count",
+  "invalid_reward",
 ]);
 const FORBIDDEN_ERRORS = new Set(["not_poster", "wrong_guild", "self_fulfill"]);
 
@@ -68,13 +83,21 @@ function view(state: Parameters<typeof requestsForGuild>[0], guildId: string, ow
  * pending の間はクライアントに待たせ、failed の依頼は返金なしで
  * 取り消すだけにする（納品は不可）。
  */
-async function escrowStatus(posterKey: string, requestId: string): Promise<"done" | "pending" | "failed"> {
+async function escrowStatus(
+  posterKey: string,
+  requestId: string,
+): Promise<"done" | "pending" | "failed"> {
   const op = await findEconomyOp(posterKey, `escrow-${requestId}`);
   if (!op) return "failed";
   return op.status;
 }
 
-async function enqueueCoin(ownerKey: string, discordId: string, coin: CoinMovement, opId: string): Promise<boolean> {
+async function enqueueCoin(
+  ownerKey: string,
+  discordId: string,
+  coin: CoinMovement,
+  opId: string,
+): Promise<boolean> {
   const op = buildEconomyOp(
     { kind: coin.kind, userKey: ownerKey, discordId, amount: coin.amount, reason: coin.reason },
     opId,
@@ -87,19 +110,13 @@ async function enqueueCoin(ownerKey: string, discordId: string, coin: CoinMoveme
 export async function GET(request: Request) {
   const session = getRequestSession(request);
   if (!session || !isRequestsEnabled()) {
-    return NextResponse.json(
-      { loggedIn: false, me: null, requests: [] },
-      { headers: NO_STORE },
-    );
+    return NextResponse.json({ loggedIn: false, me: null, requests: [] }, { headers: NO_STORE });
   }
   const ownerKey = sessionOwnerKey(session);
   const [nations, state] = await Promise.all([loadNationsState(), loadRequestsState()]);
   const mine = nations.members[ownerKey];
   if (!mine) {
-    return NextResponse.json(
-      { loggedIn: true, me: null, requests: [] },
-      { headers: NO_STORE },
-    );
+    return NextResponse.json({ loggedIn: true, me: null, requests: [] }, { headers: NO_STORE });
   }
   const nation = nations.nations[mine.nationId];
   return NextResponse.json(
@@ -141,7 +158,11 @@ async function handlePost(request: Request, session: AuthedSession) {
     return statusError("invalid_request", 400);
   }
   const data = (body ?? {}) as {
-    action?: unknown; itemId?: unknown; count?: unknown; reward?: unknown; requestId?: unknown;
+    action?: unknown;
+    itemId?: unknown;
+    count?: unknown;
+    reward?: unknown;
+    requestId?: unknown;
   };
   const ownerKey = sessionOwnerKey(session);
   const discordId = session.id;
@@ -162,16 +183,20 @@ async function handlePost(request: Request, session: AuthedSession) {
       const balance = await readUserBalance(discordId);
       if (balance === null) return statusError("economy_unavailable", 503);
       const requestId = crypto.randomUUID();
-      const result = postRequest(state, {
-        id: requestId,
-        guildId,
-        posterKey: ownerKey,
-        posterName: session.username,
-        itemId: data.itemId,
-        count: data.count,
-        reward: data.reward,
-        now: Date.now(),
-      }, balance);
+      const result = postRequest(
+        state,
+        {
+          id: requestId,
+          guildId,
+          posterKey: ownerKey,
+          posterName: session.username,
+          itemId: data.itemId,
+          count: data.count,
+          reward: data.reward,
+          now: Date.now(),
+        },
+        balance,
+      );
       if (!result.ok) return errorResponse(result.error);
       if (!(await storeRequestsState(result.state))) return statusError("store_failed", 503);
       if (!(await enqueueCoin(ownerKey, discordId, result.coin, `escrow-${requestId}`))) {
@@ -195,7 +220,12 @@ async function handlePost(request: Request, session: AuthedSession) {
         loadProfile(target.posterKey),
       ]);
       const result = fulfillRequest(
-        state, data.requestId, guildId, ownerKey, fulfillerProfile, posterProfile,
+        state,
+        data.requestId,
+        guildId,
+        ownerKey,
+        fulfillerProfile,
+        posterProfile,
       );
       if (!result.ok) return errorResponse(result.error);
       if (!(await storeProfile(ownerKey, result.fulfillerProfile))) {

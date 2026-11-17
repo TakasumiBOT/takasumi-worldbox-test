@@ -29,15 +29,31 @@ const presence = await import(dataUrl(transpile("worldbox/player/presence.ts")))
 
 const NOW = 1_700_000_000_000;
 const entry = (tab, tabAt, ts = NOW) => ({
-  id: "p1", name: "n", x: 0, y: 0, vx: 0, vy: 0, face: 1, space: "world", tab, tabAt, ts,
+  id: "p1",
+  name: "n",
+  x: 0,
+  y: 0,
+  vx: 0,
+  vy: 0,
+  face: 1,
+  space: "world",
+  tab,
+  tabAt,
+  ts,
 });
 
 test("tabVerdict: 申告なし・記録なし・鮮度切れは受理する", () => {
   assert.equal(presence.tabVerdict(null, { tab: "a", tabAt: 100 }, NOW), "accept");
   assert.equal(presence.tabVerdict(entry("a", 100), {}, NOW), "accept");
-  assert.equal(presence.tabVerdict(entry(undefined, undefined), { tab: "b", tabAt: 50 }, NOW), "accept");
+  assert.equal(
+    presence.tabVerdict(entry(undefined, undefined), { tab: "b", tabAt: 50 }, NOW),
+    "accept",
+  );
   // 鮮度切れ（10秒超）の保存エントリは世代を握らない
-  assert.equal(presence.tabVerdict(entry("a", 100, NOW - 60_000), { tab: "b", tabAt: 50 }, NOW), "accept");
+  assert.equal(
+    presence.tabVerdict(entry("a", 100, NOW - 60_000), { tab: "b", tabAt: 50 }, NOW),
+    "accept",
+  );
 });
 
 test("tabVerdict: 同じタブは受理、古いタブは拒否、新しいタブは世代交代で受理", () => {
@@ -72,7 +88,10 @@ test("admitTab: 世代交代で evict、旧世代は reject、申告なしは素
   assert.deepEqual(core.admitTab(room, "p1", "tab-a", 1_000), { verdict: "accept", evict: false });
   assert.deepEqual(core.admitTab(room, "p1", "tab-b", 2_000), { verdict: "accept", evict: true });
   assert.deepEqual(core.admitTab(room, "p1", "tab-a", 1_000), { verdict: "reject", evict: false });
-  assert.deepEqual(core.admitTab(room, "p2", undefined, undefined), { verdict: "accept", evict: false });
+  assert.deepEqual(core.admitTab(room, "p2", undefined, undefined), {
+    verdict: "accept",
+    evict: false,
+  });
   // removePlayer で世代の記録も消える
   core.removePlayer(room, "p1");
   assert.deepEqual(core.admitTab(room, "p1", "tab-a", 1_000), { verdict: "accept", evict: false });
@@ -88,7 +107,10 @@ test("配線: ルートは 409 を返し、クライアントはタブを申告�
   const server = fs.readFileSync(path.join(rootDir, "realtime-server.js"), "utf8");
   assert.match(server, /admitTab/);
   assert.match(server, /4001/);
-  const client = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"), "utf8");
+  const client = fs.readFileSync(
+    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    "utf8",
+  );
   assert.match(client, /tab: tabSession\.tab/);
   assert.match(client, /res\.status === 409/);
   assert.match(client, /ev\.code === 4001/);

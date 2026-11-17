@@ -58,11 +58,27 @@ async function loadBundle(files, exportNames) {
 const sound = await loadBundle(
   ["worldbox/media/sound.ts"],
   [
-    "BGM_STEPS", "BGM_TRACKS", "bgmSceneFor", "semitoneFreq", "degreeFreq", "leadNoteCount",
-    "tensionFor", "BGM_CROSSFADE_MS", "setWbBgmTension", "currentWbBgmTension",
-    "WB_SE_TIER_GAIN", "WB_SE_TIERS", "WB_SE_MIN_INTERVAL_MS", "seForFxBurst",
-    "footstepMaterialFor", "distanceGain", "seVariation",
-    "SE_BURST_WINDOW_MS", "SE_BURST_MAX", "SE_DISTANCE_MAX_TILES", "SE_DISTANCE_MIN_GAIN",
+    "BGM_STEPS",
+    "BGM_TRACKS",
+    "bgmSceneFor",
+    "semitoneFreq",
+    "degreeFreq",
+    "leadNoteCount",
+    "tensionFor",
+    "BGM_CROSSFADE_MS",
+    "setWbBgmTension",
+    "currentWbBgmTension",
+    "WB_SE_TIER_GAIN",
+    "WB_SE_TIERS",
+    "WB_SE_MIN_INTERVAL_MS",
+    "seForFxBurst",
+    "footstepMaterialFor",
+    "distanceGain",
+    "seVariation",
+    "SE_BURST_WINDOW_MS",
+    "SE_BURST_MAX",
+    "SE_DISTANCE_MAX_TILES",
+    "SE_DISTANCE_MIN_GAIN",
     "loadWbSoundSettings",
   ],
 );
@@ -96,13 +112,28 @@ test("sound: 場面選択は カジノ > ロビー > 夜 > 昼", () => {
   assert.equal(sound.bgmSceneFor({ space: "world", night: 0, casinoOpen: false }), "field-day");
   assert.equal(sound.bgmSceneFor({ space: "world", night: 0.9, casinoOpen: false }), "field-night");
   assert.equal(sound.bgmSceneFor({ space: "lobby", night: 0.9, casinoOpen: false }), "lobby");
-  assert.equal(sound.bgmSceneFor({ space: "tent", night: 0.9, casinoOpen: false }), "lobby", "テント内装は屋内としてロビー曲");
+  assert.equal(
+    sound.bgmSceneFor({ space: "tent", night: 0.9, casinoOpen: false }),
+    "lobby",
+    "テント内装は屋内としてロビー曲",
+  );
   assert.equal(sound.bgmSceneFor({ space: "lobby", night: 0, casinoOpen: true }), "casino");
   assert.equal(sound.bgmSceneFor({ space: "world", night: 0.9, casinoOpen: true }), "casino");
   assert.equal(sound.bgmSceneFor({ space: "cave:10,20:0", night: 0, casinoOpen: false }), "cave");
-  assert.equal(sound.bgmSceneFor({ space: "dungeon:10,20:0", night: 0, casinoOpen: false }), "dungeon");
-  assert.equal(sound.bgmSceneFor({ space: "ruins:10,20:0", night: 0, casinoOpen: false }), "ruins", "遺跡は専用曲");
-  assert.equal(sound.bgmSceneFor({ space: "ruins:10,20:0", night: 0, casinoOpen: true }), "casino", "カジノが最優先");
+  assert.equal(
+    sound.bgmSceneFor({ space: "dungeon:10,20:0", night: 0, casinoOpen: false }),
+    "dungeon",
+  );
+  assert.equal(
+    sound.bgmSceneFor({ space: "ruins:10,20:0", night: 0, casinoOpen: false }),
+    "ruins",
+    "遺跡は専用曲",
+  );
+  assert.equal(
+    sound.bgmSceneFor({ space: "ruins:10,20:0", night: 0, casinoOpen: true }),
+    "casino",
+    "カジノが最優先",
+  );
 });
 
 test("sound: 緊張レイヤーは敵の接近か HP25%以下で入る（遺跡は洞窟より速くキックなし）", () => {
@@ -113,13 +144,22 @@ test("sound: 緊張レイヤーは敵の接近か HP25%以下で入る（遺跡�
   assert.equal(sound.tensionFor({ hostileNear: false, hpFrac: 1 }), false, "平常");
   const ruins = sound.BGM_TRACKS.ruins;
   assert.ok(ruins.bpm > sound.BGM_TRACKS.cave.bpm, "遺跡は洞窟より速い");
-  assert.ok(ruins.kick.every((k) => !k), "遺跡はキックなし");
-  assert.ok(sound.leadNoteCount(ruins) < sound.leadNoteCount(sound.BGM_TRACKS["field-day"]), "遺跡のリードは昼より疎ら");
+  assert.ok(
+    ruins.kick.every((k) => !k),
+    "遺跡はキックなし",
+  );
+  assert.ok(
+    sound.leadNoteCount(ruins) < sound.leadNoteCount(sound.BGM_TRACKS["field-day"]),
+    "遺跡のリードは昼より疎ら",
+  );
 });
 
 test("sound: 場面遷移はクロスフェードで、SE/BGM はマスターで統一する", () => {
   const src = fs.readFileSync(path.join(libDir, "worldbox/media/sound.ts"), "utf8");
-  assert.ok(sound.BGM_CROSSFADE_MS >= 800 && sound.BGM_CROSSFADE_MS <= 2000, "クロスフェードは 0.8〜2 秒");
+  assert.ok(
+    sound.BGM_CROSSFADE_MS >= 800 && sound.BGM_CROSSFADE_MS <= 2000,
+    "クロスフェードは 0.8〜2 秒",
+  );
   assert.match(src, /fadeOutVoice\(activeVoice\)/, "旧声を絞る");
   assert.match(src, /gain\.gain\.setTargetAtTime\(BGM_VOLUME/, "新声を 0 から立ち上げる");
   assert.match(src, /masterBus/, "マスターバスがある");
@@ -133,7 +173,10 @@ test("sound: 場面遷移はクロスフェードで、SE/BGM はマスターで
   sound.setWbBgmTension(false);
   assert.equal(sound.currentWbBgmTension(), false, "OFF に戻せる");
   assert.match(src, /step % 8 === 0/, "心拍は小節単位");
-  const client = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"), "utf8");
+  const client = fs.readFileSync(
+    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    "utf8",
+  );
   assert.match(client, /setWbBgmTension\(/, "場面判定で緊張レイヤーを更新する");
   assert.match(client, /tensionFor\(\{ hostileNear, hpFrac \}\)/, "敵の接近と HP で危険度を決める");
   assert.match(client, /dangerRef/, "危険度は描画ループからの ref で渡す");
@@ -144,8 +187,14 @@ test("sound: 夜が一番静かで、カジノが一番速い", () => {
   const night = sound.BGM_TRACKS["field-night"];
   const casino = sound.BGM_TRACKS.casino;
   assert.ok(sound.leadNoteCount(night) < sound.leadNoteCount(day), "夜のリードは疎ら");
-  assert.ok(night.hat.every((h) => !h), "夜はハットなし");
-  assert.ok(night.kick.every((k) => !k), "夜はキックなし");
+  assert.ok(
+    night.hat.every((h) => !h),
+    "夜はハットなし",
+  );
+  assert.ok(
+    night.kick.every((k) => !k),
+    "夜はキックなし",
+  );
   assert.ok(night.bpm < day.bpm, "夜は遅い");
   assert.ok(casino.bpm > day.bpm, "カジノは速い");
   assert.ok(casino.hat.filter(Boolean).length >= 16, "カジノはハットが密");
@@ -180,7 +229,21 @@ test("sound: fx バースト → SE の対応（死亡=撃破、出現=煙）", 
   assert.equal(sound.seForFxBurst("death"), "kill");
   assert.equal(sound.seForFxBurst("spawn"), "poof");
   assert.equal(sound.seForFxBurst("hit"), "hit");
-  for (const kind of ["chop", "mine", "till", "plant", "harvest", "place", "build", "debris", "splash", "step", "dash", "warp", "poof"]) {
+  for (const kind of [
+    "chop",
+    "mine",
+    "till",
+    "plant",
+    "harvest",
+    "place",
+    "build",
+    "debris",
+    "splash",
+    "step",
+    "dash",
+    "warp",
+    "poof",
+  ]) {
     assert.equal(sound.seForFxBurst(kind), kind, kind);
     assert.ok(sound.WB_SE_TIERS[kind], `${kind} の SE がある`);
   }
@@ -213,7 +276,10 @@ test("sound: B4 距離減衰は 0 で 1、12 タイル以上で下限に張り�
   assert.ok(sound.distanceGain(6) > sound.distanceGain(9), "遠いほど小さい");
   assert.equal(sound.distanceGain(sound.SE_DISTANCE_MAX_TILES), sound.SE_DISTANCE_MIN_GAIN);
   assert.equal(sound.distanceGain(999), sound.SE_DISTANCE_MIN_GAIN, "上限を超えても下限で聞こえる");
-  assert.ok(sound.SE_DISTANCE_MIN_GAIN > 0 && sound.SE_DISTANCE_MIN_GAIN < 0.5, "下限は 0 より大きく小さい");
+  assert.ok(
+    sound.SE_DISTANCE_MIN_GAIN > 0 && sound.SE_DISTANCE_MIN_GAIN < 0.5,
+    "下限は 0 より大きく小さい",
+  );
 });
 
 test("sound: B4 再生ごとのゆらぎはピッチ±6%・音量±8%の範囲に収まる", () => {
@@ -225,7 +291,10 @@ test("sound: B4 再生ごとのゆらぎはピッチ±6%・音量±8%の範囲�
 });
 
 test("sound: B4 同時発音の整理と連打防止の間隔", () => {
-  assert.ok(sound.SE_BURST_WINDOW_MS >= 50 && sound.SE_BURST_WINDOW_MS <= 150, "整理の窓は 50〜150ms");
+  assert.ok(
+    sound.SE_BURST_WINDOW_MS >= 50 && sound.SE_BURST_WINDOW_MS <= 150,
+    "整理の窓は 50〜150ms",
+  );
   assert.ok(sound.SE_BURST_MAX >= 4 && sound.SE_BURST_MAX <= 10, "窓内の上限は 4〜10 発");
   assert.ok(sound.WB_SE_MIN_INTERVAL_MS.hit >= 30, "命中にも連打防止がある");
   assert.ok(sound.WB_SE_MIN_INTERVAL_MS.kill >= 100, "撃破の連打防止");
@@ -247,21 +316,39 @@ test("sound: opus っぽさ回避（音声ファイルなし・BGM パッドな�
 });
 
 test("sound: クライアント配線（解錠・場面・行為SE・足音・経済・切替）", () => {
-  const client = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"), "utf8");
+  const client = fs.readFileSync(
+    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    "utf8",
+  );
   assert.match(client, /from "@\/lib\/worldbox\/media\/sound"/, "sound 基盤を使う");
   assert.match(client, /unlockWbAudio\(\)/, "最初の操作で AudioContext を解錠する");
   assert.match(client, /setWbBgmScene\(bgmSceneFor\(/, "場面で BGM を切り替える");
-  assert.match(client, /playWbSe\(seForFxBurst\(ev\.kind\), \{ distance: evDist \}\)/, "モブ演出の SE は距離で減衰する");
-  assert.match(client, /playWbSe\(seForFxBurst\(ev\.kind\), \{ distance: Math\.max/, "行為イベントの SE も距離で減衰する");
+  assert.match(
+    client,
+    /playWbSe\(seForFxBurst\(ev\.kind\), \{ distance: evDist \}\)/,
+    "モブ演出の SE は距離で減衰する",
+  );
+  assert.match(
+    client,
+    /playWbSe\(seForFxBurst\(ev\.kind\), \{ distance: Math\.max/,
+    "行為イベントの SE も距離で減衰する",
+  );
   assert.match(client, /playWbSe\("swing"\)/, "振りに風切り");
   assert.match(client, /playWbSe\("warp"\)/, "ワープ音");
   assert.match(client, /playWbStep\(footstepMaterialFor\(/, "足音は素材別");
-  assert.match(client, /biomeAt\(MAP_SEED, Math\.floor\(player\.x\), Math\.floor\(player\.y\)\)/, "足音の素材は現在地のバイオームから決める");
+  assert.match(
+    client,
+    /biomeAt\(MAP_SEED, Math\.floor\(player\.x\), Math\.floor\(player\.y\)\)/,
+    "足音の素材は現在地のバイオームから決める",
+  );
   assert.match(client, /playWbSe\(menuOpen \? "close" : "open"\)/, "≡ メニューの開閉音");
   assert.match(client, /playWbSe\("click"\)/, "メニュー項目のクリック音");
   assert.match(client, /BGMを切る|BGMを入れる/, "≡ メニューに BGM 切替");
   assert.match(client, /効果音を切る|効果音を入れる/, "≡ メニューに SE 切替");
-  const eco = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxEconomyPanel.tsx"), "utf8");
+  const eco = fs.readFileSync(
+    path.join(rootDir, "app/games/worldbox/WorldBoxEconomyPanel.tsx"),
+    "utf8",
+  );
   assert.match(eco, /from "@\/lib\/worldbox\/media\/sound"/, "経済パネルも sound 基盤を使う");
   assert.match(eco, /ACTION_SE/, "経済アクションの成功音マップがある");
   assert.match(eco, /playWbSe\(se\)/, "経済アクション成功で SE");

@@ -133,7 +133,11 @@ export interface BuildEconomyOpInput {
  * earn はホワイトリストの理由だけ、transfer は受け手が必須で自分宛ては不可、
  * steal は奪い元が必須で自分自身からは不可。
  */
-export function buildEconomyOp(input: BuildEconomyOpInput, id: string, now: number): EconomyOp | null {
+export function buildEconomyOp(
+  input: BuildEconomyOpInput,
+  id: string,
+  now: number,
+): EconomyOp | null {
   if (!OP_ID_RE.test(id)) return null;
   if (typeof input.userKey !== "string" || input.userKey.length === 0) return null;
   const discordId = validateDiscordId(input.discordId);
@@ -191,7 +195,14 @@ export function parseEconomyOp(raw: unknown): EconomyOp | null {
   if (!isRecord(value)) return null;
   const { id, kind, userKey, discordId, status } = value;
   if (typeof id !== "string" || !OP_ID_RE.test(id)) return null;
-  if (kind !== "spend" && kind !== "earn" && kind !== "transfer" && kind !== "steal" && kind !== "gamble") return null;
+  if (
+    kind !== "spend" &&
+    kind !== "earn" &&
+    kind !== "transfer" &&
+    kind !== "steal" &&
+    kind !== "gamble"
+  )
+    return null;
   if (typeof userKey !== "string" || userKey.length === 0) return null;
   if (validateDiscordId(discordId) === null) return null;
   if (status !== "pending" && status !== "done" && status !== "failed") return null;
@@ -227,15 +238,24 @@ export function parseEconomyOp(raw: unknown): EconomyOp | null {
     if (value.prepaid === true) op.prepaid = true;
   }
   if (typeof value.error === "string" && value.error.length > 0) op.error = value.error;
-  if (typeof value.appliedAmount === "number" && Number.isInteger(value.appliedAmount) && value.appliedAmount >= 0) {
+  if (
+    typeof value.appliedAmount === "number" &&
+    Number.isInteger(value.appliedAmount) &&
+    value.appliedAmount >= 0
+  ) {
     op.appliedAmount = value.appliedAmount;
   }
-  if (typeof value.appliedAt === "number" && Number.isFinite(value.appliedAt)) op.appliedAt = value.appliedAt;
+  if (typeof value.appliedAt === "number" && Number.isFinite(value.appliedAt))
+    op.appliedAt = value.appliedAt;
   return op;
 }
 
 /** 自分のオプを新しい順に最大 limit 件。 */
-export function recentEconomyOps(ops: readonly EconomyOp[], userKey: string, limit = ECONOMY_RECENT_OPS): EconomyOp[] {
+export function recentEconomyOps(
+  ops: readonly EconomyOp[],
+  userKey: string,
+  limit = ECONOMY_RECENT_OPS,
+): EconomyOp[] {
   return ops
     .filter((op) => op.userKey === userKey)
     .sort((a, b) => b.createdAt - a.createdAt || (a.id < b.id ? 1 : -1))

@@ -58,17 +58,38 @@ const invUrl = bundleModule(
 const inv = await import(invUrl);
 
 const tilesUrl = bundleModule(
-  ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/economy/items.ts", "worldbox/player/profile.ts", "worldbox/player/presence.ts", "worldbox/world/seasons.ts", "worldbox/world/tiles.ts"],
   [
-    "worldTileSource", "mapTileAt", "T_GRASS",
-    "applyPlaceBlock", "applySetSign", "applyDisplayAction", "applyDrawWater",
-    "sanitizeSignText", "parseTileOverride", "presenceIdFor",
+    "worldbox/core/rng.ts",
+    "worldbox/world/mapgen.ts",
+    "worldbox/economy/items.ts",
+    "worldbox/player/profile.ts",
+    "worldbox/player/presence.ts",
+    "worldbox/world/seasons.ts",
+    "worldbox/world/tiles.ts",
+  ],
+  [
+    "worldTileSource",
+    "mapTileAt",
+    "T_GRASS",
+    "applyPlaceBlock",
+    "applySetSign",
+    "applyDisplayAction",
+    "applyDrawWater",
+    "sanitizeSignText",
+    "parseTileOverride",
+    "presenceIdFor",
   ],
 );
 const T = await import(tilesUrl);
 
 const eco = loadBundle(
-  ["worldbox/economy/items.ts", "worldbox/player/profile.ts", "worldbox/player/roles.ts", "worldbox/player/vitals.ts", "worldbox/economy/economy.ts"],
+  [
+    "worldbox/economy/items.ts",
+    "worldbox/player/profile.ts",
+    "worldbox/player/roles.ts",
+    "worldbox/player/vitals.ts",
+    "worldbox/economy/economy.ts",
+  ],
   ["parseProfile", "countItem", "eatItem"],
 );
 
@@ -94,39 +115,119 @@ const place = (profile, at, itemId, key = ME_KEY) =>
 test("看板: 所有者だけが書け、整形され、空で消え、parse を往復する", () => {
   const placed = place(withItems({ sign_board: 1 }), grassAt, "sign_board");
   assert.equal(placed.ok, true);
-  const written = T.applySetSign(placed.override, placed.profile, map, ME_KEY, grassAt.x, grassAt.y, "  ようこそ\n店 ", NOW);
+  const written = T.applySetSign(
+    placed.override,
+    placed.profile,
+    map,
+    ME_KEY,
+    grassAt.x,
+    grassAt.y,
+    "  ようこそ\n店 ",
+    NOW,
+  );
   assert.equal(written.ok, true);
   assert.equal(written.override.signText, "ようこそ 店");
   // 他人は書けない
-  assert.equal(T.applySetSign(placed.override, placed.profile, map, OTHER_KEY, grassAt.x, grassAt.y, "x", NOW).ok, false);
+  assert.equal(
+    T.applySetSign(placed.override, placed.profile, map, OTHER_KEY, grassAt.x, grassAt.y, "x", NOW)
+      .ok,
+    false,
+  );
   // 長すぎる文字は切れる
-  const long = T.applySetSign(placed.override, placed.profile, map, ME_KEY, grassAt.x, grassAt.y, "あ".repeat(60), NOW);
+  const long = T.applySetSign(
+    placed.override,
+    placed.profile,
+    map,
+    ME_KEY,
+    grassAt.x,
+    grassAt.y,
+    "あ".repeat(60),
+    NOW,
+  );
   assert.equal([...long.override.signText].length, 40);
   // 空文字で消去
-  const cleared = T.applySetSign(written.override, written.profile, map, ME_KEY, grassAt.x, grassAt.y, "  ", NOW);
+  const cleared = T.applySetSign(
+    written.override,
+    written.profile,
+    map,
+    ME_KEY,
+    grassAt.x,
+    grassAt.y,
+    "  ",
+    NOW,
+  );
   assert.equal(cleared.override.signText, undefined);
   // parse の往復
   const parsed = T.parseTileOverride(JSON.stringify(written.override));
   assert.equal(parsed.signText, "ようこそ 店");
   // 看板でないタイルには書けない
   const dirt = place(withItems({ dirt_block: 1 }), grassAt, "dirt_block");
-  assert.equal(T.applySetSign(dirt.override, dirt.profile, map, ME_KEY, grassAt.x, grassAt.y, "x", NOW).ok, false);
+  assert.equal(
+    T.applySetSign(dirt.override, dirt.profile, map, ME_KEY, grassAt.x, grassAt.y, "x", NOW).ok,
+    false,
+  );
   assert.equal(T.sanitizeSignText(42), "");
 });
 
 test("棚: 展示は消費、回収は返却、展示中は差し替え不可、他人は不可", () => {
   const placed = place(withItems({ item_shelf: 1, bread: 2 }), grassAt, "item_shelf");
   assert.equal(placed.ok, true);
-  const shown = T.applyDisplayAction(placed.override, placed.profile, map, ME_KEY, grassAt.x, grassAt.y, "set_display", "bread", NOW);
+  const shown = T.applyDisplayAction(
+    placed.override,
+    placed.profile,
+    map,
+    ME_KEY,
+    grassAt.x,
+    grassAt.y,
+    "set_display",
+    "bread",
+    NOW,
+  );
   assert.equal(shown.ok, true);
   assert.equal(shown.override.display, "bread");
   assert.equal(inv.countItem(shown.profile, "bread"), 1);
   // 展示中は差し替え不可
-  assert.equal(T.applyDisplayAction(shown.override, shown.profile, map, ME_KEY, grassAt.x, grassAt.y, "set_display", "bread", NOW).ok, false);
+  assert.equal(
+    T.applyDisplayAction(
+      shown.override,
+      shown.profile,
+      map,
+      ME_KEY,
+      grassAt.x,
+      grassAt.y,
+      "set_display",
+      "bread",
+      NOW,
+    ).ok,
+    false,
+  );
   // 他人は回収できない
-  assert.equal(T.applyDisplayAction(shown.override, shown.profile, map, OTHER_KEY, grassAt.x, grassAt.y, "clear_display", undefined, NOW).ok, false);
+  assert.equal(
+    T.applyDisplayAction(
+      shown.override,
+      shown.profile,
+      map,
+      OTHER_KEY,
+      grassAt.x,
+      grassAt.y,
+      "clear_display",
+      undefined,
+      NOW,
+    ).ok,
+    false,
+  );
   // 回収で戻る
-  const back = T.applyDisplayAction(shown.override, shown.profile, map, ME_KEY, grassAt.x, grassAt.y, "clear_display", undefined, NOW);
+  const back = T.applyDisplayAction(
+    shown.override,
+    shown.profile,
+    map,
+    ME_KEY,
+    grassAt.x,
+    grassAt.y,
+    "clear_display",
+    undefined,
+    NOW,
+  );
   assert.equal(back.ok, true);
   assert.equal(back.override.display, undefined);
   assert.equal(inv.countItem(back.profile, "bread"), 2);
@@ -138,9 +239,20 @@ test("井戸と水: バケツで汲め、飲むとバケツに戻る", () => {
   const placed = place(withItems({ well: 1 }), grassAt, "well");
   assert.equal(placed.ok, true);
   // バケツが無ければ汲めない
-  assert.equal(T.applyDrawWater(placed.override, placed.profile, map, ME_KEY, grassAt.x, grassAt.y, NOW).ok, false);
+  assert.equal(
+    T.applyDrawWater(placed.override, placed.profile, map, ME_KEY, grassAt.x, grassAt.y, NOW).ok,
+    false,
+  );
   const withBucket = inv.parseProfile({ items: { bucket: 1 } });
-  const drawn = T.applyDrawWater(placed.override, withBucket, map, ME_KEY, grassAt.x, grassAt.y, NOW);
+  const drawn = T.applyDrawWater(
+    placed.override,
+    withBucket,
+    map,
+    ME_KEY,
+    grassAt.x,
+    grassAt.y,
+    NOW,
+  );
   assert.equal(drawn.ok, true);
   assert.equal(inv.countItem(drawn.profile, "bucket"), 0);
   assert.equal(inv.countItem(drawn.profile, "water_bucket"), 1);
@@ -157,7 +269,14 @@ test("井戸と水: バケツで汲め、飲むとバケツに戻る", () => {
 test("屋台: 出品の検証と売れた後の残数、parse の往復", async () => {
   const stallsUrl = bundleModule(
     ["worldbox/economy/items.ts", "worldbox/economy/stalls.ts"],
-    ["parseStall", "serializeStall", "stallAfterSale", "validStallPrice", "validStallCount", "isStallItem"],
+    [
+      "parseStall",
+      "serializeStall",
+      "stallAfterSale",
+      "validStallPrice",
+      "validStallCount",
+      "isStallItem",
+    ],
   );
   const S = await import(stallsUrl);
   assert.equal(S.isStallItem("market_stall"), true);
@@ -180,14 +299,20 @@ test("配線: ルートの分岐とクライアントの看板/棚/井戸/屋台
   assert.match(route, /applySetSign/);
   assert.match(route, /applyDisplayAction/);
   assert.match(route, /applyDrawWater/);
-  const client = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"), "utf8");
+  const client = fs.readFileSync(
+    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    "utf8",
+  );
   assert.match(client, /signEdit/);
   assert.match(client, /set_display/);
   assert.match(client, /draw_water/);
   assert.match(client, /signText/);
   assert.match(client, /postStallAction/);
   assert.match(client, /\/api\/worldbox\/stalls/);
-  const stallsRoute = fs.readFileSync(path.join(rootDir, "app/api/worldbox/stalls/route.ts"), "utf8");
+  const stallsRoute = fs.readFileSync(
+    path.join(rootDir, "app/api/worldbox/stalls/route.ts"),
+    "utf8",
+  );
   assert.match(stallsRoute, /kind: "transfer"/);
   assert.match(stallsRoute, /readUserBalance/);
   // 出品中の屋台はタイルルートで掘れない

@@ -41,8 +41,14 @@ const INT8_COLUMNS = {
   users: new Set(["balance", "debt"]),
   transaction_history: new Set(["id", "amount"]),
   economy_pool_state: new Set([
-    "pool", "treasury", "total_recycled", "total_paid", "total_released",
-    "total_boosted", "lottery_boost_pending", "total_house_paid",
+    "pool",
+    "treasury",
+    "total_recycled",
+    "total_paid",
+    "total_released",
+    "total_boosted",
+    "lottery_boost_pending",
+    "total_house_paid",
   ]),
 };
 
@@ -51,9 +57,16 @@ const TABLE_DEFAULTS = {
   users: () => ({ balance: "0", debt: "0" }),
   transaction_history: () => ({ created_at: new Date() }),
   economy_pool_state: () => ({
-    pool: "0", treasury: "0", total_recycled: "0", total_paid: "0",
-    total_released: "0", total_boosted: "0", lottery_boost_pending: "0",
-    total_house_paid: "0", last_release_date: null, updated_at: new Date(),
+    pool: "0",
+    treasury: "0",
+    total_recycled: "0",
+    total_paid: "0",
+    total_released: "0",
+    total_boosted: "0",
+    lottery_boost_pending: "0",
+    total_house_paid: "0",
+    last_release_date: null,
+    updated_at: new Date(),
   }),
 };
 
@@ -81,8 +94,8 @@ function makeFakeDb() {
     }
     let a = rowValue;
     let b = paramValue;
-    const numeric = INT8_COLUMNS[table]?.has(column)
-      || (/^-?\d+$/.test(String(a)) && /^-?\d+$/.test(String(b)));
+    const numeric =
+      INT8_COLUMNS[table]?.has(column) || (/^-?\d+$/.test(String(a)) && /^-?\d+$/.test(String(b)));
     if (numeric) {
       a = BigInt(String(a ?? "0"));
       b = BigInt(String(b ?? "0"));
@@ -91,13 +104,20 @@ function makeFakeDb() {
       b = String(b ?? "");
     }
     switch (op) {
-      case "=": return a === b;
-      case "<>": return a !== b;
-      case ">": return a > b;
-      case ">=": return a >= b;
-      case "<": return a < b;
-      case "<=": return a <= b;
-      default: throw new Error(`fake db: unsupported op ${op}`);
+      case "=":
+        return a === b;
+      case "<>":
+        return a !== b;
+      case ">":
+        return a > b;
+      case ">=":
+        return a >= b;
+      case "<":
+        return a < b;
+      case "<=":
+        return a <= b;
+      default:
+        throw new Error(`fake db: unsupported op ${op}`);
     }
   }
 
@@ -163,7 +183,9 @@ function makeFakeDb() {
         for (const spec of specs) {
           const c = compareValues(table, spec.column, a[spec.column], b[spec.column], "=")
             ? 0
-            : compareValues(table, spec.column, a[spec.column], b[spec.column], "<") ? -1 : 1;
+            : compareValues(table, spec.column, a[spec.column], b[spec.column], "<")
+              ? -1
+              : 1;
           if (c !== 0) return spec.desc ? -c : c;
         }
         return 0;
@@ -180,7 +202,9 @@ function makeFakeDb() {
   }
 
   function execInsert(sql, params) {
-    const m = sql.match(/^INSERT INTO (?:"public"\.)?"(\w+)" \(([^)]+)\) VALUES (.+?)(?= ON CONFLICT| RETURNING|$)/);
+    const m = sql.match(
+      /^INSERT INTO (?:"public"\.)?"(\w+)" \(([^)]+)\) VALUES (.+?)(?= ON CONFLICT| RETURNING|$)/,
+    );
     const [, table, colList, valuesSql] = m;
     const cols = colList.split(", ").map((s) => s.replace(/"/g, ""));
     const tuples = valuesSql.replace(/^\(/, "").replace(/\)$/, "").split("), (");
@@ -198,7 +222,8 @@ function makeFakeDb() {
       }
       if (conflictCols) {
         const existing = state.tables[table].find((r) =>
-          conflictCols.every((c) => String(r[c]) === String(row[c])));
+          conflictCols.every((c) => String(r[c]) === String(row[c])),
+        );
         if (existing) {
           if (oc[2].startsWith("UPDATE")) {
             for (const assign of oc[3].split(", ")) {
@@ -281,8 +306,10 @@ function makeFakeDb() {
     },
     seedPool(pool, treasury) {
       state.tables.economy_pool_state.push({
-        id: 1, ...TABLE_DEFAULTS.economy_pool_state(),
-        pool: String(pool), treasury: String(treasury),
+        id: 1,
+        ...TABLE_DEFAULTS.economy_pool_state(),
+        pool: String(pool),
+        treasury: String(treasury),
       });
     },
     poolRow() {
@@ -348,13 +375,16 @@ test("botapi: 未知の列は 400 INVALID_COLUMN（select / filter / values）",
   assert.equal(res.status, 400);
   assert.equal(res.json.detail.code, "INVALID_COLUMN");
   res = await call(db, "query", {
-    table: "bot_kv", action: "select",
+    table: "bot_kv",
+    action: "select",
     filters: [{ column: "nope", op: "eq", value: 1 }],
   });
   assert.equal(res.status, 400);
   assert.equal(res.json.detail.code, "INVALID_COLUMN");
   res = await call(db, "query", {
-    table: "users", action: "insert", values: { user_id: "1", password: "x" },
+    table: "users",
+    action: "insert",
+    values: { user_id: "1", password: "x" },
   });
   assert.equal(res.status, 400);
   assert.equal(res.json.detail.code, "INVALID_COLUMN");
@@ -363,7 +393,8 @@ test("botapi: 未知の列は 400 INVALID_COLUMN（select / filter / values）",
 test("botapi: 未知のフィルタ演算子は 400 INVALID_OPERATOR", async () => {
   const db = makeFakeDb();
   const res = await call(db, "query", {
-    table: "bot_kv", action: "select",
+    table: "bot_kv",
+    action: "select",
     filters: [{ column: "key", op: "regex", value: "x" }],
   });
   assert.equal(res.status, 400);
@@ -382,7 +413,8 @@ test("botapi: update/delete はフィルタ必須、insert の形違いは INVAL
   assert.equal(res.status, 400);
   assert.equal(res.json.detail.code, "INVALID_VALUES");
   res = await call(db, "query", {
-    table: "bot_kv", action: "insert",
+    table: "bot_kv",
+    action: "insert",
     values: [{ namespace: "a", key: "k" }, { namespace: "b" }],
   });
   assert.equal(res.status, 400);
@@ -393,17 +425,23 @@ test("botapi: update/delete はフィルタ必須、insert の形違いは INVAL
 
 test("botapi: bot_kv の upsert → select が往復する", async () => {
   const db = makeFakeDb();
-  const upsert = (value) => call(db, "query", {
-    table: "bot_kv", action: "upsert", on_conflict: "namespace,key",
-    values: {
-      namespace: "worldbox_profile", key: "discord:1", value,
-      updated_at: "2026-11-17T00:00:00.000Z",
-    },
-  });
+  const upsert = (value) =>
+    call(db, "query", {
+      table: "bot_kv",
+      action: "upsert",
+      on_conflict: "namespace,key",
+      values: {
+        namespace: "worldbox_profile",
+        key: "discord:1",
+        value,
+        updated_at: "2026-11-17T00:00:00.000Z",
+      },
+    });
   assert.equal((await upsert({ coins: 5 })).status, 200);
   assert.equal((await upsert({ coins: 9 })).status, 200);
   const res = await call(db, "query", {
-    table: "bot_kv", action: "select",
+    table: "bot_kv",
+    action: "select",
     filters: [
       { column: "namespace", op: "eq", value: "worldbox_profile" },
       { column: "key", op: "eq", value: "discord:1" },
@@ -414,13 +452,16 @@ test("botapi: bot_kv の upsert → select が往復する", async () => {
   assert.deepEqual(res.json.data[0].value, { coins: 9 });
   // update（フィルタ付き）と delete も通る
   const upd = await call(db, "query", {
-    table: "bot_kv", action: "update", values: { value: { coins: 12 } },
+    table: "bot_kv",
+    action: "update",
+    values: { value: { coins: 12 } },
     filters: [{ column: "key", op: "eq", value: "discord:1" }],
   });
   assert.equal(upd.status, 200);
   assert.deepEqual(upd.json.data[0].value, { coins: 12 });
   const del = await call(db, "query", {
-    table: "bot_kv", action: "delete",
+    table: "bot_kv",
+    action: "delete",
     filters: [{ column: "key", op: "eq", value: "discord:1" }],
   });
   assert.equal(del.status, 200);
@@ -432,18 +473,22 @@ test("botapi: 大きな整数は生リテラルで往復する（番兵規約）
   const db = makeFakeDb();
   db.seedUser("111", "9007199254740993"); // 2^53 + 1
   const res = await call(db, "query", {
-    table: "users", action: "select", columns: ["user_id", "balance"],
+    table: "users",
+    action: "select",
+    columns: ["user_id", "balance"],
     filters: [{ column: "user_id", op: "eq", value: "111" }],
   });
   assert.equal(res.status, 200);
   assert.ok(res.raw.includes('"balance":9007199254740993'), res.raw);
   // kv の値に埋め込まれた大きな整数もそのまま戻る
-  const body = '{"table":"bot_kv","action":"upsert","on_conflict":"namespace,key",'
-    + '"values":{"namespace":"n","key":"k","value":{"balance":9007199254740993},'
-    + '"updated_at":"2026-11-17T00:00:00.000Z"}}';
+  const body =
+    '{"table":"bot_kv","action":"upsert","on_conflict":"namespace,key",' +
+    '"values":{"namespace":"n","key":"k","value":{"balance":9007199254740993},' +
+    '"updated_at":"2026-11-17T00:00:00.000Z"}}';
   assert.equal((await call(db, "query", body)).status, 200);
   const got = await call(db, "query", {
-    table: "bot_kv", action: "select",
+    table: "bot_kv",
+    action: "select",
     filters: [{ column: "key", op: "eq", value: "k" }],
   });
   assert.ok(got.raw.includes('"balance":9007199254740993'), got.raw);
@@ -470,7 +515,8 @@ test("botapi: 許可外 RPC は 404、引数の過不足は 400", async () => {
 test("botapi: pay_house はプール→国庫の順に払い内訳を返す", async () => {
   const db = makeFakeDb();
   db.seedPool(1000, 500);
-  const pay = (amount) => call(db, "rpc", { name: "economy_pool_pay_house", params: { p_amount: amount } });
+  const pay = (amount) =>
+    call(db, "rpc", { name: "economy_pool_pay_house", params: { p_amount: amount } });
   let res = await pay(300);
   assert.deepEqual(res.json.data, [{ paid: 300, pool_part: 300, treasury_part: 0 }]);
   assert.equal(db.poolRow().pool, "700");
@@ -492,14 +538,16 @@ test("botapi: refund_house は内訳どおりに戻し total_house_paid を返�
   await call(db, "rpc", { name: "economy_pool_pay_house", params: { p_amount: 400 } });
   // pool 700→300, treasury 300, total_house_paid 400
   const res = await call(db, "rpc", {
-    name: "economy_pool_refund_house", params: { p_pool_part: 100, p_treasury_part: 50 },
+    name: "economy_pool_refund_house",
+    params: { p_pool_part: 100, p_treasury_part: 50 },
   });
   assert.equal(res.json.data, 250);
   assert.equal(db.poolRow().pool, "400");
   assert.equal(db.poolRow().treasury, "350");
   // 払い戻しが total_house_paid を超えても 0 で止まる
   const res2 = await call(db, "rpc", {
-    name: "economy_pool_refund_house", params: { p_pool_part: 9999, p_treasury_part: 0 },
+    name: "economy_pool_refund_house",
+    params: { p_pool_part: 9999, p_treasury_part: 0 },
   });
   assert.equal(res2.json.data, 0);
 });
@@ -522,7 +570,12 @@ test("botapi: transfer_coins は原子的で、未登録の受取人を新規残
   db.seedUser("111", 1000);
   const transfer = (params) => call(db, "rpc", { name: "transfer_coins", params });
   // 受取人がいない → p_new_user_balance + amount で作られる
-  let res = await transfer({ p_sender_id: "111", p_receiver_id: "222", p_amount: 400, p_new_user_balance: 10000 });
+  let res = await transfer({
+    p_sender_id: "111",
+    p_receiver_id: "222",
+    p_amount: 400,
+    p_new_user_balance: 10000,
+  });
   assert.equal(res.status, 200);
   assert.equal(res.json.data, 600);
   assert.equal(db.userRow("111").balance, "600");
@@ -536,7 +589,12 @@ test("botapi: transfer_coins は原子的で、未登録の受取人を新規残
   assert.equal(history.amount, "400");
   assert.equal(history.reason, "送金");
   // 既存の受取人へは加算
-  res = await transfer({ p_sender_id: "111", p_receiver_id: "222", p_amount: 100, p_new_user_balance: 10000 });
+  res = await transfer({
+    p_sender_id: "111",
+    p_receiver_id: "222",
+    p_amount: 100,
+    p_new_user_balance: 10000,
+  });
   assert.equal(res.json.data, 500);
   assert.equal(db.userRow("222").balance, "10500");
 });

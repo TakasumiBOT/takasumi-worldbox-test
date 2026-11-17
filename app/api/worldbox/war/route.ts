@@ -7,15 +7,31 @@ import { listPresence } from "@/lib/worldbox/player/presence-online";
 import { presenceIdFor } from "@/lib/worldbox/player/presence";
 import { parseSave } from "@/lib/worldbox/core/save";
 import { loadWorldBoxSave } from "@/lib/worldbox/core/save-online";
-import { loadWarState, storeWarState, isWarsEnabled, withWarLock } from "@/lib/worldbox/combat/war-online";
 import {
-  attackMark, declareWar, expireWars, prosperityRanking, repairMark,
-  warView, WAR_MARK_RANGE, type WarState,
+  loadWarState,
+  storeWarState,
+  isWarsEnabled,
+  withWarLock,
+} from "@/lib/worldbox/combat/war-online";
+import {
+  attackMark,
+  declareWar,
+  expireWars,
+  prosperityRanking,
+  repairMark,
+  warView,
+  WAR_MARK_RANGE,
+  type WarState,
 } from "@/lib/worldbox/combat/war";
 import {
-  isNationHiddenFrom, memberKeysOf, resolveMemberRole,
+  isNationHiddenFrom,
+  memberKeysOf,
+  resolveMemberRole,
 } from "@/lib/worldbox/social/nation-settings";
-import { loadNationSettings, loadNationSettingsMap } from "@/lib/worldbox/social/nation-settings-online";
+import {
+  loadNationSettings,
+  loadNationSettingsMap,
+} from "@/lib/worldbox/social/nation-settings-online";
 
 export const runtime = "nodejs";
 
@@ -58,7 +74,10 @@ async function actorWorldPosition(
 }
 
 function nearCapital(pos: { x: number; y: number }, capital: { x: number; y: number }): boolean {
-  return Math.max(Math.abs(Math.floor(pos.x) - capital.x), Math.abs(Math.floor(pos.y) - capital.y)) <= WAR_MARK_RANGE;
+  return (
+    Math.max(Math.abs(Math.floor(pos.x) - capital.x), Math.abs(Math.floor(pos.y) - capital.y)) <=
+    WAR_MARK_RANGE
+  );
 }
 
 /** マーク破壊で防衛国を解散する（国とその所属を消す）。 */
@@ -121,7 +140,8 @@ export async function GET(request: Request) {
   const now = Date.now();
   const warState = await loadWarStateSettled(now);
   const [nationsState, settingsMap] = await Promise.all([
-    loadNationsState(), loadNationSettingsMap(),
+    loadNationsState(),
+    loadNationSettingsMap(),
   ]);
   const views = nationViews(nationsState);
   const mine = nationsState.members[ownerKey];
@@ -136,10 +156,17 @@ export async function GET(request: Request) {
       // 非公開の国はランキングに載せない（自国民には自国分のみ見える）
       ranking: prosperityRanking(
         views
-          .filter((n) => !isNationHiddenFrom(settingsMap.get(n.guildId), n.guildId, mine?.nationId ?? null))
+          .filter(
+            (n) =>
+              !isNationHiddenFrom(settingsMap.get(n.guildId), n.guildId, mine?.nationId ?? null),
+          )
           .map((n) => ({
-            id: n.guildId, name: n.name, color: n.color,
-            members: n.members, prosperity: n.prosperity, createdAt: n.createdAt,
+            id: n.guildId,
+            name: n.name,
+            color: n.color,
+            members: n.members,
+            prosperity: n.prosperity,
+            createdAt: n.createdAt,
           })),
       ),
       me: mine ? { nationId: mine.nationId, role: mine.role } : null,
@@ -162,11 +189,20 @@ export async function POST(request: Request) {
   } catch {
     return err("invalid_request", 400);
   }
-  const fields = (body ?? {}) as { action?: unknown; targetId?: unknown; warId?: unknown; px?: unknown; py?: unknown };
+  const fields = (body ?? {}) as {
+    action?: unknown;
+    targetId?: unknown;
+    warId?: unknown;
+    px?: unknown;
+    py?: unknown;
+  };
   const ownerKey = sessionOwnerKey(session);
   const now = Date.now();
   const reported =
-    typeof fields.px === "number" && typeof fields.py === "number" && Number.isFinite(fields.px) && Number.isFinite(fields.py)
+    typeof fields.px === "number" &&
+    typeof fields.py === "number" &&
+    Number.isFinite(fields.px) &&
+    Number.isFinite(fields.py)
       ? { x: fields.px, y: fields.py }
       : null;
   // 戦争状態は単一キーの RMW で複数ギルドが同時に触るため、期限精算・
@@ -174,7 +210,13 @@ export async function POST(request: Request) {
   return withWarLock(() => handlePost(fields, ownerKey, now, reported));
 }
 
-type WarFields = { action?: unknown; targetId?: unknown; warId?: unknown; px?: unknown; py?: unknown };
+type WarFields = {
+  action?: unknown;
+  targetId?: unknown;
+  warId?: unknown;
+  px?: unknown;
+  py?: unknown;
+};
 
 async function handlePost(
   fields: WarFields,
@@ -193,7 +235,13 @@ async function handlePost(
     const myNation = nationsState.nations[mine.nationId];
     const mySettings = await loadNationSettings(mine.nationId);
     const resolved = myNation
-      ? resolveMemberRole(myNation, mySettings, ownerKey, mine.role, memberKeysOf(nationsState, mine.nationId))
+      ? resolveMemberRole(
+          myNation,
+          mySettings,
+          ownerKey,
+          mine.role,
+          memberKeysOf(nationsState, mine.nationId),
+        )
       : null;
     if (!resolved || (resolved.role !== "king" && resolved.role !== "minister")) {
       return err("forbidden_role", 403);

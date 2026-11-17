@@ -3,9 +3,7 @@
 // 書き込みは国単位のロックで直列化する（王の設定変更とギルドショップの
 // 税収加算が同時に走っても互いを上書きしない）。
 import { isBotApiConfigured, kvGet, kvList, kvSet } from "../../bot-api";
-import {
-  defaultNationSettings, parseNationSettings, type NationSettings,
-} from "./nation-settings";
+import { defaultNationSettings, parseNationSettings, type NationSettings } from "./nation-settings";
 import { withUserLock } from "../core/user-lock";
 
 export const WORLDBOX_NATION_SETTINGS_NAMESPACE = "worldbox_nation_settings";
@@ -38,7 +36,10 @@ export async function loadNationSettingsMap(): Promise<Map<string, NationSetting
 }
 
 /** 1国分の設定を保存する。成功したら true。 */
-export async function storeNationSettings(guildId: string, settings: NationSettings): Promise<boolean> {
+export async function storeNationSettings(
+  guildId: string,
+  settings: NationSettings,
+): Promise<boolean> {
   if (!isBotApiConfigured()) return false;
   try {
     await kvSet(WORLDBOX_NATION_SETTINGS_NAMESPACE, guildId, JSON.stringify(settings));

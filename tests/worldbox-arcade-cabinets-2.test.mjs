@@ -34,8 +34,12 @@ async function loadLib(name) {
 
 const arcade = await loadLib("worldbox/activity/arcade.ts");
 const rngUrl = dataUrl(transpile("worldbox/core/rng.ts"));
-const mapgenUrl = dataUrl(transpile("worldbox/world/mapgen.ts").replaceAll('"../core/rng"', JSON.stringify(rngUrl)));
-const lobbyUrl = dataUrl(transpile("worldbox/world/lobby.ts").replaceAll('"./mapgen"', JSON.stringify(mapgenUrl)));
+const mapgenUrl = dataUrl(
+  transpile("worldbox/world/mapgen.ts").replaceAll('"../core/rng"', JSON.stringify(rngUrl)),
+);
+const lobbyUrl = dataUrl(
+  transpile("worldbox/world/lobby.ts").replaceAll('"./mapgen"', JSON.stringify(mapgenUrl)),
+);
 const lobby = await import(lobbyUrl);
 const floorsUrl = dataUrl(
   transpile("worldbox/world/lobby-floors.ts")
@@ -73,10 +77,8 @@ const SECOND_WAVE_PLACEMENT = [
   ["stopbattle", 3, 19, 3, 19, 4],
 ];
 
-const cabinets2 = () =>
-  floors.buildLobby2().objects.filter((o) => o.sprite.startsWith("arcade_"));
-const cabinets3 = () =>
-  floors.buildLobby3().objects.filter((o) => o.sprite.startsWith("arcade_"));
+const cabinets2 = () => floors.buildLobby2().objects.filter((o) => o.sprite.startsWith("arcade_"));
+const cabinets3 = () => floors.buildLobby3().objects.filter((o) => o.sprite.startsWith("arcade_"));
 
 function walkableTiles(data) {
   const out = new Set();
@@ -94,9 +96,17 @@ function reachableFrom(data, sx, sy) {
   const q = [[sx, sy]];
   while (q.length) {
     const [x, y] = q.pop();
-    for (const [nx, ny] of [[x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]]) {
+    for (const [nx, ny] of [
+      [x + 1, y],
+      [x - 1, y],
+      [x, y + 1],
+      [x, y - 1],
+    ]) {
       const k = `${nx},${ny}`;
-      if (walk.has(k) && !seen.has(k)) { seen.add(k); q.push([nx, ny]); }
+      if (walk.has(k) && !seen.has(k)) {
+        seen.add(k);
+        q.push([nx, ny]);
+      }
     }
   }
   return seen;
@@ -139,7 +149,10 @@ test("cabinets2: 26タイトル全てが 2F/3F のどこかにちょうど1台�
 });
 
 test("cabinets2: 筐体は床の上にあり重ならず、固体で blocked に載る", () => {
-  for (const [floor, data] of [[2, floors.buildLobby2()], [3, floors.buildLobby3()]]) {
+  for (const [floor, data] of [
+    [2, floors.buildLobby2()],
+    [3, floors.buildLobby3()],
+  ]) {
     const seen = new Set();
     for (const o of data.objects.filter((ob) => ob.sprite.startsWith("arcade_"))) {
       const tile = data.tiles[o.y * data.width + o.x];
@@ -154,16 +167,28 @@ test("cabinets2: 筐体は床の上にあり重ならず、固体で blocked に
   // 2F 南弧はカーペット、3F 西・東・南弧は大理石/広場、北デッキは木の上
   const data2 = floors.buildLobby2();
   for (const o of cabinets2().filter((c) => c.y === 19)) {
-    assert.equal(data2.tiles[o.y * data2.width + o.x], lobby.L_CARPET, `${o.sprite} がカーペットの上でない`);
+    assert.equal(
+      data2.tiles[o.y * data2.width + o.x],
+      lobby.L_CARPET,
+      `${o.sprite} がカーペットの上でない`,
+    );
   }
 });
 
 test("cabinets2: 前列（円の中心側）に立て、入口から届く。列の隙間も歩行可", () => {
   const data2 = floors.buildLobby2();
-  const reach2 = reachableFrom(data2, Math.floor(floors.LOBBY2_ENTRY.x), Math.floor(floors.LOBBY2_ENTRY.y));
+  const reach2 = reachableFrom(
+    data2,
+    Math.floor(floors.LOBBY2_ENTRY.x),
+    Math.floor(floors.LOBBY2_ENTRY.y),
+  );
   const walk2 = walkableTiles(data2);
   const data3 = floors.buildLobby3();
-  const reach3 = reachableFrom(data3, Math.floor(floors.LOBBY3_ENTRY.x), Math.floor(floors.LOBBY3_ENTRY.y));
+  const reach3 = reachableFrom(
+    data3,
+    Math.floor(floors.LOBBY3_ENTRY.x),
+    Math.floor(floors.LOBBY3_ENTRY.y),
+  );
   const walk3 = walkableTiles(data3);
   for (const [id, floor, , , fx, fy] of SECOND_WAVE_PLACEMENT) {
     const walk = floor === 2 ? walk2 : walk3;
@@ -203,7 +228,11 @@ test("cabinets2: スプライト PNG が 64x64 RGBA で存在し、textures.ts �
     const file = path.join(spriteDir, `${name}.png`);
     assert.ok(fs.existsSync(file), `スプライトが無い: ${name}.png`);
     const buf = fs.readFileSync(file);
-    assert.deepEqual([...buf.subarray(0, 8)], [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a], `${name} が PNG でない`);
+    assert.deepEqual(
+      [...buf.subarray(0, 8)],
+      [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a],
+      `${name} が PNG でない`,
+    );
     assert.equal(buf.readUInt32BE(16), 64, `${name} の幅が 64 でない`);
     assert.equal(buf.readUInt32BE(20), 64, `${name} の高さが 64 でない`);
     assert.equal(buf[24], 8, `${name} のビット深度が 8 でない`);
@@ -218,7 +247,11 @@ test("cabinets2: スプライト PNG が 64x64 RGBA で存在し、textures.ts �
 test("cabinets2: 筐体に station arcade とゲーム ID が付いている（L4）", () => {
   for (const o of [...cabinets2(), ...cabinets3()]) {
     assert.equal(o.station, "arcade", `${o.sprite} に station arcade が付いていない`);
-    assert.equal(o.arcade, o.sprite.slice("arcade_".length), `${o.sprite} のゲーム ID がスプライト名と一致しない`);
+    assert.equal(
+      o.arcade,
+      o.sprite.slice("arcade_".length),
+      `${o.sprite} のゲーム ID がスプライト名と一致しない`,
+    );
   }
 });
 

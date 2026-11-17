@@ -57,11 +57,26 @@ const invUrl = bundleModule(
 const inv = await import(invUrl);
 
 const tilesUrl = bundleModule(
-  ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/economy/items.ts", "worldbox/player/profile.ts", "worldbox/player/presence.ts", "worldbox/world/seasons.ts", "worldbox/world/tiles.ts"],
   [
-    "worldTileSource", "mapTileAt", "T_GRASS", "T_ROCK",
-    "applyTileAction", "tileView",
-    "fertilityGrowthFactor", "fertilityBonusYield", "purityBonusStone", "purityBonusCoal",
+    "worldbox/core/rng.ts",
+    "worldbox/world/mapgen.ts",
+    "worldbox/economy/items.ts",
+    "worldbox/player/profile.ts",
+    "worldbox/player/presence.ts",
+    "worldbox/world/seasons.ts",
+    "worldbox/world/tiles.ts",
+  ],
+  [
+    "worldTileSource",
+    "mapTileAt",
+    "T_GRASS",
+    "T_ROCK",
+    "applyTileAction",
+    "tileView",
+    "fertilityGrowthFactor",
+    "fertilityBonusYield",
+    "purityBonusStone",
+    "purityBonusCoal",
   ],
 );
 const T = await import(tilesUrl);
@@ -69,7 +84,12 @@ const T = await import(tilesUrl);
 // ---------- 個体値そのもの ----------
 
 test("個体値: 決定的で、同じ座標は常に同じ値", () => {
-  for (const [x, y] of [[0, 0], [123, -456], [-999, 888], [60, 60]]) {
+  for (const [x, y] of [
+    [0, 0],
+    [123, -456],
+    [-999, 888],
+    [60, 60],
+  ]) {
     assert.deepEqual(G.tileIvsAt(x, y), G.tileIvsAt(x, y));
   }
 });
@@ -144,9 +164,29 @@ test("統合: 豊穣な土地は作物の成長が速く、収穫量も増える
   assert.ok(crop, "wheat_seed の作物がある");
 
   const plantOn = (at) => {
-    const tilled = T.applyTileAction(null, withItems({ wooden_hoe: 1, wheat_seed: 1 }), map, ME_KEY, "till", at.x, at.y, undefined, NOW);
+    const tilled = T.applyTileAction(
+      null,
+      withItems({ wooden_hoe: 1, wheat_seed: 1 }),
+      map,
+      ME_KEY,
+      "till",
+      at.x,
+      at.y,
+      undefined,
+      NOW,
+    );
     assert.equal(tilled.ok, true, "till");
-    const planted = T.applyTileAction(tilled.override, tilled.profile, map, ME_KEY, "plant", at.x, at.y, "wheat_seed", NOW);
+    const planted = T.applyTileAction(
+      tilled.override,
+      tilled.profile,
+      map,
+      ME_KEY,
+      "plant",
+      at.x,
+      at.y,
+      "wheat_seed",
+      NOW,
+    );
     assert.equal(planted.ok, true, "plant");
     return planted;
   };
@@ -157,7 +197,14 @@ test("統合: 豊穣な土地は作物の成長が速く、収穫量も増える
   assert.ok(richSpan < poorSpan, `豊穣 ${richSpan} < 貧地 ${poorSpan}`);
 
   const harvested = T.applyTileAction(
-    richPlanted.override, richPlanted.profile, map, ME_KEY, "harvest", rich.x, rich.y, undefined,
+    richPlanted.override,
+    richPlanted.profile,
+    map,
+    ME_KEY,
+    "harvest",
+    rich.x,
+    rich.y,
+    undefined,
     richPlanted.override.crop.readyAt,
   );
   assert.equal(harvested.ok, true, "harvest");
@@ -166,7 +213,17 @@ test("統合: 豊穣な土地は作物の成長が速く、収穫量も増える
 
 test("統合: 純度が高い岩は石材+1と石炭+1が混ざる", () => {
   const rich = findTileWhere(G.T_ROCK, (ivs) => ivs.purity >= 85);
-  let r = T.applyTileAction(null, withItems({ mithril_pickaxe: 1 }), map, ME_KEY, "mine", rich.x, rich.y, undefined, NOW);
+  let r = T.applyTileAction(
+    null,
+    withItems({ mithril_pickaxe: 1 }),
+    map,
+    ME_KEY,
+    "mine",
+    rich.x,
+    rich.y,
+    undefined,
+    NOW,
+  );
   assert.equal(r.ok, true, "mine 1");
   // 岩 HP60・ミスリル 40/ヒット → 2ヒットで壊れる。1ヒット目は何も得られない
   assert.deepEqual(r.gained, {});
@@ -178,7 +235,17 @@ test("統合: 純度が高い岩は石材+1と石炭+1が混ざる", () => {
 
 test("統合: 純度が低い岩はボーナスなし", () => {
   const poor = findTileWhere(G.T_ROCK, (ivs) => ivs.purity < 70);
-  let r = T.applyTileAction(null, withItems({ mithril_pickaxe: 1 }), map, ME_KEY, "mine", poor.x, poor.y, undefined, NOW);
+  let r = T.applyTileAction(
+    null,
+    withItems({ mithril_pickaxe: 1 }),
+    map,
+    ME_KEY,
+    "mine",
+    poor.x,
+    poor.y,
+    undefined,
+    NOW,
+  );
   r = T.applyTileAction(r.override, r.profile, map, ME_KEY, "mine", poor.x, poor.y, undefined, NOW);
   assert.equal(r.ok, true, "mine");
   assert.equal(r.gained.stone, 2);

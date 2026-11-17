@@ -18,7 +18,12 @@
 //   （リクエストは parseJsonPreservingInts、レスポンスは
 //   serializeBotApiJson が生リテラルで書き出す）。
 import { createHash, timingSafeEqual } from "node:crypto";
-import { INT_TOKEN_PREFIX, isIntToken, parseJsonPreservingInts, stringifyWithInts } from "./dashboard-core";
+import {
+  INT_TOKEN_PREFIX,
+  isIntToken,
+  parseJsonPreservingInts,
+  stringifyWithInts,
+} from "./dashboard-core";
 import type { SqlExecutor } from "./db";
 
 // ------------------------------------------------------------------ errors
@@ -56,7 +61,10 @@ function asDbError(error: unknown): unknown {
   if (error instanceof BotApiHttpError || error instanceof BotApiDbError) return error;
   const code = (error as { code?: unknown } | null)?.code;
   if (typeof code === "string" && /^[0-9A-Z]{5}$/.test(code)) {
-    return new BotApiDbError(code, error instanceof Error ? error.message : "Database operation failed");
+    return new BotApiDbError(
+      code,
+      error instanceof Error ? error.message : "Database operation failed",
+    );
   }
   return error;
 }
@@ -89,12 +97,25 @@ export const BOTAPI_TABLE_COLUMNS: Record<string, Record<string, ColumnType>> = 
   bot_kv: { namespace: "text", key: "text", value: "jsonb", updated_at: "timestamptz" },
   users: { user_id: "text", balance: "int8", debt: "int8" },
   transaction_history: {
-    id: "int8", sender_id: "text", receiver_id: "text", amount: "int8", reason: "text", created_at: "timestamptz",
+    id: "int8",
+    sender_id: "text",
+    receiver_id: "text",
+    amount: "int8",
+    reason: "text",
+    created_at: "timestamptz",
   },
   economy_pool_state: {
-    id: "int2", pool: "int8", treasury: "int8", total_recycled: "int8", total_paid: "int8",
-    total_released: "int8", total_boosted: "int8", lottery_boost_pending: "int8",
-    total_house_paid: "int8", last_release_date: "text", updated_at: "timestamptz",
+    id: "int2",
+    pool: "int8",
+    treasury: "int8",
+    total_recycled: "int8",
+    total_paid: "int8",
+    total_released: "int8",
+    total_boosted: "int8",
+    lottery_boost_pending: "int8",
+    total_house_paid: "int8",
+    last_release_date: "text",
+    updated_at: "timestamptz",
   },
 };
 
@@ -105,7 +126,19 @@ const TABLE_PRIMARY_KEYS: Record<string, string[]> = {
   economy_pool_state: ["id"],
 };
 
-const FILTER_OPERATORS = new Set(["eq", "neq", "gt", "gte", "lt", "lte", "like", "ilike", "contains", "is", "in"]);
+const FILTER_OPERATORS = new Set([
+  "eq",
+  "neq",
+  "gt",
+  "gte",
+  "lt",
+  "lte",
+  "like",
+  "ilike",
+  "contains",
+  "is",
+  "in",
+]);
 const MAX_LIMIT = 10_000;
 const DEFAULT_LIMIT = 1_000;
 
@@ -147,43 +180,69 @@ function checkKeys(obj: Record<string, unknown>, allowed: string[], where: strin
 /** QueryRequest（pydantic）の構造検証。意味論の検証は execute 側。 */
 export function validateQueryBody(raw: unknown): QueryBody {
   if (!isPlainObject(raw)) throw validationError("query body must be an object");
-  checkKeys(raw, ["table", "action", "columns", "filters", "order", "values", "on_conflict", "limit", "offset"], "query");
+  checkKeys(
+    raw,
+    ["table", "action", "columns", "filters", "order", "values", "on_conflict", "limit", "offset"],
+    "query",
+  );
   if (typeof raw.table !== "string") throw validationError("table is required");
   const action = raw.action ?? "select";
-  if (action !== "select" && action !== "insert" && action !== "upsert" && action !== "update" && action !== "delete") {
+  if (
+    action !== "select" &&
+    action !== "insert" &&
+    action !== "upsert" &&
+    action !== "update" &&
+    action !== "delete"
+  ) {
     throw validationError("invalid action");
   }
   const columns = raw.columns ?? "*";
-  if (typeof columns !== "string" && !(Array.isArray(columns) && columns.every((c) => typeof c === "string"))) {
+  if (
+    typeof columns !== "string" &&
+    !(Array.isArray(columns) && columns.every((c) => typeof c === "string"))
+  ) {
     throw validationError("columns must be a string or string array");
   }
   const filters: BotApiFilter[] = [];
   if (raw.filters !== undefined) {
-    if (!Array.isArray(raw.filters) || raw.filters.length > 32) throw validationError("filters must be an array of at most 32");
+    if (!Array.isArray(raw.filters) || raw.filters.length > 32)
+      throw validationError("filters must be an array of at most 32");
     for (const item of raw.filters) {
       if (!isPlainObject(item)) throw validationError("filter must be an object");
       checkKeys(item, ["column", "op", "value"], "filter");
-      if (typeof item.column !== "string" || typeof item.op !== "string") throw validationError("filter column/op are required");
+      if (typeof item.column !== "string" || typeof item.op !== "string")
+        throw validationError("filter column/op are required");
       filters.push({ column: item.column, op: item.op, value: item.value });
     }
   }
   const order: { column: string; desc: boolean }[] = [];
   if (raw.order !== undefined) {
-    if (!Array.isArray(raw.order) || raw.order.length > 8) throw validationError("order must be an array of at most 8");
+    if (!Array.isArray(raw.order) || raw.order.length > 8)
+      throw validationError("order must be an array of at most 8");
     for (const item of raw.order) {
       if (!isPlainObject(item)) throw validationError("order must be an object");
       checkKeys(item, ["column", "desc"], "order");
       if (typeof item.column !== "string") throw validationError("order column is required");
-      if (item.desc !== undefined && typeof item.desc !== "boolean") throw validationError("order desc must be boolean");
+      if (item.desc !== undefined && typeof item.desc !== "boolean")
+        throw validationError("order desc must be boolean");
       order.push({ column: item.column, desc: item.desc === true });
     }
   }
-  if (raw.on_conflict !== undefined && raw.on_conflict !== null && typeof raw.on_conflict !== "string") {
+  if (
+    raw.on_conflict !== undefined &&
+    raw.on_conflict !== null &&
+    typeof raw.on_conflict !== "string"
+  ) {
     throw validationError("on_conflict must be a string");
   }
   let limit: number | null = null;
   if (raw.limit !== undefined && raw.limit !== null) {
-    if (typeof raw.limit !== "number" || !Number.isInteger(raw.limit) || raw.limit < 0 || raw.limit > MAX_LIMIT) {
+    if (
+      typeof raw.limit !== "number" ||
+      !Number.isInteger(raw.limit) ||
+      raw.limit < 0 ||
+      raw.limit > MAX_LIMIT
+    ) {
       throw validationError("limit must be an integer in 0..10000");
     }
     limit = raw.limit;
@@ -255,12 +314,23 @@ function adaptParam(table: string, column: string, value: unknown, bag: ParamBag
 
 function buildWhere(table: string, filters: BotApiFilter[], bag: ParamBag): string {
   const operators: Record<string, string> = {
-    eq: "=", neq: "<>", gt: ">", gte: ">=", lt: "<", lte: "<=", like: "LIKE", ilike: "ILIKE",
+    eq: "=",
+    neq: "<>",
+    gt: ">",
+    gte: ">=",
+    lt: "<",
+    lte: "<=",
+    like: "LIKE",
+    ilike: "ILIKE",
   };
   const clauses: string[] = [];
   for (const item of filters) {
     if (!FILTER_OPERATORS.has(item.op)) {
-      throw new BotApiHttpError(400, "INVALID_OPERATOR", `Unsupported filter operator '${item.op}'`);
+      throw new BotApiHttpError(
+        400,
+        "INVALID_OPERATOR",
+        `Unsupported filter operator '${item.op}'`,
+      );
     }
     const col = identifier(table, item.column);
     if (item.op === "is") {
@@ -274,7 +344,10 @@ function buildWhere(table: string, filters: BotApiFilter[], bag: ParamBag): stri
       } else {
         throw new BotApiHttpError(400, "INVALID_FILTER", "is accepts only null/true/false");
       }
-    } else if ((item.op === "eq" || item.op === "neq") && (item.value === null || item.value === undefined)) {
+    } else if (
+      (item.op === "eq" || item.op === "neq") &&
+      (item.value === null || item.value === undefined)
+    ) {
       clauses.push(item.op === "neq" ? `${col} IS NOT NULL` : `${col} IS NULL`);
     } else if (item.op === "in") {
       if (!Array.isArray(item.value)) {
@@ -289,7 +362,9 @@ function buildWhere(table: string, filters: BotApiFilter[], bag: ParamBag): stri
     } else if (item.op === "contains") {
       clauses.push(`${col} @> ${adaptParam(table, item.column, item.value, bag)}`);
     } else {
-      clauses.push(`${col} ${operators[item.op]} ${adaptParam(table, item.column, item.value, bag)}`);
+      clauses.push(
+        `${col} ${operators[item.op]} ${adaptParam(table, item.column, item.value, bag)}`,
+      );
     }
   }
   return clauses.length > 0 ? ` WHERE ${clauses.join(" AND ")}` : "";
@@ -315,7 +390,9 @@ function selectedColumns(table: string, columns: string | string[]): string[] {
 }
 
 function allColumnExprs(table: string): string {
-  return Object.keys(BOTAPI_TABLE_COLUMNS[table]).map((name) => columnExpr(table, name)).join(", ");
+  return Object.keys(BOTAPI_TABLE_COLUMNS[table])
+    .map((name) => columnExpr(table, name))
+    .join(", ");
 }
 
 // ------------------------------------------------------------- 行の復元
@@ -329,7 +406,10 @@ function isoPlus(date: Date): string {
  * int8 は BigInt（シリアライザが生リテラルで出す）、jsonb は ::text を
  * 番兵規約でパース、timestamptz は ISO 文字列にする。
  */
-function postProcessRows(table: string, rows: Record<string, unknown>[]): Record<string, unknown>[] {
+function postProcessRows(
+  table: string,
+  rows: Record<string, unknown>[],
+): Record<string, unknown>[] {
   const types = BOTAPI_TABLE_COLUMNS[table];
   return rows.map((row) => {
     const out: Record<string, unknown> = {};
@@ -355,7 +435,10 @@ function postProcessRows(table: string, rows: Record<string, unknown>[]): Record
 
 // ---------------------------------------------------------- query 実行
 
-async function executeQuery(executor: SqlExecutor, body: QueryBody): Promise<Record<string, unknown>[]> {
+async function executeQuery(
+  executor: SqlExecutor,
+  body: QueryBody,
+): Promise<Record<string, unknown>[]> {
   const types = BOTAPI_TABLE_COLUMNS[body.table];
   if (!types) {
     throw new BotApiHttpError(404, "TABLE_NOT_ALLOWED", "Table is not available through this API");
@@ -371,7 +454,9 @@ async function executeQuery(executor: SqlExecutor, body: QueryBody): Promise<Rec
     const where = buildWhere(body.table, body.filters, bag);
     let sql = `SELECT ${names.map((n) => columnExpr(body.table, n)).join(", ")} FROM ${tableSql}${where}`;
     if (body.order.length > 0) {
-      const orders = body.order.map((o) => `${identifier(body.table, o.column)} ${o.desc ? "DESC" : "ASC"}`);
+      const orders = body.order.map(
+        (o) => `${identifier(body.table, o.column)} ${o.desc ? "DESC" : "ASC"}`,
+      );
       sql += ` ORDER BY ${orders.join(", ")}`;
     }
     sql += ` LIMIT ${bag.add(body.limit ?? DEFAULT_LIMIT)} OFFSET ${bag.add(body.offset)}`;
@@ -385,7 +470,10 @@ async function executeQuery(executor: SqlExecutor, body: QueryBody): Promise<Rec
   if (body.action === "delete") {
     const bag = new ParamBag();
     const where = buildWhere(body.table, body.filters, bag);
-    const rows = await executor.query(`DELETE FROM ${tableSql}${where} RETURNING ${allColumnExprs(body.table)}`, bag.values);
+    const rows = await executor.query(
+      `DELETE FROM ${tableSql}${where} RETURNING ${allColumnExprs(body.table)}`,
+      bag.values,
+    );
     return postProcessRows(body.table, rows);
   }
 
@@ -396,7 +484,9 @@ async function executeQuery(executor: SqlExecutor, body: QueryBody): Promise<Rec
     const bag = new ParamBag();
     const assignments: string[] = [];
     for (const [name, value] of Object.entries(body.values)) {
-      assignments.push(`${identifier(body.table, name)} = ${adaptParam(body.table, name, value, bag)}`);
+      assignments.push(
+        `${identifier(body.table, name)} = ${adaptParam(body.table, name, value, bag)}`,
+      );
     }
     const where = buildWhere(body.table, body.filters, bag);
     const rows = await executor.query(
@@ -412,14 +502,20 @@ async function executeQuery(executor: SqlExecutor, body: QueryBody): Promise<Rec
     records.length === 0 ||
     records.some((r) => !isPlainObject(r) || Object.keys(r).length === 0)
   ) {
-    throw new BotApiHttpError(400, "INVALID_VALUES", "insert/upsert requires an object or non-empty array of objects");
+    throw new BotApiHttpError(
+      400,
+      "INVALID_VALUES",
+      "insert/upsert requires an object or non-empty array of objects",
+    );
   }
   const names = Object.keys(records[0] as Record<string, unknown>);
   const nameSet = new Set(names);
-  if (records.some((r) => {
-    const keys = Object.keys(r as Record<string, unknown>);
-    return keys.length !== names.length || keys.some((k) => !nameSet.has(k));
-  })) {
+  if (
+    records.some((r) => {
+      const keys = Object.keys(r as Record<string, unknown>);
+      return keys.length !== names.length || keys.some((k) => !nameSet.has(k));
+    })
+  ) {
     throw new BotApiHttpError(400, "INVALID_VALUES", "All rows must have the same columns");
   }
   for (const name of names) identifier(body.table, name);
@@ -430,10 +526,17 @@ async function executeQuery(executor: SqlExecutor, body: QueryBody): Promise<Rec
   });
   let sql = `INSERT INTO ${tableSql} (${names.map(quoteIdent).join(", ")}) VALUES ${rowSqls.join(", ")}`;
   if (body.action === "upsert") {
-    let conflicts = (body.on_conflict ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+    let conflicts = (body.on_conflict ?? "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
     if (conflicts.length === 0) conflicts = TABLE_PRIMARY_KEYS[body.table] ?? [];
     if (conflicts.length === 0) {
-      throw new BotApiHttpError(400, "CONFLICT_REQUIRED", "upsert requires on_conflict or a primary key");
+      throw new BotApiHttpError(
+        400,
+        "CONFLICT_REQUIRED",
+        "upsert requires on_conflict or a primary key",
+      );
     }
     for (const name of conflicts) identifier(body.table, name);
     const updates = names.filter((n) => !conflicts.includes(n));
@@ -450,7 +553,10 @@ async function executeQuery(executor: SqlExecutor, body: QueryBody): Promise<Rec
 }
 
 /** /v1/query の本体（app.py と同じく1リクエスト=1トランザクション）。 */
-export async function handleBotApiQuery(body: QueryBody, executor: SqlExecutor): Promise<Record<string, unknown>[]> {
+export async function handleBotApiQuery(
+  body: QueryBody,
+  executor: SqlExecutor,
+): Promise<Record<string, unknown>[]> {
   try {
     return await executor.transaction((tx) => executeQuery(tx, body));
   } catch (error) {
@@ -498,7 +604,9 @@ function rowBigInt(value: unknown): bigint {
 }
 
 async function ensurePoolRow(tx: SqlExecutor): Promise<void> {
-  await tx.query(`INSERT INTO "economy_pool_state" ("id") VALUES (1) ON CONFLICT ("id") DO NOTHING`);
+  await tx.query(
+    `INSERT INTO "economy_pool_state" ("id") VALUES (1) ON CONFLICT ("id") DO NOTHING`,
+  );
 }
 
 interface PoolRow {
@@ -525,7 +633,13 @@ async function selectPoolForUpdate(tx: SqlExecutor): Promise<PoolRow> {
 async function updatePool(tx: SqlExecutor, next: PoolRow): Promise<void> {
   await tx.query(
     `UPDATE "economy_pool_state" SET "pool" = $1, "treasury" = $2, "total_recycled" = $3, "total_house_paid" = $4, "updated_at" = now() WHERE "id" = $5`,
-    [next.pool.toString(), next.treasury.toString(), next.totalRecycled.toString(), next.totalHousePaid.toString(), 1],
+    [
+      next.pool.toString(),
+      next.treasury.toString(),
+      next.totalRecycled.toString(),
+      next.totalHousePaid.toString(),
+      1,
+    ],
   );
 }
 
@@ -585,7 +699,10 @@ async function rpcAddLoss(tx: SqlExecutor, params: Record<string, unknown>): Pro
 }
 
 /** transfer_coins: DB 内で原子的なユーザー間送金。送金後の送り手残高を返す（スカラー）。 */
-async function rpcTransferCoins(tx: SqlExecutor, params: Record<string, unknown>): Promise<unknown> {
+async function rpcTransferCoins(
+  tx: SqlExecutor,
+  params: Record<string, unknown>,
+): Promise<unknown> {
   const sender = rpcText(params.p_sender_id);
   const receiver = rpcText(params.p_receiver_id);
   const amount = rpcInt(params.p_amount);
@@ -597,23 +714,36 @@ async function rpcTransferCoins(tx: SqlExecutor, params: Record<string, unknown>
   }
   const newUserBalance = rpcInt(params.p_new_user_balance) ?? 10n;
 
-  const senderRows = await tx.query(`SELECT "balance" FROM "users" WHERE "user_id" = $1 FOR UPDATE`, [sender]);
+  const senderRows = await tx.query(
+    `SELECT "balance" FROM "users" WHERE "user_id" = $1 FOR UPDATE`,
+    [sender],
+  );
   const senderBalance = senderRows.length > 0 ? rowBigInt(senderRows[0].balance) : null;
   if (senderBalance === null || senderBalance < amount) {
     throw new BotApiDbError("P0001", "insufficient balance");
   }
   const newSenderBalance = senderBalance - amount;
-  await tx.query(`UPDATE "users" SET "balance" = $1 WHERE "user_id" = $2`, [newSenderBalance.toString(), sender]);
+  await tx.query(`UPDATE "users" SET "balance" = $1 WHERE "user_id" = $2`, [
+    newSenderBalance.toString(),
+    sender,
+  ]);
 
-  const receiverRows = await tx.query(`SELECT "balance" FROM "users" WHERE "user_id" = $1 FOR UPDATE`, [receiver]);
+  const receiverRows = await tx.query(
+    `SELECT "balance" FROM "users" WHERE "user_id" = $1 FOR UPDATE`,
+    [receiver],
+  );
   if (receiverRows.length > 0) {
     const next = rowBigInt(receiverRows[0].balance) + amount;
-    await tx.query(`UPDATE "users" SET "balance" = $1 WHERE "user_id" = $2`, [next.toString(), receiver]);
+    await tx.query(`UPDATE "users" SET "balance" = $1 WHERE "user_id" = $2`, [
+      next.toString(),
+      receiver,
+    ]);
   } else {
-    await tx.query(
-      `INSERT INTO "users" ("user_id", "balance", "debt") VALUES ($1, $2, $3)`,
-      [receiver, (newUserBalance + amount).toString(), "0"],
-    );
+    await tx.query(`INSERT INTO "users" ("user_id", "balance", "debt") VALUES ($1, $2, $3)`, [
+      receiver,
+      (newUserBalance + amount).toString(),
+      "0",
+    ]);
   }
   await tx.query(
     `INSERT INTO "transaction_history" ("sender_id", "receiver_id", "amount", "reason") VALUES ($1, $2, $3, $4)`,
@@ -622,7 +752,10 @@ async function rpcTransferCoins(tx: SqlExecutor, params: Record<string, unknown>
   return newSenderBalance;
 }
 
-const RPC_IMPLS: Record<string, (tx: SqlExecutor, params: Record<string, unknown>) => Promise<unknown>> = {
+const RPC_IMPLS: Record<
+  string,
+  (tx: SqlExecutor, params: Record<string, unknown>) => Promise<unknown>
+> = {
   economy_pool_pay_house: rpcPayHouse,
   economy_pool_refund_house: rpcRefundHouse,
   economy_pool_add_loss: rpcAddLoss,
@@ -678,20 +811,27 @@ export function serializeBotApiJson(value: unknown): string {
 function toErrorResponse(error: unknown): { status: number; body: string } {
   const converted = asDbError(error);
   if (converted instanceof BotApiHttpError) {
-    const body = converted.detailBody !== undefined
-      ? serializeBotApiJson(converted.detailBody)
-      : serializeBotApiJson({ detail: { code: converted.code, message: converted.message } });
+    const body =
+      converted.detailBody !== undefined
+        ? serializeBotApiJson(converted.detailBody)
+        : serializeBotApiJson({ detail: { code: converted.code, message: converted.message } });
     return { status: converted.status, body };
   }
   if (converted instanceof BotApiDbError) {
     const state = converted.sqlstate;
-    const status = state.startsWith("22") || state.startsWith("23") || state === "P0001" ? 400 : 500;
-    return { status, body: serializeBotApiJson({ detail: { code: state, message: converted.message } }) };
+    const status =
+      state.startsWith("22") || state.startsWith("23") || state === "P0001" ? 400 : 500;
+    return {
+      status,
+      body: serializeBotApiJson({ detail: { code: state, message: converted.message } }),
+    };
   }
   console.error("[botapi] unexpected error:", error);
   return {
     status: 500,
-    body: serializeBotApiJson({ detail: { code: "INTERNAL_ERROR", message: "Internal server error" } }),
+    body: serializeBotApiJson({
+      detail: { code: "INTERNAL_ERROR", message: "Internal server error" },
+    }),
   };
 }
 

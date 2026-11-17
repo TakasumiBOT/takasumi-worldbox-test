@@ -58,19 +58,49 @@ async function loadBundle(files, exportNames) {
 
 const L = await loadBundle(
   [
-    "worldbox/media/fx.ts", "worldbox/economy/items.ts", "worldbox/player/profile.ts", "worldbox/player/roles.ts",
-    "worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/player/move.ts", "worldbox/world/warp.ts",
+    "worldbox/media/fx.ts",
+    "worldbox/economy/items.ts",
+    "worldbox/player/profile.ts",
+    "worldbox/player/roles.ts",
+    "worldbox/core/rng.ts",
+    "worldbox/world/mapgen.ts",
+    "worldbox/player/move.ts",
+    "worldbox/world/warp.ts",
     "worldbox/economy/economy-bridge.ts",
   ],
   [
-    "ADVENTURE_ROLES", "ADVENTURE_ROLE_IDS", "SKILLS", "activeSkillFor", "addMasteryXp",
-    "masteryRankOf", "isAdventureRoleId", "roleChangeCost", "applyRoleChange",
-    "ROLE_CHANGE_COST", "ROLE_CHANGE_REASON", "skillCooldownLeft",
-    "parseProfile", "serializeProfile",
-    "SKILL_FX_DURATION_MS", "skillFxProgress", "skillFxStage", "createFxSystem", "spawnSkillFx",
-    "tileAt", "worldTileSource", "MAP_SEED", "T_WATER", "T_GRASS",
-    "parsePorter", "porterInRange", "porterTileError", "porterDestination", "PORTER_PLACE_RANGE",
-    "buildEconomyOp", "EARN_REASONS", "GAMBLE_REASONS",
+    "ADVENTURE_ROLES",
+    "ADVENTURE_ROLE_IDS",
+    "SKILLS",
+    "activeSkillFor",
+    "addMasteryXp",
+    "masteryRankOf",
+    "isAdventureRoleId",
+    "roleChangeCost",
+    "applyRoleChange",
+    "ROLE_CHANGE_COST",
+    "ROLE_CHANGE_REASON",
+    "skillCooldownLeft",
+    "parseProfile",
+    "serializeProfile",
+    "SKILL_FX_DURATION_MS",
+    "skillFxProgress",
+    "skillFxStage",
+    "createFxSystem",
+    "spawnSkillFx",
+    "tileAt",
+    "worldTileSource",
+    "MAP_SEED",
+    "T_WATER",
+    "T_GRASS",
+    "parsePorter",
+    "porterInRange",
+    "porterTileError",
+    "porterDestination",
+    "PORTER_PLACE_RANGE",
+    "buildEconomyOp",
+    "EARN_REASONS",
+    "GAMBLE_REASONS",
   ],
 );
 
@@ -159,10 +189,14 @@ test("profile: teleporter と rolePicked が往復で保持される", () => {
 });
 
 test("profile: 旧データ（フラグなし）で役職持ちは「選んだ」扱い", () => {
-  const legacy = L.parseProfile(JSON.stringify({ role: "blade", items: {}, hotbar: [], storage: [] }));
+  const legacy = L.parseProfile(
+    JSON.stringify({ role: "blade", items: {}, hotbar: [], storage: [] }),
+  );
   assert.equal(legacy.role, "blade");
   assert.equal(legacy.rolePicked, true);
-  const legacyFree = L.parseProfile(JSON.stringify({ role: "free", items: {}, hotbar: [], storage: [] }));
+  const legacyFree = L.parseProfile(
+    JSON.stringify({ role: "free", items: {}, hotbar: [], storage: [] }),
+  );
   assert.equal(legacyFree.rolePicked, false);
 });
 
@@ -201,15 +235,27 @@ test("転職: 2回目以降は 100,000、同じ役職は無料 no-op", () => {
 // ---------- ポーター純粋ロジック ----------
 
 test("porter: 保存値の解釈（壊れた値は null）", () => {
-  assert.deepEqual(
-    L.parsePorter({ x: 12, y: -34, by: "discord:1", at: 123.9 }),
-    { x: 12, y: -34, by: "discord:1", at: 123 },
-  );
-  assert.deepEqual(
-    L.parsePorter(JSON.stringify({ x: 1, y: 2, by: "discord:1", at: 5 })),
-    { x: 1, y: 2, by: "discord:1", at: 5 },
-  );
-  for (const bad of [null, 42, "壊れた", { x: 1.5, y: 2, by: "d", at: 5 }, { x: 1, y: 2, by: "", at: 5 }, { x: 1, y: 2, by: "d", at: 0 }, { x: 2_000_000, y: 2, by: "d", at: 5 }]) {
+  assert.deepEqual(L.parsePorter({ x: 12, y: -34, by: "discord:1", at: 123.9 }), {
+    x: 12,
+    y: -34,
+    by: "discord:1",
+    at: 123,
+  });
+  assert.deepEqual(L.parsePorter(JSON.stringify({ x: 1, y: 2, by: "discord:1", at: 5 })), {
+    x: 1,
+    y: 2,
+    by: "discord:1",
+    at: 5,
+  });
+  for (const bad of [
+    null,
+    42,
+    "壊れた",
+    { x: 1.5, y: 2, by: "d", at: 5 },
+    { x: 1, y: 2, by: "", at: 5 },
+    { x: 1, y: 2, by: "d", at: 0 },
+    { x: 2_000_000, y: 2, by: "d", at: 5 },
+  ]) {
     assert.equal(L.parsePorter(bad), null, JSON.stringify(bad));
   }
 });
@@ -238,7 +284,10 @@ test("porter: 着地点はポータータイルの中心", () => {
 });
 
 test("presence: テレポーターは REST / WS 中継の役職許可リストでも落ちない", async () => {
-  const P = await loadBundle(["worldbox/player/presence.ts"], ["sanitizeHeartbeat", "parsePresenceEntry"]);
+  const P = await loadBundle(
+    ["worldbox/player/presence.ts"],
+    ["sanitizeHeartbeat", "parsePresenceEntry"],
+  );
   const hb = P.sanitizeHeartbeat(
     { name: "p", x: 1, y: 2, vx: 0, vy: 0, face: 1, space: "world", role: "teleporter", rank: 3 },
     { minX: -1_000_000, maxX: 1_000_000, minY: -1_000_000, maxY: 1_000_000 },
@@ -256,7 +305,13 @@ test("presence: テレポーターは REST / WS 中継の役職許可リスト�
 test("bridge: spend の role_change は作れる（earn では作れない）", () => {
   assert.equal(L.ROLE_CHANGE_REASON, "role_change");
   const op = L.buildEconomyOp(
-    { kind: "spend", userKey: "discord:1", discordId: "1".repeat(18), amount: 100_000, reason: L.ROLE_CHANGE_REASON },
+    {
+      kind: "spend",
+      userKey: "discord:1",
+      discordId: "1".repeat(18),
+      amount: 100_000,
+      reason: L.ROLE_CHANGE_REASON,
+    },
     "op-role-change-1",
     1000,
   );
@@ -264,7 +319,13 @@ test("bridge: spend の role_change は作れる（earn では作れない）", 
   assert.equal(op.kind, "spend");
   assert.equal(op.reason, "role_change");
   const earn = L.buildEconomyOp(
-    { kind: "earn", userKey: "discord:1", discordId: "1".repeat(18), amount: 100_000, reason: "role_change" },
+    {
+      kind: "earn",
+      userKey: "discord:1",
+      discordId: "1".repeat(18),
+      amount: 100_000,
+      reason: "role_change",
+    },
     "op-role-change-2",
     1000,
   );
@@ -326,15 +387,20 @@ export async function rpc(name, params) {
 }
 `);
 const subdomainUrl = dataUrl(transpile("subdomain.ts"));
-const headersStubUrl = dataUrl("export async function cookies() { throw new Error('tests do not use cookies()'); }");
+const headersStubUrl = dataUrl(
+  "export async function cookies() { throw new Error('tests do not use cookies()'); }",
+);
 const authUrl = dataUrl(
-  transpile("auth.ts").replaceAll('"./subdomain"', JSON.stringify(subdomainUrl)).replaceAll('"next/headers"', JSON.stringify(headersStubUrl)),
+  transpile("auth.ts")
+    .replaceAll('"./subdomain"', JSON.stringify(subdomainUrl))
+    .replaceAll('"next/headers"', JSON.stringify(headersStubUrl)),
 );
 const auth = await import(authUrl);
 
 function mod(name, reps = {}) {
   let code = transpile(name);
-  for (const [from, to] of Object.entries(reps)) code = code.replaceAll(`"${from}"`, JSON.stringify(to));
+  for (const [from, to] of Object.entries(reps))
+    code = code.replaceAll(`"${from}"`, JSON.stringify(to));
   return dataUrl(code);
 }
 const rngUrl = mod("worldbox/core/rng.ts");
@@ -343,39 +409,114 @@ const presenceUrl = mod("worldbox/player/presence.ts");
 const itemsUrl = mod("worldbox/economy/items.ts");
 const profileUrl = mod("worldbox/player/profile.ts", { "../economy/items": itemsUrl });
 const rolesUrl = mod("worldbox/player/roles.ts", { "./profile": profileUrl });
-const maplogicUrl = mod("worldbox/world/maplogic.ts", { "../core/rng": rngUrl, "./mapgen": mapgenUrl });
-const mobsUrl = mod("worldbox/combat/mobs.ts", { "../economy/items": itemsUrl, "../world/mapgen": mapgenUrl, "../world/maplogic": maplogicUrl });
-const combatUrl = mod("worldbox/combat/combat.ts", { "../world/maplogic": maplogicUrl, "./mobs": mobsUrl });
+const maplogicUrl = mod("worldbox/world/maplogic.ts", {
+  "../core/rng": rngUrl,
+  "./mapgen": mapgenUrl,
+});
+const mobsUrl = mod("worldbox/combat/mobs.ts", {
+  "../economy/items": itemsUrl,
+  "../world/mapgen": mapgenUrl,
+  "../world/maplogic": maplogicUrl,
+});
+const combatUrl = mod("worldbox/combat/combat.ts", {
+  "../world/maplogic": maplogicUrl,
+  "./mobs": mobsUrl,
+});
 const arenaUrl = mod("worldbox/combat/arena.ts");
 const moveUrl = mod("worldbox/player/move.ts", { "../world/mapgen": mapgenUrl });
-const nationsUrl = mod("worldbox/social/nations.ts", { "../world/mapgen": mapgenUrl, "../player/move": moveUrl, "../player/presence": presenceUrl });
+const nationsUrl = mod("worldbox/social/nations.ts", {
+  "../world/mapgen": mapgenUrl,
+  "../player/move": moveUrl,
+  "../player/presence": presenceUrl,
+});
 const lobbyUrl = mod("worldbox/world/lobby.ts", { "./mapgen": mapgenUrl });
 const tentUrl = mod("worldbox/world/tent.ts", { "./mapgen": mapgenUrl, "./lobby": lobbyUrl });
 const shopsUrl = mod("worldbox/economy/shops.ts", { "./items": itemsUrl });
-const floorsUrl = mod("worldbox/world/lobby-floors.ts", { "./mapgen": mapgenUrl, "./lobby": lobbyUrl, "../economy/shops": shopsUrl });
-const saveUrl = mod("worldbox/core/save.ts", { "../world/lobby": lobbyUrl, "../world/tent": tentUrl, "../world/mapgen": mapgenUrl });
+const floorsUrl = mod("worldbox/world/lobby-floors.ts", {
+  "./mapgen": mapgenUrl,
+  "./lobby": lobbyUrl,
+  "../economy/shops": shopsUrl,
+});
+const saveUrl = mod("worldbox/core/save.ts", {
+  "../world/lobby": lobbyUrl,
+  "../world/tent": tentUrl,
+  "../world/mapgen": mapgenUrl,
+});
 const seasonsUrl = mod("worldbox/world/seasons.ts");
-const tilesUrl = mod("worldbox/world/tiles.ts", { "../economy/items": itemsUrl, "./mapgen": mapgenUrl, "../player/profile": profileUrl, "../player/presence": presenceUrl, "./seasons": seasonsUrl });
-const objectsUrl = mod("worldbox/world/objects.ts", { "../economy/items": itemsUrl, "./mapgen": mapgenUrl, "./maplogic": maplogicUrl, "../core/rng": rngUrl });
-const instancesUrl = mod("worldbox/world/instances.ts", { "./lobby": lobbyUrl, "./mapgen": mapgenUrl, "../combat/mobs": mobsUrl, "./objects": objectsUrl, "../core/rng": rngUrl });
+const tilesUrl = mod("worldbox/world/tiles.ts", {
+  "../economy/items": itemsUrl,
+  "./mapgen": mapgenUrl,
+  "../player/profile": profileUrl,
+  "../player/presence": presenceUrl,
+  "./seasons": seasonsUrl,
+});
+const objectsUrl = mod("worldbox/world/objects.ts", {
+  "../economy/items": itemsUrl,
+  "./mapgen": mapgenUrl,
+  "./maplogic": maplogicUrl,
+  "../core/rng": rngUrl,
+});
+const instancesUrl = mod("worldbox/world/instances.ts", {
+  "./lobby": lobbyUrl,
+  "./mapgen": mapgenUrl,
+  "../combat/mobs": mobsUrl,
+  "./objects": objectsUrl,
+  "../core/rng": rngUrl,
+});
 const partyUrl = mod("worldbox/social/party.ts", { "../player/profile": profileUrl });
 const warpUrl = mod("worldbox/world/warp.ts", { "./mapgen": mapgenUrl, "../player/move": moveUrl });
 const economyUrl = mod("worldbox/economy/economy-bridge.ts");
-const profileOnlineUrl = mod("worldbox/player/profile-online.ts", { "../../bot-api": botApiStubUrl, "./profile": profileUrl });
+const profileOnlineUrl = mod("worldbox/player/profile-online.ts", {
+  "../../bot-api": botApiStubUrl,
+  "./profile": profileUrl,
+});
 const saveOnlineUrl = mod("worldbox/core/save-online.ts", { "../../bot-api": botApiStubUrl });
-const presenceOnlineUrl = mod("worldbox/player/presence-online.ts", { "../../bot-api": botApiStubUrl, "./presence": presenceUrl });
-const mobsOnlineUrl = mod("worldbox/combat/mobs-online.ts", { "../../bot-api": botApiStubUrl, "./combat": combatUrl });
-const nationsOnlineUrl = mod("worldbox/social/nations-online.ts", { "../../bot-api": botApiStubUrl, "./nations": nationsUrl });
-const tilesOnlineUrl = mod("worldbox/world/tiles-online.ts", { "../../bot-api": botApiStubUrl, "./tiles": tilesUrl });
-const warpOnlineUrl = mod("worldbox/world/warp-online.ts", { "../../bot-api": botApiStubUrl, "./warp": warpUrl });
-const economyOnlineUrl = mod("worldbox/economy/economy-bridge-online.ts", { "../../bot-api": botApiStubUrl, "./economy-bridge": economyUrl });
+const presenceOnlineUrl = mod("worldbox/player/presence-online.ts", {
+  "../../bot-api": botApiStubUrl,
+  "./presence": presenceUrl,
+});
+const mobsOnlineUrl = mod("worldbox/combat/mobs-online.ts", {
+  "../../bot-api": botApiStubUrl,
+  "./combat": combatUrl,
+});
+const nationsOnlineUrl = mod("worldbox/social/nations-online.ts", {
+  "../../bot-api": botApiStubUrl,
+  "./nations": nationsUrl,
+});
+const tilesOnlineUrl = mod("worldbox/world/tiles-online.ts", {
+  "../../bot-api": botApiStubUrl,
+  "./tiles": tilesUrl,
+});
+const warpOnlineUrl = mod("worldbox/world/warp-online.ts", {
+  "../../bot-api": botApiStubUrl,
+  "./warp": warpUrl,
+});
+const economyOnlineUrl = mod("worldbox/economy/economy-bridge-online.ts", {
+  "../../bot-api": botApiStubUrl,
+  "./economy-bridge": economyUrl,
+});
 const rolesOnlineUrl = mod("worldbox/player/roles-online.ts", { "../../bot-api": botApiStubUrl });
-const partyOnlineUrl = mod("worldbox/social/party-online.ts", { "../../bot-api": botApiStubUrl, "./party": partyUrl });
-const instancesOnlineUrl = mod("worldbox/world/instances-online.ts", { "../../bot-api": botApiStubUrl, "./instances": instancesUrl, "../player/profile-online": profileOnlineUrl, "../player/roles": rolesUrl });
+const partyOnlineUrl = mod("worldbox/social/party-online.ts", {
+  "../../bot-api": botApiStubUrl,
+  "./party": partyUrl,
+});
+const instancesOnlineUrl = mod("worldbox/world/instances-online.ts", {
+  "../../bot-api": botApiStubUrl,
+  "./instances": instancesUrl,
+  "../player/profile-online": profileOnlineUrl,
+  "../player/roles": rolesUrl,
+});
 const stationOnlineUrl = mod("worldbox/world/station-online.ts", {
-  "./lobby": lobbyUrl, "./lobby-floors": floorsUrl, "../player/presence-online": presenceOnlineUrl,
-  "../player/profile-online": profileOnlineUrl, "../core/save": saveUrl, "../core/save-online": saveOnlineUrl,
-  "../economy/shops": shopsUrl, "./tent": tentUrl, "./tiles": tilesUrl, "./tiles-online": tilesOnlineUrl,
+  "./lobby": lobbyUrl,
+  "./lobby-floors": floorsUrl,
+  "../player/presence-online": presenceOnlineUrl,
+  "../player/profile-online": profileOnlineUrl,
+  "../core/save": saveUrl,
+  "../core/save-online": saveOnlineUrl,
+  "../economy/shops": shopsUrl,
+  "./tent": tentUrl,
+  "./tiles": tilesUrl,
+  "./tiles-online": tilesOnlineUrl,
 });
 const userLockUrl = mod("worldbox/core/user-lock.ts");
 const nextServerStubUrl = dataUrl(`
@@ -389,50 +530,55 @@ export class NextResponse {
 `);
 function routeMod(name, reps) {
   let code = transpile(name, rootDir + "/app");
-  for (const [from, to] of Object.entries(reps)) code = code.replaceAll(`"${from}"`, JSON.stringify(to));
+  for (const [from, to] of Object.entries(reps))
+    code = code.replaceAll(`"${from}"`, JSON.stringify(to));
   return dataUrl(code);
 }
-const rolesRoute = await import(routeMod("api/worldbox/roles/route.ts", {
-  "next/server": nextServerStubUrl,
-  "@/lib/auth": authUrl,
-  "@/lib/worldbox/world/mapgen": mapgenUrl,
-  "@/lib/worldbox/player/profile-online": profileOnlineUrl,
-  "@/lib/worldbox/player/profile": profileUrl,
-  "@/lib/worldbox/combat/arena": arenaUrl,
-  "@/lib/worldbox/combat/mobs": mobsUrl,
-  "@/lib/worldbox/combat/combat": combatUrl,
-  "@/lib/worldbox/combat/mobs-online": mobsOnlineUrl,
-  "@/lib/worldbox/player/presence-online": presenceOnlineUrl,
-  "@/lib/worldbox/player/presence": presenceUrl,
-  "@/lib/worldbox/core/save": saveUrl,
-  "@/lib/worldbox/core/save-online": saveOnlineUrl,
-  "@/lib/worldbox/world/station-online": stationOnlineUrl,
-  "@/lib/worldbox/player/roles": rolesUrl,
-  "@/lib/worldbox/world/instances": instancesUrl,
-  "@/lib/worldbox/world/instances-online": instancesOnlineUrl,
-  "@/lib/worldbox/social/party": partyUrl,
-  "@/lib/worldbox/social/party-online": partyOnlineUrl,
-  "@/lib/worldbox/player/roles-online": rolesOnlineUrl,
-  "@/lib/worldbox/social/nations-online": nationsOnlineUrl,
-  "@/lib/worldbox/world/warp": warpUrl,
-  "@/lib/worldbox/world/warp-online": warpOnlineUrl,
-  "@/lib/worldbox/world/tiles": tilesUrl,
-  "@/lib/worldbox/world/tiles-online": tilesOnlineUrl,
-  "@/lib/worldbox/economy/economy-bridge": economyUrl,
-  "@/lib/worldbox/economy/economy-bridge-online": economyOnlineUrl,
-  "@/lib/worldbox/core/user-lock": userLockUrl,
-}));
-const warpRoute = await import(routeMod("api/worldbox/warp/route.ts", {
-  "next/server": nextServerStubUrl,
-  "@/lib/auth": authUrl,
-  "@/lib/worldbox/world/mapgen": mapgenUrl,
-  "@/lib/worldbox/social/nations-online": nationsOnlineUrl,
-  "@/lib/worldbox/world/warp": warpUrl,
-  "@/lib/worldbox/world/warp-online": warpOnlineUrl,
-  "@/lib/worldbox/core/save": saveUrl,
-  "@/lib/worldbox/core/save-online": saveOnlineUrl,
-  "@/lib/worldbox/player/presence-online": presenceOnlineUrl,
-}));
+const rolesRoute = await import(
+  routeMod("api/worldbox/roles/route.ts", {
+    "next/server": nextServerStubUrl,
+    "@/lib/auth": authUrl,
+    "@/lib/worldbox/world/mapgen": mapgenUrl,
+    "@/lib/worldbox/player/profile-online": profileOnlineUrl,
+    "@/lib/worldbox/player/profile": profileUrl,
+    "@/lib/worldbox/combat/arena": arenaUrl,
+    "@/lib/worldbox/combat/mobs": mobsUrl,
+    "@/lib/worldbox/combat/combat": combatUrl,
+    "@/lib/worldbox/combat/mobs-online": mobsOnlineUrl,
+    "@/lib/worldbox/player/presence-online": presenceOnlineUrl,
+    "@/lib/worldbox/player/presence": presenceUrl,
+    "@/lib/worldbox/core/save": saveUrl,
+    "@/lib/worldbox/core/save-online": saveOnlineUrl,
+    "@/lib/worldbox/world/station-online": stationOnlineUrl,
+    "@/lib/worldbox/player/roles": rolesUrl,
+    "@/lib/worldbox/world/instances": instancesUrl,
+    "@/lib/worldbox/world/instances-online": instancesOnlineUrl,
+    "@/lib/worldbox/social/party": partyUrl,
+    "@/lib/worldbox/social/party-online": partyOnlineUrl,
+    "@/lib/worldbox/player/roles-online": rolesOnlineUrl,
+    "@/lib/worldbox/social/nations-online": nationsOnlineUrl,
+    "@/lib/worldbox/world/warp": warpUrl,
+    "@/lib/worldbox/world/warp-online": warpOnlineUrl,
+    "@/lib/worldbox/world/tiles": tilesUrl,
+    "@/lib/worldbox/world/tiles-online": tilesOnlineUrl,
+    "@/lib/worldbox/economy/economy-bridge": economyUrl,
+    "@/lib/worldbox/economy/economy-bridge-online": economyOnlineUrl,
+    "@/lib/worldbox/core/user-lock": userLockUrl,
+  })
+);
+const warpRoute = await import(
+  routeMod("api/worldbox/warp/route.ts", {
+    "next/server": nextServerStubUrl,
+    "@/lib/auth": authUrl,
+    "@/lib/worldbox/world/mapgen": mapgenUrl,
+    "@/lib/worldbox/social/nations-online": nationsOnlineUrl,
+    "@/lib/worldbox/world/warp": warpUrl,
+    "@/lib/worldbox/world/warp-online": warpOnlineUrl,
+    "@/lib/worldbox/core/save": saveUrl,
+    "@/lib/worldbox/core/save-online": saveOnlineUrl,
+    "@/lib/worldbox/player/presence-online": presenceOnlineUrl,
+  })
+);
 const lobby = await import(lobbyUrl);
 
 process.env.DISCORD_SESSION_SECRET = "teleporter-test-secret";
@@ -468,14 +614,31 @@ const cookieLone = sessionCookie(LONE, "lone-user");
 
 function seedNations() {
   const nations = {
-    [G1]: { guildId: G1, name: "いち鯖", color: "#e5484d", kingKey: MY_KEY, capital: { x: 0, y: 400 }, createdAt: 1 },
-    [G2]: { guildId: G2, name: "に鯖", color: "#f76b15", kingKey: OTHER_KEY, capital: { x: 10, y: 400 }, createdAt: 2 },
+    [G1]: {
+      guildId: G1,
+      name: "いち鯖",
+      color: "#e5484d",
+      kingKey: MY_KEY,
+      capital: { x: 0, y: 400 },
+      createdAt: 1,
+    },
+    [G2]: {
+      guildId: G2,
+      name: "に鯖",
+      color: "#f76b15",
+      kingKey: OTHER_KEY,
+      capital: { x: 10, y: 400 },
+      createdAt: 2,
+    },
   };
   store.set("worldbox_nations nations", JSON.stringify({ v: 2, nations }));
-  store.set("worldbox_nations members", JSON.stringify({
-    [MY_KEY]: { nationId: G1, role: "citizen" },
-    [OTHER_KEY]: { nationId: G2, role: "citizen" },
-  }));
+  store.set(
+    "worldbox_nations members",
+    JSON.stringify({
+      [MY_KEY]: { nationId: G1, role: "citizen" },
+      [OTHER_KEY]: { nationId: G2, role: "citizen" },
+    }),
+  );
 }
 function seedProfile(key, role, over = {}) {
   const p = { ...L.parseProfile(null), role, rolePicked: role !== "free", ...over };
@@ -486,9 +649,19 @@ function readProfile(key) {
   return L.parseProfile(store.get(`worldbox_profiles ${key}`));
 }
 function setPresence(key, x, y, space) {
-  store.set(`worldbox_presence ${key}`, JSON.stringify({
-    name: "p", x, y, vx: 0, vy: 0, face: 1, space, ts: Date.now(),
-  }));
+  store.set(
+    `worldbox_presence ${key}`,
+    JSON.stringify({
+      name: "p",
+      x,
+      y,
+      vx: 0,
+      vy: 0,
+      face: 1,
+      space,
+      ts: Date.now(),
+    }),
+  );
 }
 function setSave(key, space, x, y) {
   store.set(`worldbox_save ${key}`, JSON.stringify({ version: 6, space, x, y, worldReturn: null }));
@@ -539,10 +712,17 @@ test("API(porter): 設置でき、置き直しは上書きで1つだけ", async 
   seedProfile(MY_KEY, "teleporter");
   setPresence(MY_KEY, at.x + 0.5, at.y + 0.5, "world");
   setSave(MY_KEY, "world", at.x + 0.5, at.y + 0.5);
-  const res = await rolesRoute.POST(apiRequest(URL_R, "POST", cookieMe, {
-    action: "skill", skill: "porter", tx: target.x + 0.5, ty: target.y + 0.5,
-    space: "world", px: at.x + 0.5, py: at.y + 0.5,
-  }));
+  const res = await rolesRoute.POST(
+    apiRequest(URL_R, "POST", cookieMe, {
+      action: "skill",
+      skill: "porter",
+      tx: target.x + 0.5,
+      ty: target.y + 0.5,
+      space: "world",
+      px: at.x + 0.5,
+      py: at.y + 0.5,
+    }),
+  );
   assert.equal(res.status, 200);
   const data = await res.json();
   assert.equal(data.fx, "warp");
@@ -554,10 +734,17 @@ test("API(porter): 設置でき、置き直しは上書きで1つだけ", async 
 
   // 置き直し（クールダウンを外してから）: 同じキーへの上書きで件数は1つ
   seedProfile(MY_KEY, "teleporter");
-  const res2 = await rolesRoute.POST(apiRequest(URL_R, "POST", cookieMe, {
-    action: "skill", skill: "porter", tx: at.x + 0.5, ty: at.y + 0.5,
-    space: "world", px: at.x + 0.5, py: at.y + 0.5,
-  }));
+  const res2 = await rolesRoute.POST(
+    apiRequest(URL_R, "POST", cookieMe, {
+      action: "skill",
+      skill: "porter",
+      tx: at.x + 0.5,
+      ty: at.y + 0.5,
+      space: "world",
+      px: at.x + 0.5,
+      py: at.y + 0.5,
+    }),
+  );
   assert.equal(res2.status, 200);
   const warpKeys = [...store.keys()].filter((k) => k.startsWith("worldbox_warp "));
   assert.deepEqual(warpKeys, [`worldbox_warp ${G1}`], "ユニオンに1つだけ");
@@ -569,8 +756,13 @@ test("API(porter): 所属必須・距離・通行不能・空間・役職で弾�
   const { at, target } = grassPair();
   const post = (cookie, body) => rolesRoute.POST(apiRequest(URL_R, "POST", cookie, body));
   const base = {
-    action: "skill", skill: "porter", tx: target.x + 0.5, ty: target.y + 0.5,
-    space: "world", px: at.x + 0.5, py: at.y + 0.5,
+    action: "skill",
+    skill: "porter",
+    tx: target.x + 0.5,
+    ty: target.y + 0.5,
+    space: "world",
+    px: at.x + 0.5,
+    py: at.y + 0.5,
   };
   // 無所属は not_in_union
   seedProfile(LONE_KEY, "teleporter");
@@ -587,13 +779,23 @@ test("API(porter): 所属必須・距離・通行不能・空間・役職で弾�
   // 水タイル（自分のタイルとして申告しても地形で弾かれる）
   const water = findTile(L.T_WATER, 0, 0, 60);
   setPresence(MY_KEY, water.x + 0.5, water.y + 0.5, "world");
-  res = await post(cookieMe, { ...base, tx: water.x + 0.5, ty: water.y + 0.5, px: water.x + 0.5, py: water.y + 0.5 });
+  res = await post(cookieMe, {
+    ...base,
+    tx: water.x + 0.5,
+    ty: water.y + 0.5,
+    px: water.x + 0.5,
+    py: water.y + 0.5,
+  });
   assert.equal((await res.json()).error, "blocked_tile");
   // ブロック設置済みタイル
   setPresence(MY_KEY, at.x + 0.5, at.y + 0.5, "world");
-  store.set(`worldbox_tiles ${target.x},${target.y}`, JSON.stringify({
-    block: { itemId: "stone_block", ownerId: MY_KEY }, ownerId: MY_KEY,
-  }));
+  store.set(
+    `worldbox_tiles ${target.x},${target.y}`,
+    JSON.stringify({
+      block: { itemId: "stone_block", ownerId: MY_KEY },
+      ownerId: MY_KEY,
+    }),
+  );
   res = await post(cookieMe, base);
   assert.equal((await res.json()).error, "blocked_tile");
   store.delete(`worldbox_tiles ${target.x},${target.y}`);
@@ -615,7 +817,8 @@ test("API(set_role): 初回無料、2回目は残高不足で不変・十分な�
   setPresence(MY_KEY, stand.x + 0.5, stand.y + 0.5, "lobby");
   setSave(MY_KEY, "lobby", stand.x + 0.5, stand.y + 0.5);
   users.set(ME, 0);
-  const post = (role) => rolesRoute.POST(apiRequest(URL_R, "POST", cookieMe, { action: "set_role", role }));
+  const post = (role) =>
+    rolesRoute.POST(apiRequest(URL_R, "POST", cookieMe, { action: "set_role", role }));
 
   // 初回は残高 0 でも無料
   let res = await post("blade");
@@ -677,8 +880,12 @@ test("API(warp): GET は自ユニオンのポーターだけを返す", async ()
 test("API(warp): テレポートはワールドでのみ、所属ユニオンのポーターへ", async () => {
   reset();
   const { target } = grassPair();
-  store.set(`worldbox_warp ${G1}`, JSON.stringify({ x: target.x, y: target.y, by: MY_KEY, at: 1000 }));
-  const post = (cookie) => warpRoute.POST(apiRequest(URL_W, "POST", cookie, { action: "teleport" }));
+  store.set(
+    `worldbox_warp ${G1}`,
+    JSON.stringify({ x: target.x, y: target.y, by: MY_KEY, at: 1000 }),
+  );
+  const post = (cookie) =>
+    warpRoute.POST(apiRequest(URL_W, "POST", cookie, { action: "teleport" }));
 
   // ワールドにいる所属員はポーターへ移動し、セーブとプレゼンスが追随する
   setSave(MY_KEY, "world", 0.5, 0.5);

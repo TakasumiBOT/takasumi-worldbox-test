@@ -2,16 +2,32 @@ import { NextResponse } from "next/server";
 import { getRequestSession, publicOrigin, sessionOwnerKey } from "@/lib/auth";
 import { buildEconomyOp, GAMBLE_PAYOUT_MAX } from "@/lib/worldbox/economy/economy-bridge";
 import {
-  enqueueEconomyOpOnce, findEconomyOp, isEconomyEnabled, readUserBalance, submitEconomyOp,
+  enqueueEconomyOpOnce,
+  findEconomyOp,
+  isEconomyEnabled,
+  readUserBalance,
+  submitEconomyOp,
 } from "@/lib/worldbox/economy/economy-bridge-online";
 import {
-  BET_CLOSE_BEFORE_MS, RACE_DURATION_MS, generateRaceCore, isBettingOpen,
-  recentForm, scheduleAt, validateBetAmount,
+  BET_CLOSE_BEFORE_MS,
+  RACE_DURATION_MS,
+  generateRaceCore,
+  isBettingOpen,
+  recentForm,
+  scheduleAt,
+  validateBetAmount,
 } from "@/lib/worldbox/activity/racing";
 import { horseById } from "@/lib/worldbox/activity/racing/horses";
 import {
-  appendPopularity, loadMyBets, loadOrEstimateOdds, loadPopularity, popularityCounts,
-  saveMyBets, settleMyBets, type RaceBet, type RaceBetType,
+  appendPopularity,
+  loadMyBets,
+  loadOrEstimateOdds,
+  loadPopularity,
+  popularityCounts,
+  saveMyBets,
+  settleMyBets,
+  type RaceBet,
+  type RaceBetType,
 } from "@/lib/worldbox/activity/racing-online";
 import { loadMyLobbyStation } from "@/lib/worldbox/world/station-online";
 
@@ -33,7 +49,9 @@ const userLocks = new Map<string, Promise<void>>();
 async function withUserLock<T>(userKey: string, fn: () => Promise<T>): Promise<T> {
   const prev = userLocks.get(userKey) ?? Promise.resolve();
   let release!: () => void;
-  const gate = new Promise<void>((resolve) => { release = resolve; });
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
   const tail = prev.then(() => gate);
   userLocks.set(userKey, tail);
   await prev.catch(() => undefined);
@@ -84,19 +102,28 @@ function publicBet(bet: RaceBet) {
 /** 終了した自分の馬券を精算し、保存まで済ませた最新の馬券一覧を返す。 */
 async function settleAndLoad(ctx: Ctx): Promise<RaceBet[]> {
   const bets = await loadMyBets(ctx.userKey);
-  const { bets: settled, changed } = await settleMyBets(ctx.userKey, bets, Date.now(), async (bet, payout) => {
-    const op = buildEconomyOp(
-      {
-        kind: "gamble", userKey: ctx.userKey, discordId: ctx.discordId,
-        amount: bet.amount, reason: "horse_racing",
-        payout: Math.min(payout, GAMBLE_PAYOUT_MAX), prepaid: true,
-      },
-      `race-settle-${bet.betId}`,
-      Date.now(),
-    );
-    if (!op) return false;
-    return enqueueEconomyOpOnce(op);
-  });
+  const { bets: settled, changed } = await settleMyBets(
+    ctx.userKey,
+    bets,
+    Date.now(),
+    async (bet, payout) => {
+      const op = buildEconomyOp(
+        {
+          kind: "gamble",
+          userKey: ctx.userKey,
+          discordId: ctx.discordId,
+          amount: bet.amount,
+          reason: "horse_racing",
+          payout: Math.min(payout, GAMBLE_PAYOUT_MAX),
+          prepaid: true,
+        },
+        `race-settle-${bet.betId}`,
+        Date.now(),
+      );
+      if (!op) return false;
+      return enqueueEconomyOpOnce(op);
+    },
+  );
   if (changed) await saveMyBets(ctx.userKey, settled);
   return settled;
 }
@@ -147,16 +174,20 @@ async function handleGet(session: AuthedSession) {
 
   // 演出中のレース（観戦アニメ用: 出走表だけ渡し、位置はクライアントが pose で作る）
   const runningCore = sched.runningPostMs !== null ? generateRaceCore(sched.runningPostMs) : null;
-  const running = runningCore !== null && sched.runningPostMs !== null
-    ? {
-        postMs: sched.runningPostMs,
-        endsAtMs: sched.runningPostMs + RACE_DURATION_MS,
-        track: runningCore.track.name,
-        entries: runningCore.entries.map((e) => ({
-          gate: e.gate, horseId: e.horse.id, name: e.horse.name, coat: e.horse.coat,
-        })),
-      }
-    : null;
+  const running =
+    runningCore !== null && sched.runningPostMs !== null
+      ? {
+          postMs: sched.runningPostMs,
+          endsAtMs: sched.runningPostMs + RACE_DURATION_MS,
+          track: runningCore.track.name,
+          entries: runningCore.entries.map((e) => ({
+            gate: e.gate,
+            horseId: e.horse.id,
+            name: e.horse.name,
+            coat: e.horse.coat,
+          })),
+        }
+      : null;
 
   // 直近の結果
   const lastCore = generateRaceCore(sched.lastPostMs);
@@ -211,10 +242,17 @@ async function handlePost(request: Request, session: AuthedSession) {
 
   const postMs = typeof fields.postMs === "number" ? fields.postMs : NaN;
   const horseId = typeof fields.horseId === "number" ? fields.horseId : NaN;
-  const type: RaceBetType | null = fields.type === "win" || fields.type === "place" ? fields.type : null;
+  const type: RaceBetType | null =
+    fields.type === "win" || fields.type === "place" ? fields.type : null;
   const amount = validateBetAmount(fields.amount);
   const clientBetId = typeof fields.clientBetId === "string" ? fields.clientBetId : "";
-  if (!Number.isFinite(postMs) || !Number.isFinite(horseId) || type === null || amount === null || !BET_ID_RE.test(clientBetId)) {
+  if (
+    !Number.isFinite(postMs) ||
+    !Number.isFinite(horseId) ||
+    type === null ||
+    amount === null ||
+    !BET_ID_RE.test(clientBetId)
+  ) {
     return errorResponse("invalid_bet", 400);
   }
   const betId = clientBetId;
@@ -233,7 +271,10 @@ async function handlePost(request: Request, session: AuthedSession) {
   const existing = bets.find((b) => b.betId === betId);
   if (existing) {
     // 同じ購入意図のリトライ: 二重に買わず既存を返す。
-    return NextResponse.json({ ok: true, bet: publicBet(existing), duplicated: true }, { headers: NO_STORE });
+    return NextResponse.json(
+      { ok: true, bet: publicBet(existing), duplicated: true },
+      { headers: NO_STORE },
+    );
   }
 
   const odds = await loadOrEstimateOdds(postMs);
@@ -244,7 +285,13 @@ async function handlePost(request: Request, session: AuthedSession) {
   const already = await findEconomyOp(ctx.userKey, spendOpId);
   if (!already) {
     const op = buildEconomyOp(
-      { kind: "spend", userKey: ctx.userKey, discordId: ctx.discordId, amount, reason: "horse_racing_bet" },
+      {
+        kind: "spend",
+        userKey: ctx.userKey,
+        discordId: ctx.discordId,
+        amount,
+        reason: "horse_racing_bet",
+      },
       spendOpId,
       now,
     );

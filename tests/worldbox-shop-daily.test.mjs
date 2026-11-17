@@ -49,10 +49,16 @@ async function loadBundle(files, exportNames) {
   return import(dataUrl(code));
 }
 
-
 const S = await loadBundle(
   ["worldbox/economy/items.ts", "worldbox/economy/shops.ts"],
-  ["shopDayKeyOf", "dailyPriceFor", "dailyStockForGenre", "checkDailyStock", "itemsForGenre", "itemById"],
+  [
+    "shopDayKeyOf",
+    "dailyPriceFor",
+    "dailyStockForGenre",
+    "checkDailyStock",
+    "itemsForGenre",
+    "itemById",
+  ],
 );
 
 test("shops: daily price is deterministic and within ±10%", () => {
@@ -62,7 +68,9 @@ test("shops: daily price is deterministic and within ±10%", () => {
   assert.equal(p1, S.dailyPriceFor(item, day));
   assert.ok(p1 >= Math.floor(item.price * 0.9) - 1 && p1 <= Math.ceil(item.price * 1.1) + 1);
   const prices = new Set(
-    ["2026-11-16", "2026-11-17", "2026-11-18", "2026-11-19", "2026-11-20"].map((d) => S.dailyPriceFor(item, d)),
+    ["2026-11-16", "2026-11-17", "2026-11-18", "2026-11-19", "2026-11-20"].map((d) =>
+      S.dailyPriceFor(item, d),
+    ),
   );
   assert.ok(prices.size >= 2);
 });

@@ -13,12 +13,24 @@
 // カジノルートから呼ばれるロック付きの入口。
 import { kvGet, kvSet } from "../../bot-api";
 import { buildEconomyOp, type EconomyOp } from "../economy/economy-bridge";
-import { enqueueEconomyOpOnce, findEconomyOp, loadAllEconomyOps } from "../economy/economy-bridge-online";
 import {
-  casinoPrizeSplit, casinoTournamentFeeOpId, casinoTournamentPrizeOpId,
-  casinoTournamentRefundOpId, closeCasinoEntry, closeCasinoPlay, recordScore,
-  CASINO_TOURNAMENT_FEE, CASINO_TOURNAMENT_PRIZE_REASON, CASINO_TOURNAMENT_REFUND_REASON,
-  parseCasinoTournament, type CasinoTournament,
+  enqueueEconomyOpOnce,
+  findEconomyOp,
+  loadAllEconomyOps,
+} from "../economy/economy-bridge-online";
+import {
+  casinoPrizeSplit,
+  casinoTournamentFeeOpId,
+  casinoTournamentPrizeOpId,
+  casinoTournamentRefundOpId,
+  closeCasinoEntry,
+  closeCasinoPlay,
+  recordScore,
+  CASINO_TOURNAMENT_FEE,
+  CASINO_TOURNAMENT_PRIZE_REASON,
+  CASINO_TOURNAMENT_REFUND_REASON,
+  parseCasinoTournament,
+  type CasinoTournament,
 } from "./casino-tournament";
 import { withUserLock } from "../core/user-lock";
 
@@ -88,7 +100,11 @@ async function loadScoredOpIds(tournamentId: string): Promise<Set<string>> {
 }
 
 async function saveScoredOpIds(tournamentId: string, scored: ReadonlySet<string>): Promise<void> {
-  await kvSet(WORLDBOX_CASINO_TOURNAMENT_NAMESPACE, scoredKey(tournamentId), JSON.stringify([...scored]));
+  await kvSet(
+    WORLDBOX_CASINO_TOURNAMENT_NAMESPACE,
+    scoredKey(tournamentId),
+    JSON.stringify([...scored]),
+  );
 }
 
 /** スコアに数える gamble オプの作成時刻の範囲（対局時間の中）。 */
@@ -103,14 +119,17 @@ function scoreWindow(t: CasinoTournament): { from: number; to: number } {
  * 戻り値: 加算後の大会（変化が無ければ同じ参照）。
  */
 async function applyDoneGambleOpsInner(
-  t: CasinoTournament, ops: readonly EconomyOp[],
+  t: CasinoTournament,
+  ops: readonly EconomyOp[],
 ): Promise<CasinoTournament> {
   if (t.status !== "running") return t;
   const { from, to } = scoreWindow(t);
   const candidates = ops.filter(
     (op) =>
-      op.kind === "gamble" && op.status === "done" &&
-      op.createdAt >= from && op.createdAt <= to &&
+      op.kind === "gamble" &&
+      op.status === "done" &&
+      op.createdAt >= from &&
+      op.createdAt <= to &&
       t.entrants.includes(op.discordId),
   );
   if (candidates.length === 0) return t;
@@ -133,7 +152,9 @@ async function applyDoneGambleOpsInner(
  * 失敗してもカジノの決済は変えない（ここでは例外を出さない）。
  */
 export async function reconcileCasinoTournamentScores(
-  userKey: string, discordId: string, ops: readonly EconomyOp[],
+  userKey: string,
+  discordId: string,
+  ops: readonly EconomyOp[],
 ): Promise<void> {
   try {
     await withUserLock("casino-tournament", async () => {
@@ -182,8 +203,11 @@ export async function payCasinoPrizesInner(t: CasinoTournament): Promise<CasinoT
   for (const row of split) {
     const op = buildEconomyOp(
       {
-        kind: "earn", userKey: `discord:${row.discordId}`, discordId: row.discordId,
-        amount: row.amount, reason: CASINO_TOURNAMENT_PRIZE_REASON,
+        kind: "earn",
+        userKey: `discord:${row.discordId}`,
+        discordId: row.discordId,
+        amount: row.amount,
+        reason: CASINO_TOURNAMENT_PRIZE_REASON,
       },
       casinoTournamentPrizeOpId(t.id, row.rank),
       Date.now(),
@@ -212,8 +236,11 @@ export async function payCasinoRefundsInner(t: CasinoTournament): Promise<Casino
     }
     const op = buildEconomyOp(
       {
-        kind: "earn", userKey: `discord:${discordId}`, discordId,
-        amount: CASINO_TOURNAMENT_FEE, reason: CASINO_TOURNAMENT_REFUND_REASON,
+        kind: "earn",
+        userKey: `discord:${discordId}`,
+        discordId,
+        amount: CASINO_TOURNAMENT_FEE,
+        reason: CASINO_TOURNAMENT_REFUND_REASON,
       },
       casinoTournamentRefundOpId(t.id, discordId),
       Date.now(),
@@ -230,7 +257,8 @@ export async function payCasinoRefundsInner(t: CasinoTournament): Promise<Casino
  * その場で不成立にする）、対局終了の直前にはスコアの最終精算を行う。
  */
 export async function advanceCasinoTournamentInner(
-  t: CasinoTournament, now: number,
+  t: CasinoTournament,
+  now: number,
 ): Promise<CasinoTournament> {
   let out = closeCasinoEntry(t, now);
   if (t.status === "entry" && out.status === "running") {
@@ -243,9 +271,8 @@ export async function advanceCasinoTournamentInner(
   out = closeCasinoPlay(out, now);
   if (out.status === "done" && out.closedAt !== null) {
     // 不成立（2人未満）のときだけ返金し、成立した大会は賞金を払う。
-    out = out.entrants.length < 2
-      ? await payCasinoRefundsInner(out)
-      : await payCasinoPrizesInner(out);
+    out =
+      out.entrants.length < 2 ? await payCasinoRefundsInner(out) : await payCasinoPrizesInner(out);
   }
   return out;
 }

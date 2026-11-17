@@ -63,20 +63,59 @@ const cat = await loadBundle(
 const ml = await loadBundle(
   ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/world/maplogic.ts"],
   [
-    "BIOMES", "biomeById", "biomeAt", "classifyBiome", "elevationAt", "moistureAt",
-    "isSnowZone", "CHUNK_SIZE", "chunkOf", "chunkKey", "parseChunkKey",
-    "chunkLocal", "STRUCTURES", "structureById", "structuresForChunk",
-    "generateMap", "mapTileAt", "T_GRASS", "T_WATER", "T_SNOW", "MAP_SEED",
+    "BIOMES",
+    "biomeById",
+    "biomeAt",
+    "classifyBiome",
+    "elevationAt",
+    "moistureAt",
+    "isSnowZone",
+    "CHUNK_SIZE",
+    "chunkOf",
+    "chunkKey",
+    "parseChunkKey",
+    "chunkLocal",
+    "STRUCTURES",
+    "structureById",
+    "structuresForChunk",
+    "generateMap",
+    "mapTileAt",
+    "T_GRASS",
+    "T_WATER",
+    "T_SNOW",
+    "MAP_SEED",
   ],
 );
 const ob = await loadBundle(
-  ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/world/maplogic.ts", "worldbox/economy/items.ts", "worldbox/world/objects.ts", "worldbox/combat/mobs.ts"],
   [
-    "SPECIAL_OBJECTS", "specialObjectById", "validateSpecialObjects", "objectsForChunk",
-    "rollObjectLoot", "lootForObjectAt", "objectRespawned", "makeRng",
-    "MOBS", "mobById", "validateMobs", "mobsForChunk",
-    "MOB_SIZE_MIN", "MOB_SIZE_MAX", "LARGE_MOB_SIZE", "MOB_SIZE_CLASSES", "mobSizeClass",
-    "mobFootprintBounds", "mobOccupiesTile", "largeMobsForChunk",
+    "worldbox/core/rng.ts",
+    "worldbox/world/mapgen.ts",
+    "worldbox/world/maplogic.ts",
+    "worldbox/economy/items.ts",
+    "worldbox/world/objects.ts",
+    "worldbox/combat/mobs.ts",
+  ],
+  [
+    "SPECIAL_OBJECTS",
+    "specialObjectById",
+    "validateSpecialObjects",
+    "objectsForChunk",
+    "rollObjectLoot",
+    "lootForObjectAt",
+    "objectRespawned",
+    "makeRng",
+    "MOBS",
+    "mobById",
+    "validateMobs",
+    "mobsForChunk",
+    "MOB_SIZE_MIN",
+    "MOB_SIZE_MAX",
+    "LARGE_MOB_SIZE",
+    "MOB_SIZE_CLASSES",
+    "mobSizeClass",
+    "mobFootprintBounds",
+    "mobOccupiesTile",
+    "largeMobsForChunk",
   ],
 );
 
@@ -103,7 +142,11 @@ test("カタログ: ブロック60種以上（全て耐久つき）・作物20�
 test("カタログ: 道具は4種×4段（木/石/鉄/ミスリル）", () => {
   for (const kind of ["axe", "pickaxe", "sword", "hoe"]) {
     const tools = cat.itemsWithTool(kind);
-    assert.deepEqual(tools.map((t) => t.tier), [1, 2, 3, 4], kind);
+    assert.deepEqual(
+      tools.map((t) => t.tier),
+      [1, 2, 3, 4],
+      kind,
+    );
   }
 });
 
@@ -114,7 +157,8 @@ test("カタログ: レシピと作物の参照が全て実在アイテムを指
     recipeIds.add(r.id);
     assert.ok(cat.itemById(r.output), `recipe ${r.id} output`);
     assert.ok(r.outputCount >= 1);
-    for (const input of Object.keys(r.inputs)) assert.ok(cat.itemById(input), `recipe ${r.id} input ${input}`);
+    for (const input of Object.keys(r.inputs))
+      assert.ok(cat.itemById(input), `recipe ${r.id} input ${input}`);
     if (r.rareItem) assert.ok(cat.itemById(r.rareItem), `recipe ${r.id} rare`);
   }
   assert.ok(cat.RECIPES.length >= 100, `recipes=${cat.RECIPES.length}`);
@@ -126,7 +170,16 @@ test("カタログ: レシピと作物の参照が全て実在アイテムを指
 });
 
 test("カタログ: 施設（作業台・鍛冶台・かまど）は facility で置ける", () => {
-  for (const id of ["workbench", "smithing_table", "furnace", "anvil", "storage_chest", "torch", "campfire", "well"]) {
+  for (const id of [
+    "workbench",
+    "smithing_table",
+    "furnace",
+    "anvil",
+    "storage_chest",
+    "torch",
+    "campfire",
+    "well",
+  ]) {
     const def = cat.itemById(id);
     assert.ok(def && def.facility === true, id);
   }
@@ -151,7 +204,12 @@ test("バイオーム: 分類の基本形（水=湖・砂=浜・岩=岩場・雪
 });
 
 test("バイオーム: 座標関数は決定的で、標高/湿度は [0,1]", () => {
-  for (const [x, y] of [[0, 0], [512, 512], [100, 900], [1023, 40]]) {
+  for (const [x, y] of [
+    [0, 0],
+    [512, 512],
+    [100, 900],
+    [1023, 40],
+  ]) {
     assert.equal(ml.biomeAt(ml.MAP_SEED, x, y), ml.biomeAt(ml.MAP_SEED, x, y));
     const e = ml.elevationAt(ml.MAP_SEED, x, y);
     const m = ml.moistureAt(ml.MAP_SEED, x, y);
@@ -168,8 +226,14 @@ test("バイオーム: 生成マップと一致する（水タイルは湖、北
       const tile = ml.mapTileAt(map, x, y);
       const biome = ml.biomeAt(map.seed, x, y, tile);
       assert.ok(ml.biomeById(biome), `${x},${y} -> ${biome}`);
-      if (tile === ml.T_WATER) { assert.equal(biome, "lake"); water++; }
-      if (tile === ml.T_SNOW) { assert.ok(["snowfield", "highland", "lake", "beach"].includes(biome), `${x},${y} ${biome}`); snow++; }
+      if (tile === ml.T_WATER) {
+        assert.equal(biome, "lake");
+        water++;
+      }
+      if (tile === ml.T_SNOW) {
+        assert.ok(["snowfield", "highland", "lake", "beach"].includes(biome), `${x},${y} ${biome}`);
+        snow++;
+      }
     }
   }
   assert.ok(water > 50 && snow > 50, `water=${water} snow=${snow}`);
@@ -180,7 +244,14 @@ test("バイオーム: 生成マップと一致する（水タイルは湖、北
 
 // ---------------------------------------------------------------- チャンク/構造物
 test("チャンク: 座標の往復（負座標含む）", () => {
-  for (const [x, y] of [[0, 0], [31, 31], [32, 0], [-1, -1], [-33, 65], [1023, 1023]]) {
+  for (const [x, y] of [
+    [0, 0],
+    [31, 31],
+    [32, 0],
+    [-1, -1],
+    [-33, 65],
+    [1023, 1023],
+  ]) {
     const { cx, cy } = ml.chunkOf(x, y);
     const { lx, ly } = ml.chunkLocal(x, y);
     assert.equal(cx * ml.CHUNK_SIZE + lx, x);
@@ -304,7 +375,10 @@ test("モブ: サイズは 1〜20 マスで規定され、全サイズ帯に実�
   }
   assert.equal(Math.max(...ob.MOBS.map((m) => m.size)), 20);
   for (const cls of ob.MOB_SIZE_CLASSES) {
-    assert.ok(ob.MOBS.some((m) => ob.mobSizeClass(m.size) === cls.id), cls.id);
+    assert.ok(
+      ob.MOBS.some((m) => ob.mobSizeClass(m.size) === cls.id),
+      cls.id,
+    );
   }
   assert.equal(ob.mobSizeClass(1), "small");
   assert.equal(ob.mobSizeClass(3), "medium");
@@ -348,7 +422,8 @@ test("モブ: 大型はスーパーセル配置で決定的・同種はセルに
     for (let cy = 0; cy < 80; cy++) {
       for (const p of ob.largeMobsForChunk(9, cx, cy, false)) {
         const def = ob.mobById(p.mobId);
-        const cell = Math.floor(cx / (def.size * 2)) + "," + Math.floor(cy / (def.size * 2)) + "," + p.mobId;
+        const cell =
+          Math.floor(cx / (def.size * 2)) + "," + Math.floor(cy / (def.size * 2)) + "," + p.mobId;
         assert.ok(!cells.has(cell), cell);
         cells.add(cell);
       }

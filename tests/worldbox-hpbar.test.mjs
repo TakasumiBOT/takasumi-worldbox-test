@@ -6,7 +6,10 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-const client = await readFile(new URL("../app/games/worldbox/WorldBoxClient.tsx", import.meta.url), "utf8");
+const client = await readFile(
+  new URL("../app/games/worldbox/WorldBoxClient.tsx", import.meta.url),
+  "utf8",
+);
 
 test("HP バーは showHp フラグでのみ描かれ、旧来の被ダメージゲートは無い", () => {
   assert.doesNotMatch(client, /if \(hpFrac < 1\)/);
@@ -29,5 +32,8 @@ test("攻撃しようとした個体が revealedMobs に記録され、描画キ
 
 test("倒した個体と画面外の個体は revealedMobs から外れる", () => {
   assert.match(client, /revealedMobs\.delete\(key\);/);
-  assert.match(client, /for \(const k of \[\.\.\.revealedMobs\]\) if \(!keys\.has\(k\)\) revealedMobs\.delete\(k\);/);
+  assert.match(
+    client,
+    /for \(const k of \[\.\.\.revealedMobs\]\) if \(!keys\.has\(k\)\) revealedMobs\.delete\(k\);/,
+  );
 });

@@ -52,8 +52,15 @@ async function loadBundle(files, exportNames) {
 const M = await loadBundle(
   ["worldbox/economy/items.ts", "worldbox/economy/machines.ts"],
   [
-    "isMachineItem", "defaultProgram", "parseProgram", "encodeProgram", "decodeProgram",
-    "DEVICE_PRESETS", "parseMachineState", "machineBufferCount", "evaluateMachine",
+    "isMachineItem",
+    "defaultProgram",
+    "parseProgram",
+    "encodeProgram",
+    "decodeProgram",
+    "DEVICE_PRESETS",
+    "parseMachineState",
+    "machineBufferCount",
+    "evaluateMachine",
   ],
 );
 
@@ -81,7 +88,9 @@ test("machines: share code roundtrip and junk rejection", () => {
 
 test("machines: state parse keeps only valid buffer entries", () => {
   const st = M.parseMachineState({
-    ownerId: "p1", buffer: { wheat: 3, bad: -1, nope: "x" }, lastEvalAt: 5,
+    ownerId: "p1",
+    buffer: { wheat: 3, bad: -1, nope: "x" },
+    lastEvalAt: 5,
   });
   assert.deepEqual(st.buffer, { wheat: 3 });
   assert.equal(M.machineBufferCount(st), 3);
@@ -99,9 +108,22 @@ test("machines: evaluation harvests only own mature crops, respects interval", (
     updatedAt: 0,
   };
   const neighbors = new Map([
-    ["0,1", { ownerId: "p1", farmland: true, crop: { cropId: "wheat", plantedAt: 0, readyAt: now - 1 } }],
-    ["1,0", { ownerId: "p1", farmland: true, crop: { cropId: "carrot", plantedAt: 0, readyAt: now + 60_000 } }],
-    ["1,1", { ownerId: "p2", farmland: true, crop: { cropId: "wheat", plantedAt: 0, readyAt: now - 1 } }],
+    [
+      "0,1",
+      { ownerId: "p1", farmland: true, crop: { cropId: "wheat", plantedAt: 0, readyAt: now - 1 } },
+    ],
+    [
+      "1,0",
+      {
+        ownerId: "p1",
+        farmland: true,
+        crop: { cropId: "carrot", plantedAt: 0, readyAt: now + 60_000 },
+      },
+    ],
+    [
+      "1,1",
+      { ownerId: "p2", farmland: true, crop: { cropId: "wheat", plantedAt: 0, readyAt: now - 1 } },
+    ],
   ]);
   const r = M.evaluateMachine(state, neighbors, now);
   assert.equal(r.evaluated, true);

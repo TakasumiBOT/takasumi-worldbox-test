@@ -67,12 +67,22 @@ function floor2At(x: number, y: number): number {
 const objects2: LobbyObject[] = [];
 const occupied2 = new Set<string>();
 
-type PutOpts = { w?: number; h?: number; solid?: boolean; station?: LobbyStation; genre?: ShopGenreId; arcade?: string };
+type PutOpts = {
+  w?: number;
+  h?: number;
+  solid?: boolean;
+  station?: LobbyStation;
+  genre?: ShopGenreId;
+  arcade?: string;
+};
 
 /** 筐体スプライト（arcade_<id>）なら station とゲーム ID を補う（L4）。明示指定が優先。 */
 function arcadeFields(sprite: string, opts: PutOpts): { station?: LobbyStation; arcade?: string } {
   if (!sprite.startsWith("arcade_")) return { station: opts.station, arcade: opts.arcade };
-  return { station: opts.station ?? "arcade", arcade: opts.arcade ?? sprite.slice("arcade_".length) };
+  return {
+    station: opts.station ?? "arcade",
+    arcade: opts.arcade ?? sprite.slice("arcade_".length),
+  };
 }
 
 function put2(sprite: string, x: number, y: number, opts: PutOpts = {}): void {
@@ -86,7 +96,17 @@ function put2(sprite: string, x: number, y: number, opts: PutOpts = {}): void {
     }
   }
   const af = arcadeFields(sprite, opts);
-  objects2.push({ sprite, x, y, w, h, solid: opts.solid ?? true, station: af.station, genre: opts.genre, arcade: af.arcade });
+  objects2.push({
+    sprite,
+    x,
+    y,
+    w,
+    h,
+    solid: opts.solid ?? true,
+    station: af.station,
+    genre: opts.genre,
+    arcade: af.arcade,
+  });
 }
 
 // --- 階段（通過可） ---
@@ -161,9 +181,15 @@ export const LOBBY2_OBJECTS: readonly LobbyObject[] = objects2;
 /** 1F の階段を上がった先の着地点（2F 北踊り場）。 */
 export const LOBBY2_ENTRY = { x: 19.5, y: 6.5 };
 /** 2F の階段タイル（踏むと 1F へ）。 */
-export const LOBBY2_STAIRS_DOWN: readonly { x: number; y: number }[] = [{ x: 19, y: 4 }, { x: 20, y: 4 }];
+export const LOBBY2_STAIRS_DOWN: readonly { x: number; y: number }[] = [
+  { x: 19, y: 4 },
+  { x: 20, y: 4 },
+];
 /** 2F の階段タイル（踏むと 3F へ）。 */
-export const LOBBY2_STAIRS_UP: readonly { x: number; y: number }[] = [{ x: 19, y: 24 }, { x: 20, y: 24 }];
+export const LOBBY2_STAIRS_UP: readonly { x: number; y: number }[] = [
+  { x: 19, y: 24 },
+  { x: 20, y: 24 },
+];
 /** 3F の階段を下りた先の着地点（2F 南踊り場）。 */
 export const LOBBY2_UP_LANDING = { x: 19.5, y: 22.5 };
 
@@ -182,7 +208,10 @@ export function buildLobby2(): LobbyData {
     for (let x = 0; x < LOBBY2_W; x++) {
       if (!inLobby2Shape(x, y)) continue; // 0 (L_VOID) のまま
       const boundary =
-        !inLobby2Shape(x - 1, y) || !inLobby2Shape(x + 1, y) || !inLobby2Shape(x, y - 1) || !inLobby2Shape(x, y + 1);
+        !inLobby2Shape(x - 1, y) ||
+        !inLobby2Shape(x + 1, y) ||
+        !inLobby2Shape(x, y - 1) ||
+        !inLobby2Shape(x, y + 1);
       tiles[y * LOBBY2_W + x] = boundary ? L_WALL : floor2At(x, y);
     }
   }
@@ -270,7 +299,17 @@ function put3(sprite: string, x: number, y: number, opts: PutOpts = {}): void {
     }
   }
   const af = arcadeFields(sprite, opts);
-  objects3.push({ sprite, x, y, w, h, solid: opts.solid ?? true, station: af.station, genre: opts.genre, arcade: af.arcade });
+  objects3.push({
+    sprite,
+    x,
+    y,
+    w,
+    h,
+    solid: opts.solid ?? true,
+    station: af.station,
+    genre: opts.genre,
+    arcade: af.arcade,
+  });
 }
 
 // --- 階段（通過可） ---
@@ -328,7 +367,10 @@ export const LOBBY3_OBJECTS: readonly LobbyObject[] = objects3;
 /** 2F の階段を上がった先の着地点（3F 北デッキ）。 */
 export const LOBBY3_ENTRY = { x: 15.5, y: 5.5 };
 /** 3F の階段タイル（踏むと 2F へ）。 */
-export const LOBBY3_STAIRS_DOWN: readonly { x: number; y: number }[] = [{ x: 15, y: 3 }, { x: 16, y: 3 }];
+export const LOBBY3_STAIRS_DOWN: readonly { x: number; y: number }[] = [
+  { x: 15, y: 3 },
+  { x: 16, y: 3 },
+];
 /** 3F の階段を下りた先の着地点（2F 南踊り場）。 */
 export const LOBBY3_DOWN_LANDING = { x: 19.5, y: 22.5 };
 
@@ -347,7 +389,10 @@ export function buildLobby3(): LobbyData {
     for (let x = 0; x < LOBBY3_W; x++) {
       if (!inLobby3Shape(x, y)) continue; // 0 (L_VOID) のまま
       const boundary =
-        !inLobby3Shape(x - 1, y) || !inLobby3Shape(x + 1, y) || !inLobby3Shape(x, y - 1) || !inLobby3Shape(x, y + 1);
+        !inLobby3Shape(x - 1, y) ||
+        !inLobby3Shape(x + 1, y) ||
+        !inLobby3Shape(x, y - 1) ||
+        !inLobby3Shape(x, y + 1);
       tiles[y * LOBBY3_W + x] = boundary ? L_WALL : floor3At(x, y);
     }
   }

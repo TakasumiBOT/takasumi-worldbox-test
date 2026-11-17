@@ -56,21 +56,27 @@ export async function deleteParty(party: Party): Promise<void> {
     for (const inv of party.invites) {
       await kvDelete(WORLDBOX_PARTY_NAMESPACE, inviteKey(inv.toKey));
     }
-  } catch { /* ベストエフォート */ }
+  } catch {
+    /* ベストエフォート */
+  }
 }
 
 export async function clearInviteIndex(ownerKey: string): Promise<void> {
   if (!isBotApiConfigured()) return;
   try {
     await kvDelete(WORLDBOX_PARTY_NAMESPACE, inviteKey(ownerKey));
-  } catch { /* ベストエフォート */ }
+  } catch {
+    /* ベストエフォート */
+  }
 }
 
 export async function clearMemberIndex(ownerKey: string): Promise<void> {
   if (!isBotApiConfigured()) return;
   try {
     await kvDelete(WORLDBOX_PARTY_NAMESPACE, memberKey(ownerKey));
-  } catch { /* ベストエフォート */ }
+  } catch {
+    /* ベストエフォート */
+  }
 }
 
 /** 自分が所属するパーティ（索引→本体）。索引が腐っていたら掃除する。 */

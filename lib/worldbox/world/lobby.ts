@@ -76,7 +76,14 @@ export const RACE_CORRIDOR = { x0: 54, y0: 21, x1: 59, y1: 27 };
 /** 競馬場エリア（外形に含まれる矩形）。 */
 export const RACECOURSE = { x0: 60, y0: 4, x1: 125, y1: 47 };
 
-function ellipseRatio(cx: number, cy: number, rx: number, ry: number, x: number, y: number): number {
+function ellipseRatio(
+  cx: number,
+  cy: number,
+  rx: number,
+  ry: number,
+  x: number,
+  y: number,
+): number {
   const dx = (x - cx) / rx;
   const dy = (y - cy) / ry;
   return dx * dx + dy * dy;
@@ -120,7 +127,8 @@ export function inLobbyShape(x: number, y: number): boolean {
   if (inRect(24, 34, 32, 41, x, y)) return true;
   if (inCircle(SMITH_CIRCLE.cx, SMITH_CIRCLE.cy, SMITH_CIRCLE.r, x, y)) return true;
   // 東: カジノ翼から競馬場への通路と、競馬場エリア
-  if (inRect(RACE_CORRIDOR.x0, RACE_CORRIDOR.y0, RACE_CORRIDOR.x1, RACE_CORRIDOR.y1, x, y)) return true;
+  if (inRect(RACE_CORRIDOR.x0, RACE_CORRIDOR.y0, RACE_CORRIDOR.x1, RACE_CORRIDOR.y1, x, y))
+    return true;
   if (inRect(RACECOURSE.x0, RACECOURSE.y0, RACECOURSE.x1, RACECOURSE.y1, x, y)) return true;
   // ショップ翼2階: ギルドショップ（別領域のサブエリア）
   if (inRect(2, 48, 19, 63, x, y)) return true;
@@ -141,10 +149,15 @@ function floorAt(x: number, y: number): number {
   }
   if (inRect(37, 18, 53, 30, x, y)) floor = L_CARPET;
   if (inRect(2, 18, 19, 30, x, y)) floor = L_WOOD;
-  if (inRect(24, 34, 32, 41, x, y) || inCircle(SMITH_CIRCLE.cx, SMITH_CIRCLE.cy, SMITH_CIRCLE.r, x, y)) floor = L_DARK;
+  if (
+    inRect(24, 34, 32, 41, x, y) ||
+    inCircle(SMITH_CIRCLE.cx, SMITH_CIRCLE.cy, SMITH_CIRCLE.r, x, y)
+  )
+    floor = L_DARK;
   if (inRect(2, 48, 19, 63, x, y)) floor = L_CHECK;
   // 競馬場への通路はカジノのカーペットを引き、場内はトラック=砂、内側=広場床
-  if (inRect(RACE_CORRIDOR.x0, RACE_CORRIDOR.y0, RACE_CORRIDOR.x1, RACE_CORRIDOR.y1, x, y)) floor = L_CARPET;
+  if (inRect(RACE_CORRIDOR.x0, RACE_CORRIDOR.y0, RACE_CORRIDOR.x1, RACE_CORRIDOR.y1, x, y))
+    floor = L_CARPET;
   if (inRect(RACECOURSE.x0, RACECOURSE.y0, RACECOURSE.x1, RACECOURSE.y1, x, y)) {
     floor = L_MARBLE;
     if (isRaceInfieldTile(x, y)) floor = L_PLAZA;
@@ -158,7 +171,21 @@ function floorAt(x: number, y: number): number {
 
 // ---------- オブジェクト配置 ----------
 
-export type LobbyStation = "board" | "shop" | "bank" | "casino" | "arena" | "smith" | "guild" | "fountain" | "rest" | "arcade" | "race" | "sell" | "telescope" | "piano";
+export type LobbyStation =
+  | "board"
+  | "shop"
+  | "bank"
+  | "casino"
+  | "arena"
+  | "smith"
+  | "guild"
+  | "fountain"
+  | "rest"
+  | "arcade"
+  | "race"
+  | "sell"
+  | "telescope"
+  | "piano";
 
 export type LobbyObject = {
   sprite: string;
@@ -177,7 +204,13 @@ export type LobbyObject = {
 const objects: LobbyObject[] = [];
 const occupied = new Set<string>();
 
-type PutOpts = { w?: number; h?: number; solid?: boolean; station?: LobbyStation; genre?: ShopGenreId };
+type PutOpts = {
+  w?: number;
+  h?: number;
+  solid?: boolean;
+  station?: LobbyStation;
+  genre?: ShopGenreId;
+};
 
 function put(sprite: string, x: number, y: number, opts: PutOpts = {}): void {
   const w = opts.w ?? 1;
@@ -189,7 +222,16 @@ function put(sprite: string, x: number, y: number, opts: PutOpts = {}): void {
       occupied.add(key);
     }
   }
-  objects.push({ sprite, x, y, w, h, solid: opts.solid ?? true, station: opts.station, genre: opts.genre });
+  objects.push({
+    sprite,
+    x,
+    y,
+    w,
+    h,
+    solid: opts.solid ?? true,
+    station: opts.station,
+    genre: opts.genre,
+  });
 }
 function row(sprite: string, x0: number, x1: number, y: number, opts: PutOpts = {}): void {
   for (let x = x0; x <= x1; x++) put(sprite, x, y, opts);
@@ -206,9 +248,25 @@ row("guild_board", 24, 25, 15, { station: "guild" }); // ギルドボードは�
 put("warp_pad", 28, 34, { solid: false }); // ワープパッドは広場の南縁（踏むとワールドへ）
 row("bench", 23, 24, 17);
 row("bench", 30, 31, 17);
-for (const [x, y] of [[19, 19], [37, 19], [19, 29], [37, 29]] as const) put("lamp", x, y);
-for (const [x, y] of [[21, 21], [35, 21], [21, 27], [35, 27]] as const) put("pillar", x, y);
-for (const [x, y] of [[25, 32], [31, 32]] as const) put("planter", x, y);
+for (const [x, y] of [
+  [19, 19],
+  [37, 19],
+  [19, 29],
+  [37, 29],
+] as const)
+  put("lamp", x, y);
+for (const [x, y] of [
+  [21, 21],
+  [35, 21],
+  [21, 27],
+  [35, 27],
+] as const)
+  put("pillar", x, y);
+for (const [x, y] of [
+  [25, 32],
+  [31, 32],
+] as const)
+  put("planter", x, y);
 put("vending", 24, 32);
 put("vending", 32, 32);
 
@@ -325,7 +383,14 @@ for (let y = 0; y <= 9; y++) {
     if (d2 >= 36 && d2 <= 52) put("arena_gate", x, y, { station: "arena" });
   }
 }
-for (const [x, y] of [[20, 6], [21, 5], [35, 6], [34, 5], [24, 2], [32, 2]] as const) {
+for (const [x, y] of [
+  [20, 6],
+  [21, 5],
+  [35, 6],
+  [34, 5],
+  [24, 2],
+  [32, 2],
+] as const) {
   put("bench", x, y, { station: "arena" });
 }
 put("sign_board", 29, 13, { station: "arena" });
@@ -344,7 +409,11 @@ put("lamp", 28, 41);
 
 // --- ショップ翼2階: ギルドショップ（屋台区画のグリッド、区画は空き） ---
 for (const y of [51, 57]) {
-  for (const [x0, genre] of [[3, "tools"], [8, "blocks"], [13, "furniture"]] as const) {
+  for (const [x0, genre] of [
+    [3, "tools"],
+    [8, "blocks"],
+    [13, "furniture"],
+  ] as const) {
     row("shop_counter", x0, x0 + 2, y, { station: "shop", genre });
     put("sign_board", x0 + 3, y);
   }
@@ -366,8 +435,12 @@ export const LOBBY_OBJECTS: readonly LobbyObject[] = objects;
 
 /** 店員NPC（あごむに）が立つタイル。カウンターの背面で、当たり判定なし。 */
 export const LOBBY_NPCS: readonly { x: number; y: number }[] = [
-  { x: 5, y: 19 }, { x: 9, y: 19 }, { x: 13, y: 19 }, // 北カウンターの店員レーン
-  { x: 5, y: 28 }, { x: 13, y: 28 }, { x: 15, y: 28 }, // 南カウンターの店員レーン（15 は買取カウンター）
+  { x: 5, y: 19 },
+  { x: 9, y: 19 },
+  { x: 13, y: 19 }, // 北カウンターの店員レーン
+  { x: 5, y: 28 },
+  { x: 13, y: 28 },
+  { x: 15, y: 28 }, // 南カウンターの店員レーン（15 は買取カウンター）
   { x: 74, y: 24 }, // 競馬場の馬券カウンターの係員レーン
 ];
 
@@ -376,15 +449,24 @@ export const LOBBY_ENTRY = { x: 28.5, y: 32.5 };
 /** ロビーのワープパッド（タイル座標）。ワールド→ロビーは ≡ メニューから。 */
 export const LOBBY_WARP_PAD = { x: 28, y: 34 };
 /** 1階の階段タイル（踏むと2階へ）。 */
-export const LOBBY_STAIRS_UP: readonly { x: number; y: number }[] = [{ x: 17, y: 29 }, { x: 18, y: 29 }];
+export const LOBBY_STAIRS_UP: readonly { x: number; y: number }[] = [
+  { x: 17, y: 29 },
+  { x: 18, y: 29 },
+];
 /** 2階の階段タイル（踏むと1階へ）。 */
-export const LOBBY_STAIRS_DOWN: readonly { x: number; y: number }[] = [{ x: 17, y: 62 }, { x: 18, y: 62 }];
+export const LOBBY_STAIRS_DOWN: readonly { x: number; y: number }[] = [
+  { x: 17, y: 62 },
+  { x: 18, y: 62 },
+];
 /** 階段を上がった先の着地点。 */
 export const LOBBY_UP_LANDING = { x: 17.5, y: 60.5 };
 /** 階段を下りた先の着地点。 */
 export const LOBBY_DOWN_LANDING = { x: 17.5, y: 27.5 };
 /** 本物の2F（ラウンジ、空間 "lobby2"）への階段タイル（ギルドショップ区画の北東）。 */
-export const LOBBY_STAIRS_2F: readonly { x: number; y: number }[] = [{ x: 17, y: 50 }, { x: 18, y: 50 }];
+export const LOBBY_STAIRS_2F: readonly { x: number; y: number }[] = [
+  { x: 17, y: 50 },
+  { x: 18, y: 50 },
+];
 /** 2F から下りてきた先の着地点（LOBBY_STAIRS_2F の南隣）。 */
 export const LOBBY_2F_LANDING = { x: 17.5, y: 51.5 };
 
@@ -416,7 +498,10 @@ export function buildLobby(): LobbyData {
     for (let x = 0; x < LOBBY_W; x++) {
       if (!inLobbyShape(x, y)) continue; // L_VOID のまま
       const boundary =
-        !inLobbyShape(x - 1, y) || !inLobbyShape(x + 1, y) || !inLobbyShape(x, y - 1) || !inLobbyShape(x, y + 1);
+        !inLobbyShape(x - 1, y) ||
+        !inLobbyShape(x + 1, y) ||
+        !inLobbyShape(x, y - 1) ||
+        !inLobbyShape(x, y + 1);
       tiles[y * LOBBY_W + x] = boundary ? L_WALL : floorAt(x, y);
     }
   }
@@ -462,7 +547,11 @@ function stationMatchTier(o: LobbyObject, tx: number, ty: number): 0 | 1 | 2 {
 }
 
 /** プレイヤーのタイルに隣接（チェビシェフ距離1以内）するステーション。無ければ null。 */
-export function stationNear(objectsList: readonly LobbyObject[], tx: number, ty: number): LobbyStation | null {
+export function stationNear(
+  objectsList: readonly LobbyObject[],
+  tx: number,
+  ty: number,
+): LobbyStation | null {
   let diagonal: LobbyStation | null = null;
   for (const o of objectsList) {
     if (!o.station) continue;
@@ -483,7 +572,11 @@ export function stationNear(objectsList: readonly LobbyObject[], tx: number, ty:
  * プレイヤーのタイルに隣接するアーケード筐体（station "arcade"）のゲーム ID。
  * 筐体に接していない／接した筐体がゲーム ID を持たなければ null。
  */
-export function stationArcadeNear(objectsList: readonly LobbyObject[], tx: number, ty: number): string | null {
+export function stationArcadeNear(
+  objectsList: readonly LobbyObject[],
+  tx: number,
+  ty: number,
+): string | null {
   let diagonal: string | null = null;
   for (const o of objectsList) {
     if (o.station !== "arcade" || !o.arcade) continue;
@@ -494,7 +587,11 @@ export function stationArcadeNear(objectsList: readonly LobbyObject[], tx: numbe
   return diagonal;
 }
 
-export function stationGenreNear(objectsList: readonly LobbyObject[], tx: number, ty: number): ShopGenreId | null {
+export function stationGenreNear(
+  objectsList: readonly LobbyObject[],
+  tx: number,
+  ty: number,
+): ShopGenreId | null {
   for (const o of objectsList) {
     if (o.station !== "shop" || !o.genre) continue;
     if (tx >= o.x - 1 && tx <= o.x + o.w && ty >= o.y - 1 && ty <= o.y + o.h) return o.genre;

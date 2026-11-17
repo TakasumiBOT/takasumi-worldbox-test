@@ -16,7 +16,9 @@ export function GET(request: Request) {
   const clientId = process.env.DISCORD_CLIENT_ID;
   const redirectUri = process.env.DISCORD_REDIRECT_URI;
   if (!clientId || !redirectUri || !isDiscordConfigured()) {
-    return NextResponse.redirect(new URL("/login?error=discord_not_configured", publicOrigin(request)));
+    return NextResponse.redirect(
+      new URL("/login?error=discord_not_configured", publicOrigin(request)),
+    );
   }
 
   // 別ホスト（専用サブドメイン等）から始まった場合は正規ホストへ寄せる。

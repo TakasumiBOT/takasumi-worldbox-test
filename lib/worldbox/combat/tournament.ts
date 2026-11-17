@@ -104,12 +104,19 @@ export function buildBracket(entrants: readonly string[]): TournamentMatch[] {
     const count = size >> (r + 1);
     for (let i = 0; i < count; i++) {
       matches.push({
-        id: matchId(r, i), round: r, index: i,
-        a: null, b: null, winner: null, duelId: null, state: "pending",
+        id: matchId(r, i),
+        round: r,
+        index: i,
+        a: null,
+        b: null,
+        winner: null,
+        duelId: null,
+        state: "pending",
       });
     }
   }
-  const at = (round: number, index: number): TournamentMatch => matches.find((m) => m.round === round && m.index === index)!;
+  const at = (round: number, index: number): TournamentMatch =>
+    matches.find((m) => m.round === round && m.index === index)!;
   for (let i = 0; i < size / 2; i++) {
     const m = at(0, i);
     m.a = order[i * 2] < entrants.length ? entrants[order[i * 2]] : null;
@@ -124,9 +131,7 @@ export function buildBracket(entrants: readonly string[]): TournamentMatch[] {
 }
 
 /** 勝者を次ラウンドの空き枠へ送る（決勝の勝者はここでは送らない）。 */
-function propagateWinner(
-  matches: TournamentMatch[], rounds: number, m: TournamentMatch,
-): void {
+function propagateWinner(matches: TournamentMatch[], rounds: number, m: TournamentMatch): void {
   if (!m.winner) return;
   if (m.round >= rounds - 1) return;
   const next = matches.find((x) => x.round === m.round + 1 && x.index === Math.floor(m.index / 2));
@@ -140,7 +145,10 @@ function propagateWinner(
  * 対象外（試合が無い・決着済み・勝者が対戦者でない）は null。
  */
 export function advanceMatch(
-  t: Tournament, matchIdValue: string, winnerDiscordId: string, now: number,
+  t: Tournament,
+  matchIdValue: string,
+  winnerDiscordId: string,
+  now: number,
 ): Tournament | null {
   const m = t.matches.find((x) => x.id === matchIdValue);
   if (!m || m.state === "done") return null;
@@ -192,17 +200,22 @@ export function closeEntry(t: Tournament, now: number): Tournament {
 export function publicTournamentView(t: Tournament | null, viewerDiscordId: string) {
   if (!t) {
     return {
-      status: "none" as const, fee: TOURNAMENT_FEE, maxEntrants: TOURNAMENT_MAX_ENTRANTS,
-      entrantCount: 0, entryEndsAt: null as number | null, prizePool: 0,
-      entered: false, champion: null as "you" | "decided" | null,
+      status: "none" as const,
+      fee: TOURNAMENT_FEE,
+      maxEntrants: TOURNAMENT_MAX_ENTRANTS,
+      entrantCount: 0,
+      entryEndsAt: null as number | null,
+      prizePool: 0,
+      entered: false,
+      champion: null as "you" | "decided" | null,
       myMatch: null as { round: number; state: TournamentMatchState; won: boolean | null } | null,
-      decidedMatches: 0, totalMatches: 0,
+      decidedMatches: 0,
+      totalMatches: 0,
     };
   }
   const mine = t.matches.filter((m) => m.a === viewerDiscordId || m.b === viewerDiscordId);
-  const myMatch = mine.length > 0
-    ? mine.reduce((best, m) => (m.round > best.round ? m : best))
-    : undefined;
+  const myMatch =
+    mine.length > 0 ? mine.reduce((best, m) => (m.round > best.round ? m : best)) : undefined;
   return {
     status: t.status,
     fee: TOURNAMENT_FEE,
@@ -239,7 +252,12 @@ export function parseTournament(raw: unknown): Tournament | null {
   const matches: TournamentMatch[] = [];
   for (const item of raw.matches as unknown[]) {
     if (!isRecord(item)) return null;
-    if (typeof item.id !== "string" || typeof item.round !== "number" || typeof item.index !== "number") return null;
+    if (
+      typeof item.id !== "string" ||
+      typeof item.round !== "number" ||
+      typeof item.index !== "number"
+    )
+      return null;
     if (item.a !== null && typeof item.a !== "string") return null;
     if (item.b !== null && typeof item.b !== "string") return null;
     if (item.winner !== null && typeof item.winner !== "string") return null;

@@ -58,11 +58,23 @@ async function loadBundle(files, exportNames) {
 const af = await loadBundle(
   ["worldbox/player/affordance.ts"],
   [
-    "AFFORDANCE_RANGE_TILES", "AFFORDANCE_PULSE_DIVISOR", "AFFORDANCE_NUDGE_MS",
-    "DENIED_MS", "DENIED_ALPHA_MAX", "STICK_KNOB_RADIUS", "STICK_KNOB_RADIUS_ACTIVE",
-    "AFFORDANCE_RING_RGB", "DENIED_RING_RGB",
-    "affordancePulseAlpha", "isWithinAffordanceRange", "nudgeProgress",
-    "nudgeBobPx", "nudgeRingAlpha", "deniedActive", "deniedFeedback", "stickKnobRadius",
+    "AFFORDANCE_RANGE_TILES",
+    "AFFORDANCE_PULSE_DIVISOR",
+    "AFFORDANCE_NUDGE_MS",
+    "DENIED_MS",
+    "DENIED_ALPHA_MAX",
+    "STICK_KNOB_RADIUS",
+    "STICK_KNOB_RADIUS_ACTIVE",
+    "AFFORDANCE_RING_RGB",
+    "DENIED_RING_RGB",
+    "affordancePulseAlpha",
+    "isWithinAffordanceRange",
+    "nudgeProgress",
+    "nudgeBobPx",
+    "nudgeRingAlpha",
+    "deniedActive",
+    "deniedFeedback",
+    "stickKnobRadius",
   ],
 );
 
@@ -75,8 +87,16 @@ test("affordance: 輪は 2 タイル以内で出る（斜めも同じ・遠い�
   assert.equal(af.isWithinAffordanceRange(13, 13, 10, 10, 1, 1), true, "斜め 2 タイル");
   assert.equal(af.isWithinAffordanceRange(14, 14, 10, 10, 1, 1), false, "斜め 3 タイルは出ない");
   // 2×1 の施設 (10, 10, w=2, h=1): 本体はタイル 10・11、右端は 12
-  assert.equal(af.isWithinAffordanceRange(13.5, 10.5, 10, 10, 2, 1), true, "幅のある施設の右 2 タイル");
-  assert.equal(af.isWithinAffordanceRange(14.5, 10.5, 10, 10, 2, 1), false, "右 2.5 タイルは出ない");
+  assert.equal(
+    af.isWithinAffordanceRange(13.5, 10.5, 10, 10, 2, 1),
+    true,
+    "幅のある施設の右 2 タイル",
+  );
+  assert.equal(
+    af.isWithinAffordanceRange(14.5, 10.5, 10, 10, 2, 1),
+    false,
+    "右 2.5 タイルは出ない",
+  );
 });
 
 test("affordance: 脈動は 0.10〜0.60（鉱脈と同じ周期・同じ色味の家族）", () => {
@@ -145,7 +165,10 @@ const clientSrc = fs.readFileSync(
 );
 
 test("affordance: クライアントが近くの施設・宝箱・扉に輪を出す", () => {
-  assert.ok(clientSrc.includes("affordancePulseAlpha") || clientSrc.includes("nudgeRingAlpha"), "脈動する輪を描く");
+  assert.ok(
+    clientSrc.includes("affordancePulseAlpha") || clientSrc.includes("nudgeRingAlpha"),
+    "脈動する輪を描く",
+  );
   assert.ok(clientSrc.includes("isWithinAffordanceRange"), "範囲判定を使う");
   assert.ok(clientSrc.includes("AFFORDANCE_RING_RGB"), "輪は金色");
   assert.ok(clientSrc.includes("station"), "施設が対象");
@@ -161,10 +184,16 @@ test("affordance: クライアントに押下感（ボタン・スティック�
   assert.ok(clientSrc.includes("stickKnobRadius"), "スティックのノブが掴んだら大きくなる");
   const css = fs.readFileSync(path.join(rootDir, "app/globals.css"), "utf8");
   assert.ok(css.includes(".wb-shell button:active"), "ボタン押下で縮む");
-  assert.ok(css.includes("wb-chip-pop") || clientSrc.includes("wb-chip-pop"), "施設チップが出現時にポップする");
+  assert.ok(
+    css.includes("wb-chip-pop") || clientSrc.includes("wb-chip-pop"),
+    "施設チップが出現時にポップする",
+  );
 });
 
 test("affordance: 初回だけ誘導バウンスが出る（見た施設は覚える）", () => {
   assert.ok(clientSrc.includes("nudgeBobPx"), "誘導バウンスを描く");
-  assert.ok(clientSrc.includes("seenAffordance") || clientSrc.includes("affordanceSeen"), "見た施設を覚える");
+  assert.ok(
+    clientSrc.includes("seenAffordance") || clientSrc.includes("affordanceSeen"),
+    "見た施設を覚える",
+  );
 });

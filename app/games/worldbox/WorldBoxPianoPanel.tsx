@@ -21,19 +21,34 @@ const BLACK_KEYS: { semi: number; afterWhite: number }[] = [
 ];
 
 const wrap: React.CSSProperties = {
-  position: "absolute", left: "50%", bottom: "calc(10px + env(safe-area-inset-bottom, 0px))",
+  position: "absolute",
+  left: "50%",
+  bottom: "calc(10px + env(safe-area-inset-bottom, 0px))",
   transform: "translateX(-50%)",
-  width: "min(560px, calc(100% - 16px))", boxSizing: "border-box",
-  padding: "10px 12px 12px", borderRadius: 14,
-  background: "rgba(12,14,22,0.94)", color: "#fff", zIndex: 6,
+  width: "min(560px, calc(100% - 16px))",
+  boxSizing: "border-box",
+  padding: "10px 12px 12px",
+  borderRadius: 14,
+  background: "rgba(12,14,22,0.94)",
+  color: "#fff",
+  zIndex: 6,
   boxShadow: "0 10px 32px rgba(0,0,0,0.5)",
 };
 const btn: React.CSSProperties = {
-  minHeight: 36, padding: "4px 12px", borderRadius: 9, border: "1px solid rgba(255,255,255,0.25)",
-  background: "rgba(255,255,255,0.1)", color: "#fff", fontSize: 13, cursor: "pointer",
+  minHeight: 36,
+  padding: "4px 12px",
+  borderRadius: 9,
+  border: "1px solid rgba(255,255,255,0.25)",
+  background: "rgba(255,255,255,0.1)",
+  color: "#fff",
+  fontSize: 13,
+  cursor: "pointer",
 };
 
-export default function WorldBoxPianoPanel({ onClose, onPlay }: {
+export default function WorldBoxPianoPanel({
+  onClose,
+  onPlay,
+}: {
   onClose: () => void;
   onPlay: (semi: number) => void;
 }) {
@@ -54,10 +69,18 @@ export default function WorldBoxPianoPanel({ onClose, onPlay }: {
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
         <strong style={{ fontSize: 14 }}>ピアノ</strong>
         <span style={{ flex: 1 }} />
-        <button type="button" style={btn} onClick={onClose}>閉じる</button>
+        <button type="button" style={btn} onClick={onClose}>
+          閉じる
+        </button>
       </div>
       <div
-        style={{ position: "relative", height: 148, touchAction: "none", userSelect: "none", WebkitUserSelect: "none" }}
+        style={{
+          position: "relative",
+          height: 148,
+          touchAction: "none",
+          userSelect: "none",
+          WebkitUserSelect: "none",
+        }}
         onContextMenu={(e) => e.preventDefault()}
       >
         <div style={{ display: "flex", height: "100%", gap: 2 }}>
@@ -66,9 +89,15 @@ export default function WorldBoxPianoPanel({ onClose, onPlay }: {
               key={semi}
               type="button"
               aria-label={`鍵盤 ${semi}`}
-              onPointerDown={(e) => { e.preventDefault(); press(semi); }}
+              onPointerDown={(e) => {
+                e.preventDefault();
+                press(semi);
+              }}
               style={{
-                flex: 1, height: "100%", borderRadius: "0 0 6px 6px", cursor: "pointer",
+                flex: 1,
+                height: "100%",
+                borderRadius: "0 0 6px 6px",
+                cursor: "pointer",
                 border: "1px solid rgba(20,16,8,0.55)",
                 background: pressed === semi ? "#ffd23e" : "#f4eedd",
                 boxShadow: "inset 0 -6px 10px rgba(120,90,20,0.18)",
@@ -82,12 +111,19 @@ export default function WorldBoxPianoPanel({ onClose, onPlay }: {
             key={semi}
             type="button"
             aria-label={`鍵盤 ${semi}`}
-            onPointerDown={(e) => { e.preventDefault(); press(semi); }}
+            onPointerDown={(e) => {
+              e.preventDefault();
+              press(semi);
+            }}
             style={{
-              position: "absolute", top: 0, height: "58%", zIndex: 2,
+              position: "absolute",
+              top: 0,
+              height: "58%",
+              zIndex: 2,
               left: `calc(${(afterWhite + 1) * whiteW}% - ${whiteW * 0.31}%)`,
               width: `${whiteW * 0.62}%`,
-              borderRadius: "0 0 5px 5px", cursor: "pointer",
+              borderRadius: "0 0 5px 5px",
+              cursor: "pointer",
               border: "1px solid rgba(0,0,0,0.8)",
               background: pressed === semi ? "#ffd23e" : "#17171f",
               boxShadow: "0 4px 8px rgba(0,0,0,0.45)",

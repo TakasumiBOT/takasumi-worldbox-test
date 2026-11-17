@@ -3,7 +3,15 @@
 // HP と死亡（再出現待ち）だけをサーバー状態として持ち、攻撃のたびに
 // サーバーが配置を再計算して実在を検証する（存在しない個体は殴れない）。
 // ダメージは闘技場と同じ式（arena.ts の playerAttack: 素手8 + 最良の剣 tier×4）。
-import { mobById, mobsForChunk, largeMobsForChunk, mobFootprintBounds, mobOccupiesTile, type MobDef, type PlacedMob } from "./mobs";
+import {
+  mobById,
+  mobsForChunk,
+  largeMobsForChunk,
+  mobFootprintBounds,
+  mobOccupiesTile,
+  type MobDef,
+  type PlacedMob,
+} from "./mobs";
 import { CHUNK_SIZE } from "../world/maplogic";
 
 /** 倒したモブが同じアンカーに再出現するまでの基本時間（15分）。 */
@@ -154,14 +162,19 @@ export type MobState = {
 export function parseMobState(raw: unknown): MobState | null {
   let v: unknown = raw;
   if (typeof raw === "string") {
-    try { v = JSON.parse(raw); } catch { return null; }
+    try {
+      v = JSON.parse(raw);
+    } catch {
+      return null;
+    }
   }
   if (typeof v !== "object" || v === null) return null;
   const o = v as { hp?: unknown; deadUntil?: unknown; frozenUntil?: unknown };
   if (typeof o.hp !== "number" || !Number.isFinite(o.hp)) return null;
   const st: MobState = { hp: Math.max(0, Math.floor(o.hp)) };
   if (typeof o.deadUntil === "number" && Number.isFinite(o.deadUntil)) st.deadUntil = o.deadUntil;
-  if (typeof o.frozenUntil === "number" && Number.isFinite(o.frozenUntil)) st.frozenUntil = o.frozenUntil;
+  if (typeof o.frozenUntil === "number" && Number.isFinite(o.frozenUntil))
+    st.frozenUntil = o.frozenUntil;
   return st;
 }
 
@@ -184,7 +197,11 @@ export function parseMobStates(raw: unknown): Record<string, MobState> {
 }
 
 /** 状態から見た現在 HP と生存。deadUntil を過ぎた死亡状態は満タン復活として扱う。 */
-export function mobHpNow(def: MobDef, state: MobState | null, now: number): { hp: number; alive: boolean } {
+export function mobHpNow(
+  def: MobDef,
+  state: MobState | null,
+  now: number,
+): { hp: number; alive: boolean } {
   if (!state) return { hp: def.hp, alive: true };
   if (state.deadUntil !== undefined) {
     if (now < state.deadUntil) return { hp: 0, alive: false };
@@ -195,7 +212,12 @@ export function mobHpNow(def: MobDef, state: MobState | null, now: number): { hp
 
 /** 範囲内のモブ配置をすべて返す（通常配置＋大型のスーパーセル配置）。 */
 export function visibleMobs(
-  seed: number, x0: number, y0: number, x1: number, y1: number, isNight: boolean,
+  seed: number,
+  x0: number,
+  y0: number,
+  x1: number,
+  y1: number,
+  isNight: boolean,
 ): PlacedMob[] {
   const out: PlacedMob[] = [];
   const cx0 = Math.floor(x0 / CHUNK_SIZE);
@@ -216,15 +238,28 @@ export function visibleMobs(
 }
 
 /** そのアンカーにその種が実在するか（配置の再計算で検証する）。 */
-export function mobExistsAt(seed: number, mobId: string, x: number, y: number, isNight: boolean): boolean {
+export function mobExistsAt(
+  seed: number,
+  mobId: string,
+  x: number,
+  y: number,
+  isNight: boolean,
+): boolean {
   const cx = Math.floor(x / CHUNK_SIZE);
   const cy = Math.floor(y / CHUNK_SIZE);
   const hit = (m: PlacedMob) => m.mobId === mobId && m.x === x && m.y === y;
-  return mobsForChunk(seed, cx, cy, isNight).some(hit) || largeMobsForChunk(seed, cx, cy, isNight).some(hit);
+  return (
+    mobsForChunk(seed, cx, cy, isNight).some(hit) ||
+    largeMobsForChunk(seed, cx, cy, isNight).some(hit)
+  );
 }
 
 /** プレイヤーのタイルからモブ占有範囲までのチェビシェフ距離（範囲内なら 0）。 */
-export function mobDistance(px: number, py: number, placed: Pick<PlacedMob, "x" | "y" | "size">): number {
+export function mobDistance(
+  px: number,
+  py: number,
+  placed: Pick<PlacedMob, "x" | "y" | "size">,
+): number {
   const b = mobFootprintBounds(placed.size, placed.x, placed.y);
   const dx = px < b.minX ? b.minX - px : px > b.maxX ? px - b.maxX : 0;
   const dy = py < b.minY ? b.minY - py : py > b.maxY ? py - b.maxY : 0;
@@ -239,7 +274,10 @@ export function mobDistance(px: number, py: number, placed: Pick<PlacedMob, "x" 
  * 候補の現在位置は呼び出し側が渡す（アンカーでも現在タイルでもよい）。
  */
 export function attackTarget<T extends Pick<PlacedMob, "mobId" | "x" | "y" | "size">>(
-  px: number, py: number, tx: number, ty: number,
+  px: number,
+  py: number,
+  tx: number,
+  ty: number,
   candidates: readonly T[],
 ): T | null {
   let best: T | null = null;
@@ -250,8 +288,10 @@ export function attackTarget<T extends Pick<PlacedMob, "mobId" | "x" | "y" | "si
     const onTap = mobOccupiesTile(m.size, m.x, m.y, tx, ty) ? 0 : 1;
     const rank: [number, number, number] = [onTap, mobDistance(tx, ty, m), distP];
     if (
-      !bestRank || rank[0] < bestRank[0] ||
-      (rank[0] === bestRank[0] && (rank[1] < bestRank[1] || (rank[1] === bestRank[1] && rank[2] < bestRank[2])))
+      !bestRank ||
+      rank[0] < bestRank[0] ||
+      (rank[0] === bestRank[0] &&
+        (rank[1] < bestRank[1] || (rank[1] === bestRank[1] && rank[2] < bestRank[2])))
     ) {
       best = m;
       bestRank = rank;
@@ -307,7 +347,9 @@ export function mobFootprintTiles(size: number, tx: number, ty: number): string[
  * モブ群の占有タイル集合（プレイヤー移動の BlockedTiles へ合成する用）。
  * 引数の x, y は「現在の中心タイル」（モブは動くためアンカーではなく現在位置）。
  */
-export function mobBlockedTiles(mobs: readonly { size: number; x: number; y: number }[]): Set<string> {
+export function mobBlockedTiles(
+  mobs: readonly { size: number; x: number; y: number }[],
+): Set<string> {
   const out = new Set<string>();
   for (const m of mobs) {
     for (const key of mobFootprintTiles(m.size, m.x, m.y)) out.add(key);
@@ -340,7 +382,10 @@ export function knockbackTarget(
   let d = distance;
   let tx = player.x + dx * d;
   let ty = player.y + dy * d;
-  while (mobOccupiesTile(placed.size, placed.x, placed.y, Math.floor(tx), Math.floor(ty)) && d < placed.size + 2) {
+  while (
+    mobOccupiesTile(placed.size, placed.x, placed.y, Math.floor(tx), Math.floor(ty)) &&
+    d < placed.size + 2
+  ) {
     d += 0.5;
     tx = player.x + dx * d;
     ty = player.y + dy * d;

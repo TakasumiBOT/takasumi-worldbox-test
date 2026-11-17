@@ -6,8 +6,12 @@
 // （Bot 側ワーカーがチャンネルへ投稿する）。
 import { isBotApiConfigured, kvGet, kvSet } from "../../bot-api";
 import {
-  parseChatMessage, parseUnionChatSettings, pruneChatMessages,
-  type ChatChannel, type ChatMessage, type UnionChatSettings,
+  parseChatMessage,
+  parseUnionChatSettings,
+  pruneChatMessages,
+  type ChatChannel,
+  type ChatMessage,
+  type UnionChatSettings,
 } from "./chat";
 import { withUserLock } from "../core/user-lock";
 
@@ -41,7 +45,11 @@ async function loadList(channel: ChatChannel, key: string): Promise<ChatMessage[
   }
 }
 
-async function storeList(channel: ChatChannel, key: string, messages: ChatMessage[]): Promise<boolean> {
+async function storeList(
+  channel: ChatChannel,
+  key: string,
+  messages: ChatMessage[],
+): Promise<boolean> {
   try {
     await kvSet(namespaceFor(channel), key, JSON.stringify(messages));
     return true;
@@ -122,4 +130,3 @@ export async function enqueueChatOutbox(entry: ChatOutboxEntry): Promise<boolean
     return false;
   }
 }
-

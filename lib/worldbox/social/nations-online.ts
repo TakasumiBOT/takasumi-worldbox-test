@@ -4,7 +4,10 @@
 // "nations" / "members" の2キーを read-modify-write でまとめて扱う。
 import { isBotApiConfigured, kvGet, kvSet } from "../../bot-api";
 import {
-  NATIONS_STATE_VERSION, emptyNationsState, parseNationsState, type NationsState,
+  NATIONS_STATE_VERSION,
+  emptyNationsState,
+  parseNationsState,
+  type NationsState,
 } from "./nations";
 
 export const WORLDBOX_NATIONS_NAMESPACE = "worldbox_nations";

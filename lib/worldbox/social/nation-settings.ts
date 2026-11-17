@@ -33,7 +33,13 @@ export const TAX_RATE_DEFAULT = 0.05;
 export const TAX_RATE_MAX = 0.1;
 
 export function defaultNationSettings(): NationSettings {
-  return { taxRate: TAX_RATE_DEFAULT, visibility: "open", ministers: [], taxCollected: 0, updatedAt: 0 };
+  return {
+    taxRate: TAX_RATE_DEFAULT,
+    visibility: "open",
+    ministers: [],
+    taxCollected: 0,
+    updatedAt: 0,
+  };
 }
 
 function asRecord(raw: unknown): Record<string, unknown> | null {
@@ -130,7 +136,8 @@ export function resolveMemberRole(
   memberKeys: ReadonlySet<string>,
 ): ResolvedMemberRole | null {
   if (!memberKeys.has(ownerKey)) return null;
-  if (ownerKey === nation.kingKey) return { role: "king", appointed: false, discordMinister: false };
+  if (ownerKey === nation.kingKey)
+    return { role: "king", appointed: false, discordMinister: false };
   const appointed = effectiveMinisters(settings, memberKeys).includes(ownerKey);
   const discordMinister = storedRole === "minister";
   if (appointed || discordMinister) return { role: "minister", appointed, discordMinister };

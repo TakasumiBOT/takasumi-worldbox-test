@@ -46,8 +46,21 @@ function bundleModule(files, names) {
 }
 
 const url = bundleModule(
-  ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/world/maplogic.ts", "worldbox/economy/items.ts", "worldbox/combat/mobs.ts", "worldbox/combat/combat.ts"],
-  ["mobFootprintTiles", "mobBlockedTiles", "knockbackTarget", "mobOccupiesTile", "mobFootprintBounds"],
+  [
+    "worldbox/core/rng.ts",
+    "worldbox/world/mapgen.ts",
+    "worldbox/world/maplogic.ts",
+    "worldbox/economy/items.ts",
+    "worldbox/combat/mobs.ts",
+    "worldbox/combat/combat.ts",
+  ],
+  [
+    "mobFootprintTiles",
+    "mobBlockedTiles",
+    "knockbackTarget",
+    "mobOccupiesTile",
+    "mobFootprintBounds",
+  ],
 );
 const wb = await import(url);
 
@@ -88,7 +101,10 @@ test("knockbackTarget: モブから離れる方向へ押し出し、着地点は
 });
 
 test("クライアント: 占有が移動判定へ合成され、接触でノックバックと hit fx が発火する", () => {
-  const client = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"), "utf8");
+  const client = fs.readFileSync(
+    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    "utf8",
+  );
   assert.ok(client.includes("mobBlockedTiles("), "占有タイルの合成が無い");
   assert.ok(client.includes("mobFrameBlocked"), "フレーム上書きが activeBlocked に繋がっていない");
   assert.ok(client.includes("mobFootprintTiles("), "真上に立つモブの占有除外が無い");
@@ -97,10 +113,15 @@ test("クライアント: 占有が移動判定へ合成され、接触でノッ
   assert.ok(client.includes("contactFiredAt"), "接触の再発火間隔が無い");
   // ノックバックは瞬間移動でなく初速＋減衰（kbVel を stepMove で適用する）
   assert.ok(client.includes("kbVel"), "ノックバックの速度適用が無い");
-  assert.ok(!client.includes("const free = findFreeNear(activeMap(), target.x, target.y"), "接触で瞬間移動している");
+  assert.ok(
+    !client.includes("const free = findFreeNear(activeMap(), target.x, target.y"),
+    "接触で瞬間移動している",
+  );
   // stepMove の呼び出し形（時間ステップはヒットストップ対応の sdt）
   assert.ok(
-    client.includes('stepMove(activeMap(), player, vel, sdt, activeBlocked(), { swim: space === "world" })'),
+    client.includes(
+      'stepMove(activeMap(), player, vel, sdt, activeBlocked(), { swim: space === "world" })',
+    ),
     "stepMove の呼び出しが変わっている",
   );
 });

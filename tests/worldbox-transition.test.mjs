@@ -57,10 +57,18 @@ async function loadBundle(files, exportNames) {
 const tr = await loadBundle(
   ["worldbox/world/transition.ts"],
   [
-    "TRANSITION_FADE_OUT_MS", "TRANSITION_FADE_IN_MS", "TRANSITION_TOTAL_MS",
-    "TRANSITION_ENTER_MS", "RECONNECT_PULSE_MS", "RECONNECT_PULSE_ALPHA",
-    "SPRITE_PRELOAD_TIMEOUT_MS", "TRANSITION_OVERLAY_RGB",
-    "transitionTotalMs", "transitionAlpha", "transitionSwapDue", "transitionDone",
+    "TRANSITION_FADE_OUT_MS",
+    "TRANSITION_FADE_IN_MS",
+    "TRANSITION_TOTAL_MS",
+    "TRANSITION_ENTER_MS",
+    "RECONNECT_PULSE_MS",
+    "RECONNECT_PULSE_ALPHA",
+    "SPRITE_PRELOAD_TIMEOUT_MS",
+    "TRANSITION_OVERLAY_RGB",
+    "transitionTotalMs",
+    "transitionAlpha",
+    "transitionSwapDue",
+    "transitionDone",
     "preloadImages",
   ],
 );
@@ -143,7 +151,10 @@ function fakeImage(behavior) {
 }
 
 test("transition: 先読みは全枚成功で loaded に集まる", async () => {
-  const r = await tr.preloadImages(["a.png", "b.png"], { imageFactory: fakeImage("ok"), timeoutMs: 1000 });
+  const r = await tr.preloadImages(["a.png", "b.png"], {
+    imageFactory: fakeImage("ok"),
+    timeoutMs: 1000,
+  });
   assert.deepEqual(r.loaded.sort(), ["a.png", "b.png"]);
   assert.deepEqual(r.failed, []);
   assert.equal(r.timedOut, false);
@@ -162,7 +173,10 @@ test("transition: 先読みは失敗が混ざっても残りを待って解決�
 });
 
 test("transition: 先読みは応答がなくてもタイムアウトで必ず解決する", async () => {
-  const r = await tr.preloadImages(["a.png", "b.png"], { imageFactory: fakeImage("hang"), timeoutMs: 50 });
+  const r = await tr.preloadImages(["a.png", "b.png"], {
+    imageFactory: fakeImage("hang"),
+    timeoutMs: 50,
+  });
   assert.equal(r.timedOut, true);
   assert.deepEqual(r.loaded, []);
 });
@@ -173,7 +187,10 @@ test("transition: 先読みは重複 URL を1回にまとめる", async () => {
     calls += 1;
     return fakeImage("ok")();
   };
-  const r = await tr.preloadImages(["a.png", "a.png", "a.png"], { imageFactory: counting, timeoutMs: 1000 });
+  const r = await tr.preloadImages(["a.png", "a.png", "a.png"], {
+    imageFactory: counting,
+    timeoutMs: 1000,
+  });
   assert.equal(calls, 1);
   assert.deepEqual(r.loaded, ["a.png"]);
 });
@@ -203,12 +220,21 @@ test("transition: クライアントがワープ/テレポート/リスポーン
 
 test("transition: クライアントが入場前にスプライトを先読みする", () => {
   assert.ok(clientSrc.includes("preloadImages"), "先読みを呼ぶ");
-  assert.ok(clientSrc.includes("LOBBY_SPRITE_SRC") || clientSrc.includes("loadLobbySprites"), "ロビー素材が対象");
-  assert.ok(clientSrc.includes("booted") || clientSrc.includes("spritesReady"), "先読み完了までワールドを出さない");
+  assert.ok(
+    clientSrc.includes("LOBBY_SPRITE_SRC") || clientSrc.includes("loadLobbySprites"),
+    "ロビー素材が対象",
+  );
+  assert.ok(
+    clientSrc.includes("booted") || clientSrc.includes("spritesReady"),
+    "先読み完了までワールドを出さない",
+  );
   assert.ok(clientSrc.includes("SPRITE_PRELOAD_TIMEOUT_MS"), "先読みに上限がある");
 });
 
 test("transition: 再接続時に復帰パルスを出す（入力は止めない）", () => {
-  assert.ok(clientSrc.includes("\"reconnect\""), "再接続種別がある");
-  assert.ok(clientSrc.includes("rtEverConnected") || clientSrc.includes("everConnected"), "初回接続と再接続を区別する");
+  assert.ok(clientSrc.includes('"reconnect"'), "再接続種別がある");
+  assert.ok(
+    clientSrc.includes("rtEverConnected") || clientSrc.includes("everConnected"),
+    "初回接続と再接続を区別する",
+  );
 });

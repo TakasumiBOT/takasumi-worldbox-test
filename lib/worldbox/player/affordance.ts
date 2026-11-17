@@ -36,7 +36,8 @@ export const DENIED_RING_RGB = "226,72,58";
 
 /** 脈動する輪の不透明度（0.10〜0.60）。鉱脈の脈動と同じ式。 */
 export function affordancePulseAlpha(nowMs: number): number {
-  const a = AFFORDANCE_PULSE_BASE + AFFORDANCE_PULSE_AMP * Math.sin(nowMs / AFFORDANCE_PULSE_DIVISOR);
+  const a =
+    AFFORDANCE_PULSE_BASE + AFFORDANCE_PULSE_AMP * Math.sin(nowMs / AFFORDANCE_PULSE_DIVISOR);
   return Math.max(0.1, Math.min(0.6, a));
 }
 
@@ -80,10 +81,7 @@ export function nudgeBobPx(ageMs: number): number {
 export function nudgeRingAlpha(nowMs: number, ageMs: number): number {
   const p = nudgeProgress(ageMs);
   if (p >= 1) return affordancePulseAlpha(nowMs);
-  return Math.min(
-    AFFORDANCE_NUDGE_ALPHA_MAX,
-    affordancePulseAlpha(nowMs) + 0.25 * (1 - p),
-  );
+  return Math.min(AFFORDANCE_NUDGE_ALPHA_MAX, affordancePulseAlpha(nowMs) + 0.25 * (1 - p));
 }
 
 /** 無効操作フィードバックがまだ有効か。 */

@@ -193,10 +193,16 @@ test("war: 期限切れの戦争では他者ブロックを掘れない（now �
   // 期限内は掘れる（境界は expireWars と同じ: endsAt ちょうどは有効）
   assert.equal(W.warLiveAt(war, NOW + W.WAR_DURATION_MS), true);
   assert.equal(W.canBreakOthersBlock(state, A.id, B.id, 100, 100, capital, NOW + 1000), true);
-  assert.equal(W.canBreakOthersBlock(state, A.id, B.id, 100, 100, capital, NOW + W.WAR_DURATION_MS), true);
+  assert.equal(
+    W.canBreakOthersBlock(state, A.id, B.id, 100, 100, capital, NOW + W.WAR_DURATION_MS),
+    true,
+  );
   // 期限を過ぎたら、status が "active" のまま（expireWars 未精算）でも掘れない
   assert.equal(W.warLiveAt(war, NOW + W.WAR_DURATION_MS + 1), false);
-  assert.equal(W.canBreakOthersBlock(state, A.id, B.id, 100, 100, capital, NOW + W.WAR_DURATION_MS + 1), false);
+  assert.equal(
+    W.canBreakOthersBlock(state, A.id, B.id, 100, 100, capital, NOW + W.WAR_DURATION_MS + 1),
+    false,
+  );
 });
 
 // ---------- 繁栄ランキング ----------
@@ -208,8 +214,14 @@ test("war: 繁栄ランキングは繁栄度順、同値は建国順、順位は
     { id: "3", name: "c", color: "#ffb224", members: 2, prosperity: 10, createdAt: 100 },
     { id: "4", name: "d", color: "#46a758", members: 0, prosperity: 0, createdAt: 400 },
   ]);
-  assert.deepEqual(ranking.map((r) => r.id), ["2", "3", "1", "4"]);
-  assert.deepEqual(ranking.map((r) => r.rank), [1, 2, 3, 4]);
+  assert.deepEqual(
+    ranking.map((r) => r.id),
+    ["2", "3", "1", "4"],
+  );
+  assert.deepEqual(
+    ranking.map((r) => r.rank),
+    [1, 2, 3, 4],
+  );
 });
 
 // ---------- 保存形式 ----------
@@ -226,7 +238,18 @@ test("war: 保存→復元の往復で戦争と履歴が残り、壊れた値は
   const partial = W.parseWarState({
     v: 1,
     wars: { bad: { id: "bad" }, ok: hit.state.wars[Object.keys(hit.state.wars)[0]] },
-    history: [{ id: "x" }, { id: "h1", attackerId: A.id, defenderId: B.id, attackerName: "a", defenderName: "b", outcome: "expired", endedAt: NOW }],
+    history: [
+      { id: "x" },
+      {
+        id: "h1",
+        attackerId: A.id,
+        defenderId: B.id,
+        attackerName: "a",
+        defenderName: "b",
+        outcome: "expired",
+        endedAt: NOW,
+      },
+    ],
     lastDeclaredAt: { [A.id]: NOW, bad: "x" },
   });
   assert.equal(Object.keys(partial.wars).length, 1);
@@ -236,11 +259,26 @@ test("war: 保存→復元の往復で戦争と履歴が残り、壊れた値は
 // ---------- タイル採掘への配線 ----------
 
 const tilesUrl = bundleModule(
-  ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/economy/items.ts", "worldbox/player/profile.ts", "worldbox/player/presence.ts", "worldbox/world/seasons.ts", "worldbox/world/tiles.ts"],
   [
-    "worldTileSource", "mapTileAt", "T_GRASS",
-    "parseProfile", "addItem", "countItem",
-    "applyPlaceBlock", "applyMineBlock", "tileKey", "presenceIdFor",
+    "worldbox/core/rng.ts",
+    "worldbox/world/mapgen.ts",
+    "worldbox/economy/items.ts",
+    "worldbox/player/profile.ts",
+    "worldbox/player/presence.ts",
+    "worldbox/world/seasons.ts",
+    "worldbox/world/tiles.ts",
+  ],
+  [
+    "worldTileSource",
+    "mapTileAt",
+    "T_GRASS",
+    "parseProfile",
+    "addItem",
+    "countItem",
+    "applyPlaceBlock",
+    "applyMineBlock",
+    "tileKey",
+    "presenceIdFor",
   ],
 );
 const T = await import(tilesUrl);
@@ -261,16 +299,45 @@ const NO_CTX = { onCapital: false };
 const withItems = (items) => T.parseProfile({ items });
 
 test("war: 採掘は warBreakAllowed があるときだけ他者ブロックを掘れる", () => {
-  const placed = T.applyPlaceBlock(null, withItems({ dirt_block: 1 }), map, OTHER_KEY, grassAt.x, grassAt.y, "dirt_block", NOW, NO_CTX);
+  const placed = T.applyPlaceBlock(
+    null,
+    withItems({ dirt_block: 1 }),
+    map,
+    OTHER_KEY,
+    grassAt.x,
+    grassAt.y,
+    "dirt_block",
+    NOW,
+    NO_CTX,
+  );
   assert.equal(placed.ok, true);
-  const denied = T.applyMineBlock(placed.override, withItems({}), map, ME_KEY, grassAt.x, grassAt.y, NOW);
+  const denied = T.applyMineBlock(
+    placed.override,
+    withItems({}),
+    map,
+    ME_KEY,
+    grassAt.x,
+    grassAt.y,
+    NOW,
+  );
   assert.equal(denied.ok, false);
   assert.equal(denied.error, "not_owner");
   const allowed = T.applyMineBlock(
-    placed.override, withItems({}), map, ME_KEY, grassAt.x, grassAt.y, NOW, { warBreakAllowed: true },
+    placed.override,
+    withItems({}),
+    map,
+    ME_KEY,
+    grassAt.x,
+    grassAt.y,
+    NOW,
+    { warBreakAllowed: true },
   );
   assert.equal(allowed.ok, true);
-  assert.equal(T.countItem(allowed.profile, "dirt_block"), 1, "掘ったブロックは掘った者の所持品に入る");
+  assert.equal(
+    T.countItem(allowed.profile, "dirt_block"),
+    1,
+    "掘ったブロックは掘った者の所持品に入る",
+  );
   assert.equal(allowed.override, null);
 });
 
@@ -279,10 +346,15 @@ test("war: 採掘は warBreakAllowed があるときだけ他者ブロックを�
 test("war: ルート配線（宣言はギルドボード前・王/大臣、破壊で防衛国を解散）", () => {
   const route = fs.readFileSync(path.join(rootDir, "app/api/worldbox/war/route.ts"), "utf8");
   for (const needle of [
-    "loadMyLobbyStation", "not_at_guild_board",
-    "forbidden_role", "disbandNation",
-    "attack_mark", "repair_mark", "declare",
-    "expireWars", "prosperityRanking",
+    "loadMyLobbyStation",
+    "not_at_guild_board",
+    "forbidden_role",
+    "disbandNation",
+    "attack_mark",
+    "repair_mark",
+    "declare",
+    "expireWars",
+    "prosperityRanking",
   ]) {
     assert.ok(route.includes(needle), `war ルートに ${needle} が無い`);
   }

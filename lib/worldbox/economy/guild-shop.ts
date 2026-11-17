@@ -15,8 +15,12 @@ export const GUILD_LISTING_MAX = 12;
 
 /** 区画カウンターの中心タイル（ロビー地図の屋台グリッドと一致させる）。 */
 export const GUILD_PLOT_ANCHORS: readonly { x: number; y: number }[] = [
-  { x: 4, y: 51 }, { x: 9, y: 51 }, { x: 14, y: 51 },
-  { x: 4, y: 57 }, { x: 9, y: 57 }, { x: 14, y: 57 },
+  { x: 4, y: 51 },
+  { x: 9, y: 51 },
+  { x: 14, y: 51 },
+  { x: 4, y: 57 },
+  { x: 9, y: 57 },
+  { x: 14, y: 57 },
 ];
 
 export interface GuildListing {
@@ -85,8 +89,10 @@ export function parseGuildShopState(raw: unknown): GuildShopState {
       out.plots[idx] = { idx, guildId: p.guildId, listings };
     }
   }
-  if (typeof v.listingSeq === "number" && Number.isFinite(v.listingSeq)) out.listingSeq = Math.max(0, Math.floor(v.listingSeq));
-  if (typeof v.feeSeq === "number" && Number.isFinite(v.feeSeq)) out.feeSeq = Math.max(0, Math.floor(v.feeSeq));
+  if (typeof v.listingSeq === "number" && Number.isFinite(v.listingSeq))
+    out.listingSeq = Math.max(0, Math.floor(v.listingSeq));
+  if (typeof v.feeSeq === "number" && Number.isFinite(v.feeSeq))
+    out.feeSeq = Math.max(0, Math.floor(v.feeSeq));
   return out;
 }
 
@@ -95,15 +101,21 @@ export function listingAvailable(listing: GuildListing): number {
 }
 
 /** 売り手の取り分（手数料を引いた額、切り捨て）。率は国の税率が正。 */
-export function sellerProceeds(price: number, count: number, feeRate: number = GUILD_SHOP_FEE_RATE): number {
-  const rate = Number.isFinite(feeRate)
-    ? Math.min(0.9, Math.max(0, feeRate))
-    : GUILD_SHOP_FEE_RATE;
+export function sellerProceeds(
+  price: number,
+  count: number,
+  feeRate: number = GUILD_SHOP_FEE_RATE,
+): number {
+  const rate = Number.isFinite(feeRate) ? Math.min(0.9, Math.max(0, feeRate)) : GUILD_SHOP_FEE_RATE;
   return Math.floor(price * count * (1 - rate));
 }
 
 /** 売上から差し引かれる税額（= 売上総額 − 売り手取り分、シンク分）。 */
-export function saleTaxAmount(price: number, count: number, feeRate: number = GUILD_SHOP_FEE_RATE): number {
+export function saleTaxAmount(
+  price: number,
+  count: number,
+  feeRate: number = GUILD_SHOP_FEE_RATE,
+): number {
   return Math.max(0, price * count - sellerProceeds(price, count, feeRate));
 }
 

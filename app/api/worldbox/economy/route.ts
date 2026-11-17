@@ -1,7 +1,13 @@
 import { NextResponse } from "next/server";
 import { getRequestSession, publicOrigin, sessionOwnerKey } from "@/lib/auth";
 import { buildEconomyOp } from "@/lib/worldbox/economy/economy-bridge";
-import { isEconomyEnabled, loadMyEconomyOps, readUserBalance, submitEconomyOp, waitForOpDone } from "@/lib/worldbox/economy/economy-bridge-online";
+import {
+  isEconomyEnabled,
+  loadMyEconomyOps,
+  readUserBalance,
+  submitEconomyOp,
+  waitForOpDone,
+} from "@/lib/worldbox/economy/economy-bridge-online";
 import { loadMyLobbyStation } from "@/lib/worldbox/world/station-online";
 
 export const runtime = "nodejs";
@@ -41,7 +47,10 @@ export async function GET(request: Request) {
   if (!session) return errorResponse(status === 401 ? "unauthorized" : "discord_required", status);
   if (!isEconomyEnabled()) return errorResponse("economy_unavailable", 503);
   const userKey = sessionOwnerKey(session);
-  const [balance, ops] = await Promise.all([readUserBalance(session.id), loadMyEconomyOps(userKey)]);
+  const [balance, ops] = await Promise.all([
+    readUserBalance(session.id),
+    loadMyEconomyOps(userKey),
+  ]);
   if (balance === null) return errorResponse("economy_unavailable", 503);
   return NextResponse.json({ balance, ops }, { headers: NO_STORE });
 }
@@ -92,7 +101,10 @@ export async function POST(request: Request) {
   const userKey = sessionOwnerKey(session);
   const submitted = await submitEconomyOp(op);
   if (submitted.state === "unavailable") return errorResponse("economy_failed", 500);
-  const finalOp = submitted.state === "pending" ? (await waitForOpDone(userKey, op.id)) ?? submitted.op : submitted.op;
+  const finalOp =
+    submitted.state === "pending"
+      ? ((await waitForOpDone(userKey, op.id)) ?? submitted.op)
+      : submitted.op;
   if (finalOp.status !== "pending") {
     const balance = await readUserBalance(session.id);
     return NextResponse.json(

@@ -65,7 +65,11 @@ export function canDash(s: StaminaState): boolean {
  * dt 秒ぶん進める。消費中は減らし、空になった瞬間に emptied=true を返す。
  * 使っていない間は遅延の後に回復し、満タンで止まる。
  */
-export function stepStamina(s: StaminaState, use: StaminaUse, dt: number): { state: StaminaState; emptied: boolean } {
+export function stepStamina(
+  s: StaminaState,
+  use: StaminaUse,
+  dt: number,
+): { state: StaminaState; emptied: boolean } {
   const step = Math.max(0, dt);
   const rate = staminaDrainRate(use);
   if (rate > 0) {
@@ -78,7 +82,9 @@ export function stepStamina(s: StaminaState, use: StaminaUse, dt: number): { sta
   }
   const idleBefore = s.idleSec;
   const idleSec = idleBefore + step;
-  const regenTime = Math.max(0, idleSec - STAMINA_REGEN_DELAY_SEC) - Math.max(0, idleBefore - STAMINA_REGEN_DELAY_SEC);
+  const regenTime =
+    Math.max(0, idleSec - STAMINA_REGEN_DELAY_SEC) -
+    Math.max(0, idleBefore - STAMINA_REGEN_DELAY_SEC);
   const value = Math.min(STAMINA_MAX, s.value + STAMINA_REGEN_PER_SEC * regenTime);
   return {
     state: { value, exhausted: s.exhausted && value < DASH_RELOCK_STAMINA, idleSec },
@@ -118,7 +124,11 @@ export function createTapTracker(): TapTracker {
  * キーを押したことを記録し、同じキーが DOUBLE_TAP_MS 以内に
  * 再び押されていたら doubleTapped=true を返す。
  */
-export function registerKeyTap(t: TapTracker, key: string, nowMs: number): { tracker: TapTracker; doubleTapped: boolean } {
+export function registerKeyTap(
+  t: TapTracker,
+  key: string,
+  nowMs: number,
+): { tracker: TapTracker; doubleTapped: boolean } {
   const doubleTapped = t.key === key && nowMs >= t.at && nowMs - t.at <= DOUBLE_TAP_MS;
   return { tracker: { key, at: nowMs }, doubleTapped };
 }

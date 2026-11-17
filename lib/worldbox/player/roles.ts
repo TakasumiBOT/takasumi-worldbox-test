@@ -15,8 +15,17 @@ import type { SkillFxKind } from "../media/fx";
 
 /** スキル演出プリセット（fx.ts の SkillFxKind と対応）。 */
 export type SkillId =
-  | "sweep" | "whirlwind" | "ice_lance" | "thunder_strike" | "poison_field"
-  | "arrow_rain" | "fireball" | "meteor" | "heal_zone" | "taunt" | "porter";
+  | "sweep"
+  | "whirlwind"
+  | "ice_lance"
+  | "thunder_strike"
+  | "poison_field"
+  | "arrow_rain"
+  | "fireball"
+  | "meteor"
+  | "heal_zone"
+  | "taunt"
+  | "porter";
 
 export type SkillDef = {
   id: SkillId;
@@ -32,17 +41,105 @@ export type SkillDef = {
 };
 
 export const SKILLS: Record<SkillId, SkillDef> = {
-  sweep: { id: "sweep", name: "薙ぎ払い", fx: "sweep", minRank: 1, cooldownMs: 12_000, radius: 1.7, power: 1.5 },
-  whirlwind: { id: "whirlwind", name: "旋風斬り", fx: "whirlwind", minRank: 3, cooldownMs: 30_000, radius: 2.3, power: 2.0 },
-  ice_lance: { id: "ice_lance", name: "アイスランス", fx: "ice_lance", minRank: 1, cooldownMs: 16_000, radius: 0, power: 0.8 },
-  thunder_strike: { id: "thunder_strike", name: "サンダーストライク", fx: "thunder_strike", minRank: 5, cooldownMs: 45_000, radius: 0, power: 3.0 },
-  poison_field: { id: "poison_field", name: "ポイズンフィールド", fx: "poison_field", minRank: 1, cooldownMs: 25_000, radius: 2.0, power: 1.2 },
-  arrow_rain: { id: "arrow_rain", name: "アローレイン", fx: "arrow_rain", minRank: 3, cooldownMs: 40_000, radius: 2.1, power: 1.8 },
-  fireball: { id: "fireball", name: "ファイアーボール", fx: "fireball", minRank: 1, cooldownMs: 20_000, radius: 1.0, power: 2.0 },
-  meteor: { id: "meteor", name: "メテオ", fx: "meteor", minRank: 5, cooldownMs: 60_000, radius: 2.5, power: 2.5 },
-  heal_zone: { id: "heal_zone", name: "ヒーリングゾーン", fx: "heal_zone", minRank: 1, cooldownMs: 45_000, radius: 2.25, power: 30 },
-  taunt: { id: "taunt", name: "挑発", fx: "taunt", minRank: 1, cooldownMs: 20_000, radius: 3.5, power: 0 },
-  porter: { id: "porter", name: "ポーター設置", fx: "warp", minRank: 1, cooldownMs: 30_000, radius: 0, power: 0 },
+  sweep: {
+    id: "sweep",
+    name: "薙ぎ払い",
+    fx: "sweep",
+    minRank: 1,
+    cooldownMs: 12_000,
+    radius: 1.7,
+    power: 1.5,
+  },
+  whirlwind: {
+    id: "whirlwind",
+    name: "旋風斬り",
+    fx: "whirlwind",
+    minRank: 3,
+    cooldownMs: 30_000,
+    radius: 2.3,
+    power: 2.0,
+  },
+  ice_lance: {
+    id: "ice_lance",
+    name: "アイスランス",
+    fx: "ice_lance",
+    minRank: 1,
+    cooldownMs: 16_000,
+    radius: 0,
+    power: 0.8,
+  },
+  thunder_strike: {
+    id: "thunder_strike",
+    name: "サンダーストライク",
+    fx: "thunder_strike",
+    minRank: 5,
+    cooldownMs: 45_000,
+    radius: 0,
+    power: 3.0,
+  },
+  poison_field: {
+    id: "poison_field",
+    name: "ポイズンフィールド",
+    fx: "poison_field",
+    minRank: 1,
+    cooldownMs: 25_000,
+    radius: 2.0,
+    power: 1.2,
+  },
+  arrow_rain: {
+    id: "arrow_rain",
+    name: "アローレイン",
+    fx: "arrow_rain",
+    minRank: 3,
+    cooldownMs: 40_000,
+    radius: 2.1,
+    power: 1.8,
+  },
+  fireball: {
+    id: "fireball",
+    name: "ファイアーボール",
+    fx: "fireball",
+    minRank: 1,
+    cooldownMs: 20_000,
+    radius: 1.0,
+    power: 2.0,
+  },
+  meteor: {
+    id: "meteor",
+    name: "メテオ",
+    fx: "meteor",
+    minRank: 5,
+    cooldownMs: 60_000,
+    radius: 2.5,
+    power: 2.5,
+  },
+  heal_zone: {
+    id: "heal_zone",
+    name: "ヒーリングゾーン",
+    fx: "heal_zone",
+    minRank: 1,
+    cooldownMs: 45_000,
+    radius: 2.25,
+    power: 30,
+  },
+  taunt: {
+    id: "taunt",
+    name: "挑発",
+    fx: "taunt",
+    minRank: 1,
+    cooldownMs: 20_000,
+    radius: 3.5,
+    power: 0,
+  },
+  porter: {
+    id: "porter",
+    name: "ポーター設置",
+    fx: "warp",
+    minRank: 1,
+    cooldownMs: 30_000,
+    radius: 0,
+    power: 0,
+  },
 };
 
 export type AdventureRoleDef = {
@@ -57,13 +154,62 @@ export type AdventureRoleDef = {
 };
 
 export const ADVENTURE_ROLES: Record<AdventureRoleId, AdventureRoleDef> = {
-  free: { id: "free", name: "自由人", symbol: "—", passiveName: "なし", specialtyName: "なし", skills: [] },
-  blade: { id: "blade", name: "剣士", symbol: "剣", passiveName: "剣の攻撃上昇", specialtyName: "大振り", skills: ["sweep", "whirlwind"] },
-  guard: { id: "guard", name: "守護", symbol: "盾", passiveName: "最大HP上昇・味方を守る", specialtyName: "挑発", skills: ["ice_lance", "thunder_strike", "taunt"] },
-  scout: { id: "scout", name: "斥候", symbol: "斥", passiveName: "移動スタミナ節約", specialtyName: "罠の探知", skills: ["poison_field", "arrow_rain"] },
-  miner: { id: "miner", name: "採掘者", symbol: "採", passiveName: "鉱脈の追加ドロップ", specialtyName: "鉱脈探知", skills: ["fireball", "meteor"] },
-  medic: { id: "medic", name: "薬師", symbol: "薬", passiveName: "回復アイテム強化", specialtyName: "蘇生", skills: ["heal_zone"] },
-  teleporter: { id: "teleporter", name: "テレポーター", symbol: "ポ", passiveName: "ポーター設置", specialtyName: "ポーター設置", skills: ["porter"] },
+  free: {
+    id: "free",
+    name: "自由人",
+    symbol: "—",
+    passiveName: "なし",
+    specialtyName: "なし",
+    skills: [],
+  },
+  blade: {
+    id: "blade",
+    name: "剣士",
+    symbol: "剣",
+    passiveName: "剣の攻撃上昇",
+    specialtyName: "大振り",
+    skills: ["sweep", "whirlwind"],
+  },
+  guard: {
+    id: "guard",
+    name: "守護",
+    symbol: "盾",
+    passiveName: "最大HP上昇・味方を守る",
+    specialtyName: "挑発",
+    skills: ["ice_lance", "thunder_strike", "taunt"],
+  },
+  scout: {
+    id: "scout",
+    name: "斥候",
+    symbol: "斥",
+    passiveName: "移動スタミナ節約",
+    specialtyName: "罠の探知",
+    skills: ["poison_field", "arrow_rain"],
+  },
+  miner: {
+    id: "miner",
+    name: "採掘者",
+    symbol: "採",
+    passiveName: "鉱脈の追加ドロップ",
+    specialtyName: "鉱脈探知",
+    skills: ["fireball", "meteor"],
+  },
+  medic: {
+    id: "medic",
+    name: "薬師",
+    symbol: "薬",
+    passiveName: "回復アイテム強化",
+    specialtyName: "蘇生",
+    skills: ["heal_zone"],
+  },
+  teleporter: {
+    id: "teleporter",
+    name: "テレポーター",
+    symbol: "ポ",
+    passiveName: "ポーター設置",
+    specialtyName: "ポーター設置",
+    skills: ["porter"],
+  },
 };
 
 export function roleById(id: unknown): AdventureRoleDef {
@@ -112,7 +258,6 @@ export const GUARD_AURA_REDUCTION = 0.3;
 export const MINER_BONUS_CHANCE = 0.3;
 /** 斥候の移動スタミナ消費倍率。 */
 export const SCOUT_STAMINA_MULT = 0.8;
-
 
 // ---------------------------------------------------------------- 技
 /** その役職・ランクでダブルタップ発動できる技（上位ランクで置き換わる分は最上位のみ）。 */

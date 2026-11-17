@@ -52,8 +52,13 @@ async function loadBundle(files, exportNames) {
 const M = await loadBundle(
   ["worldbox/core/metrics.ts"],
   [
-    "emptyDayMetrics", "parseDayMetrics", "parseUserFirstSteps", "dayKeyOf",
-    "funnelRates", "retentionRate", "FUNNEL_WINDOW_MS",
+    "emptyDayMetrics",
+    "parseDayMetrics",
+    "parseUserFirstSteps",
+    "dayKeyOf",
+    "funnelRates",
+    "retentionRate",
+    "FUNNEL_WINDOW_MS",
   ],
 );
 
@@ -101,7 +106,10 @@ test("spawn protection: new players take no mob damage during the window", () =>
   const now = 2_000_000;
   const fresh = {
     ...V.parseProfile(null),
-    hp: 100, hunger: 100, vitalAt: now - 1000, lastDamageAt: 0,
+    hp: 100,
+    hunger: 100,
+    vitalAt: now - 1000,
+    lastDamageAt: 0,
     spawnProtectedUntil: now + 60_000,
   };
   const hit = V.applyMobDamage(fresh, "slime", 10, now, () => 0);

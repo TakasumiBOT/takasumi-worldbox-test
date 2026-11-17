@@ -11,23 +11,47 @@ import { playerAttack } from "@/lib/worldbox/combat/arena";
 import { mobById } from "@/lib/worldbox/combat/mobs";
 import { isNightPhase, phaseAtTime } from "@/lib/worldbox/world/daynight";
 import {
-  applyMobAttack, mobDistance, mobExistsAt, mobKeyOf, resolveMobPosition, visibleMobs,
-  MOB_ATTACK_MAX_DISTANCE, type MobState,
+  applyMobAttack,
+  mobDistance,
+  mobExistsAt,
+  mobKeyOf,
+  resolveMobPosition,
+  visibleMobs,
+  MOB_ATTACK_MAX_DISTANCE,
+  type MobState,
 } from "@/lib/worldbox/combat/combat";
-import { isMobsEnabled, loadMobState, loadMobStates, storeMobState } from "@/lib/worldbox/combat/mobs-online";
 import {
-  buildCaveLayer, buildDungeonFloor, dungeonHpScale, makeInstanceSpace, parseInstanceSpace, weekKeyOf,
+  isMobsEnabled,
+  loadMobState,
+  loadMobStates,
+  storeMobState,
+} from "@/lib/worldbox/combat/mobs-online";
+import {
+  buildCaveLayer,
+  buildDungeonFloor,
+  dungeonHpScale,
+  makeInstanceSpace,
+  parseInstanceSpace,
+  weekKeyOf,
 } from "@/lib/worldbox/world/instances";
 import { addMasteryXp } from "@/lib/worldbox/player/roles";
 import {
-  dungeonGateSatisfied, loadDungeonClearWeek, loadDungeonSession, loadRuinsPersonal, storeDungeonClearWeek,
-  storeDungeonSession, storeRuinsPersonal,
+  dungeonGateSatisfied,
+  loadDungeonClearWeek,
+  loadDungeonSession,
+  loadRuinsPersonal,
+  storeDungeonClearWeek,
+  storeDungeonSession,
+  storeRuinsPersonal,
 } from "@/lib/worldbox/world/instances-online";
 import { partyKeyOf } from "@/lib/worldbox/social/party";
 import { loadPartyOf } from "@/lib/worldbox/social/party-online";
 import { DUNGEON_CLEAR_EARN } from "@/lib/worldbox/world/instances";
 import { buildEconomyOp } from "@/lib/worldbox/economy/economy-bridge";
-import { enqueueEconomyOpOnce, isEconomyEnabled } from "@/lib/worldbox/economy/economy-bridge-online";
+import {
+  enqueueEconomyOpOnce,
+  isEconomyEnabled,
+} from "@/lib/worldbox/economy/economy-bridge-online";
 import { withUserLock } from "@/lib/worldbox/core/user-lock";
 
 export const runtime = "nodejs";
@@ -89,8 +113,18 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const x0 = clampIntParam(url.searchParams.get("x0"), -WORLD_COORD_LIMIT, WORLD_COORD_LIMIT, 0);
   const y0 = clampIntParam(url.searchParams.get("y0"), -WORLD_COORD_LIMIT, WORLD_COORD_LIMIT, 0);
-  const x1 = clampIntParam(url.searchParams.get("x1"), x0, Math.min(WORLD_COORD_LIMIT, x0 + MAX_RECT_SPAN - 1), x0);
-  const y1 = clampIntParam(url.searchParams.get("y1"), y0, Math.min(WORLD_COORD_LIMIT, y0 + MAX_RECT_SPAN - 1), y0);
+  const x1 = clampIntParam(
+    url.searchParams.get("x1"),
+    x0,
+    Math.min(WORLD_COORD_LIMIT, x0 + MAX_RECT_SPAN - 1),
+    x0,
+  );
+  const y1 = clampIntParam(
+    url.searchParams.get("y1"),
+    y0,
+    Math.min(WORLD_COORD_LIMIT, y0 + MAX_RECT_SPAN - 1),
+    y0,
+  );
   const now = Date.now();
   const spaceParam = url.searchParams.get("space");
   const instGet = spaceParam ? parseInstanceSpace(spaceParam) : null;
@@ -183,23 +217,45 @@ export async function POST(request: Request) {
   } catch {
     return NextResponse.json({ error: "invalid_request" }, { status: 400, headers: NO_STORE });
   }
-  const fields = (body ?? {}) as { action?: unknown; mobId?: unknown; x?: unknown; y?: unknown; px?: unknown; py?: unknown; mx?: unknown; my?: unknown; space?: unknown };
+  const fields = (body ?? {}) as {
+    action?: unknown;
+    mobId?: unknown;
+    x?: unknown;
+    y?: unknown;
+    px?: unknown;
+    py?: unknown;
+    mx?: unknown;
+    my?: unknown;
+    space?: unknown;
+  };
   if (fields.action !== "attack" || typeof fields.x !== "number" || typeof fields.y !== "number") {
     return NextResponse.json({ error: "invalid_request" }, { status: 400, headers: NO_STORE });
   }
   const reported =
-    typeof fields.px === "number" && typeof fields.py === "number" &&
-    Number.isFinite(fields.px) && Number.isFinite(fields.py) &&
-    fields.px >= -WORLD_COORD_LIMIT && fields.py >= -WORLD_COORD_LIMIT && fields.px <= WORLD_COORD_LIMIT && fields.py <= WORLD_COORD_LIMIT
+    typeof fields.px === "number" &&
+    typeof fields.py === "number" &&
+    Number.isFinite(fields.px) &&
+    Number.isFinite(fields.py) &&
+    fields.px >= -WORLD_COORD_LIMIT &&
+    fields.py >= -WORLD_COORD_LIMIT &&
+    fields.px <= WORLD_COORD_LIMIT &&
+    fields.py <= WORLD_COORD_LIMIT
       ? { x: fields.px, y: fields.py }
       : null;
   const def = mobById(fields.mobId);
   const x = Math.floor(fields.x);
   const y = Math.floor(fields.y);
   const instPost = typeof fields.space === "string" ? parseInstanceSpace(fields.space) : null;
-  const caveSpace = instPost?.kind === "cave" || instPost?.kind === "ruins" ? (fields.space as string) : null;
+  const caveSpace =
+    instPost?.kind === "cave" || instPost?.kind === "ruins" ? (fields.space as string) : null;
   const dungeonSpace = instPost?.kind === "dungeon" ? (fields.space as string) : null;
-  if (!def || x < -WORLD_COORD_LIMIT || y < -WORLD_COORD_LIMIT || x > WORLD_COORD_LIMIT || y > WORLD_COORD_LIMIT) {
+  if (
+    !def ||
+    x < -WORLD_COORD_LIMIT ||
+    y < -WORLD_COORD_LIMIT ||
+    x > WORLD_COORD_LIMIT ||
+    y > WORLD_COORD_LIMIT
+  ) {
     return NextResponse.json({ error: "unknown_mob" }, { status: 400, headers: NO_STORE });
   }
   const now = Date.now();
@@ -208,7 +264,8 @@ export async function POST(request: Request) {
   let keyPrefix = "";
   let effDef = def;
   let dungeonCtx: {
-    floor1: string; partyKey: string;
+    floor1: string;
+    partyKey: string;
     session: NonNullable<Awaited<ReturnType<typeof loadDungeonSession>>>;
     floor: ReturnType<typeof buildDungeonFloor>;
   } | null = null;
@@ -217,13 +274,23 @@ export async function POST(request: Request) {
     const partyKey = partyKeyOf(party, ownerKey);
     const floor1 = makeInstanceSpace("dungeon", instPost.entranceX, instPost.entranceY, 0);
     const ds = await loadDungeonSession(floor1, partyKey);
-    if (!ds || !ds.members.includes(ownerKey) || ds.departed.includes(ownerKey) || ds.dead.includes(ownerKey)) {
+    if (
+      !ds ||
+      !ds.members.includes(ownerKey) ||
+      ds.departed.includes(ownerKey) ||
+      ds.dead.includes(ownerKey)
+    ) {
       return NextResponse.json({ error: "no_session" }, { status: 409, headers: NO_STORE });
     }
     if (!(await dungeonGateSatisfied(ds.members, instPost.layer + 1))) {
       return NextResponse.json({ error: "gate_locked" }, { status: 409, headers: NO_STORE });
     }
-    const floor = buildDungeonFloor(MAP_SEED, instPost.entranceX, instPost.entranceY, instPost.layer);
+    const floor = buildDungeonFloor(
+      MAP_SEED,
+      instPost.entranceX,
+      instPost.entranceY,
+      instPost.layer,
+    );
     if (!floor.mobs.some((m) => m.mobId === def.id && m.x === x && m.y === y)) {
       return NextResponse.json({ error: "unknown_mob" }, { status: 400, headers: NO_STORE });
     }
@@ -268,15 +335,19 @@ export async function POST(request: Request) {
   }
 
   // 隣接検証（本人の位置が分かる場合だけ、占有範囲までの距離）
-  const pos = caveSpace || dungeonSpace
-    ? await (async () => {
-        const selfId = presenceIdFor(ownerKey);
-        const entries = await listPresence();
-        const entry = entries.find((e) => e.id === selfId && e.space === (caveSpace ?? dungeonSpace) && now - e.ts <= 15_000);
-        if (entry) return { x: entry.x, y: entry.y };
-        return reported;
-      })()
-    : await actorWorldPosition(ownerKey, reported);
+  const pos =
+    caveSpace || dungeonSpace
+      ? await (async () => {
+          const selfId = presenceIdFor(ownerKey);
+          const entries = await listPresence();
+          const entry = entries.find(
+            (e) =>
+              e.id === selfId && e.space === (caveSpace ?? dungeonSpace) && now - e.ts <= 15_000,
+          );
+          if (entry) return { x: entry.x, y: entry.y };
+          return reported;
+        })()
+      : await actorWorldPosition(ownerKey, reported);
   if (!pos) {
     return NextResponse.json({ error: "position_unknown" }, { status: 409, headers: NO_STORE });
   }
@@ -286,10 +357,14 @@ export async function POST(request: Request) {
     // ため、アンカー基準だと足元のモブにも too_far になってしまう。
     // 申告タイルはリーシュ内でのみ採用する（resolveMobPosition）。
     const reportedMob =
-      typeof fields.mx === "number" && typeof fields.my === "number" &&
-      Number.isFinite(fields.mx) && Number.isFinite(fields.my) &&
-      fields.mx >= -WORLD_COORD_LIMIT && fields.my >= -WORLD_COORD_LIMIT &&
-      fields.mx <= WORLD_COORD_LIMIT && fields.my <= WORLD_COORD_LIMIT
+      typeof fields.mx === "number" &&
+      typeof fields.my === "number" &&
+      Number.isFinite(fields.mx) &&
+      Number.isFinite(fields.my) &&
+      fields.mx >= -WORLD_COORD_LIMIT &&
+      fields.my >= -WORLD_COORD_LIMIT &&
+      fields.mx <= WORLD_COORD_LIMIT &&
+      fields.my <= WORLD_COORD_LIMIT
         ? { x: fields.mx, y: fields.my }
         : null;
     const effPlaced = resolveMobPosition(placed, reportedMob);
@@ -303,94 +378,111 @@ export async function POST(request: Request) {
   // 同一個体への並行攻撃を直列化する（S4）: ロック無しだと二重タップで
   // 同じ個体を2回倒してドロップと熟練 XP を二重に得られる。
   return withUserLock(`mob:${key}`, async () => {
-        const state = await loadMobState(key);
-        const profile = await loadProfile(ownerKey);
-        const attackPower = playerAttack(profile.items, profile.enhance) * (profile.role === "blade" ? 1.25 : 1);
-        const result = applyMobAttack(effDef, state, attackPower, now, Math.random, key);
-        if ("error" in result) {
-          return NextResponse.json({ error: result.error }, { status: 409, headers: NO_STORE });
-        }
-        if (!(await storeMobState(key, result.state))) {
-          return NextResponse.json({ error: "mobs_failed" }, { status: 500, headers: NO_STORE });
-        }
-        if (result.dead && dungeonCtx && instPost) {
-          // 番人はダンジョンの鍵を落とす
-          if (dungeonCtx.floor.keyHolder.mobId === def.id && dungeonCtx.floor.keyHolder.x === x && dungeonCtx.floor.keyHolder.y === y) {
-            result.gained.dungeon_key = (result.gained.dungeon_key ?? 0) + 1;
-          }
-          // フロアボス撃破で階段が開く。最終ボスはクリア処理（週1 earn を全員へ）
-          const isBossAnchor = dungeonCtx.floor.boss.mobId === def.id && dungeonCtx.floor.boss.x === x && dungeonCtx.floor.boss.y === y;
-          if (isBossAnchor) {
-            const floorNo = instPost.layer + 1;
-            const nextSession = {
-              ...dungeonCtx.session,
-              floorBossDead: { ...dungeonCtx.session.floorBossDead, [String(floorNo)]: true },
-              bossDead: dungeonCtx.session.bossDead || floorNo >= 4,
-            };
-            await storeDungeonSession(dungeonCtx.floor1, nextSession);
-            if (floorNo >= 4 && isEconomyEnabled()) {
-              const week = weekKeyOf(now);
-              for (const memberKey of nextSession.members) {
-                if (nextSession.departed.includes(memberKey) || nextSession.dead.includes(memberKey)) continue;
-                if (!memberKey.startsWith("discord:")) continue;
-                if ((await loadDungeonClearWeek(memberKey)) === week) continue;
-                // 週1回の報酬は決定的 ID で冪等化する（#953 の規則: 同時撃破でも二重に払わない）
-                const op = buildEconomyOp(
-                  { kind: "earn", userKey: memberKey, discordId: memberKey.slice("discord:".length), amount: DUNGEON_CLEAR_EARN, reason: "dungeon_clear" },
-                  `dungeon-clear-${week}-${memberKey.slice("discord:".length)}`,
-                  now,
-                );
-                if (op && (await enqueueEconomyOpOnce(op))) {
-                  await storeDungeonClearWeek(memberKey, week);
-                }
-              }
+    const state = await loadMobState(key);
+    const profile = await loadProfile(ownerKey);
+    const attackPower =
+      playerAttack(profile.items, profile.enhance) * (profile.role === "blade" ? 1.25 : 1);
+    const result = applyMobAttack(effDef, state, attackPower, now, Math.random, key);
+    if ("error" in result) {
+      return NextResponse.json({ error: result.error }, { status: 409, headers: NO_STORE });
+    }
+    if (!(await storeMobState(key, result.state))) {
+      return NextResponse.json({ error: "mobs_failed" }, { status: 500, headers: NO_STORE });
+    }
+    if (result.dead && dungeonCtx && instPost) {
+      // 番人はダンジョンの鍵を落とす
+      if (
+        dungeonCtx.floor.keyHolder.mobId === def.id &&
+        dungeonCtx.floor.keyHolder.x === x &&
+        dungeonCtx.floor.keyHolder.y === y
+      ) {
+        result.gained.dungeon_key = (result.gained.dungeon_key ?? 0) + 1;
+      }
+      // フロアボス撃破で階段が開く。最終ボスはクリア処理（週1 earn を全員へ）
+      const isBossAnchor =
+        dungeonCtx.floor.boss.mobId === def.id &&
+        dungeonCtx.floor.boss.x === x &&
+        dungeonCtx.floor.boss.y === y;
+      if (isBossAnchor) {
+        const floorNo = instPost.layer + 1;
+        const nextSession = {
+          ...dungeonCtx.session,
+          floorBossDead: { ...dungeonCtx.session.floorBossDead, [String(floorNo)]: true },
+          bossDead: dungeonCtx.session.bossDead || floorNo >= 4,
+        };
+        await storeDungeonSession(dungeonCtx.floor1, nextSession);
+        if (floorNo >= 4 && isEconomyEnabled()) {
+          const week = weekKeyOf(now);
+          for (const memberKey of nextSession.members) {
+            if (nextSession.departed.includes(memberKey) || nextSession.dead.includes(memberKey))
+              continue;
+            if (!memberKey.startsWith("discord:")) continue;
+            if ((await loadDungeonClearWeek(memberKey)) === week) continue;
+            // 週1回の報酬は決定的 ID で冪等化する（#953 の規則: 同時撃破でも二重に払わない）
+            const op = buildEconomyOp(
+              {
+                kind: "earn",
+                userKey: memberKey,
+                discordId: memberKey.slice("discord:".length),
+                amount: DUNGEON_CLEAR_EARN,
+                reason: "dungeon_clear",
+              },
+              `dungeon-clear-${week}-${memberKey.slice("discord:".length)}`,
+              now,
+            );
+            if (op && (await enqueueEconomyOpOnce(op))) {
+              await storeDungeonClearWeek(memberKey, week);
             }
           }
         }
-        if (result.dead && caveSpace && instPost?.kind === "ruins") {
-          // 倒した召喚モブは個人状態から消す（再出現しない）
-          const personal = await loadRuinsPersonal(caveSpace, ownerKey, weekKeyOf(now));
-          personal.summons = personal.summons.filter((m) => !(m.mobId === def.id && m.x === x && m.y === y));
-          await storeRuinsPersonal(caveSpace, ownerKey, personal);
-        }
-        let updatedProfile = null;
-        let next = profile;
-        let broke: string | null = null;
-        // 道具の耐久: 剣を持っていれば振るたびに最良の剣が摩耗する
-        // （素手の攻撃は摩耗なし）。従来は死亡時しかプロフィールを保存
-        // しなかったが、摩耗を積算するため剣がある場合は毎回保存する。
-        if (bestToolItem(profile, "sword")) {
-          const worn = wearTool(next, "sword");
-          next = worn.profile;
-          broke = worn.brokeItemId;
-        }
-        if (result.dead && (Object.keys(result.gained).length > 0 || profile.role === "blade")) {
-          for (const [itemId, count] of Object.entries(result.gained)) {
-            next = addItem(next, itemId, count);
-          }
-          if (profile.role === "blade") next = addMasteryXp(next, "blade", 3).profile;
-        }
-        if (next !== profile) {
-          if (!(await storeProfile(ownerKey, next))) {
-            return NextResponse.json({ error: "mobs_failed" }, { status: 500, headers: NO_STORE });
-          }
-          updatedProfile = next;
-        }
-        return NextResponse.json(
-          {
-            ok: true,
-            key,
-            hp: result.hp,
-            maxHp: def.hp,
-            dead: result.dead,
-            // 復活時刻はサーバーの正を返す。クライアントが自時計で捏造すると
-            // 時計ズレで復活がずれる（S4）。dead でない場合は含めない。
-            ...(result.state.deadUntil !== undefined ? { deadUntil: result.state.deadUntil } : {}),
-            gained: result.gained,
-            ...(updatedProfile ? { profile: updatedProfile } : {}),
-            ...(broke ? { broke } : {}),
-          },
-          { headers: NO_STORE },
-        );
+      }
+    }
+    if (result.dead && caveSpace && instPost?.kind === "ruins") {
+      // 倒した召喚モブは個人状態から消す（再出現しない）
+      const personal = await loadRuinsPersonal(caveSpace, ownerKey, weekKeyOf(now));
+      personal.summons = personal.summons.filter(
+        (m) => !(m.mobId === def.id && m.x === x && m.y === y),
+      );
+      await storeRuinsPersonal(caveSpace, ownerKey, personal);
+    }
+    let updatedProfile = null;
+    let next = profile;
+    let broke: string | null = null;
+    // 道具の耐久: 剣を持っていれば振るたびに最良の剣が摩耗する
+    // （素手の攻撃は摩耗なし）。従来は死亡時しかプロフィールを保存
+    // しなかったが、摩耗を積算するため剣がある場合は毎回保存する。
+    if (bestToolItem(profile, "sword")) {
+      const worn = wearTool(next, "sword");
+      next = worn.profile;
+      broke = worn.brokeItemId;
+    }
+    if (result.dead && (Object.keys(result.gained).length > 0 || profile.role === "blade")) {
+      for (const [itemId, count] of Object.entries(result.gained)) {
+        next = addItem(next, itemId, count);
+      }
+      if (profile.role === "blade") next = addMasteryXp(next, "blade", 3).profile;
+    }
+    if (next !== profile) {
+      if (!(await storeProfile(ownerKey, next))) {
+        return NextResponse.json({ error: "mobs_failed" }, { status: 500, headers: NO_STORE });
+      }
+      updatedProfile = next;
+    }
+    return NextResponse.json(
+      {
+        ok: true,
+        key,
+        hp: result.hp,
+        maxHp: def.hp,
+        dead: result.dead,
+        // 復活時刻はサーバーの正を返す。クライアントが自時計で捏造すると
+        // 時計ズレで復活がずれる（S4）。dead でない場合は含めない。
+        ...(result.state.deadUntil !== undefined ? { deadUntil: result.state.deadUntil } : {}),
+        gained: result.gained,
+        ...(updatedProfile ? { profile: updatedProfile } : {}),
+        ...(broke ? { broke } : {}),
+      },
+      { headers: NO_STORE },
+    );
   });
 }

@@ -8,10 +8,24 @@
 // （worldbox_economy_applied）をワーカーと同じ形で残す。直接適用が
 // 使えない・金を動かす前に失敗した場合は従来のキュー経路へ寄せる。
 import {
-  BotApiError, isBotApiConfigured, kvDelete, kvGet, kvList, kvSet, rpc, tableInsert, tableSelect, tableUpdate,
+  BotApiError,
+  isBotApiConfigured,
+  kvDelete,
+  kvGet,
+  kvList,
+  kvSet,
+  rpc,
+  tableInsert,
+  tableSelect,
+  tableUpdate,
 } from "../../bot-api";
 import {
-  EARN_REASONS, GAMBLE_REASONS, WORLDBOX_ECONOMY_NAMESPACE, parseEconomyOp, recentEconomyOps, type EconomyOp,
+  EARN_REASONS,
+  GAMBLE_REASONS,
+  WORLDBOX_ECONOMY_NAMESPACE,
+  parseEconomyOp,
+  recentEconomyOps,
+  type EconomyOp,
 } from "./economy-bridge";
 
 export function isEconomyEnabled(): boolean {
@@ -233,12 +247,17 @@ function parseAppliedLedger(raw: unknown): AppliedLedgerEntry | null {
   }
   if (typeof value !== "object" || value === null || Array.isArray(value)) return null;
   const record = value as Record<string, unknown>;
-  if (record.status !== "applying" && record.status !== "applied" && record.status !== "failed") return null;
+  if (record.status !== "applying" && record.status !== "applied" && record.status !== "failed")
+    return null;
   const entry: AppliedLedgerEntry = {
     status: record.status,
     at: typeof record.at === "number" && Number.isFinite(record.at) ? record.at : 0,
   };
-  if (typeof record.appliedAmount === "number" && Number.isInteger(record.appliedAmount) && record.appliedAmount >= 0) {
+  if (
+    typeof record.appliedAmount === "number" &&
+    Number.isInteger(record.appliedAmount) &&
+    record.appliedAmount >= 0
+  ) {
     entry.appliedAmount = record.appliedAmount;
   }
   if (typeof record.metricRecorded === "boolean") entry.metricRecorded = record.metricRecorded;
@@ -338,14 +357,10 @@ async function changeBalanceDirect(
     if (requireFunds && newBalance < 0) return { ok: false, error: "insufficient_funds" };
     let updated: unknown[];
     try {
-      updated = await tableUpdate(
-        "users",
-        { balance: newBalance },
-        [
-          { column: "user_id", op: "eq", value: discordId },
-          { column: "balance", op: "eq", value: Math.trunc(oldBalance) },
-        ],
-      );
+      updated = await tableUpdate("users", { balance: newBalance }, [
+        { column: "user_id", op: "eq", value: discordId },
+        { column: "balance", op: "eq", value: Math.trunc(oldBalance) },
+      ]);
     } catch (error) {
       // 応答が失われただけなら残高は既に新しい値になっている。
       const now = await readUserBalance(discordId);
@@ -383,16 +398,23 @@ interface MetricRecord {
 }
 
 /** 適用分の集計。bankroll は読めたときだけ更新する。 */
-function applyMetricRecord(record: unknown, op: EconomyOp, applied: number, bankroll: number | null = null): MetricRecord {
+function applyMetricRecord(
+  record: unknown,
+  op: EconomyOp,
+  applied: number,
+  bankroll: number | null = null,
+): MetricRecord {
   const out: MetricRecord = { earn: {}, spend: {}, bankroll: null };
   if (typeof record === "object" && record !== null && !Array.isArray(record)) {
     const source = record as Record<string, unknown>;
-    if (typeof source.bankroll === "number" && Number.isFinite(source.bankroll)) out.bankroll = Math.trunc(source.bankroll);
+    if (typeof source.bankroll === "number" && Number.isFinite(source.bankroll))
+      out.bankroll = Math.trunc(source.bankroll);
     for (const key of ["earn", "spend"] as const) {
       const part = source[key];
       if (typeof part === "object" && part !== null && !Array.isArray(part)) {
         for (const [name, value] of Object.entries(part as Record<string, unknown>)) {
-          if (typeof value === "number" && Number.isFinite(value)) out[key][name] = Math.trunc(value);
+          if (typeof value === "number" && Number.isFinite(value))
+            out[key][name] = Math.trunc(value);
         }
       }
     }
@@ -415,7 +437,11 @@ async function recordMetricDirect(op: EconomyOp, applied: number): Promise<boole
     const date = new Date().toISOString().slice(0, 10);
     const current = await kvGet(WORLDBOX_ECONOMY_METRICS_NAMESPACE, date);
     const bankroll = await readBankrollDirect();
-    await kvSet(WORLDBOX_ECONOMY_METRICS_NAMESPACE, date, applyMetricRecord(current, op, applied, bankroll));
+    await kvSet(
+      WORLDBOX_ECONOMY_METRICS_NAMESPACE,
+      date,
+      applyMetricRecord(current, op, applied, bankroll),
+    );
     return true;
   } catch {
     return false;
@@ -677,7 +703,10 @@ export async function submitEconomyOp(op: EconomyOp): Promise<SubmitEconomyOpRes
   // ゲストはコイン経済の対象外。どの経路から積まれても、その場で
   // guest_not_allowed として終端させる（記録も台帳も残さない）。
   if (isGuestEconomyOp(op)) {
-    return { state: "failed", op: { ...op, status: "failed", error: GUEST_NOT_ALLOWED, appliedAt: Date.now() } };
+    return {
+      state: "failed",
+      op: { ...op, status: "failed", error: GUEST_NOT_ALLOWED, appliedAt: Date.now() },
+    };
   }
   if (!isBotApiConfigured()) return { state: "unavailable" };
 
@@ -801,7 +830,9 @@ function asRecord(value: unknown): Record<string, unknown> | null {
       return null;
     }
   }
-  return typeof v === "object" && v !== null && !Array.isArray(v) ? (v as Record<string, unknown>) : null;
+  return typeof v === "object" && v !== null && !Array.isArray(v)
+    ? (v as Record<string, unknown>)
+    : null;
 }
 
 interface SweepCandidate {
@@ -822,10 +853,18 @@ function selectSweepCandidates(records: Map<string, unknown>, now: number): Swee
     }
     if (value.status !== "pending") continue;
     const claim = asRecord(value.claim);
-    if (claim && typeof claim.at === "number" && Number.isFinite(claim.at) && now - claim.at < ECONOMY_CLAIM_STALE_MS) {
+    if (
+      claim &&
+      typeof claim.at === "number" &&
+      Number.isFinite(claim.at) &&
+      now - claim.at < ECONOMY_CLAIM_STALE_MS
+    ) {
       continue;
     }
-    const created = typeof value.createdAt === "number" && Number.isFinite(value.createdAt) ? Math.trunc(value.createdAt) : 0;
+    const created =
+      typeof value.createdAt === "number" && Number.isFinite(value.createdAt)
+        ? Math.trunc(value.createdAt)
+        : 0;
     out.push({ key, raw, sortKey: created });
   }
   out.sort((a, b) => a.sortKey - b.sortKey || (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
@@ -835,7 +874,12 @@ function selectSweepCandidates(records: Map<string, unknown>, now: number): Swee
 /** 解釈できないレコードの終端書き込み。 */
 async function writeSweepInvalidResult(key: string, raw: unknown): Promise<void> {
   const base = asRecord(raw) ?? {};
-  const record: Record<string, unknown> = { ...base, status: "failed", error: "invalid_op", appliedAt: Date.now() };
+  const record: Record<string, unknown> = {
+    ...base,
+    status: "failed",
+    error: "invalid_op",
+    appliedAt: Date.now(),
+  };
   delete record.claim;
   try {
     await kvSet(WORLDBOX_ECONOMY_NAMESPACE, key, record);
@@ -853,7 +897,8 @@ async function writeSweepInvalidResult(key: string, raw: unknown): Promise<void>
 async function applySweepByKind(op: EconomyOp): Promise<number> {
   if (op.kind === "steal") throw new DirectFailure("steal_disabled");
   if (op.kind === "earn" && !EARN_REASONS.has(op.reason)) throw new DirectFailure("invalid_reason");
-  if (op.kind === "gamble" && !GAMBLE_REASONS.has(op.reason)) throw new DirectFailure("invalid_reason");
+  if (op.kind === "gamble" && !GAMBLE_REASONS.has(op.reason))
+    throw new DirectFailure("invalid_reason");
   return applyDirectByKind(op);
 }
 
@@ -899,7 +944,12 @@ async function sweepOneOp(key: string, raw: unknown): Promise<boolean> {
     if (!ledger.metricRecorded) {
       const metricRecorded = await recordMetricDirect(op, applied);
       if (metricRecorded) {
-        await saveAppliedLedger(op.id, { status: "applied", appliedAmount: applied, metricRecorded: true, at: Date.now() });
+        await saveAppliedLedger(op.id, {
+          status: "applied",
+          appliedAmount: applied,
+          metricRecorded: true,
+          at: Date.now(),
+        });
       }
     }
     return true;
@@ -949,7 +999,10 @@ async function pruneSweepTerminal(records: Map<string, unknown>): Promise<number
   for (const [key, raw] of records) {
     const value = asRecord(raw);
     if (!value || (value.status !== "done" && value.status !== "failed")) continue;
-    const at = typeof value.appliedAt === "number" && Number.isFinite(value.appliedAt) ? Math.trunc(value.appliedAt) : 0;
+    const at =
+      typeof value.appliedAt === "number" && Number.isFinite(value.appliedAt)
+        ? Math.trunc(value.appliedAt)
+        : 0;
     terminal.push({ at, key });
   }
   terminal.sort((a, b) => b.at - a.at || (a.key < b.key ? 1 : a.key > b.key ? -1 : 0));

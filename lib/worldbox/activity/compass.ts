@@ -8,9 +8,7 @@
 // これが既知の最良距離と探索上限を超えたら打ち切る。
 // 再計算は高くつかないが、それでもクライアント側は移動時のスロットル
 // （一定距離動いたら再計算）を前提に呼ぶこと。
-import {
-  CHUNK_SIZE, STRUCTURES, chunkHash, structuresForChunk,
-} from "../world/maplogic";
+import { CHUNK_SIZE, STRUCTURES, chunkHash, structuresForChunk } from "../world/maplogic";
 
 export type CompassEntranceKind = "cave" | "dungeon";
 
@@ -80,7 +78,14 @@ export function nearestEntrance(
           const dist = Math.hypot(tx - x, ty - y);
           if (dist > maxTiles) continue;
           if (!best || dist < best.dist) {
-            best = { kind, structureId: def.id, x: tx, y: ty, dist, angle: Math.atan2(ty - y, tx - x) };
+            best = {
+              kind,
+              structureId: def.id,
+              x: tx,
+              y: ty,
+              dist,
+              angle: Math.atan2(ty - y, tx - x),
+            };
           }
         }
       }

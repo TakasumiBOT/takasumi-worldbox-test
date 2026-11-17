@@ -1,9 +1,17 @@
 import { NextResponse } from "next/server";
 import { getRequestSession, publicOrigin, sessionOwnerKey } from "@/lib/auth";
 import { parseSave, serializeSave } from "@/lib/worldbox/core/save";
-import { MAX_SAVE_JSON_LENGTH, isOnlineSaveEnabled, loadWorldBoxSave, storeWorldBoxSave } from "@/lib/worldbox/core/save-online";
+import {
+  MAX_SAVE_JSON_LENGTH,
+  isOnlineSaveEnabled,
+  loadWorldBoxSave,
+  storeWorldBoxSave,
+} from "@/lib/worldbox/core/save-online";
 import { loadMyPresence } from "@/lib/worldbox/player/presence-online";
-import { checkMovementContinuity, checkSaveFallbackContinuity } from "@/lib/worldbox/player/presence";
+import {
+  checkMovementContinuity,
+  checkSaveFallbackContinuity,
+} from "@/lib/worldbox/player/presence";
 import { pickRandomSpawn } from "@/lib/worldbox/world/spawn";
 
 export const runtime = "nodejs";
@@ -84,7 +92,12 @@ export async function PUT(request: Request) {
   if (freshPresence) {
     if (!checkMovementContinuity(freshPresence, parsed, now).ok) {
       return NextResponse.json(
-        { error: "position_jump", x: freshPresence.x, y: freshPresence.y, space: freshPresence.space },
+        {
+          error: "position_jump",
+          x: freshPresence.x,
+          y: freshPresence.y,
+          space: freshPresence.space,
+        },
         { status: 409, headers: NO_STORE },
       );
     }

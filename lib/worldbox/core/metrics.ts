@@ -31,8 +31,16 @@ export const FUNNEL_WINDOW_MS = 5 * 60 * 1000;
 
 export function emptyDayMetrics(date: string): DayMetrics {
   return {
-    date, dau: [], peak: 0, blocksPlaced: 0, harvests: 0,
-    chatsNear: 0, chatsGlobal: 0, chatsUnion: 0, guildShopVolume: 0, unionMembers: 0,
+    date,
+    dau: [],
+    peak: 0,
+    blocksPlaced: 0,
+    harvests: 0,
+    chatsNear: 0,
+    chatsGlobal: 0,
+    chatsUnion: 0,
+    guildShopVolume: 0,
+    unionMembers: 0,
   };
 }
 
@@ -93,13 +101,18 @@ export function dayKeyOf(now: number): string {
 
 /** 初回5分ファネルの到達率（firstAt から FUNNEL_WINDOW_MS 以内）。 */
 export function funnelRates(users: readonly UserFirstSteps[]): {
-  users: number; gather: number; place: number; lobby: number;
+  users: number;
+  gather: number;
+  place: number;
+  lobby: number;
 } {
   const n = users.length;
   if (n === 0) return { users: 0, gather: 0, place: 0, lobby: 0 };
   const within = (at?: number, base = 0) =>
     at !== undefined && at - base <= FUNNEL_WINDOW_MS ? 1 : 0;
-  let gather = 0, place = 0, lobby = 0;
+  let gather = 0,
+    place = 0,
+    lobby = 0;
   for (const u of users) {
     gather += within(u.gatherAt, u.firstAt);
     place += within(u.placeAt, u.firstAt);

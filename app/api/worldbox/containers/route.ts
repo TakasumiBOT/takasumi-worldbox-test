@@ -9,11 +9,16 @@ import { loadWorldBoxSave } from "@/lib/worldbox/core/save-online";
 import { isOverrideActive } from "@/lib/worldbox/world/tiles";
 import { isTilesEnabled, loadTileOverride } from "@/lib/worldbox/world/tiles-online";
 import {
-  containerCapacity, emptyContainer, isContainerItem, moveContainerSlot,
+  containerCapacity,
+  emptyContainer,
+  isContainerItem,
+  moveContainerSlot,
   type ContainerState,
 } from "@/lib/worldbox/economy/containers";
 import {
-  isContainersEnabled, loadContainer, storeContainer,
+  isContainersEnabled,
+  loadContainer,
+  storeContainer,
 } from "@/lib/worldbox/economy/containers-online";
 import { TENT_H, buildTent } from "@/lib/worldbox/world/tent";
 import { buildLobby } from "@/lib/worldbox/world/lobby";
@@ -70,7 +75,10 @@ function fixtureStoreSpace(space: ContainerSpace): string {
 }
 
 /** サーバーが知る本人の位置（プレゼンス → セーブの順、空間一致のみ）。無ければ null。 */
-async function actorPosition(ownerKey: string, space: ContainerSpace): Promise<{ x: number; y: number } | null> {
+async function actorPosition(
+  ownerKey: string,
+  space: ContainerSpace,
+): Promise<{ x: number; y: number } | null> {
   const selfId = presenceIdFor(ownerKey);
   const entries = await listPresence();
   const now = Date.now();
@@ -82,7 +90,14 @@ async function actorPosition(ownerKey: string, space: ContainerSpace): Promise<{
 }
 
 type ResolvedContainer =
-  | { ok: true; itemId: string; state: ContainerState; storeSpace: string; storeX: number; storeY: number }
+  | {
+      ok: true;
+      itemId: string;
+      state: ContainerState;
+      storeSpace: string;
+      storeX: number;
+      storeY: number;
+    }
   | { ok: false; error: string; status: number };
 
 /** そのタイルにある本人のコンテナを解決する（所有・種類は設置ブロックが正）。 */
@@ -97,10 +112,13 @@ async function resolveContainer(
     // 室内の備え付け家具が正。所有は常に本人（テントは個人空間、ロビーは
     // 共用だが中身をプレイヤー別に持つ）。
     const tent = space === "tent" ? buildTent((await loadProfile(ownerKey)).tentTier) : null;
-    const objects = tent ? tent.objects
-      : space === "lobby" ? buildLobby().objects
-      : space === "lobby2" ? buildLobby2().objects
-      : buildLobby3().objects;
+    const objects = tent
+      ? tent.objects
+      : space === "lobby"
+        ? buildLobby().objects
+        : space === "lobby2"
+          ? buildLobby2().objects
+          : buildLobby3().objects;
     const obj = objects.find(
       (o) => isContainerItem(o.sprite) && x >= o.x && x < o.x + o.w && y >= o.y && y < o.y + o.h,
     );
@@ -184,7 +202,14 @@ export async function POST(request: Request) {
   } catch {
     return errorJson("invalid_request", 400);
   }
-  const fields = (body ?? {}) as { action?: unknown; x?: unknown; y?: unknown; from?: unknown; to?: unknown; space?: unknown };
+  const fields = (body ?? {}) as {
+    action?: unknown;
+    x?: unknown;
+    y?: unknown;
+    from?: unknown;
+    to?: unknown;
+    space?: unknown;
+  };
   if (fields.action !== "move") return errorJson("invalid_action", 400);
   const coord = checkedCoord(fields.x, fields.y);
   if (!coord) return errorJson("invalid_tile", 400);
@@ -204,21 +229,28 @@ export async function POST(request: Request) {
   // プロフィールの両方を読み書きするため、ロック無しだと二重移動や
   // lost update が起きる（タイル側と同じ型、S1 の横展開）。
   return withUserLock(ownerKey, async () => {
-        const resolved = await resolveContainer(ownerKey, space, coord.x, coord.y);
-        if (!resolved.ok) return errorJson(resolved.error, resolved.status);
+    const resolved = await resolveContainer(ownerKey, space, coord.x, coord.y);
+    if (!resolved.ok) return errorJson(resolved.error, resolved.status);
 
-        const profile = await loadProfile(ownerKey);
-        const moved = moveContainerSlot(profile, resolved.state, fields.from, fields.to);
-        if (!moved) return errorJson("invalid_action", 400);
-        if (!(await storeContainer(resolved.storeSpace, resolved.storeX, resolved.storeY, moved.container))) {
-          return errorJson("containers_failed", 500);
-        }
-        if (!(await storeProfile(ownerKey, moved.profile))) {
-          return errorJson("containers_failed", 500);
-        }
-        return NextResponse.json(
-          { ok: true, profile: moved.profile, container: moved.container },
-          { headers: NO_STORE },
-        );
+    const profile = await loadProfile(ownerKey);
+    const moved = moveContainerSlot(profile, resolved.state, fields.from, fields.to);
+    if (!moved) return errorJson("invalid_action", 400);
+    if (
+      !(await storeContainer(
+        resolved.storeSpace,
+        resolved.storeX,
+        resolved.storeY,
+        moved.container,
+      ))
+    ) {
+      return errorJson("containers_failed", 500);
+    }
+    if (!(await storeProfile(ownerKey, moved.profile))) {
+      return errorJson("containers_failed", 500);
+    }
+    return NextResponse.json(
+      { ok: true, profile: moved.profile, container: moved.container },
+      { headers: NO_STORE },
+    );
   });
 }

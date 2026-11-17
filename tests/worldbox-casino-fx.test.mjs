@@ -68,7 +68,10 @@ test("casino-fx: リーチは先2つの一致だけ", () => {
 
 test("casino-fx: 紙吹雪は個数どおりで色がパレット内", () => {
   let seed = 42;
-  const rng = () => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648; };
+  const rng = () => {
+    seed = (seed * 1103515245 + 12345) % 2147483648;
+    return seed / 2147483648;
+  };
   const parts = fx.confettiParticles(50, rng);
   assert.equal(parts.length, 50);
   for (const p of parts) {
@@ -80,7 +83,10 @@ test("casino-fx: 紙吹雪は個数どおりで色がパレット内", () => {
 });
 
 test("casino-fx: パネルに演出が配線されている", () => {
-  const panel = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxCasinoPanel.tsx"), "utf8");
+  const panel = fs.readFileSync(
+    path.join(rootDir, "app/games/worldbox/WorldBoxCasinoPanel.tsx"),
+    "utf8",
+  );
   assert.match(panel, /casino-fx/);
   assert.match(panel, /ConfettiCanvas/);
   assert.match(panel, /CountUp/);

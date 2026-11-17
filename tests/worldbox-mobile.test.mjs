@@ -5,7 +5,10 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-const client = await readFile(new URL("../app/games/worldbox/WorldBoxClient.tsx", import.meta.url), "utf8");
+const client = await readFile(
+  new URL("../app/games/worldbox/WorldBoxClient.tsx", import.meta.url),
+  "utf8",
+);
 
 test("ステージをフルスクリーン化できる（ボタンは対応環境でのみ出す）", () => {
   assert.match(client, /const stageRef = useRef<HTMLDivElement \| null>\(null\)/);
@@ -35,7 +38,10 @@ test("ホットバーのスロットは画面幅でスケーリングする（�
   // ホットバー側の寸法はレイアウトモード（lib/worldbox/world/layout）が決める:
   // wide は従来の画面幅クランプ、縦持ちは 44px 級に広げる
   assert.match(client, /"--slot": hud\.hotbarSlotCss/);
-  const layout = await readFile(new URL("../lib/worldbox/world/layout.ts", import.meta.url), "utf8");
+  const layout = await readFile(
+    new URL("../lib/worldbox/world/layout.ts", import.meta.url),
+    "utf8",
+  );
   assert.match(layout, /"clamp\(30px, 10\.5vw, 42px\)"/);
   assert.match(layout, /"clamp\(38px, 12vw, 44px\)"/);
   // インベントリボタンは潰さず、バー全体はステージ幅に収める

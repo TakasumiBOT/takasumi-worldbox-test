@@ -3,7 +3,12 @@ import { getRequestSession, publicOrigin, sessionOwnerKey } from "@/lib/auth";
 import { MAP_SEED, WORLD_COORD_LIMIT } from "@/lib/worldbox/world/mapgen";
 import { isNightPhase, phaseAtTime } from "@/lib/worldbox/world/daynight";
 import { mobById } from "@/lib/worldbox/combat/mobs";
-import { mobDistance, mobExistsAt, resolveMobPosition, MOB_ATTACK_MAX_DISTANCE } from "@/lib/worldbox/combat/combat";
+import {
+  mobDistance,
+  mobExistsAt,
+  resolveMobPosition,
+  MOB_ATTACK_MAX_DISTANCE,
+} from "@/lib/worldbox/combat/combat";
 import { isProfileEnabled, loadProfile, storeProfile } from "@/lib/worldbox/player/profile-online";
 import { listPresence } from "@/lib/worldbox/player/presence-online";
 import { presenceIdFor } from "@/lib/worldbox/player/presence";
@@ -11,7 +16,13 @@ import { parseSave, serializeSave } from "@/lib/worldbox/core/save";
 import { loadWorldBoxSave, storeWorldBoxSave } from "@/lib/worldbox/core/save-online";
 import { loadNationsState } from "@/lib/worldbox/social/nations-online";
 import { loadTileOverride } from "@/lib/worldbox/world/tiles-online";
-import { buildCaveLayer, buildDungeonFloor, makeInstanceSpace, parseInstanceSpace, weekKeyOf } from "@/lib/worldbox/world/instances";
+import {
+  buildCaveLayer,
+  buildDungeonFloor,
+  makeInstanceSpace,
+  parseInstanceSpace,
+  weekKeyOf,
+} from "@/lib/worldbox/world/instances";
 import { loadRuinsPersonal } from "@/lib/worldbox/world/instances-online";
 import { listPresenceWithOwners, putPresence } from "@/lib/worldbox/player/presence-online";
 import { addMasteryXp, BLADE_ATTACK_MULT, GUARD_AURA_REDUCTION } from "@/lib/worldbox/player/roles";
@@ -20,14 +31,26 @@ import { withUserLock } from "@/lib/worldbox/core/user-lock";
 import { recordDeath } from "@/lib/worldbox/player/roles-online";
 import { loadMobState } from "@/lib/worldbox/combat/mobs-online";
 import {
-  deleteDungeonSession, dungeonSessionClosed, loadDungeonSession, storeDungeonSession,
+  deleteDungeonSession,
+  dungeonSessionClosed,
+  loadDungeonSession,
+  storeDungeonSession,
 } from "@/lib/worldbox/world/instances-online";
 import { partyKeyOf } from "@/lib/worldbox/social/party";
 import { loadPartyOf } from "@/lib/worldbox/social/party-online";
 import type { PlayerProfile, RespawnPoint } from "@/lib/worldbox/player/profile";
 import {
-  activityForWindow, applyDeath, applyHazardDamage, applyMobDamage, applyPvpDamage, hazardDamageFor, pvpSpaceAllowed,
-  PVP_ATTACK_MAX_DISTANCE, resolveRespawnPoint, setBedRespawn, stepVitals,
+  activityForWindow,
+  applyDeath,
+  applyHazardDamage,
+  applyMobDamage,
+  applyPvpDamage,
+  hazardDamageFor,
+  pvpSpaceAllowed,
+  PVP_ATTACK_MAX_DISTANCE,
+  resolveRespawnPoint,
+  setBedRespawn,
+  stepVitals,
 } from "@/lib/worldbox/player/vitals";
 
 export const runtime = "nodejs";
@@ -100,7 +123,12 @@ async function settleDeath(
   const savedAtDeath = parseSave(await loadWorldBoxSave(ownerKey));
   if (savedAtDeath) {
     await recordDeath({
-      ownerKey, name, space: savedAtDeath.space, x: savedAtDeath.x, y: savedAtDeath.y, at: now,
+      ownerKey,
+      name,
+      space: savedAtDeath.space,
+      x: savedAtDeath.x,
+      y: savedAtDeath.y,
+      at: now,
     });
   }
   const { profile: revived, dropped } = applyDeath(profile, now);
@@ -117,25 +145,35 @@ async function settleDeath(
       if (dungeonSessionClosed(next)) await deleteDungeonSession(floor1, partyKey);
       else await storeDungeonSession(floor1, next);
     }
-    const front = savedAtDeath?.worldReturn ?? { x: dungeonInst.entranceX + 0.5, y: dungeonInst.entranceY + 0.5 };
+    const front = savedAtDeath?.worldReturn ?? {
+      x: dungeonInst.entranceX + 0.5,
+      y: dungeonInst.entranceY + 0.5,
+    };
     if (!(await storeProfile(ownerKey, revived))) return errorResponse("store_failed", 503);
     // リスポーン先が新しい連続性の基準になる。更新に失敗しても
     // クライアントは応答で移動する（次回ハートビートで保管位置へ
     // 戻される場合があるが、30秒のリセットで復旧する）。
-    if (!(await movePresenceAndSave(ownerKey, { space: "world", x: front.x, y: front.y }, now, name))) {
+    if (
+      !(await movePresenceAndSave(ownerKey, { space: "world", x: front.x, y: front.y }, now, name))
+    ) {
       console.warn("[worldbox] vitals: respawn position update failed", ownerKey);
     }
     return NextResponse.json(
-      { profile: revived, died: true, dropped, respawn: { x: front.x, y: front.y, source: "entrance" } },
+      {
+        profile: revived,
+        died: true,
+        dropped,
+        respawn: { x: front.x, y: front.y, source: "entrance" },
+      },
       { headers: NO_STORE },
     );
   }
   const mark = await unionMarkOf(ownerKey);
-  const { point, source } = resolveRespawnPoint(
-    revived, mark, { x: 0.5, y: 0.5 },
-  );
+  const { point, source } = resolveRespawnPoint(revived, mark, { x: 0.5, y: 0.5 });
   if (!(await storeProfile(ownerKey, revived))) return errorResponse("store_failed", 503);
-  if (!(await movePresenceAndSave(ownerKey, { space: "world", x: point.x, y: point.y }, now, name))) {
+  if (
+    !(await movePresenceAndSave(ownerKey, { space: "world", x: point.x, y: point.y }, now, name))
+  ) {
     console.warn("[worldbox] vitals: respawn position update failed", ownerKey);
   }
   return NextResponse.json(
@@ -160,7 +198,12 @@ async function settleVictimDeath(
   const savedAtDeath = parseSave(await loadWorldBoxSave(victimKey));
   if (savedAtDeath) {
     await recordDeath({
-      ownerKey: victimKey, name, space: savedAtDeath.space, x: savedAtDeath.x, y: savedAtDeath.y, at: now,
+      ownerKey: victimKey,
+      name,
+      space: savedAtDeath.space,
+      x: savedAtDeath.x,
+      y: savedAtDeath.y,
+      at: now,
     });
   }
   const { profile: revived, dropped } = applyDeath(profile, now);
@@ -190,12 +233,25 @@ async function movePresenceAndSave(
   const prev = parseSave(await loadWorldBoxSave(ownerKey));
   const saved = await storeWorldBoxSave(
     ownerKey,
-    serializeSave({ space: dest.space, x: dest.x, y: dest.y, worldReturn: prev?.worldReturn ?? null }),
+    serializeSave({
+      space: dest.space,
+      x: dest.x,
+      y: dest.y,
+      worldReturn: prev?.worldReturn ?? null,
+    }),
   );
   if (!saved) return false;
   return putPresence(
     ownerKey,
-    { name: name.trim() || "プレイヤー", x: dest.x, y: dest.y, vx: 0, vy: 0, face: 1, space: dest.space },
+    {
+      name: name.trim() || "プレイヤー",
+      x: dest.x,
+      y: dest.y,
+      vx: 0,
+      vy: 0,
+      face: 1,
+      space: dest.space,
+    },
     now,
   );
 }
@@ -212,8 +268,16 @@ export async function POST(request: Request) {
     return errorResponse("invalid_request", 400);
   }
   const data = (body ?? {}) as {
-    action?: unknown; mobId?: unknown; x?: unknown; y?: unknown; px?: unknown; py?: unknown; space?: unknown;
-    mx?: unknown; my?: unknown; target?: unknown;
+    action?: unknown;
+    mobId?: unknown;
+    x?: unknown;
+    y?: unknown;
+    px?: unknown;
+    py?: unknown;
+    space?: unknown;
+    mx?: unknown;
+    my?: unknown;
+    target?: unknown;
   };
   const ownerKey = sessionOwnerKey(session);
   const now = Date.now();
@@ -230,17 +294,23 @@ export async function POST(request: Request) {
       // profile に残した前回精算位置との平均速度で idle / move / dash に分類し、
       // 現在位置は次回の判定用に profile へ残す。
       const reported =
-        typeof data.px === "number" && typeof data.py === "number" &&
-        Number.isFinite(data.px) && Number.isFinite(data.py) &&
-        Math.abs(data.px) <= WORLD_COORD_LIMIT && Math.abs(data.py) <= WORLD_COORD_LIMIT
+        typeof data.px === "number" &&
+        typeof data.py === "number" &&
+        Number.isFinite(data.px) &&
+        Number.isFinite(data.py) &&
+        Math.abs(data.px) <= WORLD_COORD_LIMIT &&
+        Math.abs(data.py) <= WORLD_COORD_LIMIT
           ? { x: data.px, y: data.py }
           : null;
-      const space = typeof data.space === "string" && data.space.length > 0 ? data.space.slice(0, 64) : "world";
+      const space =
+        typeof data.space === "string" && data.space.length > 0 ? data.space.slice(0, 64) : "world";
       const pos = await actorWorldPosition(ownerKey, reported, space);
-      const prev = typeof current.vitalX === "number" && typeof current.vitalY === "number" &&
+      const prev =
+        typeof current.vitalX === "number" &&
+        typeof current.vitalY === "number" &&
         typeof current.vitalSpace === "string"
-        ? { x: current.vitalX, y: current.vitalY, space: current.vitalSpace }
-        : null;
+          ? { x: current.vitalX, y: current.vitalY, space: current.vitalSpace }
+          : null;
       const cur = pos ? { x: pos.x, y: pos.y, space } : null;
       const elapsedSec = current.vitalAt > 0 ? (now - current.vitalAt) / 1000 : 0;
       const activity = activityForWindow(prev, cur, elapsedSec);
@@ -268,7 +338,9 @@ export async function POST(request: Request) {
         if (!(await storeProfile(ownerKey, cleared))) return errorResponse("store_failed", 503);
         return NextResponse.json(
           {
-            profile: cleared, died: true, dropped: death.dropped,
+            profile: cleared,
+            died: true,
+            dropped: death.dropped,
             ...(teleport ? { respawn: { x: teleport.x, y: teleport.y } } : {}),
           },
           { headers: NO_STORE },
@@ -283,7 +355,10 @@ export async function POST(request: Request) {
         }
         const cleared = { ...profile, pendingTeleport: null };
         if (!(await storeProfile(ownerKey, cleared))) return errorResponse("store_failed", 503);
-        return NextResponse.json({ profile: cleared, died: false, teleport }, { headers: NO_STORE });
+        return NextResponse.json(
+          { profile: cleared, died: false, teleport },
+          { headers: NO_STORE },
+        );
       }
       if (profile !== current && !(await storeProfile(ownerKey, profile))) {
         return errorResponse("store_failed", 503);
@@ -304,7 +379,13 @@ export async function POST(request: Request) {
       const inCave = instDmg?.kind === "cave";
       const inRuins = instDmg?.kind === "ruins";
       const inDungeon = instDmg?.kind === "dungeon";
-      if (!def || def.temperament === "passive" || def.attack <= 0 || (def.instanceOnly && !inCave && !inDungeon) || (inCave && def.instanceOnly && def.instanceOnly !== "cave")) {
+      if (
+        !def ||
+        def.temperament === "passive" ||
+        def.attack <= 0 ||
+        (def.instanceOnly && !inCave && !inDungeon) ||
+        (inCave && def.instanceOnly && def.instanceOnly !== "cave")
+      ) {
         return errorResponse("unknown_mob", 400);
       }
       if (typeof data.x !== "number" || typeof data.y !== "number") {
@@ -312,14 +393,20 @@ export async function POST(request: Request) {
       }
       const x = Math.floor(data.x);
       const y = Math.floor(data.y);
-      if (Math.abs(x) > WORLD_COORD_LIMIT || Math.abs(y) > WORLD_COORD_LIMIT) return errorResponse("unknown_mob", 400);
+      if (Math.abs(x) > WORLD_COORD_LIMIT || Math.abs(y) > WORLD_COORD_LIMIT)
+        return errorResponse("unknown_mob", 400);
       if (inCave && instDmg) {
         const cave = buildCaveLayer(MAP_SEED, instDmg.entranceX, instDmg.entranceY, instDmg.layer);
         if (!cave.mobs.some((m) => m.mobId === def.id && m.x === x && m.y === y)) {
           return errorResponse("unknown_mob", 400);
         }
       } else if (inDungeon && instDmg) {
-        const dfloor = buildDungeonFloor(MAP_SEED, instDmg.entranceX, instDmg.entranceY, instDmg.layer);
+        const dfloor = buildDungeonFloor(
+          MAP_SEED,
+          instDmg.entranceX,
+          instDmg.entranceY,
+          instDmg.layer,
+        );
         if (!dfloor.mobs.some((m) => m.mobId === def.id && m.x === x && m.y === y)) {
           return errorResponse("unknown_mob", 400);
         }
@@ -330,17 +417,27 @@ export async function POST(request: Request) {
         }
       } else {
         const isNight = isNightPhase(phaseAtTime(now / 1000));
-        if (!mobExistsAt(MAP_SEED, def.id, x, y, isNight) && !mobExistsAt(MAP_SEED, def.id, x, y, !isNight)) {
+        if (
+          !mobExistsAt(MAP_SEED, def.id, x, y, isNight) &&
+          !mobExistsAt(MAP_SEED, def.id, x, y, !isNight)
+        ) {
           return errorResponse("unknown_mob", 400);
         }
       }
       const reported =
-        typeof data.px === "number" && typeof data.py === "number" &&
-        Number.isFinite(data.px) && Number.isFinite(data.py) &&
-        Math.abs(data.px) <= WORLD_COORD_LIMIT && Math.abs(data.py) <= WORLD_COORD_LIMIT
+        typeof data.px === "number" &&
+        typeof data.py === "number" &&
+        Number.isFinite(data.px) &&
+        Number.isFinite(data.py) &&
+        Math.abs(data.px) <= WORLD_COORD_LIMIT &&
+        Math.abs(data.py) <= WORLD_COORD_LIMIT
           ? { x: data.px, y: data.py }
           : null;
-      const pos = await actorWorldPosition(ownerKey, reported, (inCave || inRuins || inDungeon) && typeof data.space === "string" ? data.space : "world");
+      const pos = await actorWorldPosition(
+        ownerKey,
+        reported,
+        (inCave || inRuins || inDungeon) && typeof data.space === "string" ? data.space : "world",
+      );
       if (!pos) return errorResponse("position_unknown", 409);
       {
         // 距離はアンカーでなく、クライアントが見ているモブの現在タイルで
@@ -349,9 +446,12 @@ export async function POST(request: Request) {
         // いても too_far になり接触ダメージが無効化されていた。申告の無い
         // 旧クライアントはアンカー検証のまま。
         const reportedMob =
-          typeof data.mx === "number" && typeof data.my === "number" &&
-          Number.isFinite(data.mx) && Number.isFinite(data.my) &&
-          Math.abs(data.mx) <= WORLD_COORD_LIMIT && Math.abs(data.my) <= WORLD_COORD_LIMIT
+          typeof data.mx === "number" &&
+          typeof data.my === "number" &&
+          Number.isFinite(data.mx) &&
+          Number.isFinite(data.my) &&
+          Math.abs(data.mx) <= WORLD_COORD_LIMIT &&
+          Math.abs(data.my) <= WORLD_COORD_LIMIT
             ? { x: data.mx, y: data.my }
             : null;
         const effPlaced = resolveMobPosition({ mobId: def.id, x, y, size: def.size }, reportedMob);
@@ -360,7 +460,8 @@ export async function POST(request: Request) {
       }
       // 凍結中のモブは接触ダメージを与えない
       {
-        let keyPrefix = (inCave || inRuins) && typeof data.space === "string" ? `${data.space}|` : "";
+        let keyPrefix =
+          (inCave || inRuins) && typeof data.space === "string" ? `${data.space}|` : "";
         if (inDungeon && typeof data.space === "string") {
           const party = await loadPartyOf(ownerKey);
           keyPrefix = `${data.space}#${partyKeyOf(party, ownerKey)}|`;
@@ -376,18 +477,27 @@ export async function POST(request: Request) {
       // 守護の挑発・オーラ（同じ空間の新鮮なプレゼンスから解決する）
       let attack = def.attack;
       {
-        const spaceHere = (inCave || inRuins || inDungeon) && typeof data.space === "string" ? data.space : "world";
+        const spaceHere =
+          (inCave || inRuins || inDungeon) && typeof data.space === "string" ? data.space : "world";
         const owners = await listPresenceWithOwners();
         const victimPos = pos ?? reported;
-        const guards = owners.filter((o) =>
-          o.ownerKey !== ownerKey && o.entry.space === spaceHere && o.entry.role === "guard" &&
-          victimPos !== null && Math.hypot(o.entry.x - victimPos.x, o.entry.y - victimPos.y) <= 3.5);
+        const guards = owners.filter(
+          (o) =>
+            o.ownerKey !== ownerKey &&
+            o.entry.space === spaceHere &&
+            o.entry.role === "guard" &&
+            victimPos !== null &&
+            Math.hypot(o.entry.x - victimPos.x, o.entry.y - victimPos.y) <= 3.5,
+        );
         if (guards.length > 0 && victimPos) {
           // 挑発が生きていればモブは守護に向かい、被害は無い
           let taunted = false;
           for (const g of guards) {
             const gProfile = await loadProfile(g.ownerKey);
-            if (gProfile && gProfile.tauntUntil > now) { taunted = true; break; }
+            if (gProfile && gProfile.tauntUntil > now) {
+              taunted = true;
+              break;
+            }
           }
           if (taunted) {
             return NextResponse.json(
@@ -403,9 +513,15 @@ export async function POST(request: Request) {
       }
       const result = applyMobDamage(current, def.id, attack, now, Math.random);
       if (result.died) return settleDeath(ownerKey, result.profile, now, session.username ?? "");
-      if (!(await storeProfile(ownerKey, result.profile))) return errorResponse("store_failed", 503);
+      if (!(await storeProfile(ownerKey, result.profile)))
+        return errorResponse("store_failed", 503);
       return NextResponse.json(
-        { profile: result.profile, died: false, applied: result.applied, poisoned: result.poisoned },
+        {
+          profile: result.profile,
+          died: false,
+          applied: result.applied,
+          poisoned: result.poisoned,
+        },
         { headers: NO_STORE },
       );
     });
@@ -414,7 +530,10 @@ export async function POST(request: Request) {
       const guardKey = grantGuard;
       await withUserLock(guardKey, async () => {
         const gProfile = await loadProfile(guardKey);
-        if (gProfile) await storeProfile(guardKey, addMasteryXp(gProfile, "guard", 2).profile).catch(() => false);
+        if (gProfile)
+          await storeProfile(guardKey, addMasteryXp(gProfile, "guard", 2).profile).catch(
+            () => false,
+          );
       }).catch(() => undefined);
     }
     return res;
@@ -435,9 +554,12 @@ export async function POST(request: Request) {
     const selfEntry = owners.find((o) => o.ownerKey === ownerKey);
     if (selfEntry && selfEntry.entry.space !== space) return errorResponse("pvp_not_allowed", 409);
     const reported =
-      typeof data.px === "number" && typeof data.py === "number" &&
-      Number.isFinite(data.px) && Number.isFinite(data.py) &&
-      Math.abs(data.px) <= WORLD_COORD_LIMIT && Math.abs(data.py) <= WORLD_COORD_LIMIT
+      typeof data.px === "number" &&
+      typeof data.py === "number" &&
+      Number.isFinite(data.px) &&
+      Number.isFinite(data.py) &&
+      Math.abs(data.px) <= WORLD_COORD_LIMIT &&
+      Math.abs(data.py) <= WORLD_COORD_LIMIT
         ? { x: data.px, y: data.py }
         : null;
     const pos = await actorWorldPosition(ownerKey, reported, space);
@@ -446,7 +568,9 @@ export async function POST(request: Request) {
     const dist = Math.hypot(pos.x - target.entry.x, pos.y - target.entry.y);
     if (dist > PVP_ATTACK_MAX_DISTANCE) return errorResponse("too_far", 409);
     // ダメージ量はモブ戦と同じ式（playerAttack、剣士は倍率）
-    const attackPower = playerAttack(current.items, current.enhance) * (current.role === "blade" ? BLADE_ATTACK_MULT : 1);
+    const attackPower =
+      playerAttack(current.items, current.enhance) *
+      (current.role === "blade" ? BLADE_ATTACK_MULT : 1);
     // 被害者プロフィールの読み書きは被害者単位で直列化する（同時攻撃の競合防止）。
     // 鍵は被害者本人の sync / damage と同じ素の ownerKey にする（B3）:
     // 別鍵だと被害者の sync が古いスナップショットで死亡通知を上書きし、
@@ -456,14 +580,20 @@ export async function POST(request: Request) {
       const victim = await loadProfile(target.ownerKey);
       const result = applyPvpDamage(victim, attackPower, now);
       if (result.died) {
-        const settled = await settleVictimDeath(target.ownerKey, result.profile, now, target.entry.name ?? "");
+        const settled = await settleVictimDeath(
+          target.ownerKey,
+          result.profile,
+          now,
+          target.entry.name ?? "",
+        );
         if (!settled) return errorResponse("store_failed", 503);
         return NextResponse.json(
           { applied: result.applied, damage: result.damage, died: true },
           { headers: NO_STORE },
         );
       }
-      if (!(await storeProfile(target.ownerKey, result.profile))) return errorResponse("store_failed", 503);
+      if (!(await storeProfile(target.ownerKey, result.profile)))
+        return errorResponse("store_failed", 503);
       return NextResponse.json(
         { applied: result.applied, damage: result.damage, died: false },
         { headers: NO_STORE },
@@ -482,7 +612,10 @@ export async function POST(request: Request) {
       const current = await loadProfile(ownerKey);
       const pos = await actorWorldPosition(ownerKey, null);
       if (!pos) {
-        return NextResponse.json({ profile: current, died: false, applied: false }, { headers: NO_STORE });
+        return NextResponse.json(
+          { profile: current, died: false, applied: false },
+          { headers: NO_STORE },
+        );
       }
       let dmg = 0;
       const r = 0.32;
@@ -493,7 +626,10 @@ export async function POST(request: Request) {
         }
       }
       if (dmg <= 0) {
-        return NextResponse.json({ profile: current, died: false, applied: false }, { headers: NO_STORE });
+        return NextResponse.json(
+          { profile: current, died: false, applied: false },
+          { headers: NO_STORE },
+        );
       }
       const result = applyHazardDamage(current, dmg, now);
       if (result.died) return settleDeath(ownerKey, result.profile, now, session.username ?? "");
@@ -516,9 +652,11 @@ export async function POST(request: Request) {
       }
       const x = Math.floor(data.x);
       const y = Math.floor(data.y);
-      if (Math.abs(x) > WORLD_COORD_LIMIT || Math.abs(y) > WORLD_COORD_LIMIT) return errorResponse("invalid_request", 400);
+      if (Math.abs(x) > WORLD_COORD_LIMIT || Math.abs(y) > WORLD_COORD_LIMIT)
+        return errorResponse("invalid_request", 400);
       const override = await loadTileOverride(x, y);
-      if (!override?.block || override.block.itemId !== "bed") return errorResponse("not_a_bed", 409);
+      if (!override?.block || override.block.itemId !== "bed")
+        return errorResponse("not_a_bed", 409);
       const pos = await actorWorldPosition(ownerKey, null);
       if (!pos) return errorResponse("position_unknown", 409);
       if (Math.max(Math.abs(Math.floor(pos.x) - x), Math.abs(Math.floor(pos.y) - y)) > 2) {

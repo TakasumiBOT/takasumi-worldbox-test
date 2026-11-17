@@ -23,11 +23,16 @@ export interface TierFx {
 
 export function tierFx(tier: WinTier): TierFx {
   switch (tier) {
-    case 1: return { confetti: 24, countUpMs: 500, flash: false, shake: false };
-    case 2: return { confetti: 60, countUpMs: 900, flash: true, shake: false };
-    case 3: return { confetti: 130, countUpMs: 1500, flash: true, shake: true };
-    case 4: return { confetti: 240, countUpMs: 2400, flash: true, shake: true };
-    default: return { confetti: 0, countUpMs: 0, flash: false, shake: false };
+    case 1:
+      return { confetti: 24, countUpMs: 500, flash: false, shake: false };
+    case 2:
+      return { confetti: 60, countUpMs: 900, flash: true, shake: false };
+    case 3:
+      return { confetti: 130, countUpMs: 1500, flash: true, shake: true };
+    case 4:
+      return { confetti: 240, countUpMs: 2400, flash: true, shake: true };
+    default:
+      return { confetti: 0, countUpMs: 0, flash: false, shake: false };
   }
 }
 

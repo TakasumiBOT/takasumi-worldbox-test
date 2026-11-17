@@ -61,12 +61,18 @@ export const SAME_SPACE_WARPS: readonly {
 }[] = [
   {
     space: "lobby",
-    sources: [{ x: 17, y: 29 }, { x: 18, y: 29 }],
+    sources: [
+      { x: 17, y: 29 },
+      { x: 18, y: 29 },
+    ],
     landing: { x: 17.5, y: 60.5 },
   },
   {
     space: "lobby",
-    sources: [{ x: 17, y: 62 }, { x: 18, y: 62 }],
+    sources: [
+      { x: 17, y: 62 },
+      { x: 18, y: 62 },
+    ],
     landing: { x: 17.5, y: 27.5 },
   },
 ];
@@ -87,9 +93,11 @@ export function isRegisteredWarpJump(
   if (baseline.space !== next.space) return false;
   for (const warp of SAME_SPACE_WARPS) {
     if (warp.space !== next.space) continue;
-    if (Math.hypot(next.x - warp.landing.x, next.y - warp.landing.y) > WARP_LANDING_TOLERANCE_TILES) continue;
+    if (Math.hypot(next.x - warp.landing.x, next.y - warp.landing.y) > WARP_LANDING_TOLERANCE_TILES)
+      continue;
     for (const src of warp.sources) {
-      if (Math.hypot(baseline.x - (src.x + 0.5), baseline.y - (src.y + 0.5)) <= reachTiles) return true;
+      if (Math.hypot(baseline.x - (src.x + 0.5), baseline.y - (src.y + 0.5)) <= reachTiles)
+        return true;
     }
   }
   return false;
@@ -215,7 +223,10 @@ function clampNum(v: number, min: number, max: number): number {
 function sanitizeName(raw: unknown): string {
   if (typeof raw !== "string") return "";
   // 制御文字と改行を落としてから整える（名前ラベルの描画を壊さない）
-  return raw.replace(/[\u0000-\u001f\u007f]/g, " ").trim().slice(0, PRESENCE_NAME_MAX);
+  return raw
+    .replace(/[\u0000-\u001f\u007f]/g, " ")
+    .trim()
+    .slice(0, PRESENCE_NAME_MAX);
 }
 
 /**
@@ -227,7 +238,8 @@ export function sanitizeHeartbeat(raw: unknown, bounds: CoordBounds): Heartbeat 
   const v = raw as Record<string, unknown>;
   if (typeof v.x !== "number" || !Number.isFinite(v.x)) return null;
   if (typeof v.y !== "number" || !Number.isFinite(v.y)) return null;
-  const vel = (n: unknown) => (typeof n === "number" && Number.isFinite(n) ? clampNum(n, -MAX_VELOCITY, MAX_VELOCITY) : 0);
+  const vel = (n: unknown) =>
+    typeof n === "number" && Number.isFinite(n) ? clampNum(n, -MAX_VELOCITY, MAX_VELOCITY) : 0;
   return {
     name: sanitizeName(v.name),
     x: clampNum(v.x, bounds.minX, bounds.maxX),
@@ -236,12 +248,21 @@ export function sanitizeHeartbeat(raw: unknown, bounds: CoordBounds): Heartbeat 
     vy: vel(v.vy),
     face: v.face === -1 ? -1 : 1,
     space: sanitizePresenceSpace(v.space),
-    role: typeof v.role === "string" && ["blade", "guard", "scout", "miner", "medic", "teleporter"].includes(v.role) ? v.role : "free",
-    rank: typeof v.rank === "number" && Number.isFinite(v.rank) ? Math.max(1, Math.min(5, Math.floor(v.rank))) : 1,
+    role:
+      typeof v.role === "string" &&
+      ["blade", "guard", "scout", "miner", "medic", "teleporter"].includes(v.role)
+        ? v.role
+        : "free",
+    rank:
+      typeof v.rank === "number" && Number.isFinite(v.rank)
+        ? Math.max(1, Math.min(5, Math.floor(v.rank)))
+        : 1,
     party: typeof v.party === "string" ? v.party.slice(0, 48) : "",
     ...(v.sit === true ? { sit: true } : {}),
     ...(typeof v.tab === "string" && v.tab.length > 0 ? { tab: v.tab.slice(0, 64) } : {}),
-    ...(typeof v.tabAt === "number" && Number.isFinite(v.tabAt) && v.tabAt > 0 ? { tabAt: v.tabAt } : {}),
+    ...(typeof v.tabAt === "number" && Number.isFinite(v.tabAt) && v.tabAt > 0
+      ? { tabAt: v.tabAt }
+      : {}),
   };
 }
 
@@ -305,7 +326,11 @@ export function parsePresenceEntry(id: string, raw: unknown): PresenceEntry | nu
  * 外挿の dt がそのまま狂う。往復の中点を受信時刻とみなす（NTP と同じ考え方）:
  * 戻り値をクライアントの Date.now() に足すとサーバー時刻に近づく。
  */
-export function clockOffsetEstimate(serverNow: number, clientBefore: number, clientAfter: number): number {
+export function clockOffsetEstimate(
+  serverNow: number,
+  clientBefore: number,
+  clientAfter: number,
+): number {
   return serverNow - (clientBefore + clientAfter) / 2;
 }
 
@@ -323,7 +348,10 @@ export function selectVisiblePlayers(
   space?: PresenceSpace,
 ): PresenceEntry[] {
   return entries
-    .filter((e) => e.id !== selfId && isFreshPresence(e, now) && (space === undefined || e.space === space))
+    .filter(
+      (e) =>
+        e.id !== selfId && isFreshPresence(e, now) && (space === undefined || e.space === space),
+    )
     .sort((a, b) => b.ts - a.ts)
     .slice(0, limit);
 }
@@ -355,7 +383,11 @@ export function thinPresenceNear(
  * デッドレコニング: 最終ハートビート位置を速度で外挿する。
  * 外挿は EXTRAPOLATE_CAP_SEC で頭打ちにし、空間の範囲内に丸める。
  */
-export function predictPosition(entry: PresenceEntry, now: number, bounds: CoordBounds): { x: number; y: number } {
+export function predictPosition(
+  entry: PresenceEntry,
+  now: number,
+  bounds: CoordBounds,
+): { x: number; y: number } {
   const dt = clampNum((now - entry.ts) / 1000, 0, EXTRAPOLATE_CAP_SEC);
   return {
     x: clampNum(entry.x + entry.vx * dt, bounds.minX, bounds.maxX),

@@ -1,1 +1,34 @@
-{"dependencies":{"@discord/embedded-app-sdk":"^2.5.0","@neondatabase/serverless":"^1.2.1","@vercel/functions":"^3.11.3","next":"^15.5.0","react":"^19.1.0","react-dom":"^19.1.0","ws":"^8.23.0"},"devDependencies":{"@types/node":"^22.0.0","@types/react":"^19.0.0","typescript":"^5.6.0"},"name":"takasumi-worldbox-test","overrides":{"@discord/embedded-app-sdk":{"zod":"4.6.6"}},"packageManager":"npm@10.9.2","private":true,"scripts":{"build":"next build","dev":"next dev","setup:db":"node scripts/setup-db.mjs","start":"next start","test":"node --test tests/*.mjs"},"version":"0.1.0"}
+{
+  "name": "takasumi-worldbox-test",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "next build",
+    "dev": "next dev",
+    "setup:db": "node scripts/setup-db.mjs",
+    "start": "next start",
+    "test": "node --test tests/*.mjs",
+    "format": "oxfmt"
+  },
+  "dependencies": {
+    "@discord/embedded-app-sdk": "^2.5.0",
+    "@neondatabase/serverless": "^1.2.1",
+    "@vercel/functions": "^3.11.3",
+    "next": "^15.5.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "ws": "^8.23.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "oxfmt": "^0.79.0",
+    "typescript": "^5.6.0"
+  },
+  "overrides": {
+    "@discord/embedded-app-sdk": {
+      "zod": "4.6.6"
+    }
+  },
+  "packageManager": "npm@10.9.2"
+}

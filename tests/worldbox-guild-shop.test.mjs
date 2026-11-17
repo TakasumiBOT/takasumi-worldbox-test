@@ -52,8 +52,15 @@ async function loadBundle(files, exportNames) {
 const G = await loadBundle(
   ["worldbox/economy/guild-shop.ts"],
   [
-    "GUILD_PLOT_COUNT", "GUILD_PLOT_FEE", "GUILD_PLOT_ANCHORS", "emptyGuildShopState",
-    "parseGuildShopState", "listingAvailable", "sellerProceeds", "plotOfGuild", "findListing",
+    "GUILD_PLOT_COUNT",
+    "GUILD_PLOT_FEE",
+    "GUILD_PLOT_ANCHORS",
+    "emptyGuildShopState",
+    "parseGuildShopState",
+    "listingAvailable",
+    "sellerProceeds",
+    "plotOfGuild",
+    "findListing",
   ],
 );
 
@@ -72,11 +79,15 @@ test("guild-shop: seller proceeds take the 5% fee (floored)", () => {
 test("guild-shop: state parse keeps valid plots/listings only", () => {
   const state = G.parseGuildShopState({
     plots: [
-      { idx: 2, guildId: "g1", listings: [
-        { id: "l1", sellerKey: "discord:1", itemId: "wood", count: 5, sold: 2, price: 40 },
-        { id: "bad", sellerKey: "discord:1", itemId: "wood", count: 0, sold: 0, price: 40 },
-        { id: "bad2", sellerKey: "discord:1", itemId: "wood", count: 3, sold: 9, price: 40 },
-      ] },
+      {
+        idx: 2,
+        guildId: "g1",
+        listings: [
+          { id: "l1", sellerKey: "discord:1", itemId: "wood", count: 5, sold: 2, price: 40 },
+          { id: "bad", sellerKey: "discord:1", itemId: "wood", count: 0, sold: 0, price: 40 },
+          { id: "bad2", sellerKey: "discord:1", itemId: "wood", count: 3, sold: 9, price: 40 },
+        ],
+      },
       { idx: 99, guildId: "gX", listings: [] },
       null,
     ],

@@ -2,19 +2,41 @@ import { NextResponse } from "next/server";
 import { getRequestSession, publicOrigin, sessionOwnerKey } from "@/lib/auth";
 import { worldTileSource } from "@/lib/worldbox/world/mapgen";
 import {
-  applyFound, applyJoin, applyLeave, buildNationsResponse, fastTravelDestination, nationViews,
-  type MyGuildView, type NationActionResult, type NationsState,
+  applyFound,
+  applyJoin,
+  applyLeave,
+  buildNationsResponse,
+  fastTravelDestination,
+  nationViews,
+  type MyGuildView,
+  type NationActionResult,
+  type NationsState,
 } from "@/lib/worldbox/social/nations";
-import { isNationsEnabled, loadNationsState, storeNationsState } from "@/lib/worldbox/social/nations-online";
+import {
+  isNationsEnabled,
+  loadNationsState,
+  storeNationsState,
+} from "@/lib/worldbox/social/nations-online";
 import { loadMyLobbyStation } from "@/lib/worldbox/world/station-online";
 import { parseSave, serializeSave } from "@/lib/worldbox/core/save";
 import { loadWorldBoxSave, storeWorldBoxSave } from "@/lib/worldbox/core/save-online";
 import { putPresence } from "@/lib/worldbox/player/presence-online";
-import { annotateMyGuilds, getUserGuilds, roleInGuild, type UserGuildsResult } from "@/lib/worldbox/social/guilds";
 import {
-  isNationHiddenFrom, isPrivateNation, memberKeysOf, resolveMemberRole,
+  annotateMyGuilds,
+  getUserGuilds,
+  roleInGuild,
+  type UserGuildsResult,
+} from "@/lib/worldbox/social/guilds";
+import {
+  isNationHiddenFrom,
+  isPrivateNation,
+  memberKeysOf,
+  resolveMemberRole,
 } from "@/lib/worldbox/social/nation-settings";
-import { loadNationSettings, loadNationSettingsMap } from "@/lib/worldbox/social/nation-settings-online";
+import {
+  loadNationSettings,
+  loadNationSettingsMap,
+} from "@/lib/worldbox/social/nation-settings-online";
 import { warMarksByNation } from "@/lib/worldbox/combat/war";
 import { isWarsEnabled, loadWarState } from "@/lib/worldbox/combat/war-online";
 
@@ -100,7 +122,8 @@ export async function GET(request: Request) {
   const settingsMap = await loadNationSettingsMap();
   const myMembership = selfKey ? state.members[selfKey] : undefined;
   response.nations = response.nations.filter(
-    (n) => !isNationHiddenFrom(settingsMap.get(n.guildId), n.guildId, myMembership?.nationId ?? null),
+    (n) =>
+      !isNationHiddenFrom(settingsMap.get(n.guildId), n.guildId, myMembership?.nationId ?? null),
   );
   // 戦争中のマーク表示（世界地図用）: 一覧に出ている国の分だけ付ける
   // （非公開国の戦争関与を一覧外へ漏らさない）。
@@ -163,13 +186,23 @@ export async function POST(request: Request) {
     const prev = parseSave(await loadWorldBoxSave(ownerKey));
     await storeWorldBoxSave(
       ownerKey,
-      serializeSave({ space: "world", x: dest.x, y: dest.y, worldReturn: prev?.worldReturn ?? null }),
+      serializeSave({
+        space: "world",
+        x: dest.x,
+        y: dest.y,
+        worldReturn: prev?.worldReturn ?? null,
+      }),
     );
     await putPresence(
       ownerKey,
       {
         name: session.username?.trim() || "プレイヤー",
-        x: dest.x, y: dest.y, vx: 0, vy: 0, face: 1, space: "world",
+        x: dest.x,
+        y: dest.y,
+        vx: 0,
+        vy: 0,
+        face: 1,
+        space: "world",
       },
       Date.now(),
     );
@@ -207,13 +240,18 @@ export async function POST(request: Request) {
   }
 
   if (!result.ok) {
-    return NextResponse.json({ error: result.error }, { status: errorStatus(result.error), headers: NO_STORE });
+    return NextResponse.json(
+      { error: result.error },
+      { status: errorStatus(result.error), headers: NO_STORE },
+    );
   }
   const stored = await storeNationsState(result.state);
   if (!stored) {
     return NextResponse.json({ error: "nations_failed" }, { status: 500, headers: NO_STORE });
   }
-  const view = result.nation ? nationViews(result.state).find((v) => v.id === result.nation!.guildId) ?? null : null;
+  const view = result.nation
+    ? (nationViews(result.state).find((v) => v.id === result.nation!.guildId) ?? null)
+    : null;
   return NextResponse.json(
     {
       ok: true,

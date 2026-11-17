@@ -35,10 +35,7 @@ export const SUBDOMAIN_ROUTES: Readonly<Record<string, string>> = {
  * 実効ホストを決める。Cloudflare Tunnel 経由では元のホストが
  * X-Forwarded-Host（カンマ区切りの先頭）に入るので、そちらを優先する。
  */
-export function effectiveHost(
-  forwardedHost: string | null | undefined,
-  hostname: string,
-): string {
+export function effectiveHost(forwardedHost: string | null | undefined, hostname: string): string {
   return forwardedHost?.split(",")[0]?.trim() || hostname;
 }
 
@@ -69,7 +66,5 @@ export function onePrompterRedirectUrl(args: {
   const url = subdomainRedirectUrl(args);
   if (!url) return null;
   // 汎用版は全ホストを見るため、One Prompter のホスト以外は対象外に戻す。
-  return effectiveHost(args.forwardedHost, args.hostname) === ONE_PROMPTER_HOST
-    ? url
-    : null;
+  return effectiveHost(args.forwardedHost, args.hostname) === ONE_PROMPTER_HOST ? url : null;
 }

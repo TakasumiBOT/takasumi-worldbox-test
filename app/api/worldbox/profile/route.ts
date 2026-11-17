@@ -2,22 +2,49 @@ import { addMasteryXp } from "@/lib/worldbox/player/roles";
 import { NextResponse } from "next/server";
 import { getRequestSession, publicOrigin, sessionOwnerKey } from "@/lib/auth";
 import {
-  buyItem, craftFromInputs, craftItem, eatItem, sellItem,
-  type CoinMovement, type EconomyError,
+  buyItem,
+  craftFromInputs,
+  craftItem,
+  eatItem,
+  sellItem,
+  type CoinMovement,
+  type EconomyError,
 } from "@/lib/worldbox/economy/economy";
 import { buildEconomyOp, type EconomyOp } from "@/lib/worldbox/economy/economy-bridge";
 import {
-  deleteEconomyOp, deleteEconomyOpLedger, findEconomyOp, isEconomyEnabled, readUserBalance, submitEconomyOp, waitForOpDone,
+  deleteEconomyOp,
+  deleteEconomyOpLedger,
+  findEconomyOp,
+  isEconomyEnabled,
+  readUserBalance,
+  submitEconomyOp,
+  waitForOpDone,
 } from "@/lib/worldbox/economy/economy-bridge-online";
 import { TENT_MAX_TIER, TENT_TIERS } from "@/lib/worldbox/world/tent";
 import {
-  countItem, ENHANCE_BASE_COST, ENHANCE_MATERIALS, ENHANCE_MAX_LEVEL, moveSlot, removeItem,
-  swapSlots, type PlayerProfile,
+  countItem,
+  ENHANCE_BASE_COST,
+  ENHANCE_MATERIALS,
+  ENHANCE_MAX_LEVEL,
+  moveSlot,
+  removeItem,
+  swapSlots,
+  type PlayerProfile,
 } from "@/lib/worldbox/player/profile";
 import { itemById, recipeById, recipeKind } from "@/lib/worldbox/economy/items";
 import { findPresenceOwnerKey, isPresenceEnabled } from "@/lib/worldbox/player/presence-online";
-import { checkBuyGenre, checkBuySold, checkDailyStock, dailyPriceFor, shopDayKeyOf } from "@/lib/worldbox/economy/shops";
-import { loadMyLobbyShopGenre, loadMyLobbyStation, loadMyWorldStationKinds } from "@/lib/worldbox/world/station-online";
+import {
+  checkBuyGenre,
+  checkBuySold,
+  checkDailyStock,
+  dailyPriceFor,
+  shopDayKeyOf,
+} from "@/lib/worldbox/economy/shops";
+import {
+  loadMyLobbyShopGenre,
+  loadMyLobbyStation,
+  loadMyWorldStationKinds,
+} from "@/lib/worldbox/world/station-online";
 import type { StationKind } from "@/lib/worldbox/world/tiles";
 import { isProfileEnabled, loadProfile, storeProfile } from "@/lib/worldbox/player/profile-online";
 import { withUserLock } from "@/lib/worldbox/core/user-lock";
@@ -46,7 +73,14 @@ export const runtime = "nodejs";
 
 const NO_STORE = { "Cache-Control": "no-store, max-age=0" };
 
-const BAD_REQUEST_ERRORS = new Set(["invalid_request", "invalid_action", "unknown_item", "unknown_recipe", "invalid_count", "self_target"]);
+const BAD_REQUEST_ERRORS = new Set([
+  "invalid_request",
+  "invalid_action",
+  "unknown_item",
+  "unknown_recipe",
+  "invalid_count",
+  "self_target",
+]);
 
 function sameOrigin(request: Request) {
   const origin = request.headers.get("origin");
@@ -68,11 +102,7 @@ function discordIdOf(session: { provider: string; id: string }): string | null {
 }
 
 /** coin からブリッジのオプを組み立てる。提出は submitEconomyOp が行う。 */
-function buildCoinOp(
-  ownerKey: string,
-  discordId: string,
-  coin: CoinMovement,
-): EconomyOp | null {
+function buildCoinOp(ownerKey: string, discordId: string, coin: CoinMovement): EconomyOp | null {
   return buildEconomyOp(
     { kind: coin.kind, userKey: ownerKey, discordId, amount: coin.amount, reason: coin.reason },
     crypto.randomUUID(),
@@ -120,9 +150,16 @@ async function handlePost(request: Request, session: AuthedSession) {
     return NextResponse.json({ error: "invalid_request" }, { status: 400, headers: NO_STORE });
   }
   const data = (body ?? {}) as {
-    action?: unknown; itemId?: unknown; count?: unknown; recipeId?: unknown; targetId?: unknown;
+    action?: unknown;
+    itemId?: unknown;
+    count?: unknown;
+    recipeId?: unknown;
+    targetId?: unknown;
     inputs?: unknown;
-    hotbarIndex?: unknown; storageIndex?: unknown; from?: unknown; to?: unknown;
+    hotbarIndex?: unknown;
+    storageIndex?: unknown;
+    from?: unknown;
+    to?: unknown;
   };
   const ownerKey = sessionOwnerKey(session);
   const current = await loadProfile(ownerKey);
@@ -175,7 +212,8 @@ async function handlePost(request: Request, session: AuthedSession) {
         await storeProfile(ownerKey, current);
         return statusError("economy_failed", 503);
       }
-      const settled = submitted.state === "pending" ? await waitForOpDone(ownerKey, op.id) : submitted.op;
+      const settled =
+        submitted.state === "pending" ? await waitForOpDone(ownerKey, op.id) : submitted.op;
       if (settled && settled.status === "failed") {
         await storeProfile(ownerKey, current);
         return NextResponse.json(
@@ -187,7 +225,9 @@ async function handlePost(request: Request, session: AuthedSession) {
         const balance = await readUserBalance(discordId);
         return NextResponse.json(
           {
-            profile: result.profile, ...extra, opStatus: settled.status,
+            profile: result.profile,
+            ...extra,
+            opStatus: settled.status,
             ...(balance !== null ? { balance } : {}),
           },
           { headers: NO_STORE },
@@ -255,7 +295,10 @@ async function handlePost(request: Request, session: AuthedSession) {
       if (balance === null) return statusError("economy_unavailable", 503);
       const itemDef = itemById(data.itemId as string);
       const unitPrice = myGenre && itemDef ? dailyPriceFor(itemDef, dayKey) : undefined;
-      return saveWithCoin(buyItem(current, data.itemId, data.count, balance, unitPrice), gate.discordId);
+      return saveWithCoin(
+        buyItem(current, data.itemId, data.count, balance, unitPrice),
+        gate.discordId,
+      );
     }
     case "expand_tent": {
       // テント（個人空間）の拡張: 次の段階の価格を spend し、段階を上げる。
@@ -281,14 +324,21 @@ async function handlePost(request: Request, session: AuthedSession) {
         await deleteEconomyOpLedger(opId);
       }
       const op = buildEconomyOp(
-        { kind: "spend", userKey: ownerKey, discordId: gate.discordId, amount: price, reason: "tent_expand" },
+        {
+          kind: "spend",
+          userKey: ownerKey,
+          discordId: gate.discordId,
+          amount: price,
+          reason: "tent_expand",
+        },
         opId,
         Date.now(),
       );
       if (!op) return statusError("economy_failed", 503);
       const submitted = await submitEconomyOp(op);
       if (submitted.state === "unavailable") return statusError("economy_failed", 503);
-      const settled = submitted.state === "pending" ? await waitForOpDone(ownerKey, op.id) : submitted.op;
+      const settled =
+        submitted.state === "pending" ? await waitForOpDone(ownerKey, op.id) : submitted.op;
       if (settled && settled.status === "failed") {
         return NextResponse.json(
           { error: "economy_failed", opError: settled.error ?? null },
@@ -336,7 +386,8 @@ async function handlePost(request: Request, session: AuthedSession) {
       const level = current.enhance[def.id] ?? 0;
       if (level >= ENHANCE_MAX_LEVEL) return statusError("max_level", 409);
       const material = ENHANCE_MATERIALS[def.tier ?? 1] ?? ENHANCE_MATERIALS[1];
-      if (countItem(current, material.itemId) < material.count) return errorResponse("not_enough_items");
+      if (countItem(current, material.itemId) < material.count)
+        return errorResponse("not_enough_items");
       const cost = ENHANCE_BASE_COST * (level + 1);
       const balance = await readUserBalance(gate.discordId);
       if (balance === null) return statusError("economy_unavailable", 503);
@@ -370,15 +421,19 @@ async function handlePost(request: Request, session: AuthedSession) {
         // 結果（craftedId）と気配（hint）だけを返す
         const result = craftFromInputs(current, data.inputs);
         if (!result.ok) return saveAndReturn(result);
-        const profile = result.matched && result.recipe
-          ? withDiscovery(result.profile, result.recipe.id)
-          : result.profile;
-        return saveAndReturn({ ok: true, profile }, {
-          craftedId: result.resultId,
-          rareId: result.rare?.id ?? null,
-          hint: result.hint,
-          matched: result.matched,
-        });
+        const profile =
+          result.matched && result.recipe
+            ? withDiscovery(result.profile, result.recipe.id)
+            : result.profile;
+        return saveAndReturn(
+          { ok: true, profile },
+          {
+            craftedId: result.resultId,
+            rareId: result.rare?.id ?? null,
+            hint: result.hint,
+            matched: result.matched,
+          },
+        );
       }
       // recipeId 形式（従来呼び出しの互換）: 成功時は発見を記録し hint は exact
       const result = craftItem(current, data.recipeId);

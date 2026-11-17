@@ -39,7 +39,8 @@ async function attemptDiscordAuth(
   });
   if (!response.ok) throw new Error("games-auth failed");
   const data = (await response.json()) as { accessToken?: unknown; user?: DiscordIdentity };
-  if (typeof data.accessToken !== "string" || !data.accessToken) throw new Error("games-auth failed");
+  if (typeof data.accessToken !== "string" || !data.accessToken)
+    throw new Error("games-auth failed");
   // authenticate の引数はタプル経由で組む（キー名の直書きを避ける都合）。
   const auth = await sdk.commands.authenticate(
     Object.fromEntries([["access_token", data.accessToken]]) as { access_token: string },
@@ -56,7 +57,10 @@ async function attemptDiscordAuth(
  * 初回ユーザーは無言認証が必ず失敗するため、このフォールバックが無いと
  * 本人情報が永久に届かない（WORLD BOX のゲートで詰まる実害があった）。
  */
-export async function authenticateDiscordIdentity(sdk: DiscordSDK, clientId: string): Promise<DiscordIdentity | null> {
+export async function authenticateDiscordIdentity(
+  sdk: DiscordSDK,
+  clientId: string,
+): Promise<DiscordIdentity | null> {
   try {
     return await attemptDiscordAuth(sdk, clientId, true);
   } catch {

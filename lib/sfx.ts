@@ -32,7 +32,9 @@ function ac(): AudioContext | null {
   if (isSfxMuted()) return null;
   try {
     if (!ctx) {
-      const AC = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      const AC =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
       if (!AC) return null;
       ctx = new AC();
     }
@@ -54,7 +56,14 @@ function getNoise(c: AudioContext): AudioBuffer {
 }
 
 /** 短いトーン（サイン波＋指数減衰）。 */
-function tone(freq: number, dur: number, vol: number, type: OscillatorType = "sine", delay = 0, slideTo?: number): void {
+function tone(
+  freq: number,
+  dur: number,
+  vol: number,
+  type: OscillatorType = "sine",
+  delay = 0,
+  slideTo?: number,
+): void {
   const c = ac();
   if (!c) return;
   try {
@@ -76,7 +85,13 @@ function tone(freq: number, dur: number, vol: number, type: OscillatorType = "si
 }
 
 /** ノイズバースト（フィルタ付き）。 */
-function noise(dur: number, vol: number, filterFreq: number, type: BiquadFilterType = "lowpass", delay = 0): void {
+function noise(
+  dur: number,
+  vol: number,
+  filterFreq: number,
+  type: BiquadFilterType = "lowpass",
+  delay = 0,
+): void {
   const c = ac();
   if (!c) return;
   try {
@@ -193,7 +208,13 @@ export function sfxGutter(): void {
 export type SfxTier = 1 | 2 | 3 | 4 | 5;
 
 /** tier ごとの基準ゲイン（単調に下がること）。 */
-export const SFX_TIER_GAIN: Record<SfxTier, number> = { 1: 0.19, 2: 0.145, 3: 0.115, 4: 0.07, 5: 0.035 };
+export const SFX_TIER_GAIN: Record<SfxTier, number> = {
+  1: 0.19,
+  2: 0.145,
+  3: 0.115,
+  4: 0.07,
+  5: 0.035,
+};
 
 /** 語彙ごとの tier 対応表（テストと監査用）。 */
 export const SFX_VOCAB_TIERS: Record<string, SfxTier> = {

@@ -6,7 +6,15 @@
 // SDK の初期化に失敗しても白画面にはしない（フォールバックは通常表示）。
 import { DiscordSDK } from "@discord/embedded-app-sdk";
 import Link from "next/link";
-import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   roomFromShareCustomId,
   shareCustomIdForRoom,
@@ -33,7 +41,13 @@ export type GamesNav = {
   shareRoomInvite: ((gameId: string, code: string) => Promise<boolean>) | null;
 };
 
-const GamesNavContext = createContext<GamesNav>({ embedded: false, prefix: "", identity: null, retryIdentity: null, shareRoomInvite: null });
+const GamesNavContext = createContext<GamesNav>({
+  embedded: false,
+  prefix: "",
+  identity: null,
+  retryIdentity: null,
+  shareRoomInvite: null,
+});
 
 export function useGamesNav(): GamesNav {
   return useContext(GamesNavContext);
@@ -65,7 +79,13 @@ function storeEmbedded() {
 
 const ROUTED_CUSTOM_ID_KEY = "agobot:invite-routed-custom-id";
 
-export default function GamesShell({ clientId, children }: { clientId: string; children: ReactNode }) {
+export default function GamesShell({
+  clientId,
+  children,
+}: {
+  clientId: string;
+  children: ReactNode;
+}) {
   const [embedded, setEmbedded] = useState(false);
   const [prefix, setPrefix] = useState("");
   const [identity, setIdentity] = useState<DiscordIdentity | null>(null);
@@ -104,7 +124,9 @@ export default function GamesShell({ clientId, children }: { clientId: string; c
     let cancelled = false;
     // Discord のプロキシ配下（/.proxy/...）では内部リンクにも接頭辞が要る
     const proxyPrefix =
-      window.location.pathname.startsWith("/.proxy/") || window.location.pathname === "/.proxy" ? "/.proxy" : "";
+      window.location.pathname.startsWith("/.proxy/") || window.location.pathname === "/.proxy"
+        ? "/.proxy"
+        : "";
     if (proxyPrefix) setPrefix(proxyPrefix);
     const fromDiscord = hasActivityParams();
     const stored = readStoredEmbedded();
@@ -121,8 +143,12 @@ export default function GamesShell({ clientId, children }: { clientId: string; c
     // 共有リンクから起動された場合（custom_id にルーム宛先が入っている）は、
     // ハブに着地した時点でそのゲームの招待画面へ直行する。
     if (fromDiscord || stored) {
-      const target = roomFromShareCustomId(new URLSearchParams(window.location.search).get("custom_id"));
-      const barePath = proxyPrefix ? window.location.pathname.slice(proxyPrefix.length) || "/" : window.location.pathname;
+      const target = roomFromShareCustomId(
+        new URLSearchParams(window.location.search).get("custom_id"),
+      );
+      const barePath = proxyPrefix
+        ? window.location.pathname.slice(proxyPrefix.length) || "/"
+        : window.location.pathname;
       if (target && (barePath === "/games" || barePath === "/")) {
         let alreadyRouted = false;
         try {
@@ -171,7 +197,15 @@ export default function GamesShell({ clientId, children }: { clientId: string; c
   }, [clientId]);
 
   return (
-    <GamesNavContext.Provider value={{ embedded, prefix, identity, retryIdentity: embedded ? retryIdentity : null, shareRoomInvite: embedded ? shareRoomInvite : null }}>
+    <GamesNavContext.Provider
+      value={{
+        embedded,
+        prefix,
+        identity,
+        retryIdentity: embedded ? retryIdentity : null,
+        shareRoomInvite: embedded ? shareRoomInvite : null,
+      }}
+    >
       <div className="games-shell" {...(embedded ? { "data-activity-root": "" } : {})}>
         {embedded && (
           <nav className="games-embedded-bar" aria-label="ゲームメニュー">

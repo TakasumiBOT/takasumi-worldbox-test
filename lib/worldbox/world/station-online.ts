@@ -6,7 +6,13 @@
 // 室内（ロビー・テント）外・プレゼンス未送信・鮮度切れはすべて null
 // （=どの施設の前でもない）。プレゼンスが無い/古い場合は、ワープ時に
 // 保存されるセーブ（空間と入口位置）で代替する。
-import { buildLobby, stationGenreNear, stationNear, type LobbyObject, type LobbyStation } from "./lobby";
+import {
+  buildLobby,
+  stationGenreNear,
+  stationNear,
+  type LobbyObject,
+  type LobbyStation,
+} from "./lobby";
 import { buildLobby2, buildLobby3 } from "./lobby-floors";
 import type { ShopGenreId } from "../economy/shops";
 import { buildTent } from "./tent";
@@ -25,17 +31,33 @@ async function loadMyIndoorPosition(
   const presence = await loadMyPresence(ownerKey);
   if (presence) {
     if (presence.space === "lobby") {
-      return { objects: buildLobby().objects, tx: Math.floor(presence.x), ty: Math.floor(presence.y) };
+      return {
+        objects: buildLobby().objects,
+        tx: Math.floor(presence.x),
+        ty: Math.floor(presence.y),
+      };
     }
     if (presence.space === "lobby2") {
-      return { objects: buildLobby2().objects, tx: Math.floor(presence.x), ty: Math.floor(presence.y) };
+      return {
+        objects: buildLobby2().objects,
+        tx: Math.floor(presence.x),
+        ty: Math.floor(presence.y),
+      };
     }
     if (presence.space === "lobby3") {
-      return { objects: buildLobby3().objects, tx: Math.floor(presence.x), ty: Math.floor(presence.y) };
+      return {
+        objects: buildLobby3().objects,
+        tx: Math.floor(presence.x),
+        ty: Math.floor(presence.y),
+      };
     }
     if (presence.space === "tent") {
       const profile = await loadProfile(ownerKey);
-      return { objects: buildTent(profile.tentTier).objects, tx: Math.floor(presence.x), ty: Math.floor(presence.y) };
+      return {
+        objects: buildTent(profile.tentTier).objects,
+        tx: Math.floor(presence.x),
+        ty: Math.floor(presence.y),
+      };
     }
     return null;
   }
@@ -52,7 +74,11 @@ async function loadMyIndoorPosition(
   }
   if (saved.space === "tent") {
     const profile = await loadProfile(ownerKey);
-    return { objects: buildTent(profile.tentTier).objects, tx: Math.floor(saved.x), ty: Math.floor(saved.y) };
+    return {
+      objects: buildTent(profile.tentTier).objects,
+      tx: Math.floor(saved.x),
+      ty: Math.floor(saved.y),
+    };
   }
   return null;
 }
@@ -105,10 +131,12 @@ export async function loadMyWorldStationKinds(ownerKey: string): Promise<Readonl
   const jobs: Promise<void>[] = [];
   for (let dy = -WORLD_STATION_RADIUS; dy <= WORLD_STATION_RADIUS; dy++) {
     for (let dx = -WORLD_STATION_RADIUS; dx <= WORLD_STATION_RADIUS; dx++) {
-      jobs.push((async () => {
-        const ov = await loadTileOverride(wx + dx, wy + dy);
-        for (const kind of placedStationKinds(ov?.block?.itemId)) kinds.add(kind);
-      })());
+      jobs.push(
+        (async () => {
+          const ov = await loadTileOverride(wx + dx, wy + dy);
+          for (const kind of placedStationKinds(ov?.block?.itemId)) kinds.add(kind);
+        })(),
+      );
     }
   }
   await Promise.all(jobs);

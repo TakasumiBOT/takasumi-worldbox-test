@@ -51,18 +51,32 @@ function bundle(names, exportNames) {
 
 const world = bundle(
   ["worldbox/world/mapgen.ts", "worldbox/world/lobby.ts", "worldbox/world/tent.ts"],
-  ["buildTent", "tentTileAt", "TENT_W", "TENT_H", "TENT_MAX_W", "TENT_MAX_H", "TENT_ENTRY", "TENT_EXIT", "L_WALL", "L_WOOD", "stationNear"],
+  [
+    "buildTent",
+    "tentTileAt",
+    "TENT_W",
+    "TENT_H",
+    "TENT_MAX_W",
+    "TENT_MAX_H",
+    "TENT_ENTRY",
+    "TENT_EXIT",
+    "L_WALL",
+    "L_WOOD",
+    "stationNear",
+  ],
 );
 
 const saveMod = bundle(
-  ["worldbox/world/mapgen.ts", "worldbox/world/lobby.ts", "worldbox/world/tent.ts", "worldbox/core/save.ts"],
+  [
+    "worldbox/world/mapgen.ts",
+    "worldbox/world/lobby.ts",
+    "worldbox/world/tent.ts",
+    "worldbox/core/save.ts",
+  ],
   ["serializeSave", "parseSave"],
 );
 
-const presenceMod = bundle(
-  ["worldbox/player/presence.ts"],
-  ["sanitizePresenceSpace"],
-);
+const presenceMod = bundle(["worldbox/player/presence.ts"], ["sanitizePresenceSpace"]);
 
 test("テント内装: 壁と床、出入口は歩ける", () => {
   const tent = world.buildTent();
@@ -74,7 +88,10 @@ test("テント内装: 壁と床、出入口は歩ける", () => {
   assert.equal(world.tentTileAt(tent.tiles, tent.width, tent.height, 0, 5), world.L_WALL);
   // 内側は木の床、出入口タイルも床
   assert.equal(world.tentTileAt(tent.tiles, tent.width, tent.height, 6, 5), world.L_WOOD);
-  assert.equal(world.tentTileAt(tent.tiles, tent.width, tent.height, world.TENT_EXIT.x, world.TENT_EXIT.y), world.L_WOOD);
+  assert.equal(
+    world.tentTileAt(tent.tiles, tent.width, tent.height, world.TENT_EXIT.x, world.TENT_EXIT.y),
+    world.L_WOOD,
+  );
   // 出入口オブジェクトは平置き（通過可）
   const pad = tent.objects.find((o) => o.sprite === "warp_pad");
   assert.ok(pad);
@@ -92,7 +109,11 @@ test("テント内装: 作業台とかまどが smith ステーションで、�
   assert.ok(smiths.length >= 2, "作業台とかまどが無い");
   assert.ok(smiths.some((o) => o.sprite === "workbench"));
   // 入口タイルから作業台（出入口脇）に隣接できる
-  const st = world.stationNear(tent.objects, Math.floor(world.TENT_ENTRY.x), Math.floor(world.TENT_ENTRY.y));
+  const st = world.stationNear(
+    tent.objects,
+    Math.floor(world.TENT_ENTRY.x),
+    Math.floor(world.TENT_ENTRY.y),
+  );
   assert.equal(st, "smith");
   // オブジェクト同士の重なりが無い
   const seen = new Set();
@@ -118,12 +139,19 @@ test("テント内装: 作業台とかまどが smith ステーションで、�
 });
 
 test("セーブ: tent 空間が往復し、範囲外は tent 内へ丸まる", () => {
-  const json = saveMod.serializeSave({ space: "tent", x: 6.5, y: 8.5, worldReturn: { x: 100.5, y: 200.5 } });
+  const json = saveMod.serializeSave({
+    space: "tent",
+    x: 6.5,
+    y: 8.5,
+    worldReturn: { x: 100.5, y: 200.5 },
+  });
   const back = saveMod.parseSave(json);
   assert.equal(back.space, "tent");
   assert.equal(back.x, 6.5);
   assert.equal(back.y, 8.5);
-  const clamped = saveMod.parseSave(saveMod.serializeSave({ space: "tent", x: 999, y: 999, worldReturn: null }));
+  const clamped = saveMod.parseSave(
+    saveMod.serializeSave({ space: "tent", x: 999, y: 999, worldReturn: null }),
+  );
   assert.ok(clamped.x <= world.TENT_MAX_W - 0.5 && clamped.y <= world.TENT_MAX_H - 0.5);
 });
 
@@ -136,16 +164,28 @@ test("プレゼンス: tent 空間を通す", () => {
 test("配線: テントは facility で置け、クライアントとサーバーが tent を扱う", () => {
   const items = fs.readFileSync(path.join(libDir, "worldbox/economy/items.ts"), "utf8");
   assert.match(items, /id: "tent"[^}]*facility: true/);
-  const client = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"), "utf8");
+  const client = fs.readFileSync(
+    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    "utf8",
+  );
   assert.ok(client.includes('doWarp("tent")'), "テントを踏んで入る配線が無い");
   assert.ok(client.includes("tentExitFor"), "出口の配線が無い");
   assert.ok(client.includes("buildTent"), "内装の読み込みが無い");
-  assert.ok(client.includes('spaceUi !== "world" && stationUi'), "室内チップ表示が tent に広がっていない");
+  assert.ok(
+    client.includes('spaceUi !== "world" && stationUi'),
+    "室内チップ表示が tent に広がっていない",
+  );
   const station = fs.readFileSync(path.join(libDir, "worldbox/world/station-online.ts"), "utf8");
   assert.ok(station.includes('presence.space === "tent"'), "サーバー検証に tent が無い");
   assert.ok(station.includes("buildTent"), "サーバー検証が内装を読まない");
-  const panel = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxEconomyPanel.tsx"), "utf8");
-  assert.ok(panel.includes('space !== "world" && station === "smith"'), "経済パネルの合成タブが tent で開かない");
+  const panel = fs.readFileSync(
+    path.join(rootDir, "app/games/worldbox/WorldBoxEconomyPanel.tsx"),
+    "utf8",
+  );
+  assert.ok(
+    panel.includes('space !== "world" && station === "smith"'),
+    "経済パネルの合成タブが tent で開かない",
+  );
   const relay = fs.readFileSync(path.join(rootDir, "realtime/relay-core.js"), "utf8");
   assert.ok(relay.includes("tent: { width: 22, height: 17 }"), "中継の空間境界に tent が無い");
 });

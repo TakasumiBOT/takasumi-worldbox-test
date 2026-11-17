@@ -53,8 +53,13 @@ async function loadBundle(files, exportNames) {
 const E = await loadBundle(
   ["worldbox/core/events.ts"],
   [
-    "WORLD_EVENTS", "EVENT_DUNGEON_ENTRANCE", "isEventActive", "activeEvents",
-    "activeLimitedDungeon", "isEventDungeonEntrance", "eventDaysLeft",
+    "WORLD_EVENTS",
+    "EVENT_DUNGEON_ENTRANCE",
+    "isEventActive",
+    "activeEvents",
+    "activeLimitedDungeon",
+    "isEventDungeonEntrance",
+    "eventDaysLeft",
   ],
 );
 
@@ -77,15 +82,31 @@ test("events: limited dungeon follows the same window; entrance is reserved", ()
   assert.ok(E.activeLimitedDungeon(utc(2026, 12, 25)));
   assert.equal(E.activeLimitedDungeon(utc(2026, 3, 1)), null);
   assert.equal(E.activeEvents(utc(2026, 12, 25)).length, 2);
-  assert.equal(E.isEventDungeonEntrance(E.EVENT_DUNGEON_ENTRANCE.x, E.EVENT_DUNGEON_ENTRANCE.y), true);
+  assert.equal(
+    E.isEventDungeonEntrance(E.EVENT_DUNGEON_ENTRANCE.x, E.EVENT_DUNGEON_ENTRANCE.y),
+    true,
+  );
   assert.equal(E.isEventDungeonEntrance(0, 0), false);
 });
 
 const T = await loadBundle(
-  ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/world/lobby.ts", "worldbox/world/tent.ts"],
   [
-    "TENT_TIERS", "TENT_MAX_TIER", "tentTierOf", "tentSizeForTier", "tentExitFor",
-    "tentEntryFor", "buildTent", "tentTileAt", "TENT_ENTRY", "TENT_EXIT",
+    "worldbox/core/rng.ts",
+    "worldbox/world/mapgen.ts",
+    "worldbox/world/lobby.ts",
+    "worldbox/world/tent.ts",
+  ],
+  [
+    "TENT_TIERS",
+    "TENT_MAX_TIER",
+    "tentTierOf",
+    "tentSizeForTier",
+    "tentExitFor",
+    "tentEntryFor",
+    "buildTent",
+    "tentTileAt",
+    "TENT_ENTRY",
+    "TENT_EXIT",
   ],
 );
 

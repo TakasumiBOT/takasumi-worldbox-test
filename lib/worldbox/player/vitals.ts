@@ -13,10 +13,15 @@
 // 割合・間隔などの数値はユーザー向けに開示しない（探索優先の原則）。
 import { ITEMS, itemById } from "../economy/items";
 import {
-  HP_MAX, HUNGER_MAX, maxHpFor, MEDIC_HEAL_MULT, removeItem,
-  type PlayerProfile, type RespawnPoint, type StatusEffect,
+  HP_MAX,
+  HUNGER_MAX,
+  maxHpFor,
+  MEDIC_HEAL_MULT,
+  removeItem,
+  type PlayerProfile,
+  type RespawnPoint,
+  type StatusEffect,
 } from "./profile";
-
 
 /** 空腹の活動クラス（サーバー側が位置変化の平均速度から判定する）。 */
 export type HungerActivity = "idle" | "move" | "dash";
@@ -78,7 +83,12 @@ export const POISON_DURATION_MS = 30000;
 /** 毒を持つモブが毒を与える確率。 */
 export const POISON_CHANCE = 0.35;
 /** 毒を与えるモブ。 */
-export const POISON_MOB_IDS: ReadonlySet<string> = new Set(["spider", "spider_queen", "bee", "jellyfish"]);
+export const POISON_MOB_IDS: ReadonlySet<string> = new Set([
+  "spider",
+  "spider_queen",
+  "bee",
+  "jellyfish",
+]);
 /** モブ接触ダメージの最小間隔（ミリ秒）。クライアントの接触発火間隔と一致。 */
 export const MOB_DAMAGE_COOLDOWN_MS = 1000;
 /** バイタル精算で進める時間の上限（ミリ秒）。長期離脱で即死させない。 */
@@ -93,7 +103,10 @@ export { maxHpFor };
 export const RESPAWN_HUNGER = 50;
 
 export function isPoisoned(profile: PlayerProfile, now: number): boolean {
-  return Array.isArray(profile.status) && profile.status.some((e) => e.kind === "poison" && e.until > now);
+  return (
+    Array.isArray(profile.status) &&
+    profile.status.some((e) => e.kind === "poison" && e.until > now)
+  );
 }
 
 function statusOf(profile: PlayerProfile): StatusEffect[] {
@@ -227,7 +240,8 @@ export function stepVitals(
   hunger = Math.max(0, hunger - rate * drainSec);
   let starveSec = 0;
   if (hungerBefore <= 0) starveSec = elapsedSec;
-  else if (hunger <= 0) starveSec = elapsedSec - secondsUntilHungerEmpty(hungerBefore, rate, warmWin, elapsedSec);
+  else if (hunger <= 0)
+    starveSec = elapsedSec - secondsUntilHungerEmpty(hungerBefore, rate, warmWin, elapsedSec);
   hp -= STARVE_HP_PER_SEC * starveSec;
   // alert（はちみつティー等）の間、満腹なら少しずつ回復する
   const alertSec = buffActiveSec(profile, "alert", now);
@@ -397,7 +411,9 @@ export function consumeEffect(
     cured = statusOf(next).some((e) => e.kind === "poison");
     next = curePoison(next);
   }
-  const hungerGain = item.hunger ? Math.min(HUNGER_MAX, next.hunger + item.hunger) - next.hunger : 0;
+  const hungerGain = item.hunger
+    ? Math.min(HUNGER_MAX, next.hunger + item.hunger) - next.hunger
+    : 0;
   const healAmount = item.heal ? item.heal * (next.role === "medic" ? MEDIC_HEAL_MULT : 1) : 0;
   const hpGain = item.heal ? Math.min(maxHpFor(next), next.hp + healAmount) - next.hp : 0;
   next = { ...next, hunger: next.hunger + hungerGain, hp: next.hp + hpGain };
@@ -459,11 +475,7 @@ export function resolveRespawnPoint(
 }
 
 /** ベッドのリスポーン点を記録する（ベッドの隣のタイルを点とする）。 */
-export function setBedRespawn(
-  profile: PlayerProfile,
-  bedX: number,
-  bedY: number,
-): PlayerProfile {
+export function setBedRespawn(profile: PlayerProfile, bedX: number, bedY: number): PlayerProfile {
   return { ...profile, respawn: { x: bedX + 0.5, y: bedY + 0.5 } };
 }
 

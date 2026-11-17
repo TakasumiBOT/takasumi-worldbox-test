@@ -33,7 +33,12 @@ export function createRemoteTrack(entry: PresenceEntry, now: number, bounds: Bou
  * 新しいスナップショットを受け取る。予測位置が描画位置から
  * REMOTE_SNAP_DISTANCE を超えて離れていたら描画状態ごと合わせ直す。
  */
-export function updateRemoteTrack(track: RemoteTrack, entry: PresenceEntry, now: number, bounds: Bounds): RemoteTrack {
+export function updateRemoteTrack(
+  track: RemoteTrack,
+  entry: PresenceEntry,
+  now: number,
+  bounds: Bounds,
+): RemoteTrack {
   const p = predictPosition(entry, now, bounds);
   if (Math.hypot(p.x - track.rx, p.y - track.ry) > REMOTE_SNAP_DISTANCE) {
     return { entry, rx: p.x, ry: p.y, rvx: entry.vx, rvy: entry.vy };
@@ -42,7 +47,13 @@ export function updateRemoteTrack(track: RemoteTrack, entry: PresenceEntry, now:
 }
 
 /** 臨界減衰バネ（SmoothDamp）で1軸を target へ寄せる。 */
-function smoothDampAxis(current: number, target: number, vel: number, smoothTime: number, dt: number): { x: number; v: number } {
+function smoothDampAxis(
+  current: number,
+  target: number,
+  vel: number,
+  smoothTime: number,
+  dt: number,
+): { x: number; v: number } {
   if (dt <= 0) return { x: current, v: vel };
   const omega = 2 / Math.max(0.01, smoothTime);
   const x = omega * dt;
@@ -54,7 +65,12 @@ function smoothDampAxis(current: number, target: number, vel: number, smoothTime
 }
 
 /** dt 秒ぶん描画位置を進める（目標はスナップショットからの予測位置）。 */
-export function stepRemoteTrack(track: RemoteTrack, now: number, dt: number, bounds: Bounds): RemoteTrack {
+export function stepRemoteTrack(
+  track: RemoteTrack,
+  now: number,
+  dt: number,
+  bounds: Bounds,
+): RemoteTrack {
   const target = predictPosition(track.entry, now, bounds);
   const ax = smoothDampAxis(track.rx, target.x, track.rvx, REMOTE_SMOOTH_TIME_SEC, dt);
   const ay = smoothDampAxis(track.ry, target.y, track.rvy, REMOTE_SMOOTH_TIME_SEC, dt);

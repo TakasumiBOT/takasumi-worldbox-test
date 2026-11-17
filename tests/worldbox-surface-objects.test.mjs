@@ -53,13 +53,25 @@ async function loadBundle(files, exportNames) {
 
 const O = await loadBundle(
   [
-    "worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/world/maplogic.ts", "worldbox/economy/items.ts",
+    "worldbox/core/rng.ts",
+    "worldbox/world/mapgen.ts",
+    "worldbox/world/maplogic.ts",
+    "worldbox/economy/items.ts",
     "worldbox/world/objects.ts",
   ],
   [
-    "SPECIAL_OBJECTS", "specialObjectById", "validateSpecialObjects", "objectsForChunk",
-    "surfaceObjectAt", "surfaceSolidTilesInRect", "parseObjectStates", "objectRespawned",
-    "rollObjectLoot", "makeRng", "MAP_SEED", "CHUNK_SIZE",
+    "SPECIAL_OBJECTS",
+    "specialObjectById",
+    "validateSpecialObjects",
+    "objectsForChunk",
+    "surfaceObjectAt",
+    "surfaceSolidTilesInRect",
+    "parseObjectStates",
+    "objectRespawned",
+    "rollObjectLoot",
+    "makeRng",
+    "MAP_SEED",
+    "CHUNK_SIZE",
   ],
 );
 
@@ -88,10 +100,25 @@ test("surface-objects: 入口系のデッド定義は除去され、定義の整
 test("surface-objects: 全種が地表に配置され、座標から逆引きできる", () => {
   const found = scanObjects();
   const expected = [
-    "berry_bush", "herb_patch", "mushroom_patch", "flower_meadow", "beehive",
-    "bird_nest", "sulfur_vent", "copper_vein", "coal_vein", "rare_vein",
-    "crystal_cluster", "ruins_chest", "cave_chest", "dungeon_chest",
-    "hot_spring", "ancient_pillar", "fallen_log", "driftwood", "fishing_spot",
+    "berry_bush",
+    "herb_patch",
+    "mushroom_patch",
+    "flower_meadow",
+    "beehive",
+    "bird_nest",
+    "sulfur_vent",
+    "copper_vein",
+    "coal_vein",
+    "rare_vein",
+    "crystal_cluster",
+    "ruins_chest",
+    "cave_chest",
+    "dungeon_chest",
+    "hot_spring",
+    "ancient_pillar",
+    "fallen_log",
+    "driftwood",
+    "fishing_spot",
   ];
   for (const id of expected) {
     const placed = found.get(id);
@@ -159,27 +186,29 @@ test("surface-objects: 固体集合は solid 定義だけを含み、範囲で�
 });
 
 test("surface-objects: 枯渇状態のパースは不正値を捨てる", () => {
-  const parsed = O.parseObjectStates(new Map([
-    ["3,4", "1700000000000"],
-    ["-5,6", 1700000000001],
-    ["junk", "1700000000000"],
-    ["7,8", "not-a-number"],
-    ["9,10", 0],
-    ["11,12", null],
-  ]));
+  const parsed = O.parseObjectStates(
+    new Map([
+      ["3,4", "1700000000000"],
+      ["-5,6", 1700000000001],
+      ["junk", "1700000000000"],
+      ["7,8", "not-a-number"],
+      ["9,10", 0],
+      ["11,12", null],
+    ]),
+  );
   assert.deepEqual(parsed, { "3,4": 1700000000000, "-5,6": 1700000000001 });
 });
 
 // ---- 配線（ソースの実在） -------------------------------------------------
 
-const routeSrc = fs.readFileSync(
-  path.join(rootDir, "app/api/worldbox/objects/route.ts"), "utf8",
-);
+const routeSrc = fs.readFileSync(path.join(rootDir, "app/api/worldbox/objects/route.ts"), "utf8");
 const fishingRouteSrc = fs.readFileSync(
-  path.join(rootDir, "app/api/worldbox/fishing/route.ts"), "utf8",
+  path.join(rootDir, "app/api/worldbox/fishing/route.ts"),
+  "utf8",
 );
 const clientSrc = fs.readFileSync(
-  path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"), "utf8",
+  path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+  "utf8",
 );
 const watchSrc = fs.readFileSync(path.join(rootDir, "realtime/watch-core.js"), "utf8");
 const serverSrc = fs.readFileSync(path.join(rootDir, "realtime-server.js"), "utf8");
@@ -188,9 +217,19 @@ test("surface-objects wiring: 採取APIが検証と永続化を持つ", () => {
   assert.ok(routeSrc.includes("export async function GET"));
   assert.ok(routeSrc.includes("export async function POST"));
   for (const needle of [
-    "surfaceObjectAt", "objectRespawned", "storeHarvestedAt", "loadObjectStates",
-    "withUserLock", "bestToolTier", "too_far", "depleted", "needs_pickaxe",
-    "pickaxe_tier", "TRAP_DAMAGE", "MINER_BONUS_CHANCE", "addMasteryXp",
+    "surfaceObjectAt",
+    "objectRespawned",
+    "storeHarvestedAt",
+    "loadObjectStates",
+    "withUserLock",
+    "bestToolTier",
+    "too_far",
+    "depleted",
+    "needs_pickaxe",
+    "pickaxe_tier",
+    "TRAP_DAMAGE",
+    "MINER_BONUS_CHANCE",
+    "addMasteryXp",
   ]) {
     assert.ok(routeSrc.includes(needle), `objects route に ${needle} が無い`);
   }
@@ -205,10 +244,16 @@ test("surface-objects wiring: 釣りに状態取得の経路がある", () => {
 
 test("surface-objects wiring: クライアントが描画・タップ・衝突・同期を持つ", () => {
   for (const needle of [
-    "drawSurfaceObject", "surfaceObjectAt", "postSurfaceObject",
-    "surfaceObjStateRef", "refreshSurfaceStates", "surfaceSolidTilesInRect",
-    'msg.kind === "objects"', 'msg.kind === "fishing"',
-    'fetch("/api/worldbox/objects"', "/api/worldbox/fishing?",
+    "drawSurfaceObject",
+    "surfaceObjectAt",
+    "postSurfaceObject",
+    "surfaceObjStateRef",
+    "refreshSurfaceStates",
+    "surfaceSolidTilesInRect",
+    'msg.kind === "objects"',
+    'msg.kind === "fishing"',
+    'fetch("/api/worldbox/objects"',
+    "/api/worldbox/fishing?",
   ]) {
     assert.ok(clientSrc.includes(needle), `client に ${needle} が無い`);
   }
