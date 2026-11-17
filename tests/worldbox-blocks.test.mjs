@@ -107,8 +107,8 @@ function assertIconFile(item) {
 
 test("アイコン: 道具は全種アイコンつき", () => {
   const tools = inv.ITEMS.filter((i) => i.category === "tool");
-  // 作業道具16種（4種×4段）＋開拓のコンパス（種別なしの探索道具）
-  assert.equal(tools.length, 17);
+  // 作業道具12種（3種×4段）＋開拓のコンパス（種別なしの探索道具）
+  assert.equal(tools.length, 13);
   for (const item of tools) assertIconFile(item);
 });
 
@@ -369,11 +369,6 @@ const nationsOnlineStubUrl = dataUrl(`
 export function isNationsEnabled() { return true; }
 export async function loadNationsState() { return globalThis.__wbBlockNations ?? { nations: {} }; }
 `);
-// 戦争のスタブ: 空の戦争状態を返す（平時＝他者ブロックは掘れない）。
-const warUrl = bundleModule(["worldbox/combat/war.ts"], ["canBreakOthersBlock"]);
-const warsOnlineStubUrl = dataUrl(`
-export async function loadWarState() { return globalThis.__wbBlockWars ?? { v: 1, wars: {}, history: [], lastDeclaredAt: {} }; }
-`);
 const nextServerStubUrl = dataUrl(`
 export class NextResponse {
   static json(body, init = {}) {
@@ -430,8 +425,6 @@ const tilesRoute = await import(
       .replaceAll('"@/lib/worldbox/core/ops-online"', JSON.stringify(opsOnlineStubUrl))
       .replaceAll('"@/lib/worldbox/core/user-lock"', JSON.stringify(userLockUrl))
       .replaceAll('"@/lib/worldbox/social/nations-online"', JSON.stringify(nationsOnlineStubUrl))
-      .replaceAll('"@/lib/worldbox/combat/war"', JSON.stringify(warUrl))
-      .replaceAll('"@/lib/worldbox/combat/war-online"', JSON.stringify(warsOnlineStubUrl)),
   ),
 );
 

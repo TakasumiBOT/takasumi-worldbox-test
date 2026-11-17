@@ -2,11 +2,11 @@
 // AGO WORLD BOX リアルタイム中継の watch 純粋ロジック（ソケット・IO 非依存）。
 // relay が bot_kv の名前空間をサーバー側で一括ポーリングし、差分だけを
 // 購読者へ配る（Phase 1）。従来はクライアント全員が各自に REST で
-// 全件取得していた（chat 3s / party 4s / board 10s / tiles・mobs・
+// 全件取得していた（chat 3s / party 4s / board 10s / tiles・
 // nations 15s）。watch は名前空間ごとに1回だけ読み、N→1 に集約する。
 //
 // 配信の形は対象ごとに違う:
-// - tiles / mobs / board: 値そのものを差分配信し、クライアントが既存の
+// - tiles / board: 値そのものを差分配信し、クライアントが既存の
 //   parse 関数で適用する（REST 応答と同じデータが正）。
 // - chat / party / nations: 応答が本人向けに加工される（近距離フィルタ・
 //   partyView・Discord ギルド情報）ため、relay は「変わった」ことだけを
@@ -23,7 +23,6 @@ const WATCH_PLAN = [
   // 絞る）を含むため、nations と同じ全体 poke 方式にする
   { namespace: "worldbox_requests", kind: "requests", intervalMs: 2_000 },
   { namespace: "worldbox_tiles", kind: "tiles", intervalMs: 2_000 },
-  { namespace: "worldbox_mobs", kind: "mobs", intervalMs: 2_000 },
   { namespace: "worldbox_board", kind: "board", intervalMs: 5_000 },
   { namespace: "worldbox_nations", kind: "nations", intervalMs: 5_000 },
   // インスタンス状態（洞窟の枯渇・遺跡の個人状態・ダンジョンのセッション
@@ -33,7 +32,7 @@ const WATCH_PLAN = [
   // 経済オプの確定は体感遅延に直結するため速い系（2秒）で watch する
   { namespace: "worldbox_economy", kind: "economy", intervalMs: 2_000 },
   // 地表オブジェクトの枯渇と釣りの釣果は、値そのもの（座標→時刻）が
-  // 表示状態そのものなので tiles / mobs と同じ差分配信にする
+  // 表示状態そのものなので tiles と同じ差分配信にする
   { namespace: "worldbox_objects", kind: "objects", intervalMs: 2_000 },
   { namespace: "worldbox_fishing", kind: "fishing", intervalMs: 2_000 },
   // ギルドショップは単一ドキュメントで応答に本人向け加工（役職・mine）

@@ -13,14 +13,6 @@
 /** 冒険役職 ID（プロフィールが所有する。規則は roles.ts）。 */
 export type AdventureRoleId = "free" | "blade" | "guard" | "scout" | "miner" | "medic" | "teleporter";
 export const ADVENTURE_ROLE_IDS: readonly AdventureRoleId[] = ["free", "blade", "guard", "scout", "miner", "medic", "teleporter"];
-/** 守護の最大 HP ボーナス。 */
-export const GUARD_HP_BONUS = 20;
-/** 薬師の回復アイテム倍率。 */
-export const MEDIC_HEAL_MULT = 1.5;
-/** 役職込みの最大 HP。 */
-export function maxHpFor(profile: PlayerProfile): number {
-  return HP_MAX + (profile.role === "guard" ? GUARD_HP_BONUS : 0);
-}
 
 export function isAdventureRoleId(v: unknown): v is AdventureRoleId {
   return typeof v === "string" && (ADVENTURE_ROLE_IDS as readonly string[]).includes(v);
@@ -29,15 +21,11 @@ import { ITEMS, itemById, type ItemDef, type ToolKind } from "../economy/items";
 
 /** 空腹度の上限（0〜100）。 */
 export const HUNGER_MAX = 100;
-/** プレイヤー HP の上限。 */
-export const HP_MAX = 100;
 
-/** 状態異常の種類。poison は時間で HP が減り、解毒で消える。 */
-export type StatusKind = "poison" | "warm" | "alert";
-/** 状態異常1件（終了時刻つき）。 */
+/** 持続効果の種類（食事バフ）。 */
+export type StatusKind = "warm" | "alert";
+/** 持続効果1件（終了時刻つき）。 */
 export type StatusEffect = { kind: StatusKind; until: number };
-/** ワールド座標のリスポーン候補（タイル単位の浮動小数）。 */
-export type RespawnPoint = { x: number; y: number };
 /** 旧ローカル残高の初期値（互換のためだけに残す。実残高はブリッジ側）。 */
 export const STARTING_COINS = 100;
 
@@ -55,24 +43,14 @@ export type PlayerProfile = {
   /** 廃止: 旧ローカル残高。読み込み互換のためだけに保持し、使わない。 */
   coins: number;
   hunger: number;
-  /** プレイヤー HP（0〜HP_MAX）。0 で死亡し、死亡処理は vitals.ts。 */
-  hp: number;
-  /** 状態異常（毒など）。 */
+  /** 持続効果（食事バフなど）。 */
   status: StatusEffect[];
-  /** バイタル（空腹・毒・飢え）を最後に精算した時刻（epoch ms）。0 は未精算。 */
+  /** バイタル（空腹）を最後に精算した時刻（epoch ms）。0 は未精算。 */
   vitalAt: number;
   /** 前回バイタル精算時の位置と空間（空腹の活動判定用。未記録は undefined）。 */
   vitalX?: number;
   vitalY?: number;
   vitalSpace?: string;
-  /** ベッドで設定したリスポーン点（ワールド座標）。無ければ null。 */
-  respawn: RespawnPoint | null;
-  /** 最後に休憩した地点（ワールド座標）。無ければ null。 */
-  restPoint: RespawnPoint | null;
-  /** 最後にモブからダメージを受けた時刻（epoch ms）。接触ダメージの間隔管理。 */
-  lastDamageAt: number;
-  /** 累計の死亡回数。 */
-  deaths: number;
   /** 集計ビュー: 全アイテムID → 総所持数（スロット＋あふれ分）。 */
   items: Record<string, number>;
   /** ホットバー（すぐ使う手持ち、HOTBAR_SLOTS 枠）。 */
@@ -92,10 +70,6 @@ export type PlayerProfile = {
   mastery: Partial<Record<AdventureRoleId, { xp: number }>>;
   /** 技ごとの最終発動時刻（epoch ms）。クールタイム検証はサーバー側。 */
   skillAt: Record<string, number>;
-  /** 守護の挑発が有効な時刻（epoch ms）。 */
-  tauntUntil: number;
-  /** 薬師の蘇生を使った遠征（空間 ID と時刻）。1遠征1回の判定に使う。 */
-  reviveMark: { space: string; at: number } | null;
   /** テント（個人空間）の拡張段階 0..2。 */
   tentTier: number;
   /** 道具の強化レベル（アイテム ID → 0..3）。 */
@@ -110,13 +84,8 @@ export type PlayerProfile = {
   /** 自分で発見した合成レシピの ID（自由セット式の合成で完全一致した分だけ。
    * 任意・後方互換: 旧データには無い）。本人の図鑑表示にだけ使う。 */
   discoveredRecipes?: string[];
-  /** スポーン保護の終了時刻（新規プレイヤーのみ、作成時に5分）。 */
-  spawnProtectedUntil: number;
-  /** 蘇生で戻される先（次回 sync でクライアントが適用し、サーバーが消す）。 */
+  /** 移動先の予約（パーティ集合など。次回 sync でクライアントが適用し、サーバーが消す）。 */
   pendingTeleport: { space: string; x: number; y: number } | null;
-  /** PvP で倒された死亡通知（次回 sync で本人へ配送し、サーバーが消す）。
-   * pendingTeleport（リスポーン地点）と対でセットされる。 */
-  lastDeath: { at: number; dropped: Record<string, number> } | null;
 };
 
 function emptySlots(size: number): ItemSlot[] {
@@ -128,24 +97,15 @@ export const DEFAULT_PROFILE: PlayerProfile = {
   rolePicked: false,
   mastery: {},
   skillAt: {},
-  tauntUntil: 0,
-  reviveMark: null,
   pendingTeleport: null,
-  lastDeath: null,
   tentTier: 0,
   enhance: {},
   toolHp: {},
   discoveredRecipes: [],
-  spawnProtectedUntil: 0,
   coins: STARTING_COINS,
   hunger: HUNGER_MAX,
-  hp: HP_MAX,
   status: [],
   vitalAt: 0,
-  respawn: null,
-  restPoint: null,
-  lastDamageAt: 0,
-  deaths: 0,
   items: {},
   hotbar: emptySlots(HOTBAR_SLOTS),
   storage: emptySlots(STORAGE_SLOTS),
@@ -272,8 +232,8 @@ export function parseProfile(raw: unknown): PlayerProfile {
     return { ...DEFAULT_PROFILE, items: {}, hotbar: emptySlots(HOTBAR_SLOTS), storage: emptySlots(STORAGE_SLOTS), status: [], mastery: {}, skillAt: {} };
   }
   const inv = invOf({
-    coins: 0, hunger: 0, hp: HP_MAX, status: [], vitalAt: 0, respawn: null, restPoint: null, lastDamageAt: 0, deaths: 0, stealActorAt: 0, stealTargetAt: 0,
-    role: "free", rolePicked: false, mastery: {}, skillAt: {}, tauntUntil: 0, reviveMark: null, pendingTeleport: null, lastDeath: null, tentTier: 0, enhance: {}, toolHp: {}, spawnProtectedUntil: 0,
+    coins: 0, hunger: 0, status: [], vitalAt: 0, stealActorAt: 0, stealTargetAt: 0,
+    role: "free", rolePicked: false, mastery: {}, skillAt: {}, pendingTeleport: null, tentTier: 0, enhance: {}, toolHp: {},
     items: data.items as Record<string, number>,
     hotbar: data.hotbar as ItemSlot[],
     storage: data.storage as ItemSlot[],
@@ -282,16 +242,11 @@ export function parseProfile(raw: unknown): PlayerProfile {
   return {
     coins: clampInt(data.coins, 0, Number.MAX_SAFE_INTEGER, DEFAULT_PROFILE.coins),
     hunger: clampVital(data.hunger, 0, HUNGER_MAX, DEFAULT_PROFILE.hunger),
-    hp: clampVital(data.hp, 0, HP_MAX + 20, HP_MAX), // 守護の最大HPボーナス分まで許す
     status: parseStatus(data.status),
     vitalAt: clampInt(data.vitalAt, 0, Number.MAX_SAFE_INTEGER, 0),
     vitalX: parseVitalCoord(data.vitalX),
     vitalY: parseVitalCoord(data.vitalY),
     vitalSpace: parseVitalSpace(data.vitalSpace),
-    respawn: parsePoint(data.respawn),
-    restPoint: parsePoint(data.restPoint),
-    lastDamageAt: clampInt(data.lastDamageAt, 0, Number.MAX_SAFE_INTEGER, 0),
-    deaths: clampInt(data.deaths, 0, Number.MAX_SAFE_INTEGER, 0),
     items: inv.items,
     hotbar: inv.hotbar,
     storage: inv.storage,
@@ -302,15 +257,11 @@ export function parseProfile(raw: unknown): PlayerProfile {
     rolePicked: data.rolePicked === true || role !== "free",
     mastery: parseMastery(data.mastery),
     skillAt: parseSkillAt(data.skillAt),
-    tauntUntil: clampInt(data.tauntUntil, 0, Number.MAX_SAFE_INTEGER, 0),
-    reviveMark: parseReviveMark(data.reviveMark),
     pendingTeleport: parsePendingTeleport(data.pendingTeleport),
-    lastDeath: parseLastDeath(data.lastDeath),
     tentTier: clampInt(data.tentTier, 0, 2, 0),
     enhance: parseEnhance(data.enhance),
     toolHp: parseToolHp(data.toolHp),
     discoveredRecipes: parseDiscoveredRecipes(data.discoveredRecipes),
-    spawnProtectedUntil: clampInt(data.spawnProtectedUntil, 0, Number.MAX_SAFE_INTEGER, 0),
   };
 }
 
@@ -334,35 +285,12 @@ function parseSkillAt(raw: unknown): Record<string, number> {
   return out;
 }
 
-function parseReviveMark(raw: unknown): { space: string; at: number } | null {
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
-  const v = raw as { space?: unknown; at?: unknown };
-  if (typeof v.space !== "string" || typeof v.at !== "number" || !Number.isFinite(v.at)) return null;
-  return { space: v.space.slice(0, 64), at: Math.floor(v.at) };
-}
-
 function parsePendingTeleport(raw: unknown): { space: string; x: number; y: number } | null {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
   const v = raw as { space?: unknown; x?: unknown; y?: unknown };
   if (typeof v.space !== "string" || typeof v.x !== "number" || typeof v.y !== "number") return null;
   if (!Number.isFinite(v.x) || !Number.isFinite(v.y)) return null;
   return { space: v.space.slice(0, 64), x: v.x, y: v.y };
-}
-
-/** PvP 死亡通知を読む（落とした物は定義のあるアイテムだけ残す）。 */
-function parseLastDeath(raw: unknown): { at: number; dropped: Record<string, number> } | null {
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
-  const v = raw as { at?: unknown; dropped?: unknown };
-  if (typeof v.at !== "number" || !Number.isFinite(v.at) || v.at <= 0) return null;
-  const dropped: Record<string, number> = {};
-  if (v.dropped && typeof v.dropped === "object" && !Array.isArray(v.dropped)) {
-    for (const [id, count] of Object.entries(v.dropped as Record<string, unknown>)) {
-      if (!itemById(id)) continue;
-      const n = clampInt(count, 0, 9999, 0);
-      if (n > 0) dropped[id] = n;
-    }
-  }
-  return { at: Math.floor(v.at), dropped };
 }
 
 /** 発見済みレシピの復元（文字列だけ通し、重複を除いて上限で切る）。 */
@@ -423,7 +351,7 @@ function parseStatus(raw: unknown): StatusEffect[] {
   for (const v of raw) {
     if (!v || typeof v !== "object" || Array.isArray(v)) continue;
     const e = v as { kind?: unknown; until?: unknown };
-    if (e.kind !== "poison" && e.kind !== "warm" && e.kind !== "alert") continue;
+    if (e.kind !== "warm" && e.kind !== "alert") continue;
     if (typeof e.until !== "number" || !Number.isFinite(e.until) || e.until <= 0) continue;
     out.push({ kind: e.kind, until: Math.floor(e.until) });
   }
@@ -442,23 +370,11 @@ function parseVitalSpace(v: unknown): string | undefined {
   return v.slice(0, 64);
 }
 
-function parsePoint(raw: unknown): RespawnPoint | null {
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
-  const v = raw as { x?: unknown; y?: unknown };
-  if (typeof v.x !== "number" || typeof v.y !== "number") return null;
-  if (!Number.isFinite(v.x) || !Number.isFinite(v.y)) return null;
-  return {
-    x: Math.max(-1_000_000, Math.min(1_000_000, v.x)),
-    y: Math.max(-1_000_000, Math.min(1_000_000, v.y)),
-  };
-}
-
 export function serializeProfile(profile: PlayerProfile): string {
   const inv = invOf(profile);
   return JSON.stringify({
     coins: clampInt(profile.coins, 0, Number.MAX_SAFE_INTEGER, 0),
     hunger: clampVital(profile.hunger, 0, HUNGER_MAX, 0),
-    hp: clampVital(profile.hp, 0, HP_MAX + 20, HP_MAX),
     status: parseStatus(profile.status),
     vitalAt: clampInt(profile.vitalAt, 0, Number.MAX_SAFE_INTEGER, 0),
     // 前回精算位置は3点そろったときだけ書く（欠けた状態を保存しない）
@@ -469,10 +385,6 @@ export function serializeProfile(profile: PlayerProfile): string {
           vitalSpace: profile.vitalSpace.slice(0, 64),
         }
       : {}),
-    respawn: parsePoint(profile.respawn),
-    restPoint: parsePoint(profile.restPoint),
-    lastDamageAt: clampInt(profile.lastDamageAt, 0, Number.MAX_SAFE_INTEGER, 0),
-    deaths: clampInt(profile.deaths, 0, Number.MAX_SAFE_INTEGER, 0),
     items: inv.items,
     hotbar: inv.hotbar,
     storage: inv.storage,
@@ -482,15 +394,11 @@ export function serializeProfile(profile: PlayerProfile): string {
     rolePicked: profile.rolePicked === true || (isAdventureRoleId(profile.role) && profile.role !== "free"),
     mastery: parseMastery(profile.mastery),
     skillAt: parseSkillAt(profile.skillAt),
-    tauntUntil: clampInt(profile.tauntUntil, 0, Number.MAX_SAFE_INTEGER, 0),
-    reviveMark: parseReviveMark(profile.reviveMark),
     pendingTeleport: parsePendingTeleport(profile.pendingTeleport),
-    lastDeath: parseLastDeath(profile.lastDeath),
     tentTier: clampInt(profile.tentTier, 0, 2, 0),
     enhance: parseEnhance(profile.enhance),
     toolHp: parseToolHp(profile.toolHp),
     discoveredRecipes: parseDiscoveredRecipes(profile.discoveredRecipes),
-    spawnProtectedUntil: clampInt(profile.spawnProtectedUntil, 0, Number.MAX_SAFE_INTEGER, 0),
   });
 }
 

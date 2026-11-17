@@ -142,23 +142,6 @@ const profileOnlineUrl = dataUrl(
 const shopsUrl = dataUrl(transpile("worldbox/economy/shops.ts").replaceAll('"./items"', JSON.stringify(itemsUrl)));
 const rolesUrl = dataUrl(transpile("worldbox/player/roles.ts").replaceAll('"./profile"', JSON.stringify(profileUrl)));
 const userLockUrl = dataUrl(transpile("worldbox/core/user-lock.ts"));
-const arenaUrl = dataUrl(transpile("worldbox/combat/arena.ts"));
-const mobsUrl = dataUrl(
-  transpile("worldbox/combat/mobs.ts")
-    .replaceAll('"../economy/items"', JSON.stringify(itemsUrl))
-    .replaceAll('"../world/maplogic"', JSON.stringify(maplogicUrl))
-    .replaceAll('"../world/mapgen"', JSON.stringify(mapgenUrl)),
-);
-const combatUrl = dataUrl(
-  transpile("worldbox/combat/combat.ts")
-    .replaceAll('"./mobs"', JSON.stringify(mobsUrl))
-    .replaceAll('"../world/maplogic"', JSON.stringify(maplogicUrl)),
-);
-const mobsOnlineUrl = dataUrl(
-  transpile("worldbox/combat/mobs-online.ts")
-    .replaceAll('"../../bot-api"', JSON.stringify(botStubUrl))
-    .replaceAll('"./combat"', JSON.stringify(combatUrl)),
-);
 const nationsUrl = dataUrl(
   transpile("worldbox/social/nations.ts")
     .replaceAll('"../world/mapgen"', JSON.stringify(mapgenUrl))
@@ -219,7 +202,6 @@ const instancesUrl = dataUrl(
     .replaceAll('"./mapgen"', JSON.stringify(mapgenUrl))
     .replaceAll('"../core/rng"', JSON.stringify(rngUrl))
     .replaceAll('"./objects"', JSON.stringify(objectsUrl))
-    .replaceAll('"../combat/mobs"', JSON.stringify(mobsUrl)),
 );
 const instancesOnlineUrl = dataUrl(
   transpile("worldbox/world/instances-online.ts")
@@ -233,9 +215,6 @@ const partyOnlineUrl = dataUrl(
   transpile("worldbox/social/party-online.ts")
     .replaceAll('"../../bot-api"', JSON.stringify(botStubUrl))
     .replaceAll('"./party"', JSON.stringify(partyUrl)),
-);
-const rolesOnlineUrl = dataUrl(
-  transpile("worldbox/player/roles-online.ts").replaceAll('"../../bot-api"', JSON.stringify(botStubUrl)),
 );
 const nextServerStubUrl = dataUrl(`
 export class NextResponse {
@@ -286,16 +265,11 @@ const rolesRoute = await import(
       .replaceAll('"@/lib/worldbox/world/instances-online"', JSON.stringify(instancesOnlineUrl))
       .replaceAll('"@/lib/worldbox/social/party"', JSON.stringify(partyUrl))
       .replaceAll('"@/lib/worldbox/social/party-online"', JSON.stringify(partyOnlineUrl))
-      .replaceAll('"@/lib/worldbox/player/roles-online"', JSON.stringify(rolesOnlineUrl))
       .replaceAll('"@/lib/worldbox/world/station-online"', JSON.stringify(stationOnlineUrl))
       .replaceAll('"@/lib/worldbox/player/roles"', JSON.stringify(rolesUrl))
       .replaceAll('"@/lib/worldbox/economy/economy-bridge"', JSON.stringify(bridgeUrl))
       .replaceAll('"@/lib/worldbox/economy/economy-bridge-online"', JSON.stringify(bridgeOnlineUrl))
       .replaceAll('"@/lib/worldbox/core/user-lock"', JSON.stringify(userLockUrl))
-      .replaceAll('"@/lib/worldbox/combat/arena"', JSON.stringify(arenaUrl))
-      .replaceAll('"@/lib/worldbox/combat/mobs"', JSON.stringify(mobsUrl))
-      .replaceAll('"@/lib/worldbox/combat/combat"', JSON.stringify(combatUrl))
-      .replaceAll('"@/lib/worldbox/combat/mobs-online"', JSON.stringify(mobsOnlineUrl)),
   ),
 );
 
@@ -429,26 +403,26 @@ test("API(profile): 売却の決済が failed ならアイテムは戻る（巻�
 
 test("API(profile): 強化の決済が failed ならレベルも素材も戻る（巻き戻し）", async () => {
   reset();
-  seedProfile(ME, { items: { wooden_sword: 1, wood: 5 } });
+  seedProfile(ME, { items: { wooden_pickaxe: 1, wood: 5 } });
   seedPresence(ME, 25.5, 35.5);
   globalThis.__wbDgFailUpdate = true;
-  const res = await profileRoute.POST(apiReq(PROFILE_URL, cookie(ME), { action: "enhance", itemId: "wooden_sword" }));
+  const res = await profileRoute.POST(apiReq(PROFILE_URL, cookie(ME), { action: "enhance", itemId: "wooden_pickaxe" }));
   assert.equal(res.status, 409);
   assert.equal((await res.json()).error, "economy_failed");
   const after = readProfile(ME);
-  assert.equal(after.enhance?.wooden_sword ?? 0, 0, "強化レベルは上がっていない");
+  assert.equal(after.enhance?.wooden_pickaxe ?? 0, 0, "強化レベルは上がっていない");
   assert.equal(after.items.wood, 5, "消費したはずの素材が戻っている");
-  assert.equal(after.items.wooden_sword, 1, "道具は残っている");
+  assert.equal(after.items.wooden_pickaxe, 1, "道具は残っている");
 });
 
 test("API(profile): 強化の決済が done ならレベルが上がって素材が減る", async () => {
   reset();
-  seedProfile(ME, { items: { wooden_sword: 1, wood: 5 } });
+  seedProfile(ME, { items: { wooden_pickaxe: 1, wood: 5 } });
   seedPresence(ME, 25.5, 35.5);
-  const res = await profileRoute.POST(apiReq(PROFILE_URL, cookie(ME), { action: "enhance", itemId: "wooden_sword" }));
+  const res = await profileRoute.POST(apiReq(PROFILE_URL, cookie(ME), { action: "enhance", itemId: "wooden_pickaxe" }));
   assert.equal(res.status, 200);
   const after = readProfile(ME);
-  assert.equal(after.enhance?.wooden_sword, 1, "強化レベルが上がっている");
+  assert.equal(after.enhance?.wooden_pickaxe, 1, "強化レベルが上がっている");
   assert.equal(after.items.wood, 3, "素材が2個消費されている");
   const ops = findOps((o) => o.reason === "tool_enhance");
   assert.equal(ops.length, 1);

@@ -17,21 +17,15 @@ import {
 import { pickRandomSpawn } from "@/lib/worldbox/world/spawn";
 import { DASH_SPEED, PLAYER_RADIUS, SWIM_DASH_SPEED, SWIM_SPEED, WALK_SPEED, circleHitsSolid, findFreeNear, isWaterAt, stepMove } from "@/lib/worldbox/player/move";
 import { isNightPhase, nightAmount, phaseAtTime } from "@/lib/worldbox/world/daynight";
-import { mobById, mobOccupiesTile, type PlacedMob } from "@/lib/worldbox/combat/mobs";
-import { PATTERN_DEF, createBehaviorState, isBossMob, locomotionFor, locomotionPose, stepMobBehavior, type BehaviorEvent, type MobBehaviorState, type MobPatternId } from "@/lib/worldbox/combat/mob-behavior";
-import {
-  MOB_ATTACK_RANGE, MOB_RESPAWN_MS, MOB_SPRITE, MOB_SPRITE_FALLBACK, attackTarget, knockbackTarget, mobBlockedTiles, mobDistance, mobFootprintTiles,
-  mobHpNow, mobKeyOf, mobRespawnDelayMs, parseMobState, visibleMobs, type MobState,
-} from "@/lib/worldbox/combat/combat";
 import { advanceWalkPhase, attackSwingAngle, damp, moveLean, stepBeatIndex, walkBob, walkSquashY } from "@/lib/worldbox/media/anim";
 import {
-  HITSTOP_HIT_MS, HITSTOP_HURT_MS, HITSTOP_KILL_MS, WHIFF_ALPHA_SCALE, burstPaletteFor, createFxSystem, createHitstop,
-  createShake, fxLifeRatio, hitstopActiveAt, phaseKind, popProgress, popScale, shakeOffsetAt,
-  slashAlpha, spawnAmbient, spawnBurst, spawnMobFx, startHitstop, startShake, stepFx, swingProgress, weatherAmbientKind, weatherBlendAt,
-  type FxBurstKind, type FxShake, type FxSystem, type HitstopState,
+  WHIFF_ALPHA_SCALE, burstPaletteFor, createFxSystem,
+  createShake, fxLifeRatio, phaseKind, popProgress, popScale, shakeOffsetAt,
+  slashAlpha, spawnAmbient, spawnBurst, startShake, stepFx, swingProgress, weatherAmbientKind, weatherBlendAt,
+  type FxBurstKind, type FxShake, type FxSystem,
 } from "@/lib/worldbox/media/fx";
 import type { SkillFxEffect } from "@/lib/worldbox/media/fx";
-import { skillFxProgress, skillFxStage, spawnSkillFx, thunderBoltPoints } from "@/lib/worldbox/media/fx";
+import { skillFxProgress, skillFxStage, spawnSkillFx } from "@/lib/worldbox/media/fx";
 import {
   activeSkillFor, masteryRankOf, roleById, skillCooldownLeft, SKILLS,
   SCOUT_STAMINA_MULT,
@@ -65,7 +59,7 @@ import {
 import { genreById, type ShopGenreId } from "@/lib/worldbox/economy/shops";
 import { TENT_MAX_TIER, TENT_TIERS, buildTent, tentEntryFor, tentExitFor, tentTileAt } from "@/lib/worldbox/world/tent";
 import {
-  buildCaveLayer, buildDungeonFloor, buildRuins, dungeonHpScale, lightRadiusTiles, makeInstanceSpace, parseInstanceSpace,
+  buildCaveLayer, buildDungeonFloor, buildRuins, lightRadiusTiles, makeInstanceSpace, parseInstanceSpace,
   placedLightRadiusTiles,
   type CaveLayer, type DungeonFloorData, type RuinsMap,
 } from "@/lib/worldbox/world/instances";
@@ -85,14 +79,13 @@ import {
   type TileActionKind, type TileOverridesMap,
 } from "@/lib/worldbox/world/tiles";
 import { CROPS, ITEMS, itemById } from "@/lib/worldbox/economy/items";
-import { HP_MAX, HUNGER_MAX, countItem, maxHpFor, toolDurabilityFraction, type AdventureRoleId, type ItemSlot, type PlayerProfile, type SlotRef } from "@/lib/worldbox/player/profile";
-import { hazardDamageFor, pvpSpaceAllowed, PVP_ATTACK_MAX_DISTANCE } from "@/lib/worldbox/player/vitals";
+import { HUNGER_MAX, countItem, toolDurabilityFraction, type AdventureRoleId, type ItemSlot, type PlayerProfile, type SlotRef } from "@/lib/worldbox/player/profile";
 import { isStallItem } from "@/lib/worldbox/economy/stalls";
 import {
   containerCapacity, isContainerItem, type ContainerSlotRef,
 } from "@/lib/worldbox/economy/containers";
 import { isMachineItem } from "@/lib/worldbox/economy/machines";
-import { DUNGEON_TILE_SRC, FARM_SPRITE_SRC, LOBBY_SPRITE_SRC, loadDungeonTiles, loadFarmSprites, loadLobbySprites, loadMobSprites, loadTextures } from "@/lib/worldbox/world/textures";
+import { DUNGEON_TILE_SRC, FARM_SPRITE_SRC, LOBBY_SPRITE_SRC, loadDungeonTiles, loadFarmSprites, loadLobbySprites, loadTextures } from "@/lib/worldbox/world/textures";
 import { preloadImages, transitionAlpha, transitionDone, transitionSwapDue, SPRITE_PRELOAD_TIMEOUT_MS, TRANSITION_OVERLAY_RGB, type TransitionKind } from "@/lib/worldbox/world/transition";
 import { isStickTouch, stickBase, stickVector } from "@/lib/worldbox/player/stick";
 import { wbHudMetrics, wbLayoutMode } from "@/lib/worldbox/world/layout";
@@ -102,13 +95,12 @@ import {
 } from "@/lib/worldbox/player/affordance";
 import {
   bgmSceneFor, footstepMaterialFor, loadWbSoundSettings, playPianoNotes, playWbSe, playWbStep, saveWbSoundSettings, seForFxBurst, setWbBgmScene,
-  setWbBgmTension, stopWbBgm, tensionFor, unlockWbAudio, type WbSoundSettings,
+  stopWbBgm, unlockWbAudio, type WbSoundSettings,
 } from "@/lib/worldbox/media/sound";
 import { useGamesNav } from "../GamesShell";
 import WorldBoxCasinoPanel from "./WorldBoxCasinoPanel";
 import WorldBoxRacingPanel from "./WorldBoxRacingPanel";
 import WorldBoxPianoPanel from "./WorldBoxPianoPanel";
-import WorldBoxArenaPanel from "./WorldBoxArenaPanel";
 import WorldBoxArcadePanel from "./WorldBoxArcadePanel";
 import { getWebGame } from "@/lib/games-catalog";
 import WorldBoxMachinePanel from "./WorldBoxMachinePanel";
@@ -324,56 +316,6 @@ const NATION_ERROR_LABEL: Record<string, string> = {
 
 /** タイル行為の失敗ラベル（断片のみ）。 */
 /** モブの色（被弾/死亡エフェクト用）。描画本体は素材スプライト（MOB_SPRITE）が正で、これは色だけを持つ。 */
-const MOB_STYLE: Record<string, { body: string }> = {
-  mouse: { body: "#9a8f85" },
-  chicken: { body: "#f2ede2" },
-  rabbit: { body: "#e8e2d6" },
-  frog: { body: "#69a84f" },
-  crab: { body: "#d96b4a" },
-  bee: { body: "#e8c33c" },
-  slime: { body: "#6fc46a" },
-  pig: { body: "#e8a0b4" },
-  sheep: { body: "#ddd6c8" },
-  cow: { body: "#efe9dd" },
-  deer: { body: "#b0824f" },
-  horse: { body: "#8a6844" },
-  boar: { body: "#7a5c40" },
-  wolf: { body: "#8d939e" },
-  spider: { body: "#4c4453" },
-  skeleton: { body: "#e9e6da" },
-  bear: { body: "#6f5138" },
-  golem: { body: "#8d9291" },
-  treant: { body: "#5d7a3c" },
-  sea_serpent: { body: "#3f7f9e" },
-  giant_golem: { body: "#7c8382" },
-  giant: { body: "#c9a186" },
-  ancient_turtle: { body: "#5f7f5a" },
-  world_dragon: { body: "#7a4a8c" },
-  cat: { body: "#c9a06a" },
-  dog: { body: "#a97c50" },
-  duck: { body: "#f0ead8" },
-  goat: { body: "#d8d2c4" },
-  fox: { body: "#d97c3c" },
-  tanuki: { body: "#8a6844" },
-  bird_blue: { body: "#5a9ec9" },
-  crow: { body: "#3a3f4a" },
-  owl: { body: "#7a6248" },
-  penguin: { body: "#44506a" },
-  butterfly: { body: "#c97ab8" },
-  ladybug: { body: "#d94a3c" },
-  snail: { body: "#b8a86a" },
-  fish_blue: { body: "#4a86c9" },
-  fish_orange: { body: "#e07c3c" },
-  jellyfish: { body: "#d98ac9" },
-  octopus: { body: "#b85a7a" },
-  mushroom: { body: "#d96a5a" },
-  werewolf: { body: "#6a5a8c" },
-};
-/** モブ被弾/死亡エフェクトの色（本体色に寄せる）。 */
-const MOB_FX_COLOR: Record<string, string> = Object.fromEntries(
-  Object.entries(MOB_STYLE).map(([id, s]) => [id, s.body]),
-);
-
 const TILE_ERROR_LABEL: Record<string, string> = {
   tool_required: "道具が必要",
   tile_blocked: "そこではできない",
@@ -472,7 +414,7 @@ function SlotContent({ slot, durFrac }: { slot: ItemSlot; durFrac?: number | nul
 }
 
 const EMPTY_NATIONS: NationsResponse = {
-  nations: [], warMarks: {}, me: null, playerNations: {}, loggedIn: false, myGuilds: [], guildsScopeRequired: false,
+  nations: [], me: null, playerNations: {}, loggedIn: false, myGuilds: [], guildsScopeRequired: false,
 };
 
 /** 足元に平置きで描くロビースプライト（上に立てるもの）。 */
@@ -760,7 +702,6 @@ export default function WorldBoxClient() {
   const guildShopPlotsRef = useRef<{ idx: number; guildName: string }[]>([]);
   const invGuardRef = useRef<PollGuard>(createPollGuard());
   const vitalsGuardRef = useRef<PollGuard>(createPollGuard());
-  const deathsGuardRef = useRef<PollGuard>(createPollGuard());
   const instanceGuardRef = useRef<PollGuard>(createPollGuard());
   // WS 中継の接続状態（エンジンが書き、コンポーネント側ポーリングの
   // 間引き判定が読む）。WS push が健全な間は対象ポーリングを止める。
@@ -882,7 +823,7 @@ export default function WorldBoxClient() {
       cancelled = true;
     };
   }, [gateTry]);
-  // 入場前スプライト先読み: ロビー/農場/モブ/洞窟のファイル素材を温め、
+  // 入場前スプライト先読み: ロビー/農場/洞窟のファイル素材を温め、
   // 初フレームで平色フォールバックがチラつかないようにする。タイムアウトで
   // 必ず進む（止まらない）。ゲート画面の「読み込み中…」の間に済ませる。
   useEffect(() => {
@@ -892,7 +833,6 @@ export default function WorldBoxClient() {
       [
         ...Object.values(LOBBY_SPRITE_SRC),
         ...Object.values(FARM_SPRITE_SRC),
-        ...Object.values(MOB_SPRITE),
         ...Object.values(DUNGEON_TILE_SRC),
       ],
       { timeoutMs: SPRITE_PRELOAD_TIMEOUT_MS },
@@ -1059,10 +999,8 @@ export default function WorldBoxClient() {
     }
   };
   const respawnActionRef = useRef<(point: { x: number; y: number }) => void>(() => {});
-  const bedKeyRef = useRef<string>("");
   const [casinoOpen, setCasinoOpen] = useState(false);
   const [racingOpen, setRacingOpen] = useState(false);
-  const [arenaOpen, setArenaOpen] = useState(false);
   const [plazaMsg, setPlazaMsg] = useState("");
   const staminaBoostRef = useRef(false);
   const [boardOpen, setBoardOpen] = useState(false);
@@ -1106,8 +1044,6 @@ export default function WorldBoxClient() {
   // 音響（BGM/SE）: 設定は lib/worldbox/media/sound が localStorage に持つ。
   // AudioContext は最初のユーザー操作でだけ作れるため、解錠は pointerdown/keydown で行う。
   const [soundSettings, setSoundSettings] = useState<WbSoundSettings>({ bgm: true, se: true });
-  // BGM 緊張レイヤー: 描画ループが 500ms ごとに更新し、1秒ごとの場面判定が読む。
-  const dangerRef = useRef(false);
   useEffect(() => {
     setSoundSettings(loadWbSoundSettings());
     const unlock = () => unlockWbAudio();
@@ -1125,9 +1061,6 @@ export default function WorldBoxClient() {
       setWbBgmScene(bgmSceneFor({
         space: spaceUi, night: nightAmount(phaseAtTime(Date.now() / 1000)), casinoOpen,
       }));
-      // 緊張レイヤーはフィールド（ワールド/インスタンス）でのみ。ロビー・テントでは切る。
-      const inField = spaceUi === "world" || parseInstanceSpace(spaceUi) !== null;
-      setWbBgmTension(inField && dangerRef.current);
     };
     applyScene();
     const timer = setInterval(applyScene, 1000);
@@ -1194,7 +1127,6 @@ export default function WorldBoxClient() {
     if (stationUi !== "board") setBoardOpen(false);
     if (stationUi !== "casino") setCasinoOpen(false);
     if (stationUi !== "guild") setGuildBoardOpen(false);
-    if (stationUi !== "arena") setArenaOpen(false);
     if (stationUi !== "arcade") setArcadeOpen(false);
     setPlazaMsg("");
   }, [stationUi]);
@@ -1367,20 +1299,17 @@ export default function WorldBoxClient() {
   const tilesRef = useRef<TileOverridesMap>({});
   const tilesVersionRef = useRef(0);
   /** 演出イベントの受け渡し（行為の成功/失敗→描画ループでパーティクル/揺れ/ポップに変換）。
-   * whiff は空振り（風切りのみ、粒なし）。hit/death/spawn はモブ演出用（sizeTiles/color 任意）。 */
-  const fxEventsRef = useRef<{ kind: FxBurstKind | "whiff"; x: number; y: number; sizeTiles?: number; color?: string; colors?: string[]; stop?: number }[]>([]);
+   * whiff は空振り（風切りのみ、粒なし）。 */
+  const fxEventsRef = useRef<{ kind: FxBurstKind | "whiff"; x: number; y: number; sizeTiles?: number; color?: string; colors?: string[] }[]>([]);
   /** 無効操作のフィードバック（赤い輪＋揺れ。タップしたタイルと開始時刻）。 */
   const denyFxRef = useRef<{ x: number; y: number; at: number } | null>(null);
   /** 初回誘導を出した施設（セッション内だけ覚える。キー=施設種別/スプライト）。 */
   const seenAffordanceRef = useRef(new Map<string, number>());
   /** 無効フィードバックの回数（tileMsg ピルの揺れアニメーション再発火用）。 */
   const [denyStamp, setDenyStamp] = useState(0);
-  // 冒険役職の技（ダブルタップ発動）: 進行中の演出・前回タップ・死亡地点。
+  // 冒険役職の技（ダブルタップ発動）: 進行中の演出・前回タップ。
   const skillFxRef = useRef<{ effect: SkillFxEffect; stage: number }[]>([]);
-  /** モブの現在タイルのスナップショット（描画ループが毎フレーム差し替える）。 */
-  const mobTilesRef = useRef(new Map<string, { mobId: string; x: number; y: number; mx: number; my: number }>());
   const lastTapRef = useRef<{ x: number; y: number; at: number } | null>(null);
-  const deathsRef = useRef<{ name: string; x: number; y: number; at: number }[]>([]);
 
   /** 無効操作の構造的フィードバック: 赤い輪＋揺れ＋ error SE（文言だけに頼らない）。 */
   const denyAtTile = (x: number, y: number) => {
@@ -1393,54 +1322,22 @@ export default function WorldBoxClient() {
    * ダブルタップで技を打つ。発動したら true（通常タップは消費される）。
    * サーバーに弾かれたら "denied"（ジェスチャ自体は技の試みとして消費し、
    * 無言で通常タップに化けさせない）。役職なし等で技にならない場合は false。
+   * 現在の技はテレポーターのポーター設置だけ（戦闘技は存在しない）。
    */
   const castSkillAt = async (t: { x: number; y: number }): Promise<boolean | "denied"> => {
     const profile = invRef.current;
-    if (!profile || profile.role === "free") return false;
+    if (!profile || profile.role !== "teleporter") return false;
     const pos = playerPosRef.current;
     const space = spaceUi;
-    // 薬師: 死亡マーカーへのダブルタップは蘇生
-    if (profile.role === "medic") {
-      const death = deathsRef.current.find((d) => Math.floor(d.x) === t.x && Math.floor(d.y) === t.y);
-      if (death) {
-        try {
-          const res = await fetch("/api/worldbox/roles", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ action: "revive", space, px: pos.x, py: pos.y }),
-          });
-          const data = (await res.json().catch(() => ({}))) as { profile?: PlayerProfile };
-          if (res.ok && data.profile) {
-            setInvProfile(data.profile);
-            skillFxRef.current.push({
-              effect: { kind: "heal_zone", x: death.x, y: death.y, fromX: pos.x, fromY: pos.y, startedAt: performance.now(), seed: Math.floor(Math.random() * 1e9) },
-              stage: -1,
-            });
-            playWbSe("warp");
-            deathsRef.current = deathsRef.current.filter((d) => d !== death);
-          }
-        } catch { /* 蘇生できなくても通常操作は続く */ }
-        return true;
-      }
-    }
-    const ownTile = Math.floor(pos.x) === t.x && Math.floor(pos.y) === t.y;
-    // テレポーターはダブルタップ地点へポーターを設置する（戦闘技ではない）
-    const skill = profile.role === "teleporter"
-      ? SKILLS.porter
-      : ownTile && profile.role === "guard" ? SKILLS.taunt : activeSkillFor(profile);
-    if (!skill) return false;
+    const skill = SKILLS.porter;
     if (skillCooldownLeft(profile, skill.id, Date.now()) > 0) return false;
-    // 近くのモブの現在タイルを申告する（サーバーの対象解決を画面に合わせる）
-    const mobsReport = [...mobTilesRef.current.values()]
-      .filter((m) => Math.abs(m.mx - pos.x) <= 18 && Math.abs(m.my - pos.y) <= 18)
-      .slice(0, 32);
     try {
       const res = await fetch("/api/worldbox/roles", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "skill", skill: skill.id, tx: t.x + 0.5, ty: t.y + 0.5,
-          space, px: pos.x, py: pos.y, mobs: mobsReport,
+          space, px: pos.x, py: pos.y,
         }),
       });
       const data = (await res.json().catch(() => ({}))) as {
@@ -1455,8 +1352,7 @@ export default function WorldBoxClient() {
           },
           stage: -1,
         });
-        playWbSe(skill.id === "heal_zone" || skill.id === "taunt" || skill.id === "porter" ? "warp" : "hit");
-        void refreshMobsRef.current();
+        playWbSe("warp");
         return true;
       }
       if (data.error === "cooldown") {
@@ -1509,19 +1405,14 @@ export default function WorldBoxClient() {
     }
   };
   invRefreshRef.current = refreshInv;
-  /** バイタル API の結果を反映する（死亡時はリスポーン移動まで行う）。 */
+  /** バイタル API の結果を反映する（テレポート配達があれば移動まで行う）。 */
   const applyVitalsResult = (data: {
-    profile?: PlayerProfile; died?: boolean; respawn?: { x: number; y: number };
+    profile?: PlayerProfile;
     teleport?: { space: string; x: number; y: number };
   }) => {
     if (data.profile) setInvProfile(data.profile);
-    if (data.died && data.respawn) {
-      respawnActionRef.current(data.respawn);
-      setTileMsg("倒れた");
-    } else if (data.teleport) {
-      // 蘇生のテレポートは死亡した空間へ戻す（洞窟・遺跡・ダンジョン）。
-      // 従来は respawnActionRef が space を "world" に固定していたため、
-      // インスタンス内で蘇生されるとワールドの同座標へ飛ばされていた（S5）。
+    if (data.teleport) {
+      // パーティワープのテレポートは対象の空間へ戻す（洞窟・遺跡・ダンジョン）。
       const t = data.teleport;
       if (t.space && parseInstanceSpace(t.space)) {
         instanceWarpRef.current(t.space, { x: t.x, y: t.y });
@@ -1533,7 +1424,7 @@ export default function WorldBoxClient() {
   };
   const postVitals = async (body: Record<string, unknown>, force = false) => {
     // 古い精算レスポンスが行為後の新しいプロフィールを巻き戻さない（S6）。
-    // 15s 定期精算はスキップ可、ダメージ・ベッド等の明示呼び出しは force。
+    // 15s 定期精算はスキップ可、明示呼び出しは force。
     const ticket = vitalsGuardRef.current.begin(force ? { force: true } : undefined);
     if (ticket === null) return;
     try {
@@ -1543,7 +1434,7 @@ export default function WorldBoxClient() {
         body: JSON.stringify(body),
       });
       const data = (await res.json().catch(() => ({}))) as {
-        profile?: PlayerProfile; died?: boolean; respawn?: { x: number; y: number };
+        profile?: PlayerProfile;
         teleport?: { space: string; x: number; y: number };
       };
       if (res.ok && vitalsGuardRef.current.isCurrent(ticket)) applyVitalsResult(data);
@@ -1552,27 +1443,11 @@ export default function WorldBoxClient() {
       vitalsGuardRef.current.end(ticket);
     }
   };
-  /** モブ接触ダメージ（サーバーが配置・距離・攻撃力を検証する）。 */
-  const postMobDamage = (mobId: string, x: number, y: number, mx?: number, my?: number) => {
-    void postVitals({
-      action: "damage", mobId, x, y,
-      px: playerPosRef.current.x, py: playerPosRef.current.y,
-      // モブの見た目の現在タイルも申告する（攻撃と同じ）。サーバーは
-      // アンカーしか知らないため、これがないと追跡してきたモブの
-      // 接触が too_far で無効化される。
-      ...(typeof mx === "number" && typeof my === "number" ? { mx, my } : {}),
-      ...(parseInstanceSpace(spaceUi) ? { space: spaceUi } : {}),
-    }, true);
-  };
-  /** 環境ハザード（サボテン・マグマ）: 位置は送らない。サーバーが現在位置の足元で判定する。 */
-  const postHazard = () => {
-    void postVitals({ action: "hazard" }, true);
-  };
-  /** 遺跡の個人状態（宝箱・罠・扉・召喚）。サーバーが正、ここは表示用キャッシュ。 */
+  /** 遺跡の個人状態（宝箱・罠・扉）。サーバーが正、ここは表示用キャッシュ。 */
   const ruinsStateRef = useRef<{
     chests: Record<string, boolean>; traps: Record<string, boolean>;
-    doors: Record<string, boolean>; summons: { mobId: string; x: number; y: number }[];
-  }>({ chests: {}, traps: {}, doors: {}, summons: [] });
+    doors: Record<string, boolean>;
+  }>({ chests: {}, traps: {}, doors: {} });
   const refreshRuinsState = async (space: string) => {
     // 行為直後の明示再取得。古いレスポンスが新しい状態を上書きしない（S6）。
     const ticket = instanceGuardRef.current.begin({ force: true });
@@ -1584,12 +1459,12 @@ export default function WorldBoxClient() {
       if (!res.ok) return;
       const data = (await res.json()) as {
         chests?: Record<string, boolean>; traps?: Record<string, boolean>;
-        doors?: Record<string, boolean>; summons?: { mobId: string; x: number; y: number }[];
+        doors?: Record<string, boolean>;
       };
       if (!instanceGuardRef.current.isCurrent(ticket)) return;
       ruinsStateRef.current = {
         chests: data.chests ?? {}, traps: data.traps ?? {},
-        doors: data.doors ?? {}, summons: data.summons ?? [],
+        doors: data.doors ?? {},
       };
     } catch { /* 読めなくても歩き続けられる */ }
     finally {
@@ -1621,12 +1496,10 @@ export default function WorldBoxClient() {
   };
   const refreshCaveStateRef = useRef(refreshCaveState);
   refreshCaveStateRef.current = refreshCaveState;
-  /** ダンジョンのセッション状態（宝箱・扉・ボス進行）。サーバーが正、ここは表示用。 */
+  /** ダンジョンのセッション状態（宝箱）。サーバーが正、ここは表示用。 */
   const dungeonStateRef = useRef<{
-    opened: Record<string, boolean>; doors: Record<string, boolean>;
-    floorBossDead: Record<string, boolean>; bossDead: boolean; size: number;
-    gateFloor2: boolean; gateBoss: boolean;
-  }>({ opened: {}, doors: {}, floorBossDead: {}, bossDead: false, size: 1, gateFloor2: false, gateBoss: false });
+    opened: Record<string, boolean>; size: number;
+  }>({ opened: {}, size: 1 });
   const refreshDungeonState = async (space: string) => {
     // 行為直後の明示再取得。古いレスポンスが新しい状態を上書きしない（S6）。
     const ticket = instanceGuardRef.current.begin({ force: true });
@@ -1637,16 +1510,12 @@ export default function WorldBoxClient() {
       });
       if (!res.ok) return;
       const data = (await res.json()) as {
-        chests?: Record<string, number>; doors?: Record<string, boolean>;
-        floorBossDead?: Record<string, boolean>; bossDead?: boolean; size?: number;
-        gateFloor2?: boolean; gateBoss?: boolean;
+        chests?: Record<string, number>; size?: number;
       };
       if (!instanceGuardRef.current.isCurrent(ticket)) return;
       dungeonStateRef.current = {
-        opened: Object.fromEntries(Object.keys(data.chests ?? {}).map((k) => [k, true])), doors: data.doors ?? {},
-        floorBossDead: data.floorBossDead ?? {}, bossDead: data.bossDead ?? false,
+        opened: Object.fromEntries(Object.keys(data.chests ?? {}).map((k) => [k, true])),
         size: data.size ?? 1,
-        gateFloor2: data.gateFloor2 ?? false, gateBoss: data.gateBoss ?? false,
       };
     } catch { /* 読めなくても歩き続けられる */ }
     finally {
@@ -1753,15 +1622,14 @@ export default function WorldBoxClient() {
         body: JSON.stringify({ x, y }),
       });
       const data = (await res.json().catch(() => ({}))) as {
-        gained?: Record<string, number>; trapped?: boolean; healed?: number;
+        gained?: Record<string, number>; trapped?: boolean;
         profile?: PlayerProfile; error?: string; broke?: string;
       };
       if (res.ok) {
         surfaceObjStateRef.current.set(`${x},${y}`, Date.now());
         if (data.profile) setInvProfile(data.profile);
         const def = specialObjectById(objectId);
-        const fxKind = data.trapped ? "hit"
-          : def?.interaction === "mine" ? "mine"
+        const fxKind = def?.interaction === "mine" ? "mine"
           : def?.interaction === "rest" ? "splash"
           : def?.tool === "axe" ? "chop" : "harvest";
         // 破片は対象の素材色で返す（鉱脈・巣・実など）
@@ -1769,9 +1637,7 @@ export default function WorldBoxClient() {
         const names = Object.entries(data.gained ?? {})
           .map(([id, n]) => `${itemById(id)?.name ?? id}×${n}`)
           .join(" ");
-        const baseMsg = data.trapped ? "罠だった！"
-          : (data.healed ?? 0) > 0 ? `温泉で回復した${names ? `: ${names}` : ""}`
-          : names ? `${def?.name ?? "採取"}: ${names}` : "何も無かった";
+        const baseMsg = names ? `${def?.name ?? "採取"}: ${names}` : "何も無かった";
         setTileMsg(data.broke ? `${baseMsg}（${itemById(data.broke)?.name ?? "道具"}が壊れた）` : baseMsg);
         if (data.broke) playWbSe("debris");
         void refreshSurfaceStatesRef.current();
@@ -1849,23 +1715,14 @@ export default function WorldBoxClient() {
       const data = (await res.json()) as {
         party?: PartyViewClient | null; partyKey?: string; isLeader?: boolean;
         invite?: { partyId: string; leaderName: string } | null;
-        dungeon?: {
-          size: number; floorBossDead: Record<string, boolean>; bossDead: boolean;
-          gateFloor2?: boolean; gateBoss?: boolean;
-        } | null;
+        dungeon?: { size: number } | null;
       };
       if (!partyGuardRef.current.isCurrent(ticket)) return;
       if (data.dungeon) {
-        // ボス進行と人数だけを要約で更新する（宝箱・扉はインスタンス
-        // 取得の正のまま残す）。インスタンス watch の poke と二重に
-        // 届いても同じ値へ収束する。
+        // 人数だけを要約で更新する（宝箱はインスタンス取得の正のまま残す）。
         dungeonStateRef.current = {
           ...dungeonStateRef.current,
           size: data.dungeon.size,
-          floorBossDead: data.dungeon.floorBossDead,
-          bossDead: data.dungeon.bossDead,
-          gateFloor2: data.dungeon.gateFloor2 ?? dungeonStateRef.current.gateFloor2,
-          gateBoss: data.dungeon.gateBoss ?? dungeonStateRef.current.gateBoss,
         };
       }
       myPartyKeyRef.current = data.partyKey ?? "";
@@ -1947,13 +1804,6 @@ export default function WorldBoxClient() {
       if (data.teleport) {
         instanceTeleportRef.current?.(data.teleport.x, data.teleport.y);
         playWbSe("warp");
-      } else if (data.trapped || data.kind === "damage" || data.kind === "poison") {
-        fxEventsRef.current.push({ kind: "hit", x: playerPosRef.current.x, y: playerPosRef.current.y, stop: HITSTOP_HURT_MS });
-        playWbSe("hit");
-      } else if (data.kind === "alarm") {
-        fxEventsRef.current.push({ kind: "hit", x: playerPosRef.current.x, y: playerPosRef.current.y, stop: HITSTOP_HURT_MS });
-        playWbSe("error");
-        void refreshMobsRef.current();
       } else if (extra?.fxX !== undefined && extra?.fxY !== undefined && (action === "mine" || action === "open_chest" || action === "open_door")) {
         // 対象の位置で素材の粒を返す（従来は全部プレイヤー位置の poof で同じだった）
         fxEventsRef.current.push({
@@ -1976,46 +1826,6 @@ export default function WorldBoxClient() {
   };
   const postInstanceRef = useRef(postInstance);
   postInstanceRef.current = postInstance;
-  /** ベッドを踏んだらリスポーン点にする（同じベッドでは1回だけ送る）。 */
-  const postBedRespawn = (x: number, y: number) => {
-    const key = `${x},${y}`;
-    if (bedKeyRef.current === key) return;
-    bedKeyRef.current = key;
-    void postVitals({ action: "set_bed", x, y }, true);
-  };
-  // 薬師は近くの死亡地点を定期取得する（蘇生の対象表示）
-  useEffect(() => {
-    if (invProfile?.role !== "medic") {
-      deathsRef.current = [];
-      return;
-    }
-    let disposed = false;
-    const tick = async () => {
-      // 古いレスポンスが蘇生済みの死亡地点を蘇生対象として復活させない（S6）
-      const ticket = deathsGuardRef.current.begin();
-      if (ticket === null) return;
-      try {
-        const pos = playerPosRef.current;
-        const res = await fetch(
-          `/api/worldbox/roles?space=${encodeURIComponent(spaceUi)}&x=${pos.x}&y=${pos.y}`,
-          { headers: { Accept: "application/json" } },
-        );
-        if (!res.ok || disposed) return;
-        const data = (await res.json()) as { deaths?: { name: string; x: number; y: number; at: number }[] };
-        if (!disposed && deathsGuardRef.current.isCurrent(ticket)) deathsRef.current = data.deaths ?? [];
-      } catch { /* 読めなくても歩き続けられる */ }
-      finally {
-        deathsGuardRef.current.end(ticket);
-      }
-    };
-    void tick();
-    const timer = window.setInterval(tick, 3000);
-    return () => {
-      disposed = true;
-      window.clearInterval(timer);
-    };
-  }, [invProfile?.role, spaceUi]);
-
   // バイタルの定期精算（空腹・毒・飢えはサーバー側の時刻で進む）。
   // 現在位置と空間も送り、サーバーが前回精算位置との平均速度から
   // 空腹の活動クラス（放置/移動/ダッシュ）を判定する。
@@ -2169,209 +1979,6 @@ export default function WorldBoxClient() {
       setTileMsg("できませんでした");
     }
   };
-  /** モブ個体状態（傷/死亡がある個体だけサーバーから受ける）。 */
-  const mobStatesRef = useRef<Record<string, MobState>>({});
-  // モブ状態の世代（S6）: 攻撃によるローカル書き込みで進み、取得開始後に
-  // 進んでいたら古いレスポンスは適用せず取り直す（倒したモブの生き返り防止）。
-  const mobsVersionRef = useRef(0);
-  const mobsInFlightRef = useRef(false);
-  const mobsQueuedRef = useRef(false);
-  const refreshMobs = async () => {
-    // 取得中の追加要求は、完了後に最新状態でもう1回だけ取り直す（S6）
-    if (mobsInFlightRef.current) {
-      mobsQueuedRef.current = true;
-      return;
-    }
-    mobsInFlightRef.current = true;
-    const mobsGen = mobsVersionRef.current;
-    try {
-      const ruinsSpace = parseInstanceSpace(spaceUi)?.kind === "ruins" ? spaceUi : null;
-      if (ruinsSpace) {
-        const res = await fetch(
-          `/api/worldbox/mobs?space=${encodeURIComponent(ruinsSpace)}`,
-          { headers: { Accept: "application/json" } },
-        );
-        if (!res.ok) return;
-        const data = (await res.json()) as {
-          states?: Record<string, MobState>;
-          summons?: { mobId: string; x: number; y: number; size: number }[];
-        };
-        // 取得中に攻撃でモブ状態が変わっていたら古い応答は捨て、取り直す（S6）
-        if (mobsGen !== mobsVersionRef.current) { mobsQueuedRef.current = true; return; }
-        ruinsStateRef.current = {
-          ...ruinsStateRef.current,
-          summons: (data.summons ?? []).map((sm) => ({ mobId: sm.mobId, x: sm.x, y: sm.y })),
-        };
-        const next: Record<string, MobState> = { ...mobStatesRef.current };
-        for (const key of Object.keys(next)) {
-          if (key.startsWith(`${ruinsSpace}|`)) delete next[key];
-        }
-        Object.assign(next, data.states ?? {});
-        mobStatesRef.current = next;
-        return;
-      }
-      const caveSpace = parseInstanceSpace(spaceUi)?.kind === "cave" ? spaceUi : null;
-      if (caveSpace) {
-        const res = await fetch(
-          `/api/worldbox/mobs?space=${encodeURIComponent(caveSpace)}`,
-          { headers: { Accept: "application/json" } },
-        );
-        if (!res.ok) return;
-        const data = (await res.json()) as { states?: Record<string, MobState> };
-        if (mobsGen !== mobsVersionRef.current) { mobsQueuedRef.current = true; return; }
-        const next: Record<string, MobState> = { ...mobStatesRef.current };
-        for (const key of Object.keys(next)) {
-          if (key.startsWith(`${caveSpace}|`)) delete next[key];
-        }
-        Object.assign(next, data.states ?? {});
-        mobStatesRef.current = next;
-        return;
-      }
-      // ダンジョンも洞窟・遺跡と同じく空間単位で取り直す（S4）。
-      // 無いとダンジョンのモブ状態は倒した時の自作値のまま更新されず、
-      // 他者の撃破・復活が画面に反映されない。
-      const dungeonSpace = parseInstanceSpace(spaceUi)?.kind === "dungeon" ? spaceUi : null;
-      if (dungeonSpace) {
-        const res = await fetch(
-          `/api/worldbox/mobs?space=${encodeURIComponent(dungeonSpace)}`,
-          { headers: { Accept: "application/json" } },
-        );
-        if (!res.ok) return;
-        const data = (await res.json()) as { states?: Record<string, MobState> };
-        if (mobsGen !== mobsVersionRef.current) { mobsQueuedRef.current = true; return; }
-        const next: Record<string, MobState> = { ...mobStatesRef.current };
-        for (const key of Object.keys(next)) {
-          if (key.startsWith(`${dungeonSpace}#`)) delete next[key];
-        }
-        Object.assign(next, data.states ?? {});
-        mobStatesRef.current = next;
-        return;
-      }
-      const px = Math.floor(playerPosRef.current.x);
-      const py = Math.floor(playerPosRef.current.y);
-      const x0 = px - 64;
-      const y0 = py - 64;
-      const res = await fetch(
-        `/api/worldbox/mobs?x0=${x0}&y0=${y0}&x1=${x0 + 127}&y1=${y0 + 127}`,
-        { headers: { Accept: "application/json" } },
-      );
-      if (!res.ok) return;
-      const data = (await res.json()) as { states?: Record<string, MobState> };
-      if (mobsGen !== mobsVersionRef.current) { mobsQueuedRef.current = true; return; }
-      const next: Record<string, MobState> = { ...mobStatesRef.current };
-      for (const key of Object.keys(next)) {
-        if (key.includes("|")) continue;
-        const m = /@(-?\d+),(-?\d+)$/.exec(key);
-        if (!m) continue;
-        const x = Number(m[1]);
-        const y = Number(m[2]);
-        if (x >= x0 && x <= x0 + 127 && y >= y0 && y <= y0 + 127) delete next[key];
-      }
-      Object.assign(next, data.states ?? {});
-      mobStatesRef.current = next;
-    } catch { /* 読めなくても歩き続けられる */ }
-    finally {
-      mobsInFlightRef.current = false;
-      if (mobsQueuedRef.current) {
-        mobsQueuedRef.current = false;
-        void refreshMobs();
-      }
-    }
-  };
-  /** モブへの攻撃（サーバーが配置・距離・HP の正）。結果は演出で返す。 */
-  const attackMob = async (placed: PlacedMob, curTile?: { x: number; y: number }) => {
-    let key = mobKeyOf(placed);
-    const def = mobById(placed.mobId);
-    try {
-      const res = await fetch("/api/worldbox/mobs", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "attack", mobId: placed.mobId, x: placed.x, y: placed.y,
-          ...(parseInstanceSpace(spaceUi) ? { space: spaceUi } : {}),
-          // サーバー側の位置の正（プレゼンス）が WS 中継中は bot_kv に届かないため、
-          // 距離検証のフォールバックとして現在位置を添える（プレゼンスが新鮮ならそちらが優先される）
-          px: playerPosRef.current.x, py: playerPosRef.current.y,
-          // モブの見た目の現在タイルも申告する。サーバーはアンカーしか
-          // 知らないため、これがないと追跡してきたモブに攻撃が通らない。
-          ...(curTile ? { mx: curTile.x, my: curTile.y } : {}),
-        }),
-      });
-      const data = (await res.json().catch(() => ({}))) as {
-        error?: string; hp?: number; dead?: boolean; profile?: PlayerProfile; key?: string; deadUntil?: number;
-        broke?: string;
-      };
-      if (data.key) key = data.key;
-      if (!res.ok) {
-        if (data.error === "too_far") setTileMsg(TILE_ERROR_LABEL.too_far);
-        fxEventsRef.current.push({ kind: "whiff", x: placed.x, y: placed.y });
-        return;
-      }
-      const next = { ...mobStatesRef.current };
-      // 復活時刻はサーバーの正を使う（S4）。無ければ従来どおり自時計で計算する。
-      if (data.dead) next[key] = { hp: 0, deadUntil: typeof data.deadUntil === "number" ? data.deadUntil : Date.now() + MOB_RESPAWN_MS + mobRespawnDelayMs(key) };
-      else if (typeof data.hp === "number") next[key] = { hp: data.hp };
-      mobStatesRef.current = next;
-      // 攻撃でローカル状態が進んだ。取得中の古いモブ応答は適用されない（S6）。
-      mobsVersionRef.current += 1;
-      fxEventsRef.current.push({
-        kind: data.dead ? "death" : "hit",
-        x: placed.x, y: placed.y,
-        sizeTiles: placed.size,
-        color: def ? MOB_FX_COLOR[def.id] : undefined,
-        // 命中の一瞬だけ時を止める（自分の攻撃が届いた時だけ）
-        stop: data.dead ? HITSTOP_KILL_MS : HITSTOP_HIT_MS,
-      });
-      if (data.profile) setInvProfile(data.profile);
-      if (data.broke) {
-        setTileMsg(`${itemById(data.broke)?.name ?? "剣"}が壊れた`);
-        playWbSe("debris");
-      }
-      // ダンジョンで倒したらセッション進行（フロアボス撃破→階段開放、
-      // 番人の鍵は profile 側）を取り直す。従来は自分の画面でも階段が
-      // 「ボスを倒すと開く」のまま固まっていた。
-      if (data.dead && parseInstanceSpace(spaceUi)?.kind === "dungeon") {
-        void refreshDungeonState(spaceUi);
-      }
-    } catch {
-      fxEventsRef.current.push({ kind: "whiff", x: placed.x, y: placed.y });
-    }
-  };
-  const attackMobRef = useRef(attackMob);
-  attackMobRef.current = attackMob;
-  /** プレイヤーへの攻撃（PvP。サーバーが空間・距離・HP の正）。結果は演出で返す。 */
-  const attackPlayer = async (targetId: string, tx: number, ty: number) => {
-    try {
-      const res = await fetch("/api/worldbox/vitals", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "pvp", target: targetId,
-          px: playerPosRef.current.x, py: playerPosRef.current.y,
-        }),
-      });
-      const data = (await res.json().catch(() => ({}))) as {
-        error?: string; applied?: boolean; died?: boolean;
-      };
-      if (!res.ok) {
-        if (data.error === "too_far") setTileMsg(TILE_ERROR_LABEL.too_far);
-        denyAtTile(tx, ty);
-        return;
-      }
-      if (data.applied) {
-        // ヒット/死亡の粒と音は fx イベント経由で描画ループが出す
-        fxEventsRef.current.push({ kind: data.died ? "death" : "hit", x: tx, y: ty, stop: data.died ? HITSTOP_KILL_MS : HITSTOP_HIT_MS });
-      } else {
-        fxEventsRef.current.push({ kind: "whiff", x: tx, y: ty });
-      }
-    } catch {
-      fxEventsRef.current.push({ kind: "whiff", x: tx, y: ty });
-    }
-  };
-  const attackPlayerRef = useRef(attackPlayer);
-  attackPlayerRef.current = attackPlayer;
-  const refreshMobsRef = useRef(refreshMobs);
-  refreshMobsRef.current = refreshMobs;
   /** テント拡張の購入（サーバー側 expand_tent が正）。 */
   const expandTent = async () => {
     try {
@@ -2427,7 +2034,7 @@ export default function WorldBoxClient() {
     lastSlotTapRef.current = { zone, index, at: tapAt };
     if (slot && lastTap && lastTap.zone === zone && lastTap.index === index && tapAt - lastTap.at < 350) {
       const def = itemById(slot.id);
-      if (def && (def.hunger || def.heal || def.curePoison)) {
+      if (def && (def.hunger || def.buff)) {
         lastSlotTapRef.current = null;
         setHeldSlot(null);
         void eatFromInventory(def.id);
@@ -2457,7 +2064,7 @@ export default function WorldBoxClient() {
     const slot = invProfile.hotbar[index];
     if (slot && lastTap && lastTap.index === index && tapAt - lastTap.at < 350) {
       const def = itemById(slot.id);
-      if (def && (def.hunger || def.heal || def.curePoison)) {
+      if (def && (def.hunger || def.buff)) {
         lastHotbarTapRef.current = null;
         void eatFromInventory(def.id);
       }
@@ -2541,9 +2148,8 @@ export default function WorldBoxClient() {
     void refreshGuildShopPlots();
     void refreshInv();
     void refreshTiles();
-    void refreshMobs();
     const timer = window.setInterval(() => {
-      // WS push が健全な間は nations/tiles/mobs が push（poke 含む）で
+      // WS push が健全な間は nations/tiles が push（poke 含む）で
       // 届くため取得しない。プロフィールは push 対象外なので従来どおり。
       if (wsHealthyNow()) {
         void refreshInv();
@@ -2553,7 +2159,6 @@ export default function WorldBoxClient() {
       void refreshGuildShopPlots();
       void refreshInv();
       void refreshTiles();
-      void refreshMobs();
     }, 15000);
     return () => window.clearInterval(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -2622,24 +2227,11 @@ export default function WorldBoxClient() {
       }
       return dungeonCache;
     };
-    /** モブ状態のキー（インスタンス内は空間 ID で前置し、地表の同座標個体と分ける。
-     * ダンジョンはパーティキーでも分ける）。 */
-    const mobKeyFor = (placed: PlacedMob): string => {
-      const inst = parseInstanceSpace(space);
-      if (inst?.kind === "dungeon") return `${space}#${myPartyKeyRef.current}|${mobKeyOf(placed)}`;
-      return inst ? `${space}|${mobKeyOf(placed)}` : mobKeyOf(placed);
-    };
-    /** ダンジョンではモブ HP がパーティ人数で倍率される（サーバーと同じ式）。 */
-    const defFor = (def: NonNullable<ReturnType<typeof mobById>>) =>
-      parseInstanceSpace(space)?.kind === "dungeon"
-        ? { ...def, hp: Math.max(1, Math.round(def.hp * dungeonHpScale(dungeonStateRef.current.size))) }
-        : def;
     const indoorData = (): LobbyData => caveLayerNow()?.data ?? ruinsNow()?.data ?? dungeonNow()?.data ?? (space === "tent" ? tentNow() : space === "lobby2" ? buildLobby2() : space === "lobby3" ? buildLobby3() : lobby);
     const textures = loadTextures();
     const dungeon = loadDungeonTiles();
     const lobbySprites = loadLobbySprites();
     const farmSprites = loadFarmSprites();
-    const mobSprites = loadMobSprites();
     // アイテムアイコン（設置ブロックの描画用。アイコンの無いアイテムは平色）
     const itemIcons: Record<string, HTMLImageElement> = {};
     for (const item of ITEMS) {
@@ -2753,21 +2345,8 @@ export default function WorldBoxClient() {
         : space === "lobby3" ? rectBounds(LOBBY3_W, LOBBY3_H)
         : space === "tent" ? rectBounds(tentNow().width, tentNow().height) : worldBounds();
     };
-    // モブ占有を差し引いた今フレームの固体集合（モブの真上に立つ間の救済用）
-    let mobFrameBlocked: ReadonlySet<string> | undefined;
     const activeBlocked = (): ReadonlySet<string> | undefined => {
-      if (mobFrameBlocked) return mobFrameBlocked;
       if (space === "world") return blockedRef.current;
-      const dungeonF = dungeonNow();
-      if (dungeonF) {
-        const opened = dungeonStateRef.current.doors;
-        const instD = parseInstanceSpace(space);
-        if (instD && dungeonF.doors.some((d) => opened[`${instD.layer}:${d.idx}`])) {
-          const set = new Set(indoorData().blocked);
-          for (const d of dungeonF.doors) if (opened[`${instD.layer}:${d.idx}`]) set.delete(`${d.x},${d.y}`);
-          return set;
-        }
-      }
       const ruins = ruinsNow();
       if (ruins) {
         // 開けた金の鍵の扉は通れる（個人状態が正、ここは表示・移動用）
@@ -2785,39 +2364,10 @@ export default function WorldBoxClient() {
     // 基点を持ち歩くのは「スティックが起動したか」と倒し量だけ。
     const joy = { active: false, pointerId: -1, dx: 0, dy: 0 };
     const others = new Map<string, OtherRender>();
-    /** モブの見た目状態（現在位置・被弾フラッシュ・ノックバック・歩行位相）。
-     * 配置と HP/死亡は決定的配置＋サーバー状態が正で、ここは動きの表現だけを持つ。 */
-    type MobRender = {
-      ax: number; ay: number; wx: number; wy: number;
-      tx: number; ty: number; nextThink: number; phase: number; face: 1 | -1;
-      flashAt: number; kx: number; ky: number; seenAt: number; fleeUntil: number;
-      behavior: MobBehaviorState; provokedUntil: number; lastSpeed: number;
-    };
-    const mobRenders = new Map<string, MobRender>();
     /** ピアノの打鍵位置（タイルごとの音階ステップ）。 */
     const pianoSteps = new Map<string, number>();
     /** 設置した噴水の水しぶきを最後に出した時刻（スロットル用）。 */
     let lastFountainFxAt = 0;
-    /** HP バーを出す個体（自分が攻撃しようとした敵だけ。当てても外しても出す）。 */
-    const revealedMobs = new Set<string>();
-    /** パターンの予兆マーカー（地面描画）と投射物・糸跡（見た目のみ、ダメージ経路は持たない）。 */
-    type MobTelegraph = { pattern: MobPatternId; x: number; y: number; tx: number; ty: number; dirX: number; dirY: number; from: number; until: number; size: number };
-    const mobTelegraphs: MobTelegraph[] = [];
-    type MobProjectile = { pattern: MobPatternId; x: number; y: number; tx: number; ty: number; from: number; until: number; color: string };
-    const mobProjectiles: MobProjectile[] = [];
-    const mobWebs: { x: number; y: number; until: number }[] = [];
-    let mobCacheKey = "";
-    let mobCache: PlacedMob[] = [];
-    let lastAttackAt = 0;
-    /** 接触中のモブ（個体キー）と、敵対ノックバックを最後に発火した時刻。 */
-    let contactMobKeyNow: string | null = null;
-    let contactFiredAt = 0;
-    /** 環境ハザードの最終送信時刻（サーバーの被弾クールダウンに合わせて間引く）。 */
-    let hazardFiredAt = 0;
-    /** BGM 緊張レイヤーの最終判定時刻（500ms ごとに更新）。 */
-    let dangerCheckedAt = 0;
-    /** ノックバックの残り速度（タイル/秒）。接触で初速を与え、stepMove で滑らかに減衰させる（瞬間移動にしない）。 */
-    let kbVel = { x: 0, y: 0 };
     /** 氷の上の滑り速度（タイル/秒）。氷上では入力へ即追従せず、加速と弱い摩擦で滑る。 */
     let slideVel = { x: 0, y: 0 };
     // スタミナとダッシュ（キーの2度押し / スティックの強い倒し）
@@ -2837,10 +2387,6 @@ export default function WorldBoxClient() {
     const fxSys: FxSystem = createFxSystem((Date.now() % 2147483646) + 1);
     if (reducedMotion) fxSys.intensity = 0.35;
     let shake: FxShake = createShake();
-    /** ヒットストップ（命中の一瞬だけ世界の時を止める）。計算は fx.ts。 */
-    let hitstop: HitstopState = createHitstop();
-    /** 死亡バーストを出したモブのアンカー→時刻（自分の攻撃分との二重出し防止）。 */
-    const deathFxAt = new Map<string, number>();
     /** 道具スイング（タップ即時応答）。itemId のアイコンを振る。whiff は空振り（風切りのみ）。 */
     let swing = { startedAt: 0, itemId: null as string | null, face: 1 as 1 | -1, whiff: false };
     /** 出現ポップ中タイル "x,y" → 開始時刻。 */
@@ -3061,7 +2607,6 @@ export default function WorldBoxClient() {
             // 再同期する（取りこぼしが新しい同期バグになるため）。
             void pollOthers();
             void refreshTilesRef.current();
-            void refreshMobsRef.current();
             void refreshPartyRef.current(true);
             void nationsRefreshRef.current(true);
             void boardRefreshRef.current();
@@ -3128,17 +2673,6 @@ export default function WorldBoxClient() {
             tilesRef.current = nextTiles;
             tilesVersionRef.current += 1;
             syncBlockBlocked();
-          } else if (msg.t === "kv" && msg.kind === "mobs" && Array.isArray(msg.changes)) {
-            // モブ状態の差分（世代を進め、進行中の REST 取得は古い応答を捨てる）
-            const nextMobs: Record<string, MobState> = { ...mobStatesRef.current };
-            for (const c of msg.changes) {
-              if (!c || typeof c.key !== "string") continue;
-              const parsed = c.value == null ? null : parseMobState(c.value);
-              if (parsed) nextMobs[c.key] = parsed;
-              else delete nextMobs[c.key];
-            }
-            mobStatesRef.current = nextMobs;
-            mobsVersionRef.current += 1;
           } else if (msg.t === "kv" && msg.kind === "objects" && Array.isArray(msg.changes)) {
             // 地表オブジェクトの枯渇差分（他人の採取を自分の画面へ即反映）
             for (const c of msg.changes) {
@@ -3433,79 +2967,7 @@ export default function WorldBoxClient() {
         y: Math.floor(cam.y + (p.y - p.h / 2) / TILE),
       };
     };
-    /** 道具タップ: 選択中の道具/種と隣接タイルの状態で行為が決まる。 */
-    /** モブのタップ = 攻撃。タイル行為より優先する（モブがいるマスは殴る）。 */
-    const handleMobTap = (t: { x: number; y: number }): boolean => {
-      if (!invRef.current) return false;
-      const nowMs = Date.now();
-      const px = Math.floor(player.x);
-      const py = Math.floor(player.y);
-      const selSlotItem = invRef.current.hotbar[selSlotRef.current] ?? null;
-      const selDef = selSlotItem ? itemById(selSlotItem.id) : null;
-      // 剣は照準方式でなく範囲方式: 振ること自体は常に応答し、範囲内のモブに当たる。
-      // 狙いはタップ方向へ向け、対象は attackTarget が「タップを含む個体→近い個体」で選ぶ。
-      if (selDef?.tool === "sword") {
-        if (t.x !== px || t.y !== py) player.face = t.x + 0.5 >= player.x ? 1 : -1;
-        swing = { startedAt: performance.now(), itemId: selDef.id, face: player.face, whiff: false };
-        playWbSe("swing");
-        const candidates: { mobId: string; x: number; y: number; size: number; placed: PlacedMob }[] = [];
-        for (const placed of mobCache) {
-          const def = mobById(placed.mobId);
-          if (!def) continue;
-          const key = mobKeyFor(placed);
-          if (!mobHpNow(defFor(def), mobStatesRef.current[key] ?? null, nowMs).alive) continue;
-          const r = mobRenders.get(key);
-          candidates.push({
-            mobId: placed.mobId,
-            x: r ? Math.floor(r.wx) : placed.x,
-            y: r ? Math.floor(r.wy) : placed.y,
-            size: placed.size,
-            placed,
-          });
-        }
-        const target = attackTarget(px, py, t.x, t.y, candidates);
-        if (target) {
-          // 攻撃しようとした敵は、外しても HP バーを出す
-          revealedMobs.add(mobKeyFor(target.placed));
-          if (nowMs - lastAttackAt >= 350) {
-            lastAttackAt = nowMs;
-            void attackMobRef.current(target.placed, { x: target.x, y: target.y });
-          }
-          return true;
-        }
-        return false; // 空振り（スイングは出した。タイル行為は通常どおり続く）
-      }
-      for (const placed of mobCache) {
-        const def = mobById(placed.mobId);
-        if (!def) continue;
-        const key = mobKeyFor(placed);
-        if (!mobHpNow(defFor(def), mobStatesRef.current[key] ?? null, nowMs).alive) continue;
-        const r = mobRenders.get(key);
-        const cx = r ? Math.floor(r.wx) : placed.x;
-        const cy = r ? Math.floor(r.wy) : placed.y;
-        if (!mobOccupiesTile(placed.size, cx, cy, t.x, t.y)) continue;
-        if (mobDistance(px, py, { x: cx, y: cy, size: placed.size }) > MOB_ATTACK_RANGE) {
-          // 届かなくても「攻撃しようとした」ので HP バーは出す
-          revealedMobs.add(key);
-          setTileMsg(TILE_ERROR_LABEL.too_far);
-          denyAtTile(t.x, t.y);
-          return true;
-        }
-        // 向きをモブへ向けて即時に振る（HP と粒はサーバー応答で返す）
-        revealedMobs.add(key);
-        player.face = cx + 0.5 >= player.x ? 1 : -1;
-        const slot = invRef.current.hotbar[selSlotRef.current] ?? null;
-        swing = { startedAt: performance.now(), itemId: slot?.id ?? null, face: player.face, whiff: false };
-        playWbSe("swing");
-        if (nowMs - lastAttackAt >= 350) {
-          lastAttackAt = nowMs;
-          void attackMobRef.current(placed, { x: cx, y: cy });
-        }
-        return true;
-      }
-      return false;
-    };
-    /** ダンジョン内タップ: 宝箱と鍵扉が対象（検証と付与はサーバー）。 */
+    /** ダンジョン内タップ: 宝箱が対象（検証と付与はサーバー）。 */
     const handleDungeonTap = (t: { x: number; y: number }): boolean => {
       const dfloor = dungeonNow();
       if (!dfloor) return false;
@@ -3526,17 +2988,6 @@ export default function WorldBoxClient() {
           return true;
         }
         void postInstanceRef.current("open_chest", { chestIdx: chest.idx, fxX: chest.x, fxY: chest.y });
-        return true;
-      }
-      const door = dfloor.doors.find((d) => d.x === t.x && d.y === t.y);
-      if (door) {
-        if (dungeonStateRef.current.doors[`${inst.layer}:${door.idx}`]) return false;
-        if (Math.hypot(px - t.x, py - t.y) > 2) {
-          setTileMsg(TILE_ERROR_LABEL.too_far);
-          denyAtTile(t.x, t.y);
-          return true;
-        }
-        void postInstanceRef.current("open_door", { doorIdx: door.idx, fxX: door.x, fxY: door.y });
         return true;
       }
       return false;
@@ -3820,8 +3271,7 @@ export default function WorldBoxClient() {
       });
       if (!act) {
         // 隣接タップで何も起きない場合は理由を出す（素材は置けない・その地形には置けない等）。
-        // 剣の空振りは通常の応答なので理由は出さない
-        if (selItem && selItem.tool !== "sword") {
+        if (selItem) {
           setTileMsg(TILE_ERROR_LABEL.tile_blocked);
           denyAtTile(t.x, t.y);
         }
@@ -3869,24 +3319,7 @@ export default function WorldBoxClient() {
         if (space === "world" || parseInstanceSpace(space)) {
           for (const [oid, other] of others) {
             if (Math.floor(other.track.rx) === t.x && Math.floor(other.track.ry) === t.y) {
-              // 振り分けは距離で分ける: サーバーの検証と同じユークリッド
-              // 2.5 タイル以内（両者の補間表示位置で判定）だけが攻撃。
-              // 範囲外はカードを開く（パーティ招待の送信導線がカード内
-              // UI だけのため、ワールドでも編成導線を壊さない）。
-              const inMeleeRange =
-                Math.hypot(other.track.rx - player.x, other.track.ry - player.y) <= PVP_ATTACK_MAX_DISTANCE;
-              if (pvpSpaceAllowed(space) && inMeleeRange) {
-                // モブ攻撃と同じ流れ: 向きを相手へ向けて即時に振り、結果は応答で返す
-                player.face = other.track.rx >= player.x ? 1 : -1;
-                const slot = invRef.current?.hotbar[selSlotRef.current] ?? null;
-                swing = { startedAt: performance.now(), itemId: slot?.id ?? null, face: player.face, whiff: false };
-                playWbSe("swing");
-                if (Date.now() - lastAttackAt >= 350) {
-                  lastAttackAt = Date.now();
-                  void attackPlayerRef.current(oid, Math.floor(other.track.rx), Math.floor(other.track.ry));
-                }
-                return;
-              }
+              // 他プレイヤーをタップ: プロフィールチップを出す（招待導線もここから）。
               showPlayerCardRef.current({
                 id: oid,
                 name: other.track.entry.name || "プレイヤー",
@@ -3912,23 +3345,19 @@ export default function WorldBoxClient() {
               return;
             }
             if (!cast) {
-              if (!handleMobTap(t)) {
-                if (space === "world") handleTileTap(t);
-                else if (parseInstanceSpace(space)?.kind === "ruins") handleRuinsTap(t);
-                else if (parseInstanceSpace(space)?.kind === "dungeon") handleDungeonTap(t);
-                else handleCaveTap(t);
-              }
+              if (space === "world") handleTileTap(t);
+              else if (parseInstanceSpace(space)?.kind === "ruins") handleRuinsTap(t);
+              else if (parseInstanceSpace(space)?.kind === "dungeon") handleDungeonTap(t);
+              else handleCaveTap(t);
             }
           });
           return;
         }
         lastTapRef.current = { x: t.x, y: t.y, at: nowTap };
-        if (!handleMobTap(t)) {
-          if (space === "world") handleTileTap(t);
-          else if (parseInstanceSpace(space)?.kind === "ruins") handleRuinsTap(t);
-          else if (parseInstanceSpace(space)?.kind === "dungeon") handleDungeonTap(t);
-          else handleCaveTap(t);
-        }
+        if (space === "world") handleTileTap(t);
+        else if (parseInstanceSpace(space)?.kind === "ruins") handleRuinsTap(t);
+        else if (parseInstanceSpace(space)?.kind === "dungeon") handleDungeonTap(t);
+        else handleCaveTap(t);
       }
     };
     const onPointerMove = (e: PointerEvent) => {
@@ -4176,26 +3605,6 @@ export default function WorldBoxClient() {
       const nw = c.measureText(nation.name).width;
       c.fillStyle = nation.color;
       c.fillRect(sx - nw / 2, ly + 3, nw, 2.5);
-      // 戦争中: 櫓に赤い枠（脈動）。防衛側はマーク HP バーも出す
-      // （攻撃側は自国マークが削られていないので枠だけ）。
-      const warMark = nationsRef.current.warMarks?.[nation.id];
-      if (warMark) {
-        const pulse = 0.55 + 0.35 * Math.sin(performance.now() / 280);
-        c.strokeStyle = `rgba(255,64,48,${pulse})`;
-        c.lineWidth = 2;
-        c.strokeRect(x0 - 2.5, y0 - 2.5, w + 5, h + 5);
-        if (warMark.markHp !== null && warMark.markMax > 0) {
-          const bw = Math.max(nw, TILE * 0.9);
-          const bx = sx - bw / 2;
-          const by = ly + 8;
-          c.fillStyle = "rgba(10,10,12,0.7)";
-          c.fillRect(bx - 1, by - 1, bw + 2, 5);
-          c.fillStyle = "#5a1512";
-          c.fillRect(bx, by, bw, 3);
-          c.fillStyle = "#ff5040";
-          c.fillRect(bx, by, bw * Math.max(0, Math.min(1, warMark.markHp / warMark.markMax)), 3);
-        }
-      }
     };
 
     // ---- 空間移動（ワープパッド・階段・ハンバーガーメニュー） ----
@@ -4301,15 +3710,12 @@ export default function WorldBoxClient() {
         void pollOthers();
         if (inst?.kind === "cave") {
           void refreshCaveStateRef.current(target);
-          void refreshMobsRef.current();
         }
         if (inst?.kind === "ruins") {
           void refreshRuinsStateRef.current(target);
-          void refreshMobsRef.current();
         }
         if (inst?.kind === "dungeon") {
           void refreshDungeonStateRef.current(target);
-          void refreshMobsRef.current();
         }
       });
     };
@@ -4383,9 +3789,8 @@ export default function WorldBoxClient() {
       if (key === lastTileKey) return;
       lastTileKey = key;
       if (space === "world") {
-        // ロビー行きは ≡ メニュー。ワールド側の踏むトリガーはテント入場とベッドのリスポーン設定。
+        // ロビー行きは ≡ メニュー。ワールド側の踏むトリガーはテント入場。
         if (tilesRef.current[tileKey(tx, ty)]?.block?.itemId === "tent") doWarp("tent");
-        else if (tilesRef.current[tileKey(tx, ty)]?.block?.itemId === "bed") postBedRespawn(tx, ty);
         else {
           const st = structureAt(tx, ty);
           const stDef = st ? structureById(st.structureId) : null;
@@ -4442,23 +3847,6 @@ export default function WorldBoxClient() {
             return;
           }
           if (dfloor.stairsDown && tx === dfloor.stairsDown.x && ty === dfloor.stairsDown.y) {
-            if (!dungeonStateRef.current.floorBossDead[String(inst.layer + 1)]) {
-              setTileMsg("ボスを倒すと開く");
-              return;
-            }
-            {
-              // 熟練ゲートはサーバー判定（最新ランク）が正。結成時の
-              // スナップショットで判定すると、ダンジョン内でランクが
-              // 上がってもここだけ「ランク不足」で遮ってしまう。
-              const nextFloor = inst.layer + 2;
-              const gateOk = nextFloor >= 4
-                ? dungeonStateRef.current.gateBoss
-                : dungeonStateRef.current.gateFloor2;
-              if (!gateOk) {
-                setTileMsg("熟練ランクが足りない");
-                return;
-              }
-            }
             const next = buildDungeonFloor(MAP_SEED, inst.entranceX, inst.entranceY, inst.layer + 1);
             warpToInstance(makeInstanceSpace("dungeon", inst.entranceX, inst.entranceY, inst.layer + 1), { x: next.portal.x + 0.5, y: next.portal.y + 0.5 });
             return;
@@ -4515,7 +3903,7 @@ export default function WorldBoxClient() {
       lastT = now;
       // ヒットストップ中はシミュレーション（移動・モブ・粒）だけを止める。
       // 壁時計ベースの処理（遷移・タイマー）は dt のまま進める。
-      let sdt = hitstopActiveAt(hitstop, now) ? 0 : dt;
+      let sdt = dt;
 
       // 遷移の切替: フェードアウトの頂点で1回だけ走る。
       if (transitionStart >= 0 && transitionKind === "warp" && !transitionSwapped && transitionSwapDue(now - transitionStart)) {
@@ -4568,33 +3956,6 @@ export default function WorldBoxClient() {
         telescopeCam = null;
         telescopeDrag = null;
       }
-      // 実効タイルは effTileAt が上書きを都度読むため、タイル配列の同期は不要。
-      // モブ占有: 現在位置の footprint を移動の当たり判定へ合成する。
-      // 占有の真上に立っている間は、そのモブの占有だけ通す（閉じ込め防止）。
-      mobFrameBlocked = undefined;
-      if ((space === "world" || parseInstanceSpace(space)) && mobRenders.size > 0) {
-        const frameMobs: { key: string; size: number; x: number; y: number }[] = [];
-        let standingKey: string | null = null;
-        const ptx = Math.floor(player.x);
-        const pty = Math.floor(player.y);
-        for (const placed of mobCache) {
-          const key = mobKeyFor(placed);
-          const r = mobRenders.get(key);
-          if (!r) continue;
-          const cur = { key, size: placed.size, x: Math.floor(r.wx), y: Math.floor(r.wy) };
-          frameMobs.push(cur);
-          if (mobOccupiesTile(cur.size, cur.x, cur.y, ptx, pty)) standingKey = key;
-        }
-        if (frameMobs.length > 0) {
-          const merged = new Set<string>(blockedRef.current);
-          for (const k of mobBlockedTiles(frameMobs)) merged.add(k);
-          if (standingKey) {
-            const sm = frameMobs.find((m) => m.key === standingKey);
-            if (sm) for (const k of mobFootprintTiles(sm.size, sm.x, sm.y)) merged.delete(k);
-          }
-          mobFrameBlocked = merged;
-        }
-      }
       // 足元の床ブロック（小道・氷・はちみつ・スライム・橋）。橋の上では水でも泳がない。
       const floorOv = space === "world" ? tilesRef.current[tileKey(Math.floor(player.x), Math.floor(player.y))] : undefined;
       const floorRaw = floorOv?.block && isOverrideActive(floorOv, Date.now()) ? floorOv.block.itemId : null;
@@ -4624,7 +3985,6 @@ export default function WorldBoxClient() {
         if (free.x !== player.x || free.y !== player.y) {
           player.x = free.x;
           player.y = free.y;
-          kbVel = { x: 0, y: 0 };
         }
       }
       // 座っている間は動かない。移動入力が入るか、家具のマスから外れたら立ち上がる
@@ -4659,31 +4019,6 @@ export default function WorldBoxClient() {
       const moved = stepMove(activeMap(), player, vel, sdt, activeBlocked(), { swim: space === "world" });
       player.x = moved.x;
       player.y = moved.y;
-      // ノックバック: 残り速度を当たり判定つきで適用し、約0.16秒で減衰させる
-      if (kbVel.x !== 0 || kbVel.y !== 0) {
-        const kbMoved = stepMove(activeMap(), player, kbVel, sdt, activeBlocked(), { swim: space === "world" });
-        player.x = kbMoved.x;
-        player.y = kbMoved.y;
-        const decay = Math.max(0, 1 - sdt / 0.16);
-        kbVel = { x: kbVel.x * decay, y: kbVel.y * decay };
-        if (Math.hypot(kbVel.x, kbVel.y) < 0.5) kbVel = { x: 0, y: 0 };
-      }
-      // 環境ハザード（サボテン・マグマに触れている）: ハザードは固体なので足元ではなく
-      // 当たり円が触れる範囲のタイルで判定する。サーバーの被弾クールダウン（1秒）に
-      // 合わせて間引きながら申告し、ダメージの有無と量はサーバーが決める。
-      if (space === "world" && loggedIn && now - hazardFiredAt >= 1100) {
-        let nearHazard = false;
-        for (let hy = Math.floor(player.y - PLAYER_RADIUS); hy <= Math.floor(player.y + PLAYER_RADIUS) && !nearHazard; hy++) {
-          for (let hx = Math.floor(player.x - PLAYER_RADIUS); hx <= Math.floor(player.x + PLAYER_RADIUS); hx++) {
-            const hov = tilesRef.current[tileKey(hx, hy)];
-            if (hov?.block && hazardDamageFor(hov.block.itemId) > 0) { nearHazard = true; break; }
-          }
-        }
-        if (nearHazard) {
-          hazardFiredAt = now;
-          postHazard();
-        }
-      }
       // スタミナ増減・陸の記録・入出水の波紋・水中で力尽きたら陸へ帰還
       const floorOvNow = space === "world" ? tilesRef.current[tileKey(Math.floor(player.x), Math.floor(player.y))] : undefined;
       const onBridgeNow = floorOvNow?.block?.itemId === "bridge_block" && isOverrideActive(floorOvNow, Date.now());
@@ -4717,72 +4052,6 @@ export default function WorldBoxClient() {
         spawnBurst(fxSys, "warp", player.x, player.y - 0.3);
         playWbSe("warp");
         saveNow();
-      }
-      // モブ接触: 占有範囲までチェビシェフ距離1以内を接触とする。
-      // 敵対は接触開始時（継続中は1秒間隔）だけ軽いノックバック＋hit バーストを出し、
-      // ダメージはサーバー（/api/worldbox/vitals）が検証して profile の HP に適用する。
-      if (space === "world" || parseInstanceSpace(space)) {
-        let contact: { placed: PlacedMob; key: string; dist: number; cx: number; cy: number } | null = null;
-        const ptx = Math.floor(player.x);
-        const pty = Math.floor(player.y);
-        for (const placed of mobCache) {
-          const key = mobKeyFor(placed);
-          const r = mobRenders.get(key);
-          if (!r) continue;
-          const cx = Math.floor(r.wx);
-          const cy = Math.floor(r.wy);
-          const dist = mobDistance(ptx, pty, { x: cx, y: cy, size: placed.size });
-          if (dist <= 1 && (!contact || dist < contact.dist)) contact = { placed, key, dist, cx, cy };
-        }
-        if (!contact) {
-          contactMobKeyNow = null;
-        } else {
-          const isNew = contact.key !== contactMobKeyNow;
-          contactMobKeyNow = contact.key;
-          const def = mobById(contact.placed.mobId);
-          // 敵対は常時、中立は provoked（被弾して敵対化している間）だけ
-          // 接触ダメージを送る。サーバーの受け付け条件（passive 以外）と
-          // 一致させる（従来は中立が一切ダメージを与えなかった）。
-          const contactRender = mobRenders.get(contact.key);
-          const provoked = contactRender !== undefined && now < contactRender.provokedUntil;
-          if (def && (def.temperament === "hostile" || (def.temperament === "neutral" && provoked)) && (isNew || now - contactFiredAt >= 1000)) {
-            contactFiredAt = now;
-            // 着地点へ瞬間移動させず、着地点までの方向に初速だけ与える（適用は移動ステップ側）
-            postMobDamage(contact.placed.mobId, contact.placed.x, contact.placed.y, contact.cx, contact.cy);
-            const target = knockbackTarget({ x: contact.cx, y: contact.cy, size: contact.placed.size }, player);
-            kbVel = { x: (target.x - player.x) / 0.16, y: (target.y - player.y) / 0.16 };
-            fxEventsRef.current.push({
-              kind: "hit",
-              x: contact.placed.x, y: contact.placed.y,
-              sizeTiles: contact.placed.size,
-              color: MOB_FX_COLOR[def.id],
-              stop: HITSTOP_HURT_MS,
-            });
-            shake = startShake(shake, 2, now);
-          }
-        }
-        // BGM 緊張レイヤー: 500ms ごとに敵対モブの接近と HP を見る（曲は変えず心拍だけ重ねる）。
-        if (now - dangerCheckedAt >= 500) {
-          dangerCheckedAt = now;
-          const prof = invRef.current;
-          const hpFrac = prof ? prof.hp / maxHpFor(prof) : 1;
-          let hostileNear = false;
-          if (hpFrac > 0.25) {
-            const ptx2 = Math.floor(player.x);
-            const pty2 = Math.floor(player.y);
-            for (const placed of mobCache) {
-              const def = mobById(placed.mobId);
-              if (!def || def.temperament !== "hostile") continue;
-              const r = mobRenders.get(mobKeyFor(placed));
-              if (!r) continue;
-              if (mobDistance(ptx2, pty2, { x: Math.floor(r.wx), y: Math.floor(r.wy), size: placed.size }) <= 6) {
-                hostileNear = true;
-                break;
-              }
-            }
-          }
-          dangerRef.current = tensionFor({ hostileNear, hpFrac });
-        }
       }
       checkTileTriggers();
       if (space !== "world") {
@@ -4839,40 +4108,10 @@ export default function WorldBoxClient() {
 
       // ---- 演出の更新（行為イベントの消化・粒の前進・移動の副産物） ----
       for (const ev of fxEventsRef.current.splice(0)) {
-        // ヒットストップ: 自分の命中・撃破・被弾のイベントだけが時を止める
-        if (ev.stop && !reducedMotion) hitstop = startHitstop(hitstop, ev.stop, now);
-        if (ev.kind === "death") deathFxAt.set(`${ev.x},${ev.y}`, now);
         if (ev.kind === "whiff") {
           // 空振り: 風切りだけのスイングを再生する（粒も道具アイコンも出さない）
           swing = { startedAt: now, itemId: null, face: player.face, whiff: true };
           playWbSe("swing");
-          continue;
-        }
-        if (ev.kind === "hit" || ev.kind === "death" || ev.kind === "spawn") {
-          // モブ演出: 大きさに応じて粒をスケール。死亡は小さな揺れ、出現はポップも併用
-          // 音はプレイヤーからの距離で減衰させる（B4）
-          const evDist = Math.max(Math.abs(ev.x + 0.5 - player.x), Math.abs(ev.y + 0.5 - player.y));
-          playWbSe(seForFxBurst(ev.kind), { distance: evDist });
-          spawnMobFx(fxSys, ev.kind, ev.x + 0.5, ev.y + 0.5, { sizeTiles: ev.sizeTiles, color: ev.color });
-          if (ev.kind === "death") {
-            shake = startShake(shake, (ev.sizeTiles ?? 1) >= 4 ? 6 : 3, now);
-            if ((ev.sizeTiles ?? 1) >= 4) spawnMobFx(fxSys, "hit", ev.x + 0.5, ev.y + 0.5, { sizeTiles: ev.sizeTiles, color: ev.color });
-          }
-          if (ev.kind === "spawn") pops.set(`${ev.x},${ev.y}`, now);
-          if (ev.kind === "hit") {
-            // 被弾した個体は白フラッシュ＋ノックバック。敵対でなければ逃げる
-            for (const [mkey, r] of mobRenders) {
-              if (r.ax !== ev.x || r.ay !== ev.y) continue;
-              r.flashAt = now;
-              const dx = r.wx - player.x;
-              const dy = r.wy - player.y;
-              const len = Math.hypot(dx, dy) || 1;
-              r.kx += (dx / len) * TILE * 0.20;
-              r.ky += (dy / len) * TILE * 0.20;
-              const mdef = mobById(mkey.split("@")[0]);
-              if (mdef && mdef.temperament !== "hostile") { r.fleeUntil = now + 900; r.provokedUntil = now + 6000; }
-            }
-          }
           continue;
         }
         spawnBurst(fxSys, ev.kind, ev.x + 0.5, ev.y + 0.5, { colors: ev.colors });
@@ -4881,8 +4120,6 @@ export default function WorldBoxClient() {
         else if (ev.kind === "debris" || ev.kind === "build") shake = startShake(shake, 3, now);
         if (ev.kind === "place" || ev.kind === "build") pops.set(`${ev.x},${ev.y}`, now);
       }
-      // イベントで始まったヒットストップはこのフレームの粒・モブから効かせる
-      sdt = hitstopActiveAt(hitstop, now) ? 0 : dt;
       stepFx(fxSys, sdt);
       const beat = stepBeatIndex(player.phase);
       if (beat !== lastBeat) {
@@ -5242,314 +4479,6 @@ export default function WorldBoxClient() {
         ctx.imageSmoothingEnabled = true;
       }
 
-      // ---- モブ: 配置は決定的、HP/死亡はサーバー状態、動きは見た目だけここで作る ----
-      const mobDrawQueue: { placed: PlacedMob; r: MobRender; hpFrac: number; showHp: boolean }[] = [];
-      const drawMob = (placed: PlacedMob, r: MobRender, hpFrac: number, showHp: boolean) => {
-        const def = mobById(placed.mobId);
-        if (!def) return;
-        const sizePx = TILE * Math.max(1, placed.size) * 0.94;
-        const loco = locomotionFor(def.id);
-        const pose = locomotionPose(loco, r.phase, r.lastSpeed > 0.05);
-        const bob = pose.bob * TILE;
-        const cxp = toScreenX(r.wx) + r.kx + pose.sway * TILE;
-        const baseY = toScreenY(r.wy) + r.ky;
-        const cy = baseY - bob;
-        const flash = now - r.flashAt < 130;
-        const pop = popScale(popProgress(r.seenAt, now));
-        const w = sizePx;
-        const h = sizePx;
-        const by = baseY - h;
-        ctx.save();
-        if (pop !== 1) {
-          ctx.translate(cxp, baseY);
-          ctx.scale(pop, pop);
-          ctx.translate(-cxp, -baseY);
-        }
-        // locomotion の傾き・つぶれ＋windup の沈み込み（予兆の読みやすさ）
-        const windupSquash = r.behavior.mode === "windup" ? 0.84 : 1;
-        if (pose.tilt !== 0 || pose.squashY !== 1 || windupSquash !== 1) {
-          ctx.translate(cxp, baseY);
-          ctx.rotate(pose.tilt * r.face);
-          ctx.scale(1, pose.squashY * windupSquash);
-          ctx.translate(-cxp, -baseY);
-        }
-        // 影
-        ctx.fillStyle = "rgba(20,26,20,0.25)";
-        ctx.beginPath();
-        ctx.ellipse(cxp, baseY + sizePx * 0.02, sizePx * 0.34, sizePx * 0.12, 0, 0, Math.PI * 2);
-        ctx.fill();
-        if (r.behavior.enraged) {
-          // 怒り状態: 赤いオーラ（脈動）
-          const pulse = 0.16 + 0.08 * Math.sin(now * 0.012);
-          ctx.fillStyle = `rgba(226,72,58,${pulse.toFixed(3)})`;
-          ctx.beginPath();
-          ctx.ellipse(cxp, cy, sizePx * 0.55, sizePx * 0.45, 0, 0, Math.PI * 2);
-          ctx.fill();
-        }
-        // 本体: 素材スプライト（ピクセル固定・足元基準・向き反転）
-        const spriteSrc = MOB_SPRITE[def.id];
-        const img = spriteSrc ? mobSprites[def.id] : undefined;
-        ctx.imageSmoothingEnabled = false;
-        if (texReady(img)) {
-          const dx = Math.round(cxp - w / 2);
-          const dy = Math.round(cy - h / 2);
-          const dw = Math.round(w);
-          const dh = Math.round(h);
-          // 被弾フラッシュは filter で白寄せする（オフスクリーン生成はしない）
-          if (flash) ctx.filter = "brightness(2.8) saturate(0.2)";
-          if (r.face < 0) {
-            ctx.save();
-            ctx.translate(dx + dw, 0);
-            ctx.scale(-1, 1);
-            ctx.drawImage(img, 0, dy, dw, dh);
-            ctx.restore();
-          } else {
-            ctx.drawImage(img, dx, dy, dw, dh);
-          }
-          if (flash) ctx.filter = "none";
-        } else if (MOB_SPRITE_FALLBACK.has(def.id) || spriteSrc) {
-          // 明示フォールバック種（素材なし）と、素材の読み込み完了までの間の最小限の図形。
-          ctx.fillStyle = flash ? "#ffffff" : (MOB_STYLE[def.id]?.body ?? (def.temperament === "hostile" ? "#a04a4a" : "#b8b0a2"));
-          ctx.beginPath();
-          ctx.ellipse(cxp, cy, w * 0.38, h * 0.30, 0, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.fillStyle = def.temperament === "hostile" && !flash ? "#c22e2e" : "#26221e";
-          for (const s of [-1, 1]) {
-            ctx.beginPath();
-            ctx.arc(cxp + r.face * w * 0.08 + s * w * 0.11, cy - h * 0.04, Math.max(1.8, sizePx * 0.045), 0, Math.PI * 2);
-            ctx.fill();
-          }
-        }
-        // 凍結中は氷色で覆う（アイスランス）
-        {
-          const key = mobKeyFor(placed);
-          const st = mobStatesRef.current[key];
-          if (st?.frozenUntil && st.frozenUntil > Date.now()) {
-            ctx.fillStyle = "rgba(140,210,255,0.45)";
-            ctx.fillRect(Math.round(cxp - w / 2), Math.round(cy - h / 2), Math.round(w), Math.round(h));
-            ctx.strokeStyle = "rgba(220,245,255,0.8)";
-            ctx.lineWidth = 1;
-            ctx.strokeRect(Math.round(cxp - w / 2) + 0.5, Math.round(cy - h / 2) + 0.5, Math.round(w) - 1, Math.round(h) - 1);
-          }
-        }
-        ctx.restore();
-        // HP バー（自分が攻撃しようとした個体だけ。当てても外しても出す）
-        if (showHp) {
-          const bw = Math.min(180, Math.max(26, w * 0.9));
-          const bh2 = 4;
-          const bxHp = Math.round(cxp - bw / 2);
-          const byHp = Math.round(by - 9);
-          ctx.fillStyle = "rgba(12,14,12,0.55)";
-          ctx.fillRect(bxHp - 1, byHp - 1, bw + 2, bh2 + 2);
-          ctx.fillStyle = "rgba(255,255,255,0.22)";
-          ctx.fillRect(bxHp, byHp, bw, bh2);
-          ctx.fillStyle = hpFrac > 0.5 ? "#7ed957" : hpFrac > 0.25 ? "#f2c53c" : "#e2483a";
-          ctx.fillRect(bxHp, byHp, Math.round(bw * Math.min(1, Math.max(0, hpFrac))), bh2);
-        }
-      };
-      if (space === "world" || parseInstanceSpace(space)) {
-        const nowMs = Date.now();
-        const isNight = isNightPhase(phaseAtTime(nowMs / 1000));
-        const vx0 = Math.floor(cam.x - cw / TILE / 2) - 3;
-        const vy0 = Math.floor(cam.y - ch / TILE / 2) - 3;
-        const vx1 = Math.ceil(cam.x + cw / TILE / 2) + 3;
-        const vy1 = Math.ceil(cam.y + ch / TILE / 2) + 3;
-        const caveNow = caveLayerNow();
-        const ruinsMobNow = ruinsNow();
-        const dungeonMobNow = dungeonNow();
-        const cacheKey = caveNow ? `cave:${space}` : ruinsMobNow ? `ruins:${space}:${ruinsStateRef.current.summons.length}` : dungeonMobNow ? `dungeon:${space}` : `${vx0 >> 5},${vy0 >> 5},${vx1 >> 5},${vy1 >> 5},${isNight ? 1 : 0}`;
-        if (cacheKey !== mobCacheKey) {
-          mobCacheKey = cacheKey;
-          mobCache = caveNow
-            ? [...caveNow.mobs]
-            : ruinsMobNow
-              ? ruinsStateRef.current.summons.map((sm) => ({
-                  mobId: sm.mobId, x: sm.x, y: sm.y, biome: "plains" as const, size: mobById(sm.mobId)?.size ?? 1,
-                }))
-              : dungeonMobNow
-                ? [...dungeonMobNow.mobs]
-                : visibleMobs(MAP_SEED, vx0, vy0, vx1, vy1, isNight);
-          const keys = new Set(mobCache.map((m) => mobKeyFor(m)));
-          for (const k of [...mobRenders.keys()]) if (!keys.has(k)) mobRenders.delete(k);
-          for (const k of [...revealedMobs]) if (!keys.has(k)) revealedMobs.delete(k);
-        }
-        for (const placed of mobCache) {
-          const def = mobById(placed.mobId);
-          if (!def) continue;
-          const key = mobKeyFor(placed);
-          const hpNow = mobHpNow(defFor(def), mobStatesRef.current[key] ?? null, nowMs);
-          if (!hpNow.alive) {
-            // 見えていた個体が状態だけで死んだ（他者の撃破など）場合は、
-            // 消えっぱなしにせず死亡の粒を出す。自分の攻撃の結果は
-            // attackMob が既に death イベントを積んでいるので二重に出さない。
-            if (mobRenders.has(key) && Math.max(Math.abs(placed.x + 0.5 - player.x), Math.abs(placed.y + 0.5 - player.y)) <= 24) {
-              const akey = `${placed.x},${placed.y}`;
-              if (now - (deathFxAt.get(akey) ?? -Infinity) > 1500) {
-                deathFxAt.set(akey, now);
-                fxEventsRef.current.push({ kind: "death", x: placed.x, y: placed.y, sizeTiles: placed.size, color: MOB_FX_COLOR[def.id] });
-              }
-            }
-            // 死んでいる間は見た目状態を捨てる（復活時はアンカーでポップして出る）
-            mobRenders.delete(key);
-            revealedMobs.delete(key);
-            continue;
-          }
-          let r = mobRenders.get(key);
-          if (!r) {
-            r = {
-              ax: placed.x, ay: placed.y, wx: placed.x + 0.5, wy: placed.y + 0.5,
-              tx: placed.x + 0.5, ty: placed.y + 0.5, nextThink: 0,
-              phase: Math.random() * 6, face: 1, flashAt: 0, kx: 0, ky: 0, seenAt: now, fleeUntil: 0,
-              behavior: createBehaviorState(placed.x + 0.5, placed.y + 0.5), provokedUntil: 0, lastSpeed: 0,
-            };
-            mobRenders.set(key, r);
-            fxEventsRef.current.push({ kind: "spawn", x: placed.x, y: placed.y, sizeTiles: placed.size, color: MOB_FX_COLOR[def.id] });
-            if (isBossMob(def)) {
-              // ボス級の出現は豪華に: 追加バースト＋揺れ
-              fxEventsRef.current.push({ kind: "hit", x: placed.x, y: placed.y, sizeTiles: placed.size, color: MOB_FX_COLOR[def.id] });
-              shake = startShake(shake, 4, now);
-            }
-          }
-          // 思考: mob-behavior の状態機械（うろつき/追跡/予兆→攻撃→硬直/逃走/帰還）。
-          // ダメージは接触経路のみで、ここは動きと演出イベントだけを出す。
-          const bout = stepMobBehavior(r.behavior, {
-            def, now,
-            pos: { x: r.wx, y: r.wy },
-            anchor: { x: placed.x + 0.5, y: placed.y + 0.5 },
-            player: { x: player.x, y: player.y },
-            fleeing: now < r.fleeUntil,
-            provoked: now < r.provokedUntil,
-            // 凍結中は状態機械ごと止める（見た目だけ氷色にしても
-            // 追跡・予兆・突進が進んでしまうため）
-            frozen: (mobStatesRef.current[key]?.frozenUntil ?? 0) > Date.now(),
-            hpFrac: hpNow.hp / def.hp,
-            rng: Math.random,
-          });
-          r.behavior = bout.state;
-          for (const ev of bout.events as BehaviorEvent[]) {
-            const pat = ev.pattern;
-            if (!pat) {
-              // 怒り: 赤いバースト＋揺れ
-              fxEventsRef.current.push({ kind: "hit", x: placed.x, y: placed.y, sizeTiles: placed.size, color: "#e2483a" });
-              shake = startShake(shake, 4, now);
-              continue;
-            }
-            const pd = PATTERN_DEF[pat];
-            if (ev.kind === "telegraph") {
-              mobTelegraphs.push({ pattern: pat, x: r.wx, y: r.wy, tx: r.behavior.tx, ty: r.behavior.ty, dirX: ev.dirX, dirY: ev.dirY, from: now, until: r.behavior.until, size: placed.size });
-            } else if (ev.kind === "strike") {
-              if (pd.kind === "projectile") {
-                mobProjectiles.push({ pattern: pat, x: r.wx, y: r.wy, tx: r.behavior.tx, ty: r.behavior.ty, from: now, until: now + 380, color: MOB_FX_COLOR[def.id] ?? "#ffffff" });
-              } else if (pd.kind === "burst") {
-                fxEventsRef.current.push({ kind: pat === "roar" || pat === "gust" || pat === "leaf_burst" ? "spawn" : "hit", x: placed.x, y: placed.y, sizeTiles: placed.size, color: pat === "breath_cone" ? "#e07c3c" : MOB_FX_COLOR[def.id] });
-                if (pat === "slam" || pat === "club_slam" || pat === "slam_big" || pat === "tail_sweep" || pat === "roar") shake = startShake(shake, isBossMob(def) ? 5 : 3, now);
-              }
-            }
-          }
-          if (bout.teleport) {
-            fxEventsRef.current.push({ kind: "spawn", x: placed.x, y: placed.y, sizeTiles: placed.size, color: MOB_FX_COLOR[def.id] });
-            r.wx = bout.teleport.x; r.wy = bout.teleport.y;
-          }
-          r.tx = bout.target.x; r.ty = bout.target.y;
-          const speed = bout.speed;
-          const dx = r.tx - r.wx;
-          const dy = r.ty - r.wy;
-          const distT = Math.hypot(dx, dy);
-          // 追跡中はプレイヤーに重ならない（手前で止まる）。strike の突進は止まらない
-          const stopAt = r.behavior.mode === "chase" ? 0.85 : 0.03;
-          r.lastSpeed = 0;
-          if (distT > stopAt && speed > 0) {
-            const step = Math.min(distT - stopAt, speed * sdt);
-            r.wx += (dx / distT) * step;
-            r.wy += (dy / distT) * step;
-            r.phase = advanceWalkPhase(r.phase, speed, sdt);
-            r.lastSpeed = speed;
-            if (dx < -0.02) r.face = -1;
-            else if (dx > 0.02) r.face = 1;
-          }
-          r.kx *= Math.exp(-9 * sdt);
-          r.ky *= Math.exp(-9 * sdt);
-          mobDrawQueue.push({ placed, r, hpFrac: hpNow.hp / defFor(def).hp, showHp: revealedMobs.has(key) });
-        }
-        // React 側（攻撃・技の申告）へモブの現在タイルを渡すスナップショット。
-        // サーバーはアンカーしか知らないため、見た目の現在位置を申告して
-        // 距離検証を画面に合わせる（リーシュ内でのみ採用される）。
-        mobTilesRef.current = new Map(
-          mobDrawQueue.map(({ placed, r }) => [
-            mobKeyFor(placed),
-            { mobId: placed.mobId, x: placed.x, y: placed.y, mx: Math.floor(r.wx), my: Math.floor(r.wy) },
-          ]),
-        );
-      }
-
-      // ---- モブの予兆マーカー・投射物・糸跡（地面レイヤー、見た目のみ） ----
-      if (space === "world" || parseInstanceSpace(space)) {
-        for (let i = mobTelegraphs.length - 1; i >= 0; i--) {
-          const t = mobTelegraphs[i];
-          if (now > t.until) { mobTelegraphs.splice(i, 1); continue; }
-          const pd = PATTERN_DEF[t.pattern];
-          const total = Math.max(1, t.until - t.from);
-          const frac = Math.min(1, (now - t.from) / total);
-          const alpha = 0.16 + 0.20 * frac + 0.05 * Math.sin(now * 0.03);
-          ctx.fillStyle = `rgba(255,64,40,${alpha.toFixed(3)})`;
-          ctx.strokeStyle = `rgba(255,90,60,${(alpha + 0.25).toFixed(3)})`;
-          ctx.lineWidth = 2;
-          const gx = pd.kind === "dash" || pd.kind === "teleport" || pd.kind === "projectile" ? t.tx : t.x;
-          const gy = pd.kind === "dash" || pd.kind === "teleport" || pd.kind === "projectile" ? t.ty : t.y;
-          if (pd.telegraph === "circle") {
-            ctx.beginPath();
-            ctx.ellipse(toScreenX(gx), toScreenY(gy), pd.radius * TILE * (0.4 + 0.6 * frac), pd.radius * TILE * 0.45 * (0.4 + 0.6 * frac), 0, 0, Math.PI * 2);
-            ctx.fill(); ctx.stroke();
-          } else if (pd.telegraph === "ring") {
-            ctx.beginPath();
-            ctx.ellipse(toScreenX(t.x), toScreenY(t.y), pd.radius * TILE * frac, pd.radius * TILE * 0.45 * frac, 0, 0, Math.PI * 2);
-            ctx.stroke();
-          } else if (pd.telegraph === "line") {
-            const ex = t.x + t.dirX * pd.radius;
-            const ey = t.y + t.dirY * pd.radius;
-            ctx.lineWidth = Math.max(6, TILE * 0.5 * (0.5 + t.size * 0.2));
-            ctx.beginPath();
-            ctx.moveTo(toScreenX(t.x), toScreenY(t.y));
-            ctx.lineTo(toScreenX(ex), toScreenY(ey));
-            ctx.stroke();
-            ctx.lineWidth = 2;
-          } else if (pd.telegraph === "cone") {
-            const ang = Math.atan2(t.dirY, t.dirX);
-            ctx.beginPath();
-            ctx.moveTo(toScreenX(t.x), toScreenY(t.y));
-            ctx.arc(toScreenX(t.x), toScreenY(t.y), pd.radius * TILE, ang - 0.6, ang + 0.6);
-            ctx.closePath();
-            ctx.fill();
-          }
-        }
-        for (let i = mobWebs.length - 1; i >= 0; i--) {
-          const w = mobWebs[i];
-          if (now > w.until) { mobWebs.splice(i, 1); continue; }
-          const sx = toScreenX(w.x); const sy = toScreenY(w.y);
-          ctx.strokeStyle = "rgba(240,240,235,0.55)";
-          ctx.lineWidth = 1.5;
-          for (const [dx, dy] of [[-0.4, -0.2], [0.4, -0.2], [-0.4, 0.2], [0.4, 0.2], [0, -0.35], [0, 0.35]] as const) {
-            ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(sx + dx * TILE, sy + dy * TILE); ctx.stroke();
-          }
-        }
-        for (let i = mobProjectiles.length - 1; i >= 0; i--) {
-          const pr = mobProjectiles[i];
-          if (now > pr.until) {
-            mobProjectiles.splice(i, 1);
-            if (pr.pattern === "web_shot") mobWebs.push({ x: pr.tx, y: pr.ty, until: now + 2600 });
-            continue;
-          }
-          const f = Math.min(1, (now - pr.from) / Math.max(1, pr.until - pr.from));
-          const arc = pr.pattern === "rock_throw" ? Math.sin(f * Math.PI) * TILE * 1.1 : 0;
-          const sx = toScreenX(pr.x + (pr.tx - pr.x) * f);
-          const sy = toScreenY(pr.y + (pr.ty - pr.y) * f) - arc;
-          ctx.fillStyle = pr.pattern === "web_shot" ? "rgba(240,240,235,0.9)" : pr.color;
-          ctx.beginPath();
-          ctx.arc(sx, sy, Math.max(3, TILE * 0.14), 0, Math.PI * 2);
-          ctx.fill();
-        }
-      }
-
       // プレイヤー群（y 順で奥行き感）
       const drawList: { y: number; draw: () => void }[] = [];
       for (const o of others.values()) {
@@ -5653,9 +4582,6 @@ export default function WorldBoxClient() {
             draw: () => drawAvatar(ctx, Math.round(lobbyOx + (n.x + 0.5) * TILE), Math.round(lobbyOy + (n.y + 1) * TILE), 1, 0, 0, null),
           });
         }
-      }
-      for (const q of mobDrawQueue) {
-        drawList.push({ y: q.r.wy, draw: () => drawMob(q.placed, q.r, q.hpFrac, q.showHp) });
       }
       // スライムブロックの上では弾む（見た目だけの上下動。移動には影響しない）
       const selfFloorOv = space === "world" ? tilesRef.current[tileKey(Math.floor(player.x), Math.floor(player.y))] : undefined;
@@ -6042,125 +4968,12 @@ export default function WorldBoxClient() {
           if (stage > entry.stage) {
             entry.stage = stage;
             spawnSkillFx(fxSys, eff, stage);
-            if (eff.kind === "meteor" && stage === 2) shake = startShake(shake, 8, now, 260);
-            if (eff.kind === "thunder_strike" && stage === 1) shake = startShake(shake, 5, now, 200);
-            if ((eff.kind === "sweep" || eff.kind === "whirlwind") && stage === 1) shake = startShake(shake, 3, now, 160);
-            if (eff.kind === "fireball" && stage === 1) shake = startShake(shake, 4, now, 180);
           }
           const prog = Math.max(0, skillFxProgress(eff, now));
           const cxp = sx(eff.x);
           const cyp = sy(eff.y);
           ctx.save();
-          if (eff.kind === "heal_zone" || eff.kind === "poison_field") {
-            const rTiles = eff.kind === "heal_zone" ? 2.25 : 2.0;
-            const pulse = 1 + Math.sin(now / 160) * 0.05;
-            ctx.globalAlpha = 0.22 * (1 - prog * 0.5);
-            ctx.fillStyle = eff.kind === "heal_zone" ? "#7ed957" : "#9be15d";
-            ctx.beginPath();
-            ctx.ellipse(cxp, cyp, rTiles * TILE * pulse, rTiles * TILE * 0.45 * pulse, 0, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.globalAlpha = 0.7;
-            ctx.strokeStyle = eff.kind === "heal_zone" ? "#b6f26d" : "#7ac74f";
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.ellipse(cxp, cyp, rTiles * TILE * pulse, rTiles * TILE * 0.45 * pulse, 0, 0, Math.PI * 2);
-            ctx.stroke();
-          } else if (eff.kind === "sweep") {
-            const a0 = -Math.PI * 0.9 + prog * Math.PI * 1.1;
-            ctx.globalAlpha = 0.85 * (1 - prog);
-            ctx.strokeStyle = "#e8f4ff";
-            ctx.lineWidth = 5;
-            for (let k = 0; k < 3; k++) {
-              ctx.beginPath();
-              ctx.arc(sx(eff.fromX), sy(eff.fromY) - TILE * 0.4, (1.1 + k * 0.28) * TILE, a0 - k * 0.16, a0 + 0.9 - k * 0.16);
-              ctx.stroke();
-            }
-          } else if (eff.kind === "whirlwind") {
-            ctx.globalAlpha = 0.8 * (1 - prog * 0.6);
-            ctx.strokeStyle = "#dff3ff";
-            ctx.lineWidth = 4;
-            for (let k = 0; k < 3; k++) {
-              const rr = (0.9 + k * 0.5 + prog * 0.5) * TILE;
-              const a0 = prog * Math.PI * 6 + k * 0.7;
-              ctx.beginPath();
-              ctx.arc(sx(eff.fromX), sy(eff.fromY) - TILE * 0.3, rr, a0, a0 + Math.PI * 1.2);
-              ctx.stroke();
-            }
-          } else if (eff.kind === "fireball" || eff.kind === "ice_lance") {
-            const t01 = Math.min(1, prog / 0.4);
-            const px = eff.fromX + (eff.x - eff.fromX) * t01;
-            const py = eff.fromY - 0.4 + (eff.y - 0.4 - (eff.fromY - 0.4)) * t01;
-            ctx.globalAlpha = 0.95;
-            ctx.fillStyle = eff.kind === "fireball" ? "#ff9a3c" : "#bfe9ff";
-            ctx.beginPath();
-            ctx.arc(sx(px), sy(py), TILE * 0.22, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.globalAlpha = 0.5;
-            ctx.beginPath();
-            ctx.arc(sx(px), sy(py), TILE * 0.36, 0, Math.PI * 2);
-            ctx.fill();
-          } else if (eff.kind === "thunder_strike") {
-            if (stage === 0) {
-              ctx.globalAlpha = 0.25 + 0.2 * Math.sin(now / 60);
-              ctx.fillStyle = "#cfe8ff";
-              ctx.fillRect(cxp - 3, cyp - TILE * 5, 6, TILE * 5);
-            } else {
-              ctx.globalAlpha = stage === 1 ? 0.95 : 0.4;
-              ctx.strokeStyle = "#eaf6ff";
-              ctx.lineWidth = 3;
-              const pts = thunderBoltPoints(eff.seed, eff.x, eff.y - 5, eff.x, eff.y);
-              ctx.beginPath();
-              pts.forEach((pt, i) => {
-                const X = sx(pt.x);
-                const Y = sy(pt.y);
-                if (i === 0) ctx.moveTo(X, Y); else ctx.lineTo(X, Y);
-              });
-              ctx.stroke();
-            }
-          } else if (eff.kind === "meteor") {
-            if (stage === 0) {
-              ctx.globalAlpha = 0.5 + 0.3 * Math.sin(now / 70);
-              ctx.strokeStyle = "#ff6b4a";
-              ctx.lineWidth = 3;
-              ctx.beginPath();
-              ctx.ellipse(cxp, cyp, 2.5 * TILE, 2.5 * TILE * 0.45, 0, 0, Math.PI * 2);
-              ctx.stroke();
-            } else if (stage === 1) {
-              const t01 = (prog - 0.6) / 0.2;
-              const px = eff.x + 2.2 * (1 - t01);
-              const py = eff.y - 4.5 * (1 - t01);
-              ctx.globalAlpha = 0.95;
-              ctx.fillStyle = "#8a6f5c";
-              ctx.beginPath();
-              ctx.arc(sx(px), sy(py), TILE * 0.34, 0, Math.PI * 2);
-              ctx.fill();
-            }
-          } else if (eff.kind === "arrow_rain") {
-            ctx.globalAlpha = 0.5;
-            ctx.strokeStyle = "#ffd23e";
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.ellipse(cxp, cyp, 2.1 * TILE, 2.1 * TILE * 0.45, 0, 0, Math.PI * 2);
-            ctx.stroke();
-            ctx.globalAlpha = 0.85;
-            ctx.strokeStyle = "#e8e2d0";
-            for (let i = 0; i < 10; i++) {
-              const h = ((eff.seed * (i + 3) * 7919) % 100) / 100;
-              const ax = eff.x + (((eff.seed >> (i % 8)) % 40) / 10 - 2);
-              const ay = eff.y - 2.6 + ((prog * 3 + h) % 1) * 2.6;
-              ctx.beginPath();
-              ctx.moveTo(sx(ax), sy(ay));
-              ctx.lineTo(sx(ax) + 3, sy(ay) + TILE * 0.5);
-              ctx.stroke();
-            }
-          } else if (eff.kind === "taunt") {
-            ctx.globalAlpha = 0.7 * (1 - prog);
-            ctx.strokeStyle = "#ffd23e";
-            ctx.lineWidth = 3;
-            ctx.beginPath();
-            ctx.ellipse(sx(eff.fromX), sy(eff.fromY), (0.5 + prog * 3) * TILE, (0.5 + prog * 3) * TILE * 0.45, 0, 0, Math.PI * 2);
-            ctx.stroke();
-          } else if (eff.kind === "warp") {
+          {
             // 立ち上る光柱＋広がるリング（ポーター設置）
             const rise = Math.min(1, prog * 1.5);
             const colW = TILE * 0.55 * (1 - prog * 0.35);
@@ -6175,19 +4988,6 @@ export default function WorldBoxClient() {
             ctx.stroke();
           }
           ctx.restore();
-        }
-        // 薬師向け死亡マーカー
-        if (invRef.current?.role === "medic") {
-          for (const d of deathsRef.current) {
-            const mx = sx(d.x);
-            const my = sy(d.y);
-            ctx.save();
-            ctx.globalAlpha = 0.85;
-            ctx.fillStyle = "#ff5a4a";
-            ctx.fillRect(mx - 2, my - TILE * 0.7, 4, TILE * 0.5);
-            ctx.fillRect(mx - TILE * 0.18, my - TILE * 0.58, TILE * 0.36, 4);
-            ctx.restore();
-          }
         }
       }
 
@@ -6948,15 +5748,6 @@ export default function WorldBoxClient() {
                 開く
               </button>
             )}
-            {stationUi === "arena" && (
-              <button
-                type="button"
-                style={{ ...btn, minHeight: hud.buttonMinHeight, padding: "2px 10px" }}
-                onClick={() => setArenaOpen((v) => !v)}
-              >
-                {arenaOpen ? "閉じる" : "戦う"}
-              </button>
-            )}
             {stationUi === "telescope" && (
               <button
                 type="button"
@@ -7043,7 +5834,7 @@ export default function WorldBoxClient() {
         )}
         {invProfile && (
           <div
-            aria-label="HPと空腹度"
+            aria-label="空腹度"
             style={{
               position: "absolute", left: "calc(10px + env(safe-area-inset-left, 0px))", top: "calc(52px + env(safe-area-inset-top, 0px))", display: "flex", flexDirection: "column", gap: 4,
               padding: "6px 8px", borderRadius: 10, background: "rgba(0,0,0,0.6)", zIndex: 4,
@@ -7051,22 +5842,12 @@ export default function WorldBoxClient() {
             }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <span style={{ color: "#ff8a7a", fontSize: 11, width: 28 }}>HP</span>
-              <span style={{ flex: 1, height: 8, borderRadius: 4, background: "rgba(255,255,255,0.18)", overflow: "hidden" }}>
-                <span style={{ display: "block", width: `${Math.max(0, Math.min(100, (invProfile.hp / maxHpFor(invProfile)) * 100))}%`, height: "100%", background: invProfile.hp <= 25 ? "#e2483a" : "#7ed957" }} />
-              </span>
-              <strong style={{ color: "#fff", fontSize: 11 }}>{Math.floor(invProfile.hp)}</strong>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <span style={{ color: "#ffd23e", fontSize: 11, width: 28 }}>空腹</span>
               <span style={{ flex: 1, height: 8, borderRadius: 4, background: "rgba(255,255,255,0.18)", overflow: "hidden" }}>
                 <span style={{ display: "block", width: `${Math.max(0, Math.min(100, (invProfile.hunger / HUNGER_MAX) * 100))}%`, height: "100%", background: invProfile.hunger <= 20 ? "#ff7a59" : "#ffd23e" }} />
               </span>
               <strong style={{ color: "#fff", fontSize: 11 }}>{Math.floor(invProfile.hunger)}</strong>
             </div>
-            {invProfile.status.some((e) => e.kind === "poison") && (
-              <span style={{ color: "#b6f26d", fontSize: 11 }}>毒</span>
-            )}
             {invProfile.status
               .filter((e) => (e.kind === "warm" || e.kind === "alert") && e.until > gaugeNow)
               .map((e) => (
@@ -7768,9 +6549,6 @@ export default function WorldBoxClient() {
       )}
       {casinoOpen && spaceUi === "lobby" && (
         <WorldBoxCasinoPanel onClose={() => setCasinoOpen(false)} />
-      )}
-      {arenaOpen && spaceUi === "lobby" && (
-        <WorldBoxArenaPanel onClose={() => setArenaOpen(false)} />
       )}
       {arcadeOpen && stationArcade && (spaceUi === "lobby2" || spaceUi === "lobby3") && (
         <WorldBoxArcadePanel

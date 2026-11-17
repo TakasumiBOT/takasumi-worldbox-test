@@ -15,10 +15,10 @@ import {
   loadPartyOf, storeParty,
 } from "@/lib/worldbox/social/party-online";
 import {
-  deleteDungeonSession, dungeonGateSatisfied, dungeonSessionClosed, loadDungeonSession, storeDungeonSession,
+  deleteDungeonSession, dungeonSessionClosed, loadDungeonSession, storeDungeonSession,
   type DungeonSession,
 } from "@/lib/worldbox/world/instances-online";
-import { DUNGEON_FLOORS, makeInstanceSpace, parseInstanceSpace } from "@/lib/worldbox/world/instances";
+import { makeInstanceSpace, parseInstanceSpace } from "@/lib/worldbox/world/instances";
 import { parseSave } from "@/lib/worldbox/core/save";
 import { loadWorldBoxSave } from "@/lib/worldbox/core/save-online";
 import { withUserLock } from "@/lib/worldbox/core/user-lock";
@@ -125,11 +125,11 @@ async function settleDungeonSessionOnLeave(party: Party, ownerKey: string, disba
     await storeDungeonSession(floor1, session);
   }
   const targets = new Set<string>();
-  if (inSession && !ds.dead.includes(ownerKey)) targets.add(ownerKey);
+  if (inSession) targets.add(ownerKey);
   if (disbanded) {
     for (const m of session.members) {
       if (m === ownerKey) continue;
-      if (session.departed.includes(m) || session.dead.includes(m)) continue;
+      if (session.departed.includes(m)) continue;
       targets.add(m);
     }
   }
@@ -162,23 +162,15 @@ export async function GET(request: Request) {
       invite = { partyId: invited.id, leaderName: leader?.name ?? "", entrance: invited.entrance };
     }
   }
-  // ダンジョン内ならセッションの要約も返す（階段ゲート・倍率表示用）
-  let dungeon: {
-    size: number; floorBossDead: Record<string, boolean>; bossDead: boolean;
-    gateFloor2: boolean; gateBoss: boolean;
-  } | null = null;
+  // ダンジョン内ならセッションの要約も返す
+  let dungeon: { size: number } | null = null;
   const url = new URL(request.url);
   const space = url.searchParams.get("space");
   if (space && space.startsWith("dungeon:")) {
     const floor1 = space.replace(/:\d+$/, ":0");
     const ds = await loadDungeonSession(floor1, partyKeyOf(party && isPartyMember(party, ownerKey) ? party : null, ownerKey));
     if (ds) {
-      // 階段ゲートは最新ランクで判定したサーバーの結果を正とする
-      const [gateFloor2, gateBoss] = await Promise.all([
-        dungeonGateSatisfied(ds.members, 2),
-        dungeonGateSatisfied(ds.members, DUNGEON_FLOORS),
-      ]);
-      dungeon = { size: ds.size, floorBossDead: ds.floorBossDead, bossDead: ds.bossDead, gateFloor2, gateBoss };
+      dungeon = { size: ds.size };
     }
   }
   return NextResponse.json({ party: partyView(party), partyKey: partyKeyOf(party, ownerKey), isLeader: party?.leaderKey === ownerKey, invite, dungeon }, { headers: NO_STORE });
@@ -299,17 +291,13 @@ export async function POST(request: Request) {
         size: members.length,
         members,
         departed: [],
-        dead: [],
-        floorBossDead: {},
-        bossDead: false,
-        doors: {},
         chests: {},
         startedAt: now,
       } satisfies DungeonSession;
       if (!(await storeDungeonSession(floor1, ds))) return err("store_failed", 503);
     }
     if (!ds.members.includes(ownerKey)) return err("not_member", 409);
-    if (ds.departed.includes(ownerKey) || ds.dead.includes(ownerKey)) return err("already_left", 409);
+    if (ds.departed.includes(ownerKey)) return err("already_left", 409);
     return NextResponse.json(
       { ok: true, space: floor1, partyKey, size: ds.size },
       { headers: NO_STORE },

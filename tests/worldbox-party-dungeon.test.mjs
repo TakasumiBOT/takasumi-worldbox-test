@@ -50,9 +50,9 @@ async function loadBundle(files, exportNames) {
 }
 
 const T = await loadBundle(
-  ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/world/lobby.ts", "worldbox/economy/items.ts", "worldbox/combat/mobs.ts", "worldbox/world/objects.ts", "worldbox/world/instances.ts", "worldbox/social/party.ts"],
+  ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/world/lobby.ts", "worldbox/economy/items.ts", "worldbox/world/objects.ts", "worldbox/world/instances.ts", "worldbox/social/party.ts"],
   [
-    "buildDungeonFloor", "dungeonHpScale", "dungeonBossForEntrance", "dungeonFloorBossFor", "DUNGEON_FLOORS",
+    "buildDungeonFloor", "DUNGEON_FLOORS",
     "createParty", "joinParty", "leaveParty", "addInvite", "inviteFor", "parseParty", "partyKeyOf",
     "MAX_PARTY_MEMBERS", "PARTY_INVITE_TTL_MS",
   ],
@@ -117,57 +117,38 @@ test("dungeon: deterministic per entrance, differs across entrances", () => {
   assert.deepEqual(a, b);
   const c = T.buildDungeonFloor(1234, 11, 20, 0);
   assert.notDeepEqual(
-    { mobs: a.mobs, chests: a.chests, boss: a.boss, keyHolder: a.keyHolder },
-    { mobs: c.mobs, chests: c.chests, boss: c.boss, keyHolder: c.keyHolder },
+    { chests: a.chests, portal: a.portal, stairsDown: a.stairsDown },
+    { chests: c.chests, portal: c.portal, stairsDown: c.stairsDown },
   );
+  assert.equal("mobs" in a, false, "ダンジョンにモブは湧かない");
 });
 
-test("dungeon: every floor has boss, key holder, portal, stairs rules", () => {
+test("dungeon: every floor has portal, stairs rules and chests (no mobs, no doors)", () => {
   for (let layer = 0; layer < T.DUNGEON_FLOORS; layer++) {
     const f = T.buildDungeonFloor(777, 3, 4, layer);
     assert.equal(f.floor, layer + 1);
-    assert.ok(f.mobs.some((m) => m.mobId === f.boss.mobId && m.x === f.boss.x && m.y === f.boss.y), `floor ${layer + 1} boss placed`);
-    assert.ok(f.mobs.some((m) => m.mobId === f.keyHolder.mobId && m.x === f.keyHolder.x && m.y === f.keyHolder.y), `floor ${layer + 1} key holder placed`);
-    assert.notDeepEqual({ x: f.boss.x, y: f.boss.y }, { x: f.keyHolder.x, y: f.keyHolder.y });
+    assert.equal("mobs" in f, false);
+    assert.equal("boss" in f, false);
+    assert.equal("doors" in f, false);
     assert.ok(f.portal.x >= 0 && f.portal.y >= 0);
-    if (layer < T.DUNGEON_FLOORS - 1) assert.ok(f.stairsDown, `floor ${layer + 1} stairs`);
-    else assert.equal(f.stairsDown, null);
-    assert.ok(f.doors.length >= 1, `floor ${layer + 1} key door`);
-    // 宝箱: ボス層はボス宝箱のみ、他層は通常宝箱があり得る
-    if (layer === T.DUNGEON_FLOORS - 1) {
-      assert.ok(f.chests.some((c) => c.bossChest));
-      assert.ok(f.chests.every((c) => c.bossChest));
+    if (layer < T.DUNGEON_FLOORS - 1) {
+      assert.ok(f.stairsDown, `floor ${layer + 1} stairs`);
+      assert.ok(f.chests.every((c) => !c.main), `floor ${layer + 1} main chest is final-floor only`);
+    } else {
+      assert.equal(f.stairsDown, null);
+      // 最深層は主宝箱がちょうど1つ（クリア条件）
+      assert.equal(f.chests.filter((c) => c.main).length, 1);
+      assert.equal(f.chests.length, 1);
     }
   }
 });
 
-test("dungeon: boss types are deterministic and from the allowed sets", () => {
-  const allowedFinal = new Set(["ogre", "spider_queen", "dungeon_dragon"]);
-  for (let i = 0; i < 12; i++) {
-    assert.ok(allowedFinal.has(T.dungeonBossForEntrance(99, i, i * 3)));
-    assert.equal(T.dungeonBossForEntrance(99, i, i * 3), T.dungeonBossForEntrance(99, i, i * 3));
-  }
-  for (const fl of [1, 2, 3]) {
-    assert.ok(["ogre", "spider_queen"].includes(T.dungeonFloorBossFor(99, 7, 8, fl)));
-  }
-  assert.equal(T.dungeonFloorBossFor(99, 7, 8, 4), T.dungeonBossForEntrance(99, 7, 8));
-});
-
-test("dungeon: hp scale by party size, attack untouched by design", () => {
-  assert.equal(T.dungeonHpScale(1), 1.0);
-  assert.equal(T.dungeonHpScale(2), 1.6);
-  assert.equal(T.dungeonHpScale(3), 2.2);
-  assert.equal(T.dungeonHpScale(4), 2.8);
-  assert.equal(T.dungeonHpScale(9), 2.8);
-  assert.equal(T.dungeonHpScale(0), 1.0);
-});
-
 test("dungeon: tiles are inside the 52x52 bounds and blocked covers walls", () => {
   const f = T.buildDungeonFloor(5, 0, 0, 3);
-  for (const m of f.mobs) {
-    assert.ok(m.x >= 0 && m.x < 52 && m.y >= 0 && m.y < 52);
+  for (const c of f.chests) {
+    assert.ok(c.x >= 0 && c.x < 52 && c.y >= 0 && c.y < 52);
+    // 固体はオブジェクト（宝箱）だけ。壁は moveMap 側で塞ぐ
+    assert.ok(f.data.blocked.has(`${c.x},${c.y}`));
   }
-  // 固体はオブジェクト（宝箱・扉）だけ。壁は moveMap 側で塞ぐ
-  for (const d of f.doors) assert.ok(f.data.blocked.has(`${d.x},${d.y}`));
   assert.equal(f.data.blocked.has(`${f.portal.x},${f.portal.y}`), false);
 });

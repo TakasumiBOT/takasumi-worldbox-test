@@ -11,25 +11,23 @@ import { loadWorldBoxSave, storeWorldBoxSave } from "@/lib/worldbox/core/save-on
 import { serializeSave } from "@/lib/worldbox/core/save";
 import {
   buildCaveLayer, buildDungeonFloor, buildRuins, makeInstanceSpace, parseInstanceSpace, ruinsCompleteOpId, weekKeyOf,
-  CAVE_CHEST_RESPAWN_MS, DUNGEON_FLOORS, RUINS_COMPLETE_EARN, RUINS_MAIN_CHEST_LOOT,
+  CAVE_CHEST_RESPAWN_MS, DUNGEON_CLEAR_EARN, DUNGEON_FLOORS, RUINS_COMPLETE_EARN, RUINS_MAIN_CHEST_LOOT,
 } from "@/lib/worldbox/world/instances";
 import { activeLimitedDungeon, isEventDungeonEntrance } from "@/lib/worldbox/core/events";
 import { withUserLock } from "@/lib/worldbox/core/user-lock";
 import {
-  deleteDungeonSession, dungeonGateSatisfied, dungeonSessionClosed, loadDungeonSession, loadRuinsPersonal,
-  storeDungeonSession, storeRuinsPersonal, type DungeonSession,
+  deleteDungeonSession, dungeonSessionClosed, loadDungeonClearWeek, loadDungeonSession, loadRuinsPersonal,
+  storeDungeonClearWeek, storeDungeonSession, storeRuinsPersonal, type DungeonSession,
 } from "@/lib/worldbox/world/instances-online";
 import { partyKeyOf } from "@/lib/worldbox/social/party";
 import { loadPartyOf } from "@/lib/worldbox/social/party-online";
 import { buildEconomyOp } from "@/lib/worldbox/economy/economy-bridge";
 import { enqueueEconomyOpOnce, isEconomyEnabled } from "@/lib/worldbox/economy/economy-bridge-online";
-import { applyPoison } from "@/lib/worldbox/player/vitals";
 import { addMasteryXp, MINER_BONUS_CHANCE } from "@/lib/worldbox/player/roles";
 import { removeItem } from "@/lib/worldbox/player/profile";
 import { isInstancesEnabled, loadInstanceState, storeInstanceState } from "@/lib/worldbox/world/instances-online";
 import { rollObjectLoot, specialObjectById } from "@/lib/worldbox/world/objects";
 import { makeRng } from "@/lib/worldbox/core/rng";
-import { applyRest } from "@/lib/worldbox/player/vitals";
 
 export const runtime = "nodejs";
 
@@ -58,7 +56,7 @@ function bestToolTier(
     if (count <= 0) continue;
     const def = itemById(id);
     if (def?.tool !== tool) continue;
-    // 実効ティア = ティア + 強化レベル（剣の playerAttack と同じ規則）。
+    // 実効ティア = ティア + 強化レベル。
     // ツルハシ強化は洞窟鉱脈のティアゲートにも効く。
     const effective = (def.tier ?? 0) + (profile.enhance?.[id] ?? 0);
     if (effective > best) best = effective;
@@ -94,7 +92,7 @@ export async function GET(request: Request) {
     }
     const personal = await loadRuinsPersonal(space, sessionOwnerKey(session), weekKeyOf(Date.now()));
     return NextResponse.json(
-      { chests: personal.chests, traps: personal.traps, doors: personal.doors, summons: personal.summons, completed: personal.completed },
+      { chests: personal.chests, traps: personal.traps, doors: personal.doors, completed: personal.completed },
       { headers: NO_STORE },
     );
   }
@@ -108,17 +106,8 @@ export async function GET(request: Request) {
     for (const [k, v] of Object.entries(ds.chests)) {
       if (k.startsWith(`${ownerKey}:`)) myChests[k.slice(ownerKey.length + 1)] = v;
     }
-    // 階段の熟練ゲートはサーバー（最新ランクで判定）が正。クライアントは
-    // この結果で表示を決める（結成時スナップショットでは判定しない）。
-    const [gateFloor2, gateBoss] = await Promise.all([
-      dungeonGateSatisfied(ds.members, 2),
-      dungeonGateSatisfied(ds.members, DUNGEON_FLOORS),
-    ]);
     return NextResponse.json(
-      {
-        chests: myChests, doors: ds.doors, floorBossDead: ds.floorBossDead, bossDead: ds.bossDead, size: ds.size,
-        gateFloor2, gateBoss,
-      },
+      { chests: myChests, size: ds.size },
       { headers: NO_STORE },
     );
   }
@@ -146,27 +135,6 @@ async function handleRuins(
   const profile = await loadProfile(ownerKey);
   if (!profile) return NextResponse.json({ error: "profile_unavailable" }, { status: 503, headers: NO_STORE });
 
-  if (fields.action === "open_door") {
-    const door = ruins.doors.find((d) => d.idx === fields.doorIdx);
-    if (!door) return NextResponse.json({ error: "no_door" }, { status: 404, headers: NO_STORE });
-    if (personal.doors[String(door.idx)]) return NextResponse.json({ ok: true, already: true }, { headers: NO_STORE });
-    if (!near(door.x, door.y)) return NextResponse.json({ error: "too_far" }, { status: 409, headers: NO_STORE });
-    const afterKey = removeItem(profile, "golden_key", 1);
-    if (!afterKey) return NextResponse.json({ error: "needs_golden_key" }, { status: 409, headers: NO_STORE });
-    personal.doors[String(door.idx)] = true;
-    if (!(await storeRuinsPersonal(space, ownerKey, personal))) {
-      return NextResponse.json({ error: "store_failed" }, { status: 503, headers: NO_STORE });
-    }
-    if (!(await storeProfile(ownerKey, afterKey))) {
-      // 鍵を消費せず扉だけ開いたままにしない（再試行で "already" になり
-      // 無料開錠になる）。扉の開放を取り消してから失敗を返す。
-      delete personal.doors[String(door.idx)];
-      await storeRuinsPersonal(space, ownerKey, personal);
-      return NextResponse.json({ error: "profile_unavailable" }, { status: 503, headers: NO_STORE });
-    }
-    return NextResponse.json({ ok: true, profile: afterKey, doors: personal.doors }, { headers: NO_STORE });
-  }
-
   if (fields.action === "trap") {
     const trap = ruins.traps.find((t) => t.idx === fields.trapIdx);
     if (!trap) return NextResponse.json({ error: "no_trap" }, { status: 404, headers: NO_STORE });
@@ -176,19 +144,7 @@ async function handleRuins(
     let next = profile;
     if (profile.role === "scout") next = addMasteryXp(next, "scout", 3).profile;
     let teleport: { x: number; y: number } | null = null;
-    if (trap.kind === "damage") {
-      next = { ...next, hp: Math.max(0, next.hp - 12) };
-    } else if (trap.kind === "poison") {
-      next = applyPoison(next, now);
-    } else if (trap.kind === "alarm") {
-      // 近くにスライムを2体召喚（このプレイヤー専用の個体として記録する）
-      const spots = ruins.roomCenters
-        .map((c) => ({ x: c.x + 1, y: c.y }))
-        .filter((c) => Math.hypot(c.x - trap.x, c.y - trap.y) <= 8)
-        .slice(0, 2);
-      const summonSpots = spots.length > 0 ? spots : [{ x: trap.x + 1, y: trap.y }, { x: trap.x - 1, y: trap.y }];
-      for (const spt of summonSpots) personal.summons.push({ mobId: "slime", x: spt.x, y: spt.y });
-    } else if (trap.kind === "teleport") {
+    if (trap.kind === "teleport") {
       const centers = ruins.roomCenters.filter((c) => Math.hypot(c.x - trap.x, c.y - trap.y) > 6);
       const target = centers[Math.floor(Math.random() * centers.length)] ?? ruins.portal;
       teleport = { x: target.x + 0.5, y: target.y + 0.5 };
@@ -214,7 +170,7 @@ async function handleRuins(
       );
     }
     return NextResponse.json(
-      { ok: true, kind: trap.kind, teleport, summons: personal.summons, profile: next },
+      { ok: true, kind: trap.kind, teleport, profile: next },
       { headers: NO_STORE },
     );
   }
@@ -248,7 +204,6 @@ async function handleRuins(
     }
     let next = profile;
     for (const [id, count] of Object.entries(gained)) next = addItem(next, id, count);
-    if (trapped) next = { ...next, hp: Math.max(0, next.hp - 10) };
     if (profile.role === "scout") next = addMasteryXp(next, "scout", 4).profile;
     personal.chests[String(chest.idx)] = true;
     let completedNow = false;
@@ -278,7 +233,7 @@ async function handleRuins(
   return NextResponse.json({ error: "invalid_request" }, { status: 400, headers: NO_STORE });
 }
 
-/** ダンジョン内アクション（パーティ別セッション。宝箱は個人別、扉とボス進行は共有）。 */
+/** ダンジョン内アクション（パーティ別セッション。宝箱は個人別）。 */
 async function handleDungeon(
   request: Request,
   session: SessionT,
@@ -302,10 +257,6 @@ async function handleDungeon(
   const profile = await loadProfile(ownerKey);
   if (!profile) return NextResponse.json({ error: "instances_unavailable" }, { status: 503, headers: NO_STORE });
 
-  if (fields.action !== "leave" && !(await dungeonGateSatisfied(ds.members, inst.layer + 1))) {
-    return NextResponse.json({ error: "gate_locked" }, { status: 409, headers: NO_STORE });
-  }
-
   if (fields.action === "leave") {
     const next: DungeonSession = { ...ds, departed: ds.departed.includes(ownerKey) ? ds.departed : [...ds.departed, ownerKey] };
     if (dungeonSessionClosed(next)) await deleteDungeonSession(floor1, partyKey);
@@ -313,47 +264,44 @@ async function handleDungeon(
     return NextResponse.json({ ok: true }, { headers: NO_STORE });
   }
 
-  if (fields.action === "open_door") {
-    const door = floor.doors.find((d) => d.idx === fields.doorIdx);
-    if (!door) return NextResponse.json({ error: "unknown_door" }, { status: 400, headers: NO_STORE });
-    if (!near(door.x, door.y)) return NextResponse.json({ error: "too_far" }, { status: 409, headers: NO_STORE });
-    const doorKey = `${inst.layer}:${door.idx}`;
-    if (ds.doors[doorKey]) return NextResponse.json({ ok: true, already: true }, { headers: NO_STORE });
-    const removed = removeItem(profile, "dungeon_key", 1);
-    if (!removed) return NextResponse.json({ error: "no_key" }, { status: 409, headers: NO_STORE });
-    const next: DungeonSession = { ...ds, doors: { ...ds.doors, [doorKey]: true } };
-    if (!(await storeDungeonSession(floor1, next))) return NextResponse.json({ error: "store_failed" }, { status: 503, headers: NO_STORE });
-    if (!(await storeProfile(ownerKey, removed))) {
-      // 扉だけ開いて鍵が残る（無料開錠）にならないようセッションを戻す
-      await storeDungeonSession(floor1, ds);
-      return NextResponse.json({ error: "store_failed" }, { status: 503, headers: NO_STORE });
-    }
-    return NextResponse.json({ ok: true, profile: removed }, { headers: NO_STORE });
-  }
-
   if (fields.action === "open_chest") {
     const chest = floor.chests.find((c) => c.idx === fields.chestIdx);
     if (!chest) return NextResponse.json({ error: "unknown_chest" }, { status: 400, headers: NO_STORE });
     if (!near(chest.x, chest.y)) return NextResponse.json({ error: "too_far" }, { status: 409, headers: NO_STORE });
-    if (chest.bossChest && !ds.bossDead) return NextResponse.json({ error: "boss_alive" }, { status: 409, headers: NO_STORE });
+
     const claimKey = `${ownerKey}:${inst.layer}:${chest.idx}`;
     if (ds.chests[claimKey]) return NextResponse.json({ error: "already_opened" }, { status: 409, headers: NO_STORE });
     const def = specialObjectById("dungeon_chest");
     if (!def) return NextResponse.json({ error: "no_chest" }, { status: 404, headers: NO_STORE });
     const rng = makeRng((now ^ chest.x * 131 ^ chest.y * 17 ^ inst.layer * 7) >>> 0);
     const loot = rollObjectLoot(def, rng);
-    // ボス宝箱では罠は無効（倒した報酬を汚さない）
-    let trapped = chest.bossChest ? false : loot.trapped;
+    // 主宝箱では罠は無効（最奥の報酬を汚さない）
+    let trapped = chest.main ? false : loot.trapped;
     // 斥候の専門: 宝箱の罠率を半減する（遺跡と同じ）
     if (trapped && profile.role === "scout" && rng() < 0.5) trapped = false;
     let next = profile;
     for (const [id, count] of Object.entries(loot.gained)) next = addItem(next, id, count);
-    if (trapped) next = { ...next, hp: Math.max(0, next.hp - 10) };
     const nextSession: DungeonSession = { ...ds, chests: { ...ds.chests, [claimKey]: now } };
     if (!(await storeDungeonSession(floor1, nextSession))) return NextResponse.json({ error: "store_failed" }, { status: 503, headers: NO_STORE });
     if (!(await storeProfile(ownerKey, next))) return NextResponse.json({ error: "store_failed" }, { status: 503, headers: NO_STORE });
+    // 最奥フロアの主宝箱 = クリア。週1回だけ earn（クリア週を記録して判定）。
+    let cleared = false;
+    if (chest.main && inst.layer + 1 >= DUNGEON_FLOORS && session.provider === "discord" && isEconomyEnabled()) {
+      const week = weekKeyOf(now);
+      if ((await loadDungeonClearWeek(ownerKey)) !== week) {
+        const op = buildEconomyOp(
+          { kind: "earn", userKey: ownerKey, discordId: session.id, amount: DUNGEON_CLEAR_EARN, reason: "dungeon_clear" },
+          `dungeon-clear-${inst.entranceX}-${inst.entranceY}-${session.id}-${week}`,
+          now,
+        );
+        if (op && (await enqueueEconomyOpOnce(op))) {
+          await storeDungeonClearWeek(ownerKey, week);
+          cleared = true;
+        }
+      }
+    }
     return NextResponse.json(
-      { ok: true, gained: loot.gained, trapped, profile: next },
+      { ok: true, gained: loot.gained, trapped, cleared, profile: next },
       { headers: NO_STORE },
     );
   }
@@ -410,17 +358,13 @@ async function handleInstancePost(
     }
     const profile = await loadProfile(ownerKey);
     if (!profile) return NextResponse.json({ error: "profile_unavailable" }, { status: 503, headers: NO_STORE });
-    // 休憩地点は入口の外（ワールド座標）として記録する。
-    const rested = applyRest(profile, { x: inst.entranceX + 0.5, y: inst.entranceY + 0.5 }, now);
-    if (!(await storeProfile(ownerKey, rested))) {
-      return NextResponse.json({ error: "profile_unavailable" }, { status: 503, headers: NO_STORE });
-    }
+    // 温泉は休憩スポット: 戻り先（入口の外、ワールド座標）をセーブに記録する。
     const saved = parseSave(await loadWorldBoxSave(ownerKey));
     if (saved) {
       saved.worldReturn = { x: inst.entranceX + 0.5, y: inst.entranceY + 0.5 };
       await storeWorldBoxSave(ownerKey, serializeSave(saved));
     }
-    return NextResponse.json({ ok: true, hp: rested.hp, hunger: rested.hunger, profile: rested }, { headers: NO_STORE });
+    return NextResponse.json({ ok: true, hunger: profile.hunger, profile }, { headers: NO_STORE });
   }
 
   if (fields.action === "mine" || fields.action === "open_chest") {
@@ -484,9 +428,6 @@ async function handleInstancePost(
     let trapped = loot.trapped;
     // 斥候の専門: 宝箱の罠率を半減する（遺跡と同じ）
     if (trapped && profile.role === "scout" && rng() < 0.5) trapped = false;
-    if (trapped) {
-      next = { ...next, hp: Math.max(0, next.hp - 10) };
-    }
     state.chest = now;
     await storeInstanceState(space, state);
     if (!(await storeProfile(ownerKey, next))) {

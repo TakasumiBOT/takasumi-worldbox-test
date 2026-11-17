@@ -123,7 +123,6 @@ const PANELS = [
   "app/games/worldbox/WorldBoxMachinePanel.tsx",
   "app/games/worldbox/WorldBoxGuildBoardPanel.tsx",
   "app/games/worldbox/WorldBoxCasinoPanel.tsx",
-  "app/games/worldbox/WorldBoxArenaPanel.tsx",
 ];
 
 test("slots: ギルドショップ・装置・ギルドボードは共通スロット部品を使う", () => {

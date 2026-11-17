@@ -61,11 +61,9 @@ const fx = await loadBundle(
     "FX_CAP", "FX_BURST_MAX", "createFxSystem", "fxRand", "fxLifeRatio", "stepFx", "spawnBurst",
     "ambientKindFor", "spawnAmbient", "createShake", "startShake", "shakeOffsetAt",
     "popScale", "popProgress", "SWING_DURATION_MS", "swingProgress", "slashAlpha",
-    "spawnMobFx", "mobCountMul", "mobSizeMul", "WHIFF_ALPHA_SCALE",
+    "WHIFF_ALPHA_SCALE",
     "WEATHER_PERIOD_SEC", "weatherAt", "weatherAmbientKind", "phaseKind",
     "burstPaletteFor",
-    "createHitstop", "startHitstop", "hitstopActiveAt",
-    "HITSTOP_HIT_MS", "HITSTOP_KILL_MS", "HITSTOP_HURT_MS", "HITSTOP_MAX_MS",
     "WEATHER_BLEND_SEC", "weatherBlendAt",
   ],
 );
@@ -205,33 +203,6 @@ test("fx2: hit は赤い火花で短命、death は大きめの破片、spawn �
   }
 });
 
-test("fx2: spawnMobFx はモブの大きさで粒数・粒サイズがスケールし、上限を守る", () => {
-  const small = fx.createFxSystem(31);
-  const nSmall = fx.spawnMobFx(small, "hit", 5, 5, { sizeTiles: 1 });
-  assert.ok(nSmall >= 9 && nSmall <= 11, `小型の hit は基礎数付近 (n=${nSmall})`);
-
-  const huge = fx.createFxSystem(32);
-  const nHuge = fx.spawnMobFx(huge, "death", 5, 5, { sizeTiles: 20 });
-  assert.equal(nHuge, fx.FX_BURST_MAX, "超巨大でも1バースト上限で頭打ち");
-  const avgSmall = small.particles.reduce((a, p) => a + p.size, 0) / small.particles.length;
-  const avgHuge = huge.particles.reduce((a, p) => a + p.size, 0) / huge.particles.length;
-  assert.ok(avgHuge > avgSmall * 1.5, "大きいモブほど粒も大きい");
-  // 占有範囲いっぱいに散る（アンカー中心から離れた粒がある）
-  assert.ok(huge.particles.some((p) => Math.abs(p.x - 5) > 1), "散らばりが占有に広がる");
-
-  // 不正なサイズは 1 として扱う（粒数はサイズ1と同じ 10）
-  const invalid = fx.createFxSystem(33);
-  assert.equal(fx.spawnMobFx(invalid, "hit", 0, 0, { sizeTiles: 0 }), 10);
-  assert.equal(fx.spawnMobFx(fx.createFxSystem(33), "hit", 0, 0, { sizeTiles: Number.NaN }), 10);
-  // 同時上限（cap）も守る
-  const capped = fx.createFxSystem(34, 20);
-  for (let i = 0; i < 6; i++) fx.spawnMobFx(capped, "death", 0, 0, { sizeTiles: 20 });
-  assert.ok(capped.particles.length <= 20);
-  // 倍率関数自体の頭打ち
-  assert.ok(fx.mobCountMul(20) <= 2.6 && fx.mobSizeMul(20) <= 2.2);
-  assert.ok(fx.mobCountMul(5) > fx.mobCountMul(1));
-});
-
 test("fx2: weatherAt は決定的で、区間内は不変、長期的には雨も晴れも出る", () => {
   const t0 = 1700000000;
   assert.equal(fx.weatherAt(t0), fx.weatherAt(t0), "同じ時刻は同じ天候");
@@ -297,7 +268,7 @@ test("fx: クライアント配線（イベント→粒/揺れ/ポップ、ス�
   assert.match(client, /prefers-reduced-motion/, "動きを減らす設定を尊重する");
 });
 
-test("fx2: クライアント配線（空振り・天候・時間帯・モブイベント）", () => {
+test("fx2: クライアント配線（空振り・天候・時間帯）", () => {
   const client = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"), "utf8");
   // 失敗分岐（タイル行為など）が whiff を push する（成功バーストは出さない）
   const whiffPushes = client.match(/fxEventsRef\.current\.push\(\{\s*kind: "whiff"|fxEventsRef\.current\.push\(\{\n\s*kind: "whiff"/g) ?? [];
@@ -310,37 +281,13 @@ test("fx2: クライアント配線（空振り・天候・時間帯・モブイ
   const drainAt = client.indexOf('ev.kind === "whiff"');
   const burstAt = client.indexOf("spawnBurst(fxSys, ev.kind");
   assert.ok(drainAt >= 0 && burstAt > drainAt, "whiff 判定が成功バーストより前");
-  // モブイベントは spawnMobFx 経由（ループ側で受ける器）
-  assert.match(client, /spawnMobFx\(fxSys, ev\.kind/, "モブイベントを spawnMobFx で出す");
-  assert.match(client, /ev\.kind === "death"\) \{\s+shake = startShake/, "死亡時は揺れ（ボス級は大きい）");
+  // モブイベントの経路は存在しない（モブ撤去）
+  assert.ok(!client.includes("spawnMobFx"), "モブ演出が残っている");
   // 天候と時間帯を環境粒に使う
   assert.match(client, /weatherBlendAt\(nowSec\)/, "天候は決定的サイクル＋境界ブレンドから取る");
   assert.match(client, /weatherAmbientKind\(/, "環境粒の種類に天候を反映する");
   assert.match(client, /phaseKind\(phase\)/, "時間帯の切り替わりを検出する");
   assert.match(client, /pk !== lastPhaseKind/, "時間帯が変わったフレームで環境粒を足す");
-});
-
-test("fx3: ヒットストップは窓の間だけ効き、短い指定で縮まず、上限で頭打ちになる", () => {
-  let h = fx.createHitstop();
-  assert.equal(fx.hitstopActiveAt(h, 1000), false, "初期状態は停止していない");
-  h = fx.startHitstop(h, fx.HITSTOP_HIT_MS, 1000);
-  assert.equal(fx.hitstopActiveAt(h, 1000), true);
-  assert.equal(fx.hitstopActiveAt(h, 1000 + fx.HITSTOP_HIT_MS - 1), true);
-  assert.equal(fx.hitstopActiveAt(h, 1000 + fx.HITSTOP_HIT_MS), false, "窓を過ぎたら再開する");
-  // 停止中に短い指定が来ても縮まない（長い方を残す）
-  let h2 = fx.startHitstop(fx.createHitstop(), fx.HITSTOP_KILL_MS, 0);
-  h2 = fx.startHitstop(h2, fx.HITSTOP_HURT_MS, 10);
-  assert.equal(fx.hitstopActiveAt(h2, fx.HITSTOP_KILL_MS - 1), true, "撃破の停止は被弾の短い指定で縮まない");
-  // どれだけ長く指定しても上限を超えない
-  const h3 = fx.startHitstop(fx.createHitstop(), 10000, 0);
-  assert.equal(fx.hitstopActiveAt(h3, fx.HITSTOP_MAX_MS - 1), true);
-  assert.equal(fx.hitstopActiveAt(h3, fx.HITSTOP_MAX_MS), false, "上限で頭打ち");
-  // 0 以下は無効
-  assert.equal(fx.hitstopActiveAt(fx.startHitstop(fx.createHitstop(), 0, 0), 0), false);
-  // 長さの序列: 被弾 < ヒット < 撃破 <= 上限
-  assert.ok(fx.HITSTOP_HURT_MS < fx.HITSTOP_HIT_MS);
-  assert.ok(fx.HITSTOP_HIT_MS < fx.HITSTOP_KILL_MS);
-  assert.ok(fx.HITSTOP_KILL_MS <= fx.HITSTOP_MAX_MS);
 });
 
 test("fx3: 天候ブレンドは境界で線形に混ざり、区間の途中では一定になる", () => {
@@ -398,20 +345,16 @@ test("fx3: バーストのパレット上書きは全粒に効く", () => {
   }
 });
 
-test("fx3: クライアント配線（ヒットストップ・素材パレット・クリックSE・パネル出現）", () => {
+test("fx3: クライアント配線（素材パレット・クリックSE・パネル出現）", () => {
   const client = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"), "utf8");
-  // ヒットストップ: 自分の攻撃に stop が付き、ループが開始し、sdt で世界を止める
-  assert.match(client, /stop: data\.dead \? HITSTOP_KILL_MS : HITSTOP_HIT_MS/, "自分の攻撃命中/撃破でヒットストップを指定する");
-  assert.match(client, /hitstop = startHitstop\(hitstop, ev\.stop, now\)/, "fx イベント消化でヒットストップを開始する");
-  assert.match(client, /hitstopActiveAt\(hitstop, now\) \? 0 : dt/, "停止中はシミュレーション dt を 0 にする");
-  assert.match(client, /stepMove\(activeMap\(\), player, vel, sdt/, "プレイヤー移動も止まる");
+  // ヒットストップは存在しない（戦闘撤去）
+  assert.ok(!client.includes("hitstop"), "ヒットストップが残っている");
+  assert.match(client, /stepMove\(activeMap\(\), player, vel, sdt/, "プレイヤー移動は sdt で進む");
   // 素材パレット: 地表オブジェクト・設置ブロック・洞窟の鉱脈に配線
   assert.match(client, /burstPaletteFor\(objectId\)/, "地表オブジェクトの破片が素材色になる");
   assert.match(client, /burstPaletteFor\(prevBlockId\)/, "設置ブロックの破片が素材色になる");
   assert.match(client, /fxObjectId: vein\.objectId/, "洞窟の鉱脈タップが素材を渡す");
   assert.match(client, /colors: ev\.colors/, "fx イベントのパレットがバーストへ渡る");
-  // 他者の撃破でも死亡バーストが出る（自分の分とは二重にしない）
-  assert.match(client, /deathFxAt/, "死亡バーストの二重出しを防ぐ記録がある");
   // クリック SE の一本化（シェルの capture）と固有 SE 領域の除外マーカー
   assert.match(client, /onClickCapture/, "シェルがボタン押下を捕捉して click SE を鳴らす");
   assert.match(client, /data-wb-se='self'|data-wb-se="self"/, "固有 SE の領域を除外するマーカーがある");

@@ -205,8 +205,6 @@ test("nation-settings: ルート配線（税率適用・join拒否・ランキ�
   const nationsRoute = fs.readFileSync(path.join(rootDir, "app/api/worldbox/nations/route.ts"), "utf8");
   assert.ok(nationsRoute.includes("nation_private"), "非公開の国の join 拒否が配線されていない");
   assert.ok(nationsRoute.includes("isNationHiddenFrom"), "国一覧の非公開フィルタが配線されていない");
-  const warRoute = fs.readFileSync(path.join(rootDir, "app/api/worldbox/war/route.ts"), "utf8");
-  assert.ok(warRoute.includes("isNationHiddenFrom"), "ランキングの非公開フィルタが配線されていない");
   const settingsRoute = fs.readFileSync(path.join(rootDir, "app/api/worldbox/nation-settings/route.ts"), "utf8");
   assert.ok(settingsRoute.includes("king_only"), "設定変更の王限定が配線されていない");
   assert.ok(settingsRoute.includes("loadMyLobbyStation"), "設定変更のギルドボード前検証が配線されていない");

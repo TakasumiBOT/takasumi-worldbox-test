@@ -70,13 +70,10 @@ const ml = await loadBundle(
   ],
 );
 const ob = await loadBundle(
-  ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/world/maplogic.ts", "worldbox/economy/items.ts", "worldbox/world/objects.ts", "worldbox/combat/mobs.ts"],
+  ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/world/maplogic.ts", "worldbox/economy/items.ts", "worldbox/world/objects.ts"],
   [
     "SPECIAL_OBJECTS", "specialObjectById", "validateSpecialObjects", "objectsForChunk",
     "rollObjectLoot", "lootForObjectAt", "objectRespawned", "makeRng",
-    "MOBS", "mobById", "validateMobs", "mobsForChunk",
-    "MOB_SIZE_MIN", "MOB_SIZE_MAX", "LARGE_MOB_SIZE", "MOB_SIZE_CLASSES", "mobSizeClass",
-    "mobFootprintBounds", "mobOccupiesTile", "largeMobsForChunk",
   ],
 );
 
@@ -100,8 +97,8 @@ test("カタログ: ブロック60種以上（全て耐久つき）・作物20�
   assert.ok(cat.CROPS.length >= 20, `crops=${cat.CROPS.length}`);
 });
 
-test("カタログ: 道具は4種×4段（木/石/鉄/ミスリル）", () => {
-  for (const kind of ["axe", "pickaxe", "sword", "hoe"]) {
+test("カタログ: 道具は3種×4段（木/石/鉄/ミスリル、剣は無い）", () => {
+  for (const kind of ["axe", "pickaxe", "hoe"]) {
     const tools = cat.itemsWithTool(kind);
     assert.deepEqual(tools.map((t) => t.tier), [1, 2, 3, 4], kind);
   }
@@ -269,89 +266,4 @@ test("特殊オブジェクト: ルートは決定的で範囲内、再出現規
   assert.equal(ob.objectRespawned(bush, 1000, 1000 + bush.respawnMs), true);
   const chest = ob.specialObjectById("ruins_chest");
   assert.equal(ob.objectRespawned(chest, 1000, Number.MAX_SAFE_INTEGER), false);
-});
-
-// ---------------------------------------------------------------- モブ
-test("モブ: 48種・ドロップ整合・出現は時間帯とバイオームで決まる", () => {
-  assert.equal(ob.MOBS.length, 48);
-  assert.deepEqual(ob.validateMobs(), []);
-  const day = ob.mobsForChunk(ml.MAP_SEED, 16, 16, false);
-  const day2 = ob.mobsForChunk(ml.MAP_SEED, 16, 16, false);
-  assert.deepEqual(day, day2);
-  for (const placed of [...day, ...ob.mobsForChunk(ml.MAP_SEED, 16, 16, true)]) {
-    const def = ob.mobById(placed.mobId);
-    assert.ok(!def.instanceOnly, def.id);
-    assert.ok(placed.size < ob.LARGE_MOB_SIZE, "density spawn excludes large mobs");
-    assert.ok(def.biomes.includes(placed.biome), `${def.id} in ${placed.biome}`);
-  }
-  const nightIds = new Set();
-  for (let c = 0; c < 40; c++) {
-    for (const p of ob.mobsForChunk(ml.MAP_SEED, c, 20, true)) nightIds.add(p.mobId);
-    for (const p of ob.mobsForChunk(ml.MAP_SEED, c, 20, false)) {
-      assert.notEqual(ob.mobById(p.mobId).time, "night", "night-only mob in day chunk");
-    }
-  }
-  const dungeonOnly = ob.MOBS.filter((m) => m.instanceOnly === "dungeon");
-  assert.ok(dungeonOnly.length >= 2);
-});
-
-test("モブ: サイズは 1〜20 マスで規定され、全サイズ帯に実在する", () => {
-  assert.equal(ob.MOB_SIZE_MIN, 1);
-  assert.equal(ob.MOB_SIZE_MAX, 20);
-  for (const def of ob.MOBS) {
-    assert.ok(Number.isInteger(def.size) && def.size >= 1 && def.size <= 20, def.id);
-    assert.ok(ob.mobSizeClass(def.size), def.id);
-  }
-  assert.equal(Math.max(...ob.MOBS.map((m) => m.size)), 20);
-  for (const cls of ob.MOB_SIZE_CLASSES) {
-    assert.ok(ob.MOBS.some((m) => ob.mobSizeClass(m.size) === cls.id), cls.id);
-  }
-  assert.equal(ob.mobSizeClass(1), "small");
-  assert.equal(ob.mobSizeClass(3), "medium");
-  assert.equal(ob.mobSizeClass(6), "large");
-  assert.equal(ob.mobSizeClass(12), "huge");
-  assert.equal(ob.mobSizeClass(20), "colossal");
-  assert.equal(ob.mobSizeClass(0), null);
-  assert.equal(ob.mobSizeClass(21), null);
-});
-
-test("モブ: 占有範囲は size×size で、アンカー中心", () => {
-  assert.deepEqual(ob.mobFootprintBounds(1, 10, 10), { minX: 10, minY: 10, maxX: 10, maxY: 10 });
-  const b20 = ob.mobFootprintBounds(20, 100, 100);
-  assert.equal(b20.maxX - b20.minX + 1, 20);
-  assert.equal(b20.maxY - b20.minY + 1, 20);
-  assert.ok(ob.mobOccupiesTile(20, 100, 100, b20.minX, b20.maxY));
-  assert.ok(!ob.mobOccupiesTile(20, 100, 100, b20.maxX + 1, 100));
-  assert.ok(ob.mobOccupiesTile(2, 5, 5, 4, 4));
-  assert.ok(!ob.mobOccupiesTile(2, 5, 5, 6, 5));
-});
-
-test("モブ: 大型はスーパーセル配置で決定的・同種はセルに最大1体", () => {
-  let found = 0;
-  for (let cx = 0; cx < 40; cx++) {
-    for (let cy = 0; cy < 40; cy++) {
-      const placed = ob.largeMobsForChunk(9, cx, cy, false);
-      assert.deepEqual(placed, ob.largeMobsForChunk(9, cx, cy, false));
-      assert.ok(placed.length <= 1);
-      for (const p of placed) {
-        const def = ob.mobById(p.mobId);
-        assert.ok(def.size >= ob.LARGE_MOB_SIZE);
-        assert.equal(def.instanceOnly, undefined);
-        assert.ok(def.biomes.includes(p.biome));
-        found++;
-      }
-    }
-  }
-  assert.ok(found > 0, "large mobs spawn somewhere");
-  const cells = new Set();
-  for (let cx = 0; cx < 80; cx++) {
-    for (let cy = 0; cy < 80; cy++) {
-      for (const p of ob.largeMobsForChunk(9, cx, cy, false)) {
-        const def = ob.mobById(p.mobId);
-        const cell = Math.floor(cx / (def.size * 2)) + "," + Math.floor(cy / (def.size * 2)) + "," + p.mobId;
-        assert.ok(!cells.has(cell), cell);
-        cells.add(cell);
-      }
-    }
-  }
 });

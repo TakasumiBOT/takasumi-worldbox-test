@@ -1,4 +1,6 @@
-// WORLD BOX バッチ4: 冒険役職 + ダブルタップ技の純粋ロジックテスト。
+// WORLD BOX 冒険役職の純粋ロジックテスト。
+// Phase 1 以降、この世界に戦闘技は存在しない。技はテレポーターの
+// ポーター設置（porter）だけで、activeSkillFor は全役職で null を返す。
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -53,9 +55,9 @@ const R = await loadBundle(
   ["worldbox/media/fx.ts", "worldbox/economy/items.ts", "worldbox/player/profile.ts", "worldbox/player/roles.ts"],
   [
     "ADVENTURE_ROLES", "SKILLS", "MASTERY_THRESHOLDS", "rankForXp", "masteryRankOf",
-    "addMasteryXp", "activeSkillFor", "skillCooldownLeft", "maxHpFor", "partyGateSatisfied",
+    "addMasteryXp", "activeSkillFor", "skillCooldownLeft",
     "isAdventureRoleId", "parseProfile", "serializeProfile",
-    "SKILL_FX_DURATION_MS", "skillFxProgress", "skillFxStage", "thunderBoltPoints",
+    "SKILL_FX_DURATION_MS", "skillFxProgress", "skillFxStage",
   ],
 );
 
@@ -76,29 +78,18 @@ test("rank thresholds", () => {
   assert.equal(R.rankForXp(99999), 5);
 });
 
-test("every non-free role has a rank-1 skill and all 9 fx are used", () => {
-  const usedFx = new Set();
-  for (const role of ["blade", "guard", "scout", "miner", "medic"]) {
-    const skill = R.activeSkillFor(profileWith(role, 0));
-    assert.ok(skill, `${role} must have a rank-1 skill`);
-    assert.equal(skill.minRank, 1);
-  }
-  for (const def of Object.values(R.SKILLS)) usedFx.add(def.fx);
-  for (const fx of ["fireball", "heal_zone", "sweep", "thunder_strike", "ice_lance", "meteor", "whirlwind", "arrow_rain", "poison_field"]) {
-    assert.ok(usedFx.has(fx), `fx ${fx} must be assigned to some skill`);
-  }
+test("skills: 技は porter だけ（戦闘技は存在しない）", () => {
+  assert.deepEqual(Object.keys(R.SKILLS), ["porter"]);
+  assert.equal(R.SKILLS.porter.fx, "warp");
+  assert.equal(R.SKILLS.porter.minRank, 1);
+  assert.ok(R.SKILL_FX_DURATION_MS.warp > 0);
 });
 
-test("higher rank replaces the active skill", () => {
-  assert.equal(R.activeSkillFor(profileWith("blade", 0))?.id, "sweep");
-  assert.equal(R.activeSkillFor(profileWith("blade", 80))?.id, "whirlwind");
-  assert.equal(R.activeSkillFor(profileWith("miner", 0))?.id, "fireball");
-  assert.equal(R.activeSkillFor(profileWith("miner", 300))?.id, "meteor");
-  assert.equal(R.activeSkillFor(profileWith("guard", 0))?.id, "ice_lance");
-  assert.equal(R.activeSkillFor(profileWith("guard", 300))?.id, "thunder_strike");
-  assert.equal(R.activeSkillFor(profileWith("scout", 80))?.id, "arrow_rain");
-  assert.equal(R.activeSkillFor(profileWith("medic", 300))?.id, "heal_zone");
-  assert.equal(R.activeSkillFor(profileWith("free", 0)), null);
+test("activeSkillFor: 全役職で null（porter は設置専用で戦闘技として返さない）", () => {
+  for (const role of ["blade", "guard", "scout", "miner", "medic", "teleporter", "free"]) {
+    assert.equal(R.activeSkillFor(profileWith(role, 0)), null, role);
+    assert.equal(R.activeSkillFor(profileWith(role, 300)), null, `${role} rank5`);
+  }
 });
 
 test("mastery persists per role across switches", () => {
@@ -113,31 +104,18 @@ test("mastery persists per role across switches", () => {
 
 test("cooldown is computed from skillAt", () => {
   const now = 1_000_000;
-  let p = profileWith("blade", 0);
-  assert.equal(R.skillCooldownLeft(p, "sweep", now), 0);
-  p = { ...p, skillAt: { sweep: now } };
-  assert.equal(R.skillCooldownLeft(p, "sweep", now + 1000), R.SKILLS.sweep.cooldownMs - 1000);
-  assert.equal(R.skillCooldownLeft(p, "sweep", now + R.SKILLS.sweep.cooldownMs), 0);
+  let p = profileWith("teleporter", 0);
+  assert.equal(R.skillCooldownLeft(p, "porter", now), 0);
+  p = { ...p, skillAt: { porter: now } };
+  assert.equal(R.skillCooldownLeft(p, "porter", now + 1000), R.SKILLS.porter.cooldownMs - 1000);
+  assert.equal(R.skillCooldownLeft(p, "porter", now + R.SKILLS.porter.cooldownMs), 0);
 });
 
-test("guard max hp bonus", () => {
-  assert.equal(R.maxHpFor(profileWith("guard", 0)), 120);
-  assert.equal(R.maxHpFor(profileWith("blade", 0)), 100);
-});
-
-test("party gate: floor2 needs a rank2+, boss needs a rank3+", () => {
-  assert.equal(R.partyGateSatisfied([1], "floor2"), false);
-  assert.equal(R.partyGateSatisfied([2, 1], "floor2"), true);
-  assert.equal(R.partyGateSatisfied([2], "boss"), false);
-  assert.equal(R.partyGateSatisfied([3], "boss"), true);
-  assert.equal(R.partyGateSatisfied([], "floor2"), false);
-});
-
-test("profile roundtrip keeps role fields", () => {
+test("profile roundtrip keeps role fields（死亡系フィールドは落ちる）", () => {
   let p = profileWith("scout", 45);
   p = {
     ...p,
-    skillAt: { poison_field: 123 },
+    skillAt: { porter: 123 },
     tauntUntil: 456,
     reviveMark: { space: "cave:1,2:1", at: 789 },
     pendingTeleport: { space: "world", x: 3.5, y: 4.5 },
@@ -145,9 +123,9 @@ test("profile roundtrip keeps role fields", () => {
   const back = R.parseProfile(R.serializeProfile(p));
   assert.equal(back.role, "scout");
   assert.equal(back.mastery.scout?.xp, 45);
-  assert.equal(back.skillAt.poison_field, 123);
-  assert.equal(back.tauntUntil, 456);
-  assert.deepEqual(back.reviveMark, { space: "cave:1,2:1", at: 789 });
+  assert.equal(back.skillAt.porter, 123);
+  assert.equal("tauntUntil" in back, false);
+  assert.equal("reviveMark" in back, false);
   assert.deepEqual(back.pendingTeleport, { space: "world", x: 3.5, y: 4.5 });
 });
 
@@ -159,23 +137,11 @@ test("legacy profile defaults to free role", () => {
   assert.equal(back.pendingTeleport, null);
 });
 
-test("skill fx stages: telegraph before impact", () => {
-  const eff = { kind: "thunder_strike", x: 0, y: 0, fromX: 0, fromY: 0, startedAt: 1000, seed: 7 };
+test("skill fx stages: warp は導入→本体の2段", () => {
+  const eff = { kind: "warp", x: 0, y: 0, fromX: 0, fromY: 0, startedAt: 1000, seed: 7 };
   assert.equal(R.skillFxStage(eff, 1000), 0);
-  assert.equal(R.skillFxStage(eff, 1000 + R.SKILL_FX_DURATION_MS.thunder_strike * 0.6), 1);
-  const met = { ...eff, kind: "meteor" };
-  assert.equal(R.skillFxStage(met, 1000), 0);
-  assert.equal(R.skillFxStage(met, 1000 + R.SKILL_FX_DURATION_MS.meteor * 0.7), 1);
-  assert.equal(R.skillFxStage(met, 1000 + R.SKILL_FX_DURATION_MS.meteor * 0.9), 2);
-  assert.ok(R.skillFxProgress(eff, 1000 + R.SKILL_FX_DURATION_MS.thunder_strike) >= 1);
-});
-
-test("thunder bolt is deterministic and spans endpoints", () => {
-  const a = R.thunderBoltPoints(42, 0, 0, 0, 5);
-  const b = R.thunderBoltPoints(42, 0, 0, 0, 5);
-  assert.deepEqual(a, b);
-  assert.equal(a[0].y, 0);
-  assert.equal(a[a.length - 1].y, 5);
+  assert.equal(R.skillFxStage(eff, 1000 + R.SKILL_FX_DURATION_MS.warp * 0.5), 1);
+  assert.ok(R.skillFxProgress(eff, 1000 + R.SKILL_FX_DURATION_MS.warp) >= 1);
 });
 
 test("role ids validated", () => {
@@ -185,28 +151,10 @@ test("role ids validated", () => {
   assert.equal(R.isAdventureRoleId(42), false);
 });
 
-const C = await loadBundle(
-  ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/combat/mobs.ts", "worldbox/combat/combat.ts"],
-  ["parseMobStates"],
-);
-
-test("mob states keep instance-prefixed keys (batch2 regression)", () => {
-  const states = C.parseMobStates({
-    "cave:1,2:1|slime@3,4": { hp: 5 },
-    "slime@1,1": { hp: 7, frozenUntil: 999 },
-    "junk": { hp: 1 },
-  });
-  assert.equal(states["cave:1,2:1|slime@3,4"]?.hp, 5);
-  assert.equal(states["slime@1,1"]?.hp, 7);
-  assert.equal(states["slime@1,1"]?.frozenUntil, 999);
-  assert.equal(states.junk, undefined);
-});
-
-test("roles: 蘇生はダンジョンセッションの dead から外す（S5）", () => {
-  // 蘇生後に dead に残っていると、mobs ルートが攻撃を弾き、全滅判定が
-  // 誤ってセッションを閉じてしまう。蘇生ルートで dead を除去する。
+test("roles route: 蘇生アクションは無く、技は porter 設置のみ", () => {
   const route = fs.readFileSync(path.join(rootDir, "app/api/worldbox/roles/route.ts"), "utf8");
-  assert.match(route, /action === "revive"/);
-  assert.match(route, /storeDungeonSession/);
-  assert.match(route, /dead: ds\.dead\.filter\(\(m\) => m !== target\.ownerKey\)/);
+  assert.ok(!route.includes('"revive"'), "蘇生が残っている");
+  assert.ok(route.includes('fields.action === "skill"'));
+  assert.ok(route.includes('skillId === "porter"'), "porter 以外の技がある");
+  assert.ok(route.includes("storePorter"), "ポーター保存が配線されていない");
 });

@@ -50,15 +50,12 @@ async function loadBundle(files, exportNames) {
 }
 
 const A = await loadBundle(
-  ["worldbox/economy/items.ts", "worldbox/player/profile.ts", "worldbox/combat/arena.ts"],
-  ["playerAttack", "parseProfile", "serializeProfile", "ENHANCE_MAX_LEVEL", "ENHANCE_MATERIALS"],
+  ["worldbox/economy/items.ts", "worldbox/player/profile.ts"],
+  ["parseProfile", "serializeProfile", "ENHANCE_MAX_LEVEL", "ENHANCE_MATERIALS"],
 );
 
-test("enhance: playerAttack adds enhancement levels to the best sword", () => {
-  assert.equal(A.playerAttack({ wooden_sword: 1 }), 12);
-  assert.equal(A.playerAttack({ wooden_sword: 1 }, { wooden_sword: 2 }), 20);
-  assert.equal(A.playerAttack({ iron_sword: 1, wooden_sword: 1 }, { wooden_sword: 3 }), 24);
-  assert.equal(A.playerAttack({}), 8);
+test("enhance: 攻撃力の概念は無い（強化は道具ティアにだけ効く）", () => {
+  assert.equal("playerAttack" in A, false);
   assert.equal(A.ENHANCE_MAX_LEVEL, 3);
   assert.equal(A.ENHANCE_MATERIALS[4].itemId, "mithril");
 });
@@ -66,9 +63,9 @@ test("enhance: playerAttack adds enhancement levels to the best sword", () => {
 test("enhance: profile roundtrips and clamps levels", () => {
   const prof = A.parseProfile(null);
   assert.deepEqual(prof.enhance, {});
-  const up = { ...prof, enhance: { iron_sword: 2, bogus: 99, wood: -1 } };
+  const up = { ...prof, enhance: { iron_pickaxe: 2, bogus: 99, wood: -1 } };
   const back = A.parseProfile(JSON.parse(JSON.stringify(A.serializeProfile(up))));
-  assert.equal(back.enhance.iron_sword, 2);
+  assert.equal(back.enhance.iron_pickaxe, 2);
   assert.equal(back.enhance.bogus, 3);
   assert.equal(back.enhance.wood, undefined);
 });
@@ -81,21 +78,22 @@ const V = await loadBundle(
 function baseProfile(overrides = {}) {
   return {
     ...V.parseProfile(null),
-    hunger: 100, hp: 50, vitalAt: 1_000_000, status: [],
+    hunger: 100, vitalAt: 1_000_000, status: [],
     ...overrides,
   };
 }
 
-test("buffs: warm slows hunger drain, alert regenerates while fed", () => {
+test("buffs: warm slows hunger drain (alert は存在しない)", () => {
   const now = 1_000_000 + 600_000; // 10分後
   const plain = V.stepVitals(baseProfile(), now).profile;
   assert.equal(plain.hunger, 95.833); // 放置レート: 100 - (100/14400)*600（端数は保持）
-  const warmed = V.stepVitals(V.applyBuff(baseProfile(), "warm", 1_000_000), now).profile;
+  const buffed = V.applyBuff(baseProfile(), "warm", 1_000_000);
+  const warmed = V.stepVitals(buffed, now).profile;
   assert.equal(warmed.hunger, 97.5); // ドレイン ×0.6
-  assert.ok(warmed.status.some((e) => e.kind === "warm"));
-  const alerted = V.stepVitals(V.applyBuff(baseProfile(), "alert", 1_000_000), now).profile;
-  // alert は5分で切れる: 再生は 300秒 × 0.2 = 60 → 上限内で +60 だが満腹条件は精算後 hunger で判定
-  assert.ok(alerted.hp > plain.hp);
+  // バフ自体は窓の途中まで残っている（終端ちょうどで掃除される）
+  const mid = V.stepVitals(buffed, 1_300_000).profile;
+  assert.ok(mid.status.some((e) => e.kind === "warm"));
+  assert.deepEqual(Object.keys(V.BUFF_DURATION_MS), ["warm"]);
 });
 
 const E = await loadBundle(
@@ -103,7 +101,7 @@ const E = await loadBundle(
   ["eatItem", "sellItem", "parseProfile"],
 );
 
-test("effects: stew grants warm, honey tea grants alert", () => {
+test("effects: stew grants warm, honey tea is hunger only", () => {
   const now = 5_000_000;
   const prof = { ...E.parseProfile(null), hunger: 10, items: { stew: 1, honey_tea: 1 } };
   const ate = E.eatItem(prof, "stew", now);
@@ -112,8 +110,8 @@ test("effects: stew grants warm, honey tea grants alert", () => {
   assert.equal(warm.until, now + 10 * 60_000);
   const drank = E.eatItem(ate.profile, "honey_tea", now);
   assert.equal(drank.ok, true);
-  assert.ok(drank.profile.status.some((e) => e.kind === "alert"));
-  assert.ok(drank.profile.status.some((e) => e.kind === "warm"), "別種のバフは残る");
+  assert.ok(!drank.profile.status.some((e) => e.kind === "alert"), "alert バフは無い");
+  assert.ok(drank.profile.status.some((e) => e.kind === "warm"), "warm バフは残る");
 });
 
 test("effects: holding the golden accessory boosts sell proceeds by 10%", () => {

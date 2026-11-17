@@ -105,9 +105,9 @@ const STOCK_IDS = [
   "pepper_seed", "grape_seed", "turnip_seed", "chili_seed", "lettuce_seed",
   "radish_seed", "spinach_seed", "daikon_seed", "apple_seed", "peach_seed", "cotton_seed",
   // 道具屋
-  "wooden_axe", "wooden_pickaxe", "wooden_sword", "wooden_hoe",
-  "stone_axe", "stone_pickaxe", "stone_sword", "stone_hoe",
-  "iron_axe", "iron_pickaxe", "iron_sword", "iron_hoe", "explorer_compass",
+  "wooden_axe", "wooden_pickaxe", "wooden_hoe",
+  "stone_axe", "stone_pickaxe", "stone_hoe",
+  "iron_axe", "iron_pickaxe", "iron_hoe", "explorer_compass",
   // 建築屋
   "dirt_block", "sand_block", "snow_block", "mud_block", "grass_block",
   "gravel_block", "moss_block", "clay_block", "packed_snow_block", "ice_block",
@@ -123,9 +123,9 @@ const STOCK_IDS = [
   "sugar", "iron_ingot", "copper_ingot", "salt",
 ];
 
-test("shops: 販売ホワイトリストはちょうど86品", () => {
-  assert.equal(STOCK_IDS.length, 86);
-  assert.equal(new Set(STOCK_IDS).size, 86, "ホワイトリストに重複がある");
+test("shops: 販売ホワイトリストはちょうど83品", () => {
+  assert.equal(STOCK_IDS.length, 83);
+  assert.equal(new Set(STOCK_IDS).size, 83, "ホワイトリストに重複がある");
   const buyable = shops.ITEMS.filter((item) => !shops.isShopExcluded(item)).map((item) => item.id);
   assert.deepEqual([...buyable].sort(), [...STOCK_IDS].sort());
   // リスト外の代表例: 合成品・調理済み・作物・宝石/貴金属・鉱石ブロック・採取素材・特殊
@@ -162,14 +162,14 @@ test("shops: 買えるのはホワイトリストの品目だけ", () => {
 
 test("shops: checkBuySold はホワイトリスト外を not_sold にする", () => {
   assert.equal(shops.checkBuySold("star_shard"), "not_sold"); // 特殊
-  assert.equal(shops.checkBuySold("mithril_sword"), "not_sold"); // tier 4
+  assert.equal(shops.checkBuySold("mithril_axe"), "not_sold"); // tier 4
   assert.equal(shops.checkBuySold("ruby_block"), "not_sold"); // 宝石ブロック
   assert.equal(shops.checkBuySold("ruby"), "not_sold"); // 宝石の素材も売らない
   assert.equal(shops.checkBuySold("diamond_ore_block"), "not_sold"); // 鉱石ブロックも売らない
   assert.equal(shops.checkBuySold("carving"), "not_sold"); // 合成品は作るもの
   assert.equal(shops.checkBuySold("wood"), null);
   assert.equal(shops.checkBuySold("wheat_seed"), null); // 種は全種売る
-  assert.equal(shops.checkBuySold("iron_sword"), null);
+  assert.equal(shops.checkBuySold("iron_axe"), null);
   // 未知のアイテムは buyItem 側の unknown_item に委ねる
   assert.equal(shops.checkBuySold("no-such-item"), null);
 });

@@ -1,4 +1,4 @@
-// WORLD BOX バッチ7a: ユニオン戦争・日次ローテーション・戦争採掘の純粋ロジックテスト。
+// WORLD BOX バッチ7a: 日次ローテーション・ショップの純粋ロジックテスト。
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";

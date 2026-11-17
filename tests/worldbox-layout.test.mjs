@@ -140,7 +140,7 @@ test("layout: クライアント配線と CSS シート化", () => {
 
   // 全パネルのルートに wb-panel が付いている
   for (const f of [
-    "WorldBoxEconomyPanel.tsx", "WorldBoxCasinoPanel.tsx", "WorldBoxArenaPanel.tsx",
+    "WorldBoxEconomyPanel.tsx", "WorldBoxCasinoPanel.tsx",
     "WorldBoxGuildBoardPanel.tsx", "WorldBoxGuildShopPanel.tsx", "WorldBoxMachinePanel.tsx",
     "WorldBoxArcadePanel.tsx",
   ]) {

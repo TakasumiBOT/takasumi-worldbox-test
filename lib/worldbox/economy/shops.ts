@@ -47,7 +47,7 @@ export function genreOfItem(itemId: unknown): ShopGenreId | null {
 /**
  * 店で売る品目は入口だけのホワイトリスト（案C）。
  * 以前の「レア品だけ除外」（特殊全品・ミスリル道具・宝石ブロック）から
- * 進めて、販売は下の SHOP_STOCK_IDS ＋ 種カテゴリ全種の計86品だけにする。
+ * 進めて、販売は下の SHOP_STOCK_IDS ＋ 種カテゴリ全種の計83品だけにする。
  * それ以外（合成品・調理済み食品・作物そのもの・宝石/貴金属素材・
  * 鉱石/金属ブロック・採取/ドロップ素材など）は店では売らず、合成・栽培・
  * 採取・ドロップ・ギルドショップで入手する。売却は従来どおり全品可
@@ -60,9 +60,9 @@ export function genreOfItem(itemId: unknown): ShopGenreId | null {
  */
 const SHOP_STOCK_IDS: ReadonlySet<string> = new Set([
   // 道具屋: 木/石/鉄の道具（ミスリルは合成のみ）と開拓のコンパス
-  "wooden_axe", "wooden_pickaxe", "wooden_sword", "wooden_hoe",
-  "stone_axe", "stone_pickaxe", "stone_sword", "stone_hoe",
-  "iron_axe", "iron_pickaxe", "iron_sword", "iron_hoe",
+  "wooden_axe", "wooden_pickaxe", "wooden_hoe",
+  "stone_axe", "stone_pickaxe", "stone_hoe",
+  "iron_axe", "iron_pickaxe", "iron_hoe",
   "explorer_compass",
   // 建築屋: 基本の地形ブロックと原木だけ（鉱石/金属/加工ブロックは売らない）
   "dirt_block", "sand_block", "snow_block", "mud_block", "grass_block",
