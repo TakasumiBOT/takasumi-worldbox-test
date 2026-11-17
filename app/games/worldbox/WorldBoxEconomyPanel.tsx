@@ -477,18 +477,16 @@ export default function WorldBoxEconomyPanel({ space, station, genre, worldStati
           </ItemSlotGrid>
           {bagSelItem && (
             <ItemAnnotation itemId={bagSelItem.id}>
-              {(bagSelItem.hunger || bagSelItem.heal || bagSelItem.curePoison) ? (
+              {(bagSelItem.hunger || bagSelItem.buff) ? (
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 6 }}>
                   {bagSelItem.hunger ? <span className="muted">空腹+{bagSelItem.hunger}</span> : null}
-                  {bagSelItem.heal ? <span className="muted">HP+{bagSelItem.heal}</span> : null}
-                  {bagSelItem.curePoison ? <span className="muted">解毒</span> : null}
                 </div>
               ) : null}
-              {(bagSelItem.hunger || bagSelItem.heal || bagSelItem.curePoison) && (
+              {(bagSelItem.hunger || bagSelItem.buff) && (
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
                   <button type="button" style={btn} disabled={busy}
                     onClick={() => void act({ action: "eat", itemId: bagSelItem.id }, () => `${bagSelItem.name}を使った`)}>
-                    {bagSelItem.heal && !bagSelItem.hunger ? "使う" : "食べる"}
+                    食べる
                   </button>
                 </div>
               )}
@@ -512,11 +510,9 @@ export default function WorldBoxEconomyPanel({ space, station, genre, worldStati
           </ItemSlotGrid>
           {shopSelItem && (
             <ItemAnnotation itemId={shopSelItem.id}>
-              {(shopSelItem.hunger || shopSelItem.heal || shopSelItem.curePoison) ? (
+              {shopSelItem.hunger ? (
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 6 }}>
-                  {shopSelItem.hunger ? <span className="muted">空腹度 +{shopSelItem.hunger}</span> : null}
-                  {shopSelItem.heal ? <span className="muted">HP+{shopSelItem.heal}</span> : null}
-                  {shopSelItem.curePoison ? <span className="muted">解毒</span> : null}
+                  <span className="muted">空腹度 +{shopSelItem.hunger}</span>
                 </div>
               ) : null}
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
