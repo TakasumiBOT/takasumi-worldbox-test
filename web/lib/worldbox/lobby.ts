@@ -158,7 +158,7 @@ function floorAt(x: number, y: number): number {
 
 // ---------- オブジェクト配置 ----------
 
-export type LobbyStation = "board" | "shop" | "bank" | "casino" | "arena" | "smith" | "guild" | "fountain" | "rest" | "arcade" | "race" | "sell" | "telescope";
+export type LobbyStation = "board" | "shop" | "bank" | "casino" | "arena" | "smith" | "guild" | "fountain" | "rest" | "arcade" | "race" | "sell" | "telescope" | "piano";
 
 export type LobbyObject = {
   sprite: string;
@@ -200,6 +200,7 @@ function col(sprite: string, x: number, y0: number, y1: number, opts: PutOpts = 
 
 // --- 中央広場 ---
 put("fountain", 27, 23, { w: 3, h: 3, station: "fountain" }); // 噴水（3×3・固体、コイン投げ）
+put("telescope", 28, 27, { station: "telescope" }); // 中央広場・噴水の南の望遠鏡
 row("bulletin_board", 27, 29, 15, { station: "board" }); // 掲示板は広場の北縁
 row("guild_board", 24, 25, 15, { station: "guild" }); // ギルドボードは掲示板の西隣（依頼・役職）
 put("warp_pad", 28, 34, { solid: false }); // ワープパッドは広場の南縁（踏むとワールドへ）
@@ -256,7 +257,7 @@ put("table_round", 44, 22);
 put("sofa", 51, 24);
 put("sofa", 51, 25);
 put("table_round", 50, 22);
-put("piano", 39, 26);
+put("piano", 39, 26, { station: "piano" }); // ロビーのピアノ（弾ける・音はロビー全体に届く）
 put("hedge", 44, 21);
 put("hedge", 44, 27);
 put("planter", 52, 19);

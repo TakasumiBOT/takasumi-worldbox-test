@@ -12,7 +12,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import {
   CHUNK_SIZE, MAP_SEED, T_DIRT, T_GRASS, T_ROCK, T_SAND, T_SNOW, T_SNOW_TREE, T_TREE, T_WATER,
-  generateChunk, mapTileAt, rectBounds, tileAt, worldBounds, type TopDownMap,
+  generateChunk, mapTileAt, rectBounds, tileAt, tileIvsAt, worldBounds, type TopDownMap,
 } from "@/lib/worldbox/mapgen";
 import { pickRandomSpawn } from "@/lib/worldbox/spawn";
 import { DASH_SPEED, PLAYER_RADIUS, SWIM_DASH_SPEED, SWIM_SPEED, WALK_SPEED, circleHitsSolid, findFreeNear, isWaterAt, stepMove } from "@/lib/worldbox/move";
@@ -101,12 +101,13 @@ import {
   nudgeBobPx, nudgeRingAlpha, stickKnobRadius,
 } from "@/lib/worldbox/affordance";
 import {
-  bgmSceneFor, footstepMaterialFor, loadWbSoundSettings, playWbSe, playWbStep, saveWbSoundSettings, seForFxBurst, setWbBgmScene,
+  bgmSceneFor, footstepMaterialFor, loadWbSoundSettings, playPianoNotes, playWbSe, playWbStep, saveWbSoundSettings, seForFxBurst, setWbBgmScene,
   setWbBgmTension, stopWbBgm, tensionFor, unlockWbAudio, type WbSoundSettings,
 } from "@/lib/worldbox/sound";
 import { useGamesNav } from "../GamesShell";
 import WorldBoxCasinoPanel from "./WorldBoxCasinoPanel";
 import WorldBoxRacingPanel from "./WorldBoxRacingPanel";
+import WorldBoxPianoPanel from "./WorldBoxPianoPanel";
 import WorldBoxArenaPanel from "./WorldBoxArenaPanel";
 import WorldBoxArcadePanel from "./WorldBoxArcadePanel";
 import { getWebGame } from "@/lib/games-catalog";
@@ -734,6 +735,7 @@ const STATION_LABEL: Record<LobbyStation, string> = {
   rest: "休憩",
   arcade: "アーケード",
   race: "競馬場",
+  piano: "ピアノ",
   sell: "売却専用ショップ",
   telescope: "望遠鏡",
 };
@@ -962,6 +964,26 @@ export default function WorldBoxClient() {
   }, [telescopeOpen]);
   /** 望遠鏡の視点をプレイヤー位置へ戻す合図（増えるたびにループ側が再センタリング）。 */
   const telescopeCenterRef = useRef(0);
+  /** ロビーのピアノ（鍵盤パネル）。音は中継でロビー全員に届く。 */
+  const [pianoOpen, setPianoOpen] = useState(false);
+  useEffect(() => {
+    if (stationUi !== "piano") setPianoOpen(false);
+  }, [stationUi]);
+  /** ピアノ音の送信口（リアルタイム接続が張る）。 */
+  const pianoSendRef = useRef<((notes: number[]) => void) | null>(null);
+  const pianoPendingRef = useRef<number[]>([]);
+  const pianoFlushTimerRef = useRef<number | undefined>(undefined);
+  /** 鍵盤の打鍵: 自分に即鳴らし、30ms 以内の打鍵をまとめて中継へ送る。 */
+  const playPianoNote = (semi: number) => {
+    playPianoNotes([semi]);
+    pianoPendingRef.current.push(semi);
+    if (pianoFlushTimerRef.current !== undefined) return;
+    pianoFlushTimerRef.current = window.setTimeout(() => {
+      pianoFlushTimerRef.current = undefined;
+      const notes = pianoPendingRef.current.splice(0, 8);
+      if (notes.length > 0) pianoSendRef.current?.(notes);
+    }, 30);
+  };
   useEffect(() => {
     setTelescopeOpen(false);
   }, [spaceUi]);
@@ -1298,6 +1320,9 @@ export default function WorldBoxClient() {
   const [storageOpen, setStorageOpen] = useState(false);
   /** インベントリ整理で持ち上げ中のスロット（タップ→タップで移動）。 */
   const [heldSlot, setHeldSlot] = useState<SlotRef | null>(null);
+  /** インベントリのダブルタップ検出（食べ物はダブルタップで食べる）。 */
+  const lastSlotTapRef = useRef<{ zone: SlotRef["zone"]; index: number; at: number } | null>(null);
+  const lastHotbarTapRef = useRef<{ index: number; at: number } | null>(null);
   /** 開いている収納コンテナ（自分の樽・宝箱）とその中身。 */
   const [containerPanel, setContainerPanel] = useState<{ x: number; y: number; itemId: string; space: "world" | "tent" | "lobby" | "lobby2" | "lobby3" } | null>(null);
   const [machinePanel, setMachinePanel] = useState<{ x: number; y: number } | null>(null);
@@ -2106,6 +2131,11 @@ export default function WorldBoxClient() {
       if (data.broke) {
         setTileMsg(`${itemById(data.broke)?.name ?? "道具"}が壊れた`);
         playWbSe("debris");
+      } else if (action === "till" || action === "plant") {
+        // 土地の豊穣度だけを断片で出す（個体値の手がかり）
+        setTileMsg(`豊穣度 ${tileIvsAt(x, y).fertility}`);
+      } else if (action === "mine") {
+        setTileMsg(`純度 ${tileIvsAt(x, y).purity}`);
       }
     } catch {
       setTileMsg("できませんでした");
@@ -2369,10 +2399,39 @@ export default function WorldBoxClient() {
       if (res.ok && data.profile) setInvProfile(data.profile);
     } catch { /* noop */ }
   };
-  /** スロットのタップ: 持ち上げ → 置く/交換。同じ枠の再タップで解除。 */
+  /** インベントリから直接食べる（サーバー側 eat が正。空腹/HP はプロフィール応答で更新）。 */
+  const eatFromInventory = async (itemId: string) => {
+    try {
+      const res = await fetch("/api/worldbox/profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ action: "eat", itemId }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { profile?: PlayerProfile };
+      if (res.ok && data.profile) {
+        setInvProfile(data.profile);
+        playWbSe("note", { pitch: 0.5 });
+      }
+    } catch { /* noop */ }
+  };
+
+  /** スロットのタップ: 持ち上げ → 置く/交換。同じ枠の再タップで解除。
+   * 食べ物スロットのダブルタップ（350ms 以内の同じ枠2回）だけは食べる。 */
   const tapSlot = (zone: SlotRef["zone"], index: number) => {
     if (!invProfile) return;
     const slot = zone === "hotbar" ? invProfile.hotbar[index] : invProfile.storage[index];
+    const tapAt = performance.now();
+    const lastTap = lastSlotTapRef.current;
+    lastSlotTapRef.current = { zone, index, at: tapAt };
+    if (slot && lastTap && lastTap.zone === zone && lastTap.index === index && tapAt - lastTap.at < 350) {
+      const def = itemById(slot.id);
+      if (def && (def.hunger || def.heal || def.curePoison)) {
+        lastSlotTapRef.current = null;
+        setHeldSlot(null);
+        void eatFromInventory(def.id);
+        return;
+      }
+    }
     if (!heldSlot) {
       if (slot) setHeldSlot({ zone, index });
       return;
@@ -2384,6 +2443,23 @@ export default function WorldBoxClient() {
     const from = heldSlot;
     setHeldSlot(null);
     void moveItem(from, { zone, index });
+  };
+
+  /** ホットバーのタップ: 選択。食べ物はダブルタップで食べる。 */
+  const tapHotbar = (index: number) => {
+    setSelSlot(index);
+    if (!invProfile) return;
+    const tapAt = performance.now();
+    const lastTap = lastHotbarTapRef.current;
+    lastHotbarTapRef.current = { index, at: tapAt };
+    const slot = invProfile.hotbar[index];
+    if (slot && lastTap && lastTap.index === index && tapAt - lastTap.at < 350) {
+      const def = itemById(slot.id);
+      if (def && (def.hunger || def.heal || def.curePoison)) {
+        lastHotbarTapRef.current = null;
+        void eatFromInventory(def.id);
+      }
+    }
   };
 
   /** 自分の収納コンテナ（樽・宝箱）を開く。中身はサーバーが正。
@@ -2933,6 +3009,12 @@ export default function WorldBoxClient() {
         const proto = location.protocol === "https:" ? "wss:" : "ws:";
         const ws = new WebSocket(`${proto}//${location.host}/api/worldbox/realtime?t=${encodeURIComponent(rtToken)}&tab=${encodeURIComponent(tabSession.tab)}&tabAt=${tabSession.tabAt}`);
         rtSocket = ws;
+        pianoSendRef.current = (notes: number[]) => {
+          if (ws.readyState !== WebSocket.OPEN) return;
+          try {
+            ws.send(JSON.stringify({ t: "note", notes }));
+          } catch { /* noop */ }
+        };
         ws.onopen = () => {
           rtBackoffMs = 1000;
           lastWsMsgAt = Date.now();
@@ -2969,6 +3051,7 @@ export default function WorldBoxClient() {
             t?: string; now?: number; p?: PresenceEntry; players?: PresenceEntry[]; id?: string;
             x?: number; y?: number;
             kind?: string; changes?: { key: string; value: unknown }[]; value?: unknown;
+            notes?: number[];
             channel?: string; space?: string; guildId?: string;
             agg?: number; on?: boolean;
           };
@@ -2984,6 +3067,9 @@ export default function WorldBoxClient() {
             rtAggOn = true;
           } else if (msg.t === "agg") {
             rtAggOn = msg.on === true;
+          } else if (msg.t === "note" && Array.isArray(msg.notes)) {
+            // ロビーのピアノ: 誰かが弾いた音をそのまま鳴らす（中継はロビー内だけに配る）
+            if (space === "lobby") playPianoNotes(msg.notes);
           } else if (msg.t === "jump" && typeof msg.x === "number" && typeof msg.y === "number" && typeof msg.space === "string") {
             // 中継に却下された位置申告: サーバー保管の正規位置へ戻す
             snapBackToServer(msg.x, msg.y, msg.space);
@@ -6807,6 +6893,15 @@ export default function WorldBoxClient() {
                 {telescopeOpen ? "閉じる" : "覗く"}
               </button>
             )}
+            {stationUi === "piano" && (
+              <button
+                type="button"
+                style={{ ...btn, minHeight: hud.buttonMinHeight, padding: "2px 10px" }}
+                onClick={() => setPianoOpen((v) => !v)}
+              >
+                {pianoOpen ? "閉じる" : "弾く"}
+              </button>
+            )}
             {stationUi === "race" && (
               <button
                 type="button"
@@ -6979,7 +7074,7 @@ export default function WorldBoxClient() {
                 type="button"
                 aria-pressed={selSlot === i}
                 aria-label={slot ? (itemById(slot.id)?.name ?? slot.id) : "空き枠"}
-                onClick={() => setSelSlot(i)}
+                onClick={() => tapHotbar(i)}
                 style={{
                   ...slotBox,
                   ...(selSlot === i
@@ -7594,6 +7689,9 @@ export default function WorldBoxClient() {
       )}
       {racingOpen && spaceUi === "lobby" && (
         <WorldBoxRacingPanel onClose={() => setRacingOpen(false)} />
+      )}
+      {pianoOpen && spaceUi === "lobby" && (
+        <WorldBoxPianoPanel onClose={() => setPianoOpen(false)} onPlay={playPianoNote} />
       )}
       {casinoOpen && spaceUi === "lobby" && (
         <WorldBoxCasinoPanel onClose={() => setCasinoOpen(false)} />
