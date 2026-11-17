@@ -1148,7 +1148,7 @@ export default function WorldBoxClient() {
   const [stationUi, setStationUi] = useState<LobbyStation | null>(null);
   /** ワールドで設置した作業施設の近くにいるときの作業種別（カンマ区切り。経済パネル用）。 */
   const [worldStationKinds, setWorldStationKinds] = useState("");
-  /** いま接している店の品目ジャンル（鍛冶屋は "smith"）。経済パネルの品目選別に使う。 */
+  /** いま接している店の品目ジャンル（製造・R&D拠点は "smith"）。経済パネルの品目選別に使う。 */
   const [stationGenre, setStationGenre] = useState<ShopGenreId | null>(null);
   /** いま接しているアーケード筐体のゲーム ID（L4）。筐体パネルの起動に使う。 */
   const [stationArcade, setStationArcade] = useState<string | null>(null);

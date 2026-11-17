@@ -1,7 +1,7 @@
-// AGO WORLD BOX 設置物の動作D（看板・棚・井戸と水）のテスト。
+// AGO WORLD BOX 設置物の動作D（看板・棚・給水設備と水）のテスト。
 // - 看板テキスト: 所有者だけ・整形（制御文字/長さ）・空で消去・parse 往復
 // - 棚の展示: 消費して展示・回収で返却・展示中は差し替え不可
-// - 井戸と水: バケツ→水入りバケツ、飲むとバケツに戻る（containerReturn）
+// - 給水設備と水: バケツ→水入りバケツ、飲むとバケツに戻る（containerReturn）
 // - ルートとクライアントの配線（ソース確認）
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -235,7 +235,7 @@ test("棚: 展示は消費、回収は返却、展示中は差し替え不可、
   assert.equal(T.parseTileOverride(JSON.stringify(shown.override)).display, "bread");
 });
 
-test("井戸と水: バケツで汲め、飲むとバケツに戻る", () => {
+test("給水設備と水: バケツで汲め、飲むとバケツに戻る", () => {
   const placed = place(withItems({ well: 1 }), grassAt, "well");
   assert.equal(placed.ok, true);
   // バケツが無ければ汲めない
@@ -294,7 +294,7 @@ test("屋台: 出品の検証と売れた後の残数、parse の往復", async 
   assert.equal(S.stallAfterSale({ ...state, count: 1 }), null);
 });
 
-test("配線: ルートの分岐とクライアントの看板/棚/井戸/屋台", () => {
+test("配線: ルートの分岐とクライアントの看板/棚/給水設備/屋台", () => {
   const route = fs.readFileSync(path.join(rootDir, "app/api/worldbox/tiles/route.ts"), "utf8");
   assert.match(route, /applySetSign/);
   assert.match(route, /applyDisplayAction/);

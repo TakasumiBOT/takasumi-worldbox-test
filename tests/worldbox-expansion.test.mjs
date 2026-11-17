@@ -156,7 +156,7 @@ test("カタログ: レシピと作物の参照が全て実在アイテムを指
   }
 });
 
-test("カタログ: 施設（作業台・鍛冶台・かまど）は facility で置ける", () => {
+test("カタログ: 施設（作業台・精密加工機・溶解炉）は facility で置ける", () => {
   for (const id of [
     "workbench",
     "smithing_table",

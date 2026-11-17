@@ -103,10 +103,10 @@ test("テント内装: 壁と床、出入口は歩ける", () => {
   assert.equal(tent.blocked.has(entryKey), false);
 });
 
-test("テント内装: 作業台とかまどが smith ステーションで、入口から届く", () => {
+test("テント内装: 作業台と溶解炉が smith ステーションで、入口から届く", () => {
   const tent = world.buildTent();
   const smiths = tent.objects.filter((o) => o.station === "smith");
-  assert.ok(smiths.length >= 2, "作業台とかまどが無い");
+  assert.ok(smiths.length >= 2, "作業台と溶解炉が無い");
   assert.ok(smiths.some((o) => o.sprite === "workbench"));
   // 入口タイルから作業台（出入口脇）に隣接できる
   const st = world.stationNear(

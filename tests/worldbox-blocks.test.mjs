@@ -307,7 +307,7 @@ test("設置: 畑・作物・既存ブロック・切り株（再生待ち）の
     "tile_blocked",
     "既存ブロック",
   );
-  // HP制: 木（HP30）を木の斧（10/ヒット）で倒れるまで叩く
+  // HP制: 木（HP30）を木柄の斧（10/ヒット）で倒れるまで叩く
   let chopped = T.applyTileAction(
     null,
     withItems({ wooden_axe: 1 }),

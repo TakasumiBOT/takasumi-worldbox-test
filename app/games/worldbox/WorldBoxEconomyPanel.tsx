@@ -1,6 +1,6 @@
 "use client";
-// AGO WORLD BOX の経済パネル（かばん・ショップ・合成・銀行）。
-// 売買・合成・送金は場所制約つき: それぞれの施設の前にいる間だけタブが出る。
+// AGO WORLD BOX の経済パネル（かばん・ショップ・製造・銀行）。
+// 売買・製造・送金は場所制約つき: それぞれの施設の前にいる間だけタブが出る。
 // 売却は売却専用カウンター（station "sell"）の売却タブに一本化した:
 // かばんには売却ボタンを置かない（ショップでかばんを開く手順をなくす）。
 // Discord ボット側の経済機能（items / workshop craft）の規則をそのまま使い、
@@ -163,18 +163,18 @@ export default function WorldBoxEconomyPanel({
   worldStationKinds?: string;
   onClose: () => void;
 }) {
-  // 行動の場所制約: 売買はショップの前、合成は作業台（鍛冶屋）の前、
+  // 行動の場所制約: 売買はショップの前、製造は作業台（製造・R&D拠点）の前、
   // 送金は銀行の前でのみ。いる場所に対応するタブだけを出す（サーバー側
   // でもプレゼンスで検証されるため、ここは表示の一致が役割）。
   const inLobby = space === "lobby";
-  // 売買は店と鍛冶屋の両方で可。品目は店ごとのジャンルで選別される
-  // （鍛冶屋はジャンル "smith"）。ジャンルが無い店は全品目。
+  // 売買は店と製造・R&D拠点の両方で可。品目は店ごとのジャンルで選別される
+  // （製造・R&D拠点はジャンル "smith"）。ジャンルが無い店は全品目。
   const shopGenre: ShopGenreId | null = station === "smith" ? "smith" : genre;
   const atShop = inLobby && (station === "shop" || station === "smith");
   // 売却専用カウンター（買取）: 売るだけの店。開いたら売却タブが既定で、
   // かばんを開く手順は挟まない（売却はここに一本化し、かばんからは外した）
   const atSellShop = inLobby && station === "sell";
-  // ロビーの鍛冶屋は全種別可。ワールドでは設置した作業施設の種別だけ可
+  // ロビーの製造・R&D拠点は全種別可。ワールドでは設置した作業施設の種別だけ可
   const atLobbySmith = space !== "world" && station === "smith";
   const worldKinds = new Set((worldStationKinds ?? "").split(",").filter(Boolean));
   const canWork = (kind: StationKind) => atLobbySmith || worldKinds.has(kind);
@@ -193,12 +193,12 @@ export default function WorldBoxEconomyPanel({
   const [bagSel, setBagSel] = useState<string | null>(null);
   const [shopSel, setShopSel] = useState<string | null>(null);
   const [sellSel, setSellSel] = useState<string | null>(null);
-  // 強化のスロット選択と成功フラッシュ（金色背景 → 透明へ transition）
+  // 改良のスロット選択と成功フラッシュ（金色背景 → 透明へ transition）
   const [enhanceSel, setEnhanceSel] = useState<string | null>(null);
   const [enhanceFlashId, setEnhanceFlashId] = useState<string | null>(null);
   const [enhanceFlashOn, setEnhanceFlashOn] = useState(false);
   const enhanceFlashTimersRef = useRef<number[]>([]);
-  // 合成台（PR-B）: セットした素材（id → 個数）、工程の進捗、気配、出現した成果物
+  // 製造台（PR-B）: セットした素材（id → 個数）、工程の進捗、気配、出現した成果物
   const [craftSet, setCraftSet] = useState<Record<string, number>>({});
   const [craftBusy, setCraftBusy] = useState(false);
   const [craftPhase, setCraftPhase] = useState(0);
@@ -301,7 +301,7 @@ export default function WorldBoxEconomyPanel({
   };
 
   /**
-   * 強化成功時の金色フラッシュ。act の describe（成功時にだけ呼ばれる）
+   * 改良成功時の金色フラッシュ。act の describe（成功時にだけ呼ばれる）
    * から呼ぶことで成否に連動させる。背景を金色で点灯させた直後に
    * 透明へ戻し、約600ms の transition で消えるようにする。
    */
@@ -395,7 +395,7 @@ export default function WorldBoxEconomyPanel({
     void refreshBridge();
   };
   /**
-   * 火を入れる: 結果は即表示しない。レスポンスの hint（気配）だけ保持し、
+   * 製造を開始: 結果は即表示しない。レスポンスの hint（気配）だけ保持し、
    * 約2.4秒の工程（煙・揺れ・進捗）を出したあとで初めて反映する。
    */
   const runCraft = async () => {
@@ -465,7 +465,7 @@ export default function WorldBoxEconomyPanel({
   );
   if (loadState === "loading") return panelHead("読み込み中…");
   if (loadState === "guest") {
-    return panelHead("経済機能（かばん・ショップ・合成）を使うにはログインが必要です。");
+    return panelHead("経済機能（かばん・ショップ・製造）を使うにはログインが必要です。");
   }
   if (loadState === "unavailable" || !profile) {
     return panelHead("いまは経済機能を使えません。");
@@ -484,7 +484,7 @@ export default function WorldBoxEconomyPanel({
   const bagSelItem = owned.find((item) => item.id === bagSel) ?? null;
   const shopSelItem = shopItems.find((item) => item.id === shopSel) ?? null;
   const sellSelItem = owned.find((item) => item.id === sellSel) ?? null;
-  // 強化対象: 所持している道具だけ（従来の row リストと同じ対象）
+  // 改良対象: 所持している道具だけ（従来の row リストと同じ対象）
   const enhanceTools = ITEMS.filter((item) => (profile.items[item.id] ?? 0) > 0 && item.tool);
   const enhanceSelItem = enhanceTools.find((item) => item.id === enhanceSel) ?? null;
   // 発見図鑑: 自分が完全一致で作れたレシピだけ（未発見のレシピは出さない）
@@ -493,7 +493,7 @@ export default function WorldBoxEconomyPanel({
     .filter((r): r is NonNullable<typeof r> => r !== null);
   const discRecipe = discovered.find((r) => r.id === discSel) ?? null;
   // 施設の前にいないタブを開いたままにしない（その施設へ行くと使える）
-  // 販売品目の無い店（鍛冶屋は合成・強化専用）ではショップタブ自体を出さない
+  // 販売品目の無い店（製造・R&D拠点は製造・改良専用）ではショップタブ自体を出さない
   const tabAllowed = (t: Tab): boolean =>
     t === "shop"
       ? atShop && shopItems.length > 0
@@ -551,7 +551,7 @@ export default function WorldBoxEconomyPanel({
             shopItems.length > 0 &&
             tabBtn("shop", shopGenre ? (genreById(shopGenre)?.name ?? "ショップ") : "ショップ")}
           {atSellShop && tabBtn("sell", "売却")}
-          {atWorkbench && tabBtn("craft", "合成")}
+          {atWorkbench && tabBtn("craft", "製造")}
           {atBank && tabBtn("bank", "銀行")}
         </div>
       </div>
@@ -803,7 +803,7 @@ export default function WorldBoxEconomyPanel({
                     disabled={busy || totalSet === 0}
                     onClick={() => void runCraft()}
                   >
-                    火を入れる
+                    製造を開始
                   </button>
                 </div>
                 {craftBusy && (
@@ -884,7 +884,7 @@ export default function WorldBoxEconomyPanel({
         <div
           style={{ marginTop: 10, borderTop: "1px solid rgba(255,255,255,0.14)", paddingTop: 8 }}
         >
-          <strong style={{ fontSize: 13 }}>道具の強化</strong>
+          <strong style={{ fontSize: 13 }}>道具の改良</strong>
           <div style={{ marginTop: 6 }}>
             <ItemSlotGrid>
               {enhanceTools.map((item) => {
@@ -938,7 +938,7 @@ export default function WorldBoxEconomyPanel({
                           alignItems: "center",
                         }}
                       >
-                        <span>{"+".repeat(level) || "未強化"}</span>
+                        <span>{"+".repeat(level) || "未改良"}</span>
                         {level >= ENHANCE_MAX_LEVEL ? (
                           <span className="muted">最大</span>
                         ) : material ? (
@@ -958,11 +958,11 @@ export default function WorldBoxEconomyPanel({
                             onClick={() =>
                               void act({ action: "enhance", itemId: enhanceSelItem.id }, () => {
                                 triggerEnhanceFlash(enhanceSelItem.id);
-                                return `${enhanceSelItem.name}を強化した`;
+                                return `${enhanceSelItem.name}を改良した`;
                               })
                             }
                           >
-                            強化する
+                            改良する
                           </button>
                         </div>
                       )}

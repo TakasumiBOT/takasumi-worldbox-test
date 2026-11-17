@@ -94,7 +94,7 @@ const SHOP_STOCK_IDS: ReadonlySet<string> = new Set([
   "autumn_log",
   "dead_log",
   "log_block",
-  // 家具屋: 施設と最低限の家具だけ（他は合成で作る）
+  // 家具屋: 施設と最低限の家具だけ（他は製造で作る）
   "torch",
   "workbench",
   "furnace",

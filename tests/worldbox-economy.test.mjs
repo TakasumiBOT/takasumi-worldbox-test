@@ -241,7 +241,7 @@ test("合成の作り直し配線: パネルはレシピ一覧を出さず台UI�
   );
   assert.ok(!panel.includes("RECIPES"), "旧レシピ全件リストが残っている");
   assert.ok(!panel.includes("レア: "), "レア名の事前表示が残っている");
-  assert.match(panel, /火を入れる/);
+  assert.match(panel, /製造を開始/);
   assert.match(panel, /発見した組み合わせ/);
   assert.match(panel, /discoveredRecipes/);
   const route = fs.readFileSync(path.join(rootDir, "app/api/worldbox/profile/route.ts"), "utf8");
@@ -313,7 +313,7 @@ test("steal の保護: 少額の相手・防犯チャーム・クールダウン
   );
 });
 
-test("怪盗マスクで成功率が上がる（素の成功率では失敗する目でも成功）", () => {
+test("目出しマスクで成功率が上がる（素の成功率では失敗する目でも成功）", () => {
   const masked = { ...fresh(), items: { thief_mask: 1 } };
   const balances = { actorCoins: 100, targetCoins: 400 };
   // 素の成功率 0.40 では失敗する 0.5 の目が、マスク (+0.15) では成功する
