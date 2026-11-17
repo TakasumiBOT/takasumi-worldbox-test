@@ -9,14 +9,15 @@
 // broadcast（pid のみ）には決して載せない。
 // 署名鍵はセッションと同じ環境変数（DISCORD_SESSION_SECRET || DISCORD_CLIENT_SECRET）。
 import crypto from "node:crypto";
-import { sessionAvatarUrl, sessionOwnerKey, type SessionInfo } from "../../auth";
+import { sessionAvatarUrl, sessionOwnerKey, sessionSecret, type SessionInfo } from "../../auth";
 import { PRESENCE_NAME_MAX, presenceIdFor } from "../player/presence";
 
 /** 中継トークンの有効期限（ミリ秒）。realtime/relay-core.js の TOKEN_TTL_MS と一致させること。 */
 export const REALTIME_TOKEN_TTL_MS = 10 * 60 * 1000;
 
 function realtimeSecret(): string {
-  return process.env.DISCORD_SESSION_SECRET || process.env.DISCORD_CLIENT_SECRET || "";
+  // 署名鍵はセッションと同じ解決順（env → deploy-config）で auth 側と一致させる。
+  return sessionSecret();
 }
 
 /** 中継トークンを発行する。鍵が未設定なら null。 */

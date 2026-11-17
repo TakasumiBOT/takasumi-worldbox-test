@@ -64,6 +64,7 @@ const subdomainUrl = dataUrl(transpile("subdomain.ts"));
 const authUrl = dataUrl(
   transpile("auth.ts")
     .replaceAll('"next/headers"', JSON.stringify(nextHeadersStubUrl))
+    .replaceAll('"./deploy-config"', JSON.stringify(dataUrl(transpile("deploy-config.ts"))))
     .replaceAll('"./subdomain"', JSON.stringify(subdomainUrl)),
 );
 const discordActivityUrl = dataUrl(

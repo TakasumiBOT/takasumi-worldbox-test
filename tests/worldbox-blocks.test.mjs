@@ -516,6 +516,7 @@ const headersStubUrl = dataUrl(
 const authUrl = dataUrl(
   transpile("auth.ts")
     .replaceAll('"./subdomain"', JSON.stringify(subdomainUrl))
+    .replaceAll('"./deploy-config"', JSON.stringify(dataUrl(transpile("deploy-config.ts"))))
     .replaceAll('"next/headers"', JSON.stringify(headersStubUrl)),
 );
 const auth = await import(authUrl);

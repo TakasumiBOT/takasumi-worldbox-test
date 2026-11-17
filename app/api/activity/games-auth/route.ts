@@ -1,6 +1,12 @@
 import { NextResponse } from "next/server";
 import { exchangeDiscordActivityCode } from "@/lib/activity-auth";
-import { SESSION_COOKIE, createSession, sessionCookieOptions } from "@/lib/auth";
+import {
+  SESSION_COOKIE,
+  createSession,
+  discordClientId,
+  discordClientSecret,
+  sessionCookieOptions,
+} from "@/lib/auth";
 import { createWebSession } from "@/lib/dashboard";
 import { buildDiscordIdentity } from "@/lib/discord-activity";
 
@@ -18,8 +24,8 @@ const NO_STORE = { "Cache-Control": "no-store, max-age=0" };
 const PKCE_VERIFIER = /^[A-Za-z0-9._~-]{43,128}$/;
 
 export async function POST(request: Request) {
-  const clientId = process.env.DISCORD_CLIENT_ID;
-  const clientSecret = process.env.DISCORD_CLIENT_SECRET;
+  const clientId = discordClientId();
+  const clientSecret = discordClientSecret();
   if (!clientId || !clientSecret) {
     return NextResponse.json(
       { error: "activity_not_configured" },

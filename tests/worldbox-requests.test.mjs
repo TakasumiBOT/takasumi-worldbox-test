@@ -313,6 +313,7 @@ const apiHeadersStubUrl = dataUrl(
 const apiAuthUrl = dataUrl(
   transpile("auth.ts")
     .replaceAll('"./subdomain"', JSON.stringify(apiSubdomainUrl))
+    .replaceAll('"./deploy-config"', JSON.stringify(dataUrl(transpile("deploy-config.ts"))))
     .replaceAll('"next/headers"', JSON.stringify(apiHeadersStubUrl)),
 );
 const apiAuth = await import(apiAuthUrl);

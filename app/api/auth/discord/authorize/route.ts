@@ -4,6 +4,8 @@ import {
   OAUTH_NEXT_COOKIE,
   OAUTH_STATE_COOKIE,
   canonicalAuthorizeRedirect,
+  discordClientId,
+  discordRedirectUri,
   isDiscordConfigured,
   publicOrigin,
   resolveOAuthNext,
@@ -13,8 +15,8 @@ import {
 export const runtime = "nodejs";
 
 export function GET(request: Request) {
-  const clientId = process.env.DISCORD_CLIENT_ID;
-  const redirectUri = process.env.DISCORD_REDIRECT_URI;
+  const clientId = discordClientId();
+  const redirectUri = discordRedirectUri();
   if (!clientId || !redirectUri || !isDiscordConfigured()) {
     return NextResponse.redirect(
       new URL("/login?error=discord_not_configured", publicOrigin(request)),

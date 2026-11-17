@@ -4,6 +4,9 @@ import {
   OAUTH_STATE_COOKIE,
   SESSION_COOKIE,
   createSession,
+  discordClientId,
+  discordClientSecret,
+  discordRedirectUri,
   isDiscordConfigured,
   publicOrigin,
   readCookie,
@@ -36,9 +39,9 @@ export async function GET(request: Request) {
     return fail("discord_denied");
   }
 
-  const clientId = process.env.DISCORD_CLIENT_ID;
-  const clientSecret = process.env.DISCORD_CLIENT_SECRET;
-  const redirectUri = process.env.DISCORD_REDIRECT_URI;
+  const clientId = discordClientId();
+  const clientSecret = discordClientSecret();
+  const redirectUri = discordRedirectUri();
   if (!clientId || !clientSecret || !redirectUri || !isDiscordConfigured()) {
     return fail("discord_not_configured");
   }

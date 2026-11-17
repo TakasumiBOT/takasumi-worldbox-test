@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { cookies } from "next/headers";
+import { DEPLOY_CONFIG } from "./deploy-config";
 import { effectiveHost } from "./subdomain";
 
 export const SESSION_COOKIE = "ago_session";
@@ -37,8 +38,35 @@ export function sessionOwnerKey(info: { provider: AuthProvider; id: string }): s
   return `${info.provider}:${info.id}`;
 }
 
-function sessionSecret() {
-  return process.env.DISCORD_SESSION_SECRET || process.env.DISCORD_CLIENT_SECRET || "";
+/**
+ * Discord OAuth 設定の解決。環境変数があればそちらを優先し、無ければ
+ * リポジトリ内蔵の設定（lib/deploy-config.ts）にフォールバックする。
+ * Vercel の環境変数を触れない運用でも、deploy-config に値を記入すれば
+ * ログインが成立するようにするための二段構え。
+ */
+export function discordClientId() {
+  return process.env.DISCORD_CLIENT_ID || DEPLOY_CONFIG.discordClientId || "";
+}
+
+export function discordClientSecret() {
+  return process.env.DISCORD_CLIENT_SECRET || DEPLOY_CONFIG.discordClientSecret || "";
+}
+
+export function discordRedirectUri() {
+  return process.env.DISCORD_REDIRECT_URI || DEPLOY_CONFIG.discordRedirectUri || "";
+}
+
+/**
+ * セッション署名鍵の解決順: DISCORD_SESSION_SECRET（env）→
+ * DISCORD_CLIENT_SECRET（env）→ deploy-config の secret。
+ */
+export function sessionSecret() {
+  return (
+    process.env.DISCORD_SESSION_SECRET ||
+    process.env.DISCORD_CLIENT_SECRET ||
+    DEPLOY_CONFIG.discordClientSecret ||
+    ""
+  );
 }
 
 /**
@@ -69,11 +97,7 @@ function safelyEqual(left: string, right: string) {
 }
 
 export function isDiscordConfigured() {
-  return Boolean(
-    process.env.DISCORD_CLIENT_ID &&
-    process.env.DISCORD_CLIENT_SECRET &&
-    process.env.DISCORD_REDIRECT_URI,
-  );
+  return Boolean(discordClientId() && discordClientSecret() && discordRedirectUri());
 }
 
 export function isGoogleConfigured() {
@@ -227,7 +251,7 @@ export function getRequestSession(request: Request) {
  * Discord に登録した redirect_uri（=公開URL）から取得するのが確実。
  */
 export function publicOrigin(request: Request): string {
-  const redirectUri = process.env.DISCORD_REDIRECT_URI;
+  const redirectUri = discordRedirectUri();
   if (redirectUri) {
     try {
       return new URL(redirectUri).origin;

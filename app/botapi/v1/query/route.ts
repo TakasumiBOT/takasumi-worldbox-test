@@ -2,8 +2,9 @@ import { processBotApiRequest, serializeBotApiJson } from "@/lib/botapi-server";
 import { getSqlExecutor } from "@/lib/db";
 
 // 独立環境の bot-api 互換ルート（/v1/query）。実装は lib/botapi-server.ts。
-// BOT_API_BASE_URL を自ドメインの /botapi に向けることで、既存の
-// lib/bot-api.ts クライアントが無変更で自前 DB（Neon）へ接続する。
+// アプリ内部の呼び出しは lib/bot-api.ts がプロセス内で直接ハンドラを
+// 呼ぶため、このルートは外部・将来用。BOT_API_KEY が env に設定されて
+// いれば Bearer 照合し、未設定なら公開リクエストは常に 401（fail-closed）。
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
