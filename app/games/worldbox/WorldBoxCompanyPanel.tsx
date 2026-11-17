@@ -6,6 +6,11 @@
 // company.ts、TakasumiBOT v3 仕様）が正で、このパネルは表示と
 // 入力だけを持つ。商品の内容テキストは購入レスポンスでだけ開示
 // される（出品一覧には含めない）。
+// Phase 4（空間化）: 本社の表示と登録（オーナーは現在地で登録）、
+// 本社近くでの出社・退社と勤務（報酬は会社資産へ）、他社の詳細は
+// 受付として開く（会社情報＋出品＋招待コードでの入社）。ワールドの
+// 店舗看板や本社マーカーから開くときは anchorCompanyId でその会社
+// の受付を最初から開く。
 import { useCallback, useEffect, useState } from "react";
 
 const panel: React.CSSProperties = {
@@ -78,6 +83,13 @@ const ERROR_LABEL: Record<string, string> = {
   product_not_found: "その商品はもうありません",
   product_expired: "その商品は期限切れで削除されました",
   product_limit: "出品上限（15件）に達しています",
+  position_unknown: "現在位置が分かりません（少し移動してから試してください）",
+  hq_not_set: "本社が未登録です（オーナーが登録できます）",
+  not_at_hq: "本社の近くでしかできません",
+  not_on_duty: "先に本社の近くで出社してください",
+  work_cooldown: "勤務は5分に1回までです",
+  not_your_sign: "自分の看板でだけ登録できます",
+  too_far: "看板の近くで操作してください",
   tax_unaffordable: "作成税を払う会社資産が足りません",
   bonus_cooldown: "その社員へのボーナスは23時間に1回までです",
   invalid_amount: "金額が不正です（100〜150,000円、会社資産の1/10まで）",
@@ -94,6 +106,12 @@ interface CompanyProductView {
   createdAt: number;
 }
 
+interface CompanyHqView {
+  space: string;
+  x: number;
+  y: number;
+}
+
 interface CompanyView {
   id: string;
   name: string;
@@ -101,9 +119,11 @@ interface CompanyView {
   assets: number;
   salary: number;
   createdAt: number;
+  hq: CompanyHqView | null;
   isOwner: boolean;
   isMember: boolean;
   members: { ownerKey: string; name: string; joinedAt: number; owner: boolean }[];
+  onDutyMembers: string[];
   stats: { totalEarn: number; totalUse: number; totalTax: number };
   products: CompanyProductView[];
   history: { at: number; amount: number; reason: string }[];
@@ -118,6 +138,15 @@ interface CompanySummary {
   memberCount: number;
   productCount: number;
   createdAt: number;
+  hq: CompanyHqView | null;
+}
+
+interface DutyView {
+  onDuty: boolean;
+  since: number;
+  lastWorkAt: number;
+  nextWorkAt: number;
+  workReward: number;
 }
 
 interface CompanyData {
@@ -126,16 +155,41 @@ interface CompanyData {
   companies: CompanySummary[];
   balance: number | null;
   detail: CompanyView | null;
+  duty: DutyView | null;
 }
 
 const yen = (n: number) => `${n.toLocaleString()}円`;
 
-export default function WorldBoxCompanyPanel({ onClose }: { onClose: () => void }) {
+/** 空間 ID の表示名（本社の場所の案内用）。 */
+function spaceLabel(space: string): string {
+  if (space === "world") return "ワールド";
+  if (space === "lobby") return "ロビー";
+  if (space === "lobby2") return "ロビー2F";
+  if (space === "lobby3") return "ロビー3F";
+  if (space === "tent") return "テント";
+  if (space.startsWith("cave")) return "地下施設";
+  if (space.startsWith("dungeon")) return "廃ビル";
+  if (space.startsWith("ruins")) return "工事現場";
+  return space;
+}
+
+function hqLabel(hq: CompanyHqView | null): string {
+  if (!hq) return "未登録";
+  return `${spaceLabel(hq.space)}（${hq.x}, ${hq.y}）`;
+}
+
+export default function WorldBoxCompanyPanel({
+  onClose,
+  anchorCompanyId = null,
+}: {
+  onClose: () => void;
+  anchorCompanyId?: string | null;
+}) {
   const [data, setData] = useState<CompanyData | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
-  const [detailId, setDetailId] = useState<string | null>(null);
+  const [detailId, setDetailId] = useState<string | null>(anchorCompanyId);
   const [revealed, setRevealed] = useState<{ name: string; content: string } | null>(null);
   const [issuedCode, setIssuedCode] = useState<{ code: string; expiresAt: number } | null>(null);
 
@@ -316,6 +370,86 @@ export default function WorldBoxCompanyPanel({ onClose }: { onClose: () => void 
             累計納税 {yen(company.stats.totalTax)}
           </p>
 
+          <div style={sectionTitle}>本社と勤務</div>
+          <p style={{ margin: "4px 0" }}>
+            本社: {hqLabel(company.hq)}
+            <span style={{ opacity: 0.8, fontSize: 13 }}>
+              （本社の近くで出社でき、勤務の報酬 {data.duty ? yen(data.duty.workReward) : ""}
+              が会社資産に入ります）
+            </span>
+          </p>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {company.isOwner && (
+              <>
+                <button
+                  type="button"
+                  style={btn}
+                  disabled={busy}
+                  onClick={() =>
+                    void act({ action: "hq_set" }, (json) => {
+                      const hq = json.hq as CompanyHqView | undefined;
+                      return hq ? `本社を ${hqLabel(hq)} に登録しました` : "本社を登録しました";
+                    })
+                  }
+                >
+                  現在地を本社に登録
+                </button>
+                {company.hq && (
+                  <button
+                    type="button"
+                    style={btn}
+                    disabled={busy}
+                    onClick={() => void act({ action: "hq_clear" }, () => "本社を解除しました")}
+                  >
+                    本社を解除
+                  </button>
+                )}
+              </>
+            )}
+            {data.duty?.onDuty ? (
+              <>
+                <button
+                  type="button"
+                  style={btn}
+                  disabled={busy || Date.now() < (data.duty?.nextWorkAt ?? 0)}
+                  onClick={() =>
+                    void act({ action: "work" }, (json) =>
+                      typeof json.reward === "number"
+                        ? `勤務しました。報酬 ${yen(json.reward)} が会社資産に入りました`
+                        : "勤務しました",
+                    )
+                  }
+                >
+                  働く（報酬 {data.duty ? yen(data.duty.workReward) : ""}）
+                </button>
+                <button
+                  type="button"
+                  style={btn}
+                  disabled={busy}
+                  onClick={() => void act({ action: "clock_out" }, () => "退社しました")}
+                >
+                  退社
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                style={btn}
+                disabled={busy || !company.hq}
+                onClick={() => void act({ action: "clock_in" }, () => "出社しました")}
+              >
+                出社
+              </button>
+            )}
+          </div>
+          {data.duty?.onDuty && (
+            <p style={{ margin: "4px 0", opacity: 0.85, fontSize: 13 }}>
+              勤務中（{new Date(data.duty.since).toLocaleTimeString()} から）
+              {Date.now() < data.duty.nextWorkAt &&
+                ` ・ 次に働けるのは ${new Date(data.duty.nextWorkAt).toLocaleTimeString()} から`}
+            </p>
+          )}
+
           <div style={sectionTitle}>メンバー</div>
           {company.members.map((m) => (
             <div
@@ -325,6 +459,7 @@ export default function WorldBoxCompanyPanel({ onClose }: { onClose: () => void 
               <span style={{ flex: 1 }}>
                 {m.name || "（名前なし）"}
                 {m.owner ? "（オーナー）" : ""}
+                {company.onDutyMembers.includes(m.ownerKey) ? "（勤務中）" : ""}
               </span>
               {company.isOwner && !m.owner && (
                 <>
@@ -628,6 +763,7 @@ export default function WorldBoxCompanyPanel({ onClose }: { onClose: () => void 
             <div>{c.name}</div>
             <div style={{ opacity: 0.75, fontSize: 12 }}>
               資産 {yen(c.assets)} ・ 従業員 {c.memberCount}人 ・ 出品 {c.productCount}件
+              {c.hq ? ` ・ 本社: ${hqLabel(c.hq)}` : ""}
             </div>
           </div>
           <button
@@ -641,6 +777,30 @@ export default function WorldBoxCompanyPanel({ onClose }: { onClose: () => void 
       ))}
       {detail && detailId && (
         <div>
+          <div style={sectionTitle}>{detail.name}（受付）</div>
+          <p style={{ margin: "4px 0", opacity: 0.9 }}>{detail.description}</p>
+          <p style={{ margin: "4px 0", opacity: 0.85, fontSize: 13 }}>
+            従業員 {detail.members.length}人 ・ 時給 {yen(detail.salary)} ・ 本社:{" "}
+            {hqLabel(detail.hq)}
+          </p>
+          {!company && !detail.isMember && (
+            <div style={{ display: "flex", gap: 8, margin: "8px 0" }}>
+              <input
+                style={{ ...input, flex: 1 }}
+                placeholder="招待コード（10文字）"
+                value={joinCode}
+                onChange={(e) => setJoinCode(e.target.value)}
+              />
+              <button
+                type="button"
+                style={btn}
+                disabled={busy}
+                onClick={() => void act({ action: "join", code: joinCode }, () => "入社しました")}
+              >
+                この会社に入社
+              </button>
+            </div>
+          )}
           <div style={sectionTitle}>
             {detail.name} の出品
             <span style={{ fontWeight: 400, opacity: 0.8, fontSize: 13 }}>

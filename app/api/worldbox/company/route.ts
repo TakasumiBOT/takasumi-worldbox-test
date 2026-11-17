@@ -7,6 +7,8 @@ import {
   canDissolve,
   foundCompany,
   isCompanyOwner,
+  isDutyActive,
+  isNearHq,
   isProductExpired,
   joinCompany,
   makeCompanyId,
@@ -15,14 +17,18 @@ import {
   planBonus,
   planProductCreate,
   planProductSale,
+  planWork,
   removeMember,
   validateCompanyCapital,
   validateCompanyDescription,
   validateCompanyName,
   validateCompanySalary,
   validateProductInput,
+  workRewardFor,
   COMPANY_INVITE_TTL_MS,
+  COMPANY_WORK_COOLDOWN_MS,
   type Company,
+  type CompanyDuty,
   type CompanyMember,
   type CompanyProduct,
 } from "@/lib/worldbox/social/company";
@@ -30,32 +36,52 @@ import {
   appendCompanyHistory,
   chargeUser,
   deleteCompanyAll,
+  deleteDuty,
   deleteInvite,
   deleteProduct,
+  deleteSignCompany,
   isCompanyEnabled,
+  loadActorPosition,
   loadAllCompanies,
   loadCompany,
   loadCompanyHistory,
   loadCompanyOf,
+  loadDuty,
+  loadHqList,
   loadInvite,
   loadLiveProducts,
   loadProduct,
   payOutToUser,
   clearMemberIndex,
   storeCompany,
+  storeDuty,
   storeInvite,
   storeProduct,
+  storeSignCompany,
 } from "@/lib/worldbox/social/company-online";
+import { presenceIdFor } from "@/lib/worldbox/player/presence";
+import { WORLD_COORD_LIMIT } from "@/lib/worldbox/world/mapgen";
+import { isOverrideActive, isSignItem } from "@/lib/worldbox/world/tiles";
+import { loadTileOverride } from "@/lib/worldbox/world/tiles-online";
 
 export const runtime = "nodejs";
 
 // WORLD BOX（Takasumi 版）の会社システム。
 // GET: 自分の会社（資産・メンバー・履歴・出品）と全会社の一覧・残高。
 //   ?id=<会社ID> で他社の詳細（出品一覧。内容テキストは含めない）。
+//   ?hqs=<空間ID> でその空間に本社を置く会社の一覧（マーカー用）。
 // POST: 会社の全操作（設立・招待・入社・脱退・解雇・設定・ボーナス・
 //   商品の作成と購入・解散）。お金の個人残高との出入りは経済ブリッジ
 //   のオプ経由だけ（company-online.ts）。会社所属は Discord ログイン
 //   必須（ゲストはオプの入口でも guest_not_allowed で終端する）。
+// Phase 4（空間化）の操作: 本社の登録・解除（hq_set / hq_clear、
+//   オーナーの現在位置で登録）、出社・退社（clock_in / clock_out）、
+//   勤務（work: 勤務中かつ本社近くでのみ。報酬は会社資産へ台帳だけ
+//   で入金され、個人残高は増えない）、店舗看板の登録・解除
+//   （sign_register / sign_unregister: 自分の看板だけ）。位置の正は
+//   プレゼンス→セーブ（loadActorPosition）で、クライアントの自己
+//   申告は使わない。看板の所有はタイル上書きの block.ownerId
+//   （プレゼンス ID）で照合する（屋台と同じ方式）。
 
 const NO_STORE = { "Cache-Control": "no-store, max-age=0" };
 const HISTORY_VIEW_LIMIT = 30;
@@ -67,6 +93,16 @@ function sameOrigin(request: Request) {
 
 function err(error: string, status = 409) {
   return NextResponse.json({ error }, { status, headers: NO_STORE });
+}
+
+/** ワールドのタイル座標の検証（屋台ルートと同じ範囲）。 */
+function checkedTileCoord(xRaw: unknown, yRaw: unknown): { x: number; y: number } | null {
+  if (typeof xRaw !== "number" || typeof yRaw !== "number") return null;
+  if (!Number.isFinite(xRaw) || !Number.isFinite(yRaw)) return null;
+  const x = Math.floor(xRaw);
+  const y = Math.floor(yRaw);
+  if (Math.abs(x) > WORLD_COORD_LIMIT || Math.abs(y) > WORLD_COORD_LIMIT) return null;
+  return { x, y };
 }
 
 function productView(product: CompanyProduct) {
@@ -86,6 +122,7 @@ function companyView(
   products: CompanyProduct[],
   history: { at: number; amount: number; reason: string }[],
   viewerKey: string,
+  onDutyMembers: string[] = [],
 ) {
   return {
     id: company.id,
@@ -94,6 +131,7 @@ function companyView(
     assets: company.assets,
     salary: company.salary,
     createdAt: company.createdAt,
+    hq: company.hq,
     isOwner: company.ownerKey === viewerKey,
     isMember: company.members.some((m) => m.ownerKey === viewerKey),
     members: company.members.map((m) => ({
@@ -102,6 +140,7 @@ function companyView(
       joinedAt: m.joinedAt,
       owner: m.ownerKey === company.ownerKey,
     })),
+    onDutyMembers,
     stats: company.stats,
     products: products.map(productView),
     history,
@@ -118,6 +157,7 @@ function companySummary(company: Company) {
     memberCount: company.members.length,
     productCount: company.productIds.length,
     createdAt: company.createdAt,
+    hq: company.hq,
   };
 }
 
@@ -139,7 +179,7 @@ export async function GET(request: Request) {
   const ownerKey = sessionOwnerKey(session);
   if (session.provider === "guest") {
     return NextResponse.json(
-      { guest: true, company: null, companies: [], balance: null, detail: null },
+      { guest: true, company: null, companies: [], balance: null, detail: null, duty: null },
       { headers: NO_STORE },
     );
   }
@@ -161,16 +201,34 @@ export async function GET(request: Request) {
 
   const mine = await loadCompanyOf(ownerKey);
   let company = null;
+  let duty = null;
   if (mine) {
     const pruned = await pruneExpiredProducts(mine, now);
     const { products } = await loadLiveProducts(pruned, now);
     const history = (await loadCompanyHistory(pruned.id)).slice(0, HISTORY_VIEW_LIMIT);
-    company = companyView(pruned, products, history, ownerKey);
+    // 勤務中状態（自分の分と、自社の勤務中メンバー一覧）。
+    const duties = await Promise.all(
+      pruned.members.map(async (m) => ({ key: m.ownerKey, duty: await loadDuty(m.ownerKey) })),
+    );
+    const onDutyMembers = duties
+      .filter((d) => isDutyActive(d.duty, pruned.id, now))
+      .map((d) => d.key);
+    company = companyView(pruned, products, history, ownerKey, onDutyMembers);
+    const myDuty = duties.find((d) => d.key === ownerKey)?.duty ?? null;
+    duty = {
+      onDuty: isDutyActive(myDuty, pruned.id, now),
+      since: myDuty?.since ?? 0,
+      lastWorkAt: myDuty?.lastWorkAt ?? 0,
+      nextWorkAt: (myDuty?.lastWorkAt ?? 0) + COMPANY_WORK_COOLDOWN_MS,
+      workReward: workRewardFor(pruned),
+    };
   }
   const companies = (await loadAllCompanies()).map(companySummary);
   const balance = await readUserBalance(session.id);
+  const hqsSpace = url.searchParams.get("hqs");
+  const hqs = hqsSpace ? await loadHqList(hqsSpace) : undefined;
   return NextResponse.json(
-    { guest: false, company, companies, balance, detail },
+    { guest: false, company, companies, balance, detail, duty, ...(hqs ? { hqs } : {}) },
     { headers: NO_STORE },
   );
 }
@@ -277,6 +335,7 @@ export async function POST(request: Request) {
       const next = removeMember(fresh, actor.ownerKey);
       if (!(await storeCompany(next))) return err("store_failed", 503);
       await clearMemberIndex(actor.ownerKey);
+      await deleteDuty(actor.ownerKey);
       return NextResponse.json({ ok: true }, { headers: NO_STORE });
     });
   }
@@ -324,7 +383,109 @@ export async function POST(request: Request) {
     });
   }
 
+  // 退社は所属が無くても掃除として通す（古い勤務状態を残さない）。
+  if (action === "clock_out") {
+    await deleteDuty(actor.ownerKey);
+    return NextResponse.json({ ok: true }, { headers: NO_STORE });
+  }
+
   if (!mine) return err("not_in_company");
+
+  // ---- Phase 4: 本社・出社・勤務・店舗看板 ----
+
+  if (action === "hq_set") {
+    if (!isCompanyOwner(mine, actor.ownerKey)) return err("not_owner");
+    const pos = await loadActorPosition(actor.ownerKey);
+    if (!pos) return err("position_unknown");
+    return withUserLock(`company:${mine.id}`, async () => {
+      const fresh = await loadCompany(mine.id);
+      if (!fresh) return err("not_in_company");
+      const hq = { space: pos.space, x: pos.tx, y: pos.ty };
+      if (!(await storeCompany({ ...fresh, hq }))) return err("store_failed", 503);
+      return NextResponse.json({ ok: true, hq }, { headers: NO_STORE });
+    });
+  }
+
+  if (action === "hq_clear") {
+    if (!isCompanyOwner(mine, actor.ownerKey)) return err("not_owner");
+    return withUserLock(`company:${mine.id}`, async () => {
+      const fresh = await loadCompany(mine.id);
+      if (!fresh) return err("not_in_company");
+      if (!(await storeCompany({ ...fresh, hq: null }))) return err("store_failed", 503);
+      return NextResponse.json({ ok: true }, { headers: NO_STORE });
+    });
+  }
+
+  if (action === "clock_in") {
+    if (!mine.hq) return err("hq_not_set");
+    const pos = await loadActorPosition(actor.ownerKey);
+    if (!pos) return err("position_unknown");
+    if (!isNearHq(mine.hq, pos.space, pos.tx, pos.ty)) return err("not_at_hq");
+    const prev = await loadDuty(actor.ownerKey);
+    const prevLastWorkAt = prev && prev.companyId === mine.id ? prev.lastWorkAt : 0;
+    const duty: CompanyDuty = isDutyActive(prev, mine.id, now)
+      ? prev
+      : { companyId: mine.id, since: now, lastWorkAt: prevLastWorkAt };
+    if (!(await storeDuty(actor.ownerKey, duty))) return err("store_failed", 503);
+    return NextResponse.json({ ok: true, since: duty.since }, { headers: NO_STORE });
+  }
+
+  if (action === "work") {
+    const duty = await loadDuty(actor.ownerKey);
+    if (!isDutyActive(duty, mine.id, now)) return err("not_on_duty");
+    const pos = await loadActorPosition(actor.ownerKey);
+    if (!pos) return err("position_unknown");
+    if (!isNearHq(mine.hq, pos.space, pos.tx, pos.ty)) return err("not_at_hq");
+    return withUserLock(`company:${mine.id}`, async () => {
+      const fresh = await loadCompany(mine.id);
+      if (!fresh) return err("not_in_company");
+      const member = fresh.members.find((m) => m.ownerKey === actor.ownerKey);
+      if (!member) return err("not_in_company");
+      // ロック内で勤務状態とクールダウンを再検証する（二重勤務の防止）。
+      const freshDuty = await loadDuty(actor.ownerKey);
+      if (!isDutyActive(freshDuty, mine.id, Date.now())) return err("not_on_duty");
+      const plan = planWork(fresh, member, freshDuty, Date.now());
+      if ("error" in plan) return err("work_cooldown");
+      if (!(await storeCompany(plan.company))) return err("store_failed", 503);
+      await storeDuty(actor.ownerKey, plan.duty);
+      await appendCompanyHistory(fresh.id, [plan.entry]);
+      return NextResponse.json({ ok: true, reward: plan.reward }, { headers: NO_STORE });
+    });
+  }
+
+  if (action === "sign_register" || action === "sign_unregister") {
+    const coord = checkedTileCoord(body.x, body.y);
+    if (!coord) return err("invalid_request", 400);
+    const ov = await loadTileOverride(coord.x, coord.y);
+    const myPresenceId = presenceIdFor(actor.ownerKey);
+    if (
+      !ov?.block ||
+      !isOverrideActive(ov, now) ||
+      !isSignItem(ov.block.itemId) ||
+      ov.block.ownerId !== myPresenceId
+    ) {
+      return err("not_your_sign");
+    }
+    // 看板の隣にいること（位置が分かる場合だけ検証する。屋台と同じ方針）。
+    const pos = await loadActorPosition(actor.ownerKey);
+    if (
+      pos &&
+      pos.space === "world" &&
+      Math.max(Math.abs(pos.tx - coord.x), Math.abs(pos.ty - coord.y)) > 2
+    ) {
+      return err("too_far");
+    }
+    if (action === "sign_unregister") {
+      await deleteSignCompany(coord.x, coord.y);
+      return NextResponse.json({ ok: true }, { headers: NO_STORE });
+    }
+    if (
+      !(await storeSignCompany(coord.x, coord.y, { companyId: mine.id, ownerId: myPresenceId }))
+    ) {
+      return err("store_failed", 503);
+    }
+    return NextResponse.json({ ok: true, companyId: mine.id }, { headers: NO_STORE });
+  }
 
   if (action === "invite") {
     if (!isCompanyOwner(mine, actor.ownerKey)) return err("not_owner");
@@ -349,6 +510,7 @@ export async function POST(request: Request) {
       const next = removeMember(fresh, targetKey);
       if (!(await storeCompany(next))) return err("store_failed", 503);
       await clearMemberIndex(targetKey);
+      await deleteDuty(targetKey);
       return NextResponse.json({ ok: true }, { headers: NO_STORE });
     });
   }

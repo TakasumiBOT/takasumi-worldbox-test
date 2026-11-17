@@ -437,3 +437,140 @@ test("company: ルート・Cron・クライアント・vercel.json に配線さ�
   );
   assert.ok(panel.includes("/api/worldbox/company"));
 });
+
+// ---------- Phase 4: 本社・出社・勤務・店舗看板（空間化） ----------
+
+test("company-p4: 本社は設立直後は未登録で、保存値の往復で位置が一致する", () => {
+  const { company } = foundCompany();
+  assert.equal(company.hq, null);
+  const withHq = { ...company, hq: { space: "world", x: 123, y: -45 } };
+  const parsed = C.parseCompany(JSON.stringify(withHq));
+  assert.deepEqual(parsed.hq, { space: "world", x: 123, y: -45 });
+  // 壊れた本社は null（未登録扱い）
+  assert.equal(C.parseCompanyHq(null), null);
+  assert.equal(C.parseCompanyHq({ space: "", x: 1, y: 2 }), null);
+  assert.equal(C.parseCompanyHq({ space: "world", x: 1.5, y: 2 })?.x, 1);
+  assert.equal(C.parseCompanyHq({ space: "world", x: 2_000_000, y: 0 }), null);
+  assert.equal(C.parseCompanyHq({ space: "x".repeat(33), x: 0, y: 0 }), null);
+});
+
+test("company-p4: 本社エリア判定は同空間・半径3（チェビシェフ、端含む）だけ", () => {
+  const hq = { space: "lobby", x: 10, y: 10 };
+  assert.equal(C.isNearHq(hq, "lobby", 10, 10), true);
+  assert.equal(C.isNearHq(hq, "lobby", 13, 7), true);
+  assert.equal(C.isNearHq(hq, "lobby", 14, 10), false);
+  assert.equal(C.isNearHq(hq, "world", 10, 10), false);
+  assert.equal(C.isNearHq(null, "lobby", 10, 10), false);
+  assert.equal(C.COMPANY_HQ_RADIUS, 3);
+});
+
+test("company-p4: 勤務報酬は時給÷12（1時間みっちりで時給1時間分が上限）", () => {
+  const { company } = foundCompany(100_000, 10_000);
+  assert.equal(C.workRewardFor(company), 833);
+  assert.equal(C.workRewardFor({ ...company, salary: 1_000 }), 83);
+  assert.equal(C.workRewardFor({ ...company, salary: 100_000 }), 8_333);
+  // 12回 × 5分クールダウン = 1時間で最大12回、その合計は時給を超えない
+  assert.ok(C.workRewardFor(company) * 12 <= company.salary);
+  assert.equal(C.COMPANY_WORK_COOLDOWN_MS, 5 * 60_000);
+});
+
+test("company-p4: 勤務状態のパースと活性判定（会社一致・24時間の寿命）", () => {
+  const duty = { companyId: "ABCDEFGHIJ", since: T0, lastWorkAt: 0 };
+  assert.deepEqual(C.parseCompanyDuty(JSON.stringify(duty)), duty);
+  assert.equal(C.parseCompanyDuty("junk"), null);
+  assert.equal(C.parseCompanyDuty(JSON.stringify({ companyId: "short" })), null);
+  assert.equal(C.isDutyActive(duty, "ABCDEFGHIJ", T0 + 60_000), true);
+  assert.equal(C.isDutyActive(duty, "ZZZZZZZZZZ", T0 + 60_000), false);
+  assert.equal(C.isDutyActive(duty, "ABCDEFGHIJ", T0 + C.COMPANY_DUTY_TTL_MS), false);
+  assert.equal(C.isDutyActive(null, "ABCDEFGHIJ", T0), false);
+});
+
+test("company-p4: 勤務1回で報酬は会社資産だけに増え、個人への払い出しは無い", () => {
+  const { company } = foundCompany(100_000, 10_000);
+  const member = company.members[0];
+  const duty = { companyId: company.id, since: T0, lastWorkAt: 0 };
+  const plan = C.planWork(company, member, duty, T0 + 1_000);
+  assert.ok(!("error" in plan));
+  assert.equal(plan.reward, 833);
+  assert.equal(plan.company.assets, company.assets + 833);
+  assert.equal(plan.entry.amount, 833);
+  assert.ok(plan.entry.reason.startsWith("勤務報酬"));
+  assert.equal(plan.entry.userId, member.discordId);
+  // 計画に個人払い出し（payouts 等）が含まれないこと
+  assert.equal("payouts" in plan, false);
+  assert.equal("net" in plan, false);
+  assert.equal(plan.duty.lastWorkAt, T0 + 1_000);
+  // 勤務報酬は会社の課税利益に数えられる（資本金の追加だけが除外）
+  const profit = C.taxableProfit([plan.entry], T0);
+  assert.equal(profit, 833);
+});
+
+test("company-p4: 勤務は5分クールダウン中は弾かれ、過ぎれば再びできる", () => {
+  const { company } = foundCompany(100_000, 10_000);
+  const member = company.members[0];
+  const duty = { companyId: company.id, since: T0, lastWorkAt: T0 };
+  const blocked = C.planWork(company, member, duty, T0 + 60_000);
+  assert.ok("error" in blocked);
+  assert.equal(blocked.error, "cooldown");
+  assert.equal(blocked.nextWorkAt, T0 + C.COMPANY_WORK_COOLDOWN_MS);
+  const ok = C.planWork(company, member, duty, T0 + C.COMPANY_WORK_COOLDOWN_MS);
+  assert.ok(!("error" in ok));
+});
+
+test("company-p4: 店舗看板の登録パースは会社 ID と設置者 ID を要求する", () => {
+  const sign = { companyId: "ABCDEFGHIJ", ownerId: "deadbeef" };
+  assert.deepEqual(C.parseCompanySign(JSON.stringify(sign)), sign);
+  assert.equal(C.parseCompanySign(JSON.stringify({ companyId: "ABCDEFGHIJ" })), null);
+  assert.equal(C.parseCompanySign(JSON.stringify({ ownerId: "deadbeef" })), null);
+  assert.equal(C.parseCompanySign(null), null);
+});
+
+test("company-p4: 店頭購入はパネル購入と同じ計画（売却税50%・開示は購入時のみ）を使う", () => {
+  // 店頭（看板ルート）は出品の表示だけで、購入は会社ルートの
+  // product_buy（planProductSale）に一本化されていることを配線で固定する
+  const signRoute = fs.readFileSync(
+    path.join(rootDir, "app/api/worldbox/company/sign/route.ts"),
+    "utf8",
+  );
+  assert.ok(signRoute.includes("loadSignCompany"));
+  assert.ok(signRoute.includes("loadTileOverride"));
+  assert.ok(signRoute.includes("isSignItem"));
+  // 看板の表示に商品の内容テキストを含めない（開示規則はパネルと同じ）
+  assert.ok(!signRoute.includes("content: p.content"));
+  assert.ok(!signRoute.includes("content: product.content"));
+  const route = fs.readFileSync(path.join(rootDir, "app/api/worldbox/company/route.ts"), "utf8");
+  assert.ok(route.includes("planProductSale"));
+});
+
+test("company-p4: ルート・パネル・クライアントに空間化の配線がある", () => {
+  const route = fs.readFileSync(path.join(rootDir, "app/api/worldbox/company/route.ts"), "utf8");
+  for (const action of [
+    '"hq_set"',
+    '"hq_clear"',
+    '"clock_in"',
+    '"clock_out"',
+    '"work"',
+    '"sign_register"',
+    '"sign_unregister"',
+  ]) {
+    assert.ok(route.includes(`action === ${action}`), action);
+  }
+  assert.ok(route.includes("loadActorPosition"));
+  assert.ok(route.includes("planWork"));
+  const panel = fs.readFileSync(
+    path.join(rootDir, "app/games/worldbox/WorldBoxCompanyPanel.tsx"),
+    "utf8",
+  );
+  assert.ok(panel.includes("anchorCompanyId"));
+  assert.ok(panel.includes('"hq_set"'));
+  assert.ok(panel.includes('"clock_in"'));
+  assert.ok(panel.includes('"work"'));
+  const client = fs.readFileSync(
+    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    "utf8",
+  );
+  assert.ok(client.includes("/api/worldbox/company/sign"));
+  assert.ok(client.includes("companyHqsRef"));
+  assert.ok(client.includes("本社"));
+  assert.ok(client.includes('"sign_register"'));
+});
