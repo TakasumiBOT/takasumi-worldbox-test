@@ -33,8 +33,25 @@ WORLD BOX の種ファイル（`web/lib/worldbox`、`web/app/games/worldbox`、`
 - `npm test`: 930件中925件パス。失敗3件は設計どおり（アーケード筐体の中身×2、本家 Pi のデプロイスクリプト前提×1）。詳細は README 参照。
 - WS 中継: `node scripts/relay-local-check.mjs` 全9項目パス。ただし `upgradeWebSocket()` 自体は Vercel 上でしか動かないため、アップグレードの最終確認はデプロイ後（クライアントの接続ログ / 中継経由のプレゼンスで判る）。
 
+## 独立バックエンド化（2026-11-17 追加、ブランチ `independence`）
+
+本家と共有していたバックエンド（Bot 本体の bot-api → Pi の botdb）を、このコピー専用の構成に置き換えた。契約（`/v1/query` + `/v1/rpc`、Bearer 認証、`{data}` 形式、エラーコード）は本家の `api/app.py` と互換に保ち、既存のクライアント呼び出し箇所は無変更。
+
+- `web/db/schema.sql`: bot_kv / users / transaction_history / economy_pool_state の冪等 DDL。本家の `docs/sql/bot_kv.sql`・`economy_pool.sql` に一致。経済プールの初期行は pool = 1,000,000 でシード（要調整パラメータとして明記）。
+- `web/scripts/setup-db.mjs`: `DATABASE_URL` に対して schema.sql を適用する（`npm run setup:db`）。
+- `web/lib/db.ts`: `@neondatabase/serverless` の Pool によるアクセス層（トランザクション可）。SQL 実行は `SqlExecutor` インターフェース越しで、テスト差し替え可能。
+- `web/lib/botapi-server.ts`: bot-api 契約のサーバー実装。`api/app.py` の許可リスト・検証順・エラー意味論を移植。許可テーブルは4つのみ（`bump_rta_settings` 等の AGO 残存物は除外）。経済 RPC 4本は SQL 関数を作らず、トランザクション + `SELECT ... FOR UPDATE` で SQL 定義と同じ意味論を実装（pay はプール→国庫の順で内訳返し、add_loss は 70/30（端数は国庫）、transfer は原子的で未登録の受取人を `p_new_user_balance` で作成）。
+- `web/app/botapi/v1/query/route.ts`・`web/app/botapi/v1/rpc/route.ts`: 上記の薄いルート。`BOT_API_BASE_URL=https://<自ドメイン>/botapi` にすると既存クライアントがそのまま自前 DB へつながる。
+- 経済オプのスイープ: 旧 Python ワーカー（`core/general/circulation/worldbox_economy.py`）の回収役を `sweepEconomyOps()` として `web/lib/worldbox/economy-bridge-online.ts` に移植（claim 失効90秒、台帳プロトコル、apply_uncertain、終端の間引き）。適用は既存の直接適用関数を再利用し、二重実装は作っていない。入口は `web/app/api/worldbox/internal/economy-sweep`（`CRON_SECRET` の Bearer 必須、未設定は fail-closed）で、`web/vercel.json` に毎分 cron を登録。
+- ハードコード除去: `lib/site.ts` の `SITE_URL` は `NEXT_PUBLIC_SITE_URL` env（＋ `resolveSiteUrl` でリクエスト origin フォールバック）。ユニオン招待 URL は `window.location.origin` から組み立てる。`lib/worldbox/ops-online.ts` の管理者 ID は `WORLDBOX_ADMIN_IDS` env のみ（AGO 管理者 ID の埋め込みフォールバック削除）。
+- テスト: `web/tests/botapi-server.test.mjs`（14件、インメモリ fake DB）: 認証の fail-closed、許可リスト拒否、pay_house の内訳、add_loss の 70/30、transfer の原子性・新規受取人・失敗時 P0001、大きな整数の生リテラル往復。
+- Phase 1 の劣化（意図的）: チャット outbox は配送されずに溜まる、Discord ディレクトリは空、ユニオン掲示板の Discord 中継と `!wbstate` は対象外。詳細は README 参照。
+
+検証（独立化時）: `npm test` 944件中939件パス（失敗は従来どおり設計上の3件のみ、新規14件は全パス）。`npm run build` 成功（`/botapi/v1/query`・`/botapi/v1/rpc`・`/api/worldbox/internal/economy-sweep` の生成を確認）。VM 内に Postgres が無いため schema とルートの実 DB 疎通は未実施 — Neon の接続文字列が用意できたら `setup:db` → 実デプロイで確認する。
+
 ## 本家との振る舞いの差分
 
 1. アーケード筐体の中身（オンラインゲーム26タイトル）が無い → 筐体は「準備中」表示。理由は `arcade-clients.tsx` のコメント参照。
 2. WebSocket 中継は Vercel 移植済み（上記）。本家との違いは「常駐1プロセス」→「インスタンス内ハブ」の点だけ: 接続が Function の最大実行時間（300秒）で切れる（クライアントの自動再接続で吸収）、別インスタンスの相手へは WS で直接届かず bot_kv 経由になる。ピアノ音は同一インスタンス・同一ロビー内でのみ共有される。
 3. サイト本体（ホーム、他のゲーム、ダッシュボード等）は無い。`/games/worldbox` と `/api/worldbox/*`、認証ルートだけのアプリ。
+4. バックエンドは本家と共有しない（上記「独立バックエンド化」）。ワールド・経済・セーブはすべてこのコピー専用の Neon DB にあり、本家のワールドとは混ざらない。

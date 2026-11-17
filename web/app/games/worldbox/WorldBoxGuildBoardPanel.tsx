@@ -1051,7 +1051,7 @@ export default function WorldBoxGuildBoardPanel({
                 type="button"
                 style={btn}
                 onClick={() => {
-                  const url = `https://agobot.app/games/worldbox?union=${myNation.guildId}`;
+                  const url = `${window.location.origin}/games/worldbox?union=${myNation.guildId}`;
                   if (navigator.clipboard) {
                     void navigator.clipboard.writeText(url).then(
                       () => setMsg("招待リンクをコピーした"),

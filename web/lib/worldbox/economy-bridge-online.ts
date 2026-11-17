@@ -11,7 +11,7 @@ import {
   BotApiError, isBotApiConfigured, kvDelete, kvGet, kvList, kvSet, rpc, tableInsert, tableSelect, tableUpdate,
 } from "../bot-api";
 import {
-  WORLDBOX_ECONOMY_NAMESPACE, parseEconomyOp, recentEconomyOps, type EconomyOp,
+  EARN_REASONS, GAMBLE_REASONS, WORLDBOX_ECONOMY_NAMESPACE, parseEconomyOp, recentEconomyOps, type EconomyOp,
 } from "./economy-bridge";
 
 export function isEconomyEnabled(): boolean {
@@ -756,4 +756,237 @@ export async function submitEconomyOp(op: EconomyOp): Promise<SubmitEconomyOpRes
   });
   const record = await writeOpTerminal(op, "done", { appliedAmount: applied });
   return { state: "done", op: record };
+}
+
+// ---------------------------------------------------------------------------
+// 経済オプのスイープ（旧 Python ワーカー worldbox_economy.py の poll_once の
+// 移植。独立環境では Bot がいないため、Vercel Cron から内部ルート
+// /api/worldbox/internal/economy-sweep が毎分これを呼ぶ）。
+//
+// 役割はワーカーと同じ: 直接適用されずに残った pending オプの回収、
+// claim が失効したオプの再処理、適用台帳が applying のまま止まったオプの
+// 終端化（apply_uncertain）、終端オプの間引き。適用そのものは直接適用と
+// 同じ関数（applyDirectByKind）を使い、二重実装は作らない。台帳の
+// 解釈が壊れている場合はワーカーと同じく applying 扱いにする
+// （壊れた台帳を「無かったこと」にして再適用するのが一番危ないため）。
+// ---------------------------------------------------------------------------
+
+/** claim がこのミリ秒を超えたら放棄されたものとして再処理可にする（ワーカーの CLAIM_STALE_SECONDS = 90 秒）。 */
+export const ECONOMY_CLAIM_STALE_MS = 90_000;
+/** 1回のスイープで処理する上限（ワーカーの MAX_BATCH）。 */
+export const ECONOMY_SWEEP_BATCH = 100;
+/** 終端オプを名前空間に残す上限（ワーカーの PRUNE_KEEP_TERMINAL）。 */
+export const ECONOMY_PRUNE_KEEP_TERMINAL = 1000;
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  let v = value;
+  if (typeof v === "string") {
+    try {
+      v = JSON.parse(v);
+    } catch {
+      return null;
+    }
+  }
+  return typeof v === "object" && v !== null && !Array.isArray(v) ? (v as Record<string, unknown>) : null;
+}
+
+interface SweepCandidate {
+  key: string;
+  raw: unknown;
+  sortKey: number;
+}
+
+/** 適用候補（pending で claim が無い/古いもの）を古い順に返す（ワーカーの select_pending）。 */
+function selectSweepCandidates(records: Map<string, unknown>, now: number): SweepCandidate[] {
+  const out: SweepCandidate[] = [];
+  for (const [key, raw] of records) {
+    const value = asRecord(raw);
+    if (!value) {
+      // 解釈できない値は invalid_op として終端化する候補に入れる（滞留させない）
+      out.push({ key, raw, sortKey: 0 });
+      continue;
+    }
+    if (value.status !== "pending") continue;
+    const claim = asRecord(value.claim);
+    if (claim && typeof claim.at === "number" && Number.isFinite(claim.at) && now - claim.at < ECONOMY_CLAIM_STALE_MS) {
+      continue;
+    }
+    const created = typeof value.createdAt === "number" && Number.isFinite(value.createdAt) ? Math.trunc(value.createdAt) : 0;
+    out.push({ key, raw, sortKey: created });
+  }
+  out.sort((a, b) => a.sortKey - b.sortKey || (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
+  return out.slice(0, ECONOMY_SWEEP_BATCH);
+}
+
+/** 解釈できないレコードの終端書き込み（ワーカーの _write_result と同じ形）。 */
+async function writeSweepInvalidResult(key: string, raw: unknown): Promise<void> {
+  const base = asRecord(raw) ?? {};
+  const record: Record<string, unknown> = { ...base, status: "failed", error: "invalid_op", appliedAt: Date.now() };
+  delete record.claim;
+  try {
+    await kvSet(WORLDBOX_ECONOMY_NAMESPACE, key, record);
+  } catch {
+    // ベストエフォート（次回のスイープで再び候補になる）
+  }
+}
+
+/**
+ * スイープ用の適用ディスパッチ。ワーカーの _apply と同じ追加規則:
+ * steal は廃止済みとして即 failed（steal_disabled）、earn / gamble は
+ * 理由ホワイトリストを適用時にも検証する（invalid_reason）。
+ * それ以外は直接適用の applyDirectByKind をそのまま使う。
+ */
+async function applySweepByKind(op: EconomyOp): Promise<number> {
+  if (op.kind === "steal") throw new DirectFailure("steal_disabled");
+  if (op.kind === "earn" && !EARN_REASONS.has(op.reason)) throw new DirectFailure("invalid_reason");
+  if (op.kind === "gamble" && !GAMBLE_REASONS.has(op.reason)) throw new DirectFailure("invalid_reason");
+  return applyDirectByKind(op);
+}
+
+/** オプ1件のスイープ処理（ワーカーの _process_one）。終端化したら true。 */
+async function sweepOneOp(key: string, raw: unknown): Promise<boolean> {
+  const op = parseEconomyOp(raw);
+  if (!op) {
+    await writeSweepInvalidResult(key, raw);
+    return true;
+  }
+  // claim: 元レコードへ正規化済みオプと claim を重ねて書き、再読で勝ちを確認する
+  const rawRecord = asRecord(raw) ?? {};
+  const token = crypto.randomUUID();
+  const claimed = { ...rawRecord, ...op, status: "pending", claim: { token, at: Date.now() } };
+  try {
+    await kvSet(WORLDBOX_ECONOMY_NAMESPACE, key, claimed);
+    const current = await kvGet(WORLDBOX_ECONOMY_NAMESPACE, key);
+    const currentRecord = asRecord(current);
+    const currentOp = parseEconomyOp(current);
+    const claim = currentRecord ? asRecord(currentRecord.claim) : null;
+    if (!currentOp || currentOp.status !== "pending" || !claim || claim.token !== token) {
+      return false; // 他の処理が先に claim した / 状態が変わった
+    }
+  } catch {
+    return false;
+  }
+
+  // 適用台帳を読む。読み取り自体の失敗は今回を見送る（claim 失効後に再試行）。
+  let ledgerRaw: unknown;
+  try {
+    ledgerRaw = await kvGet(WORLDBOX_ECONOMY_APPLIED_NAMESPACE, op.id);
+  } catch {
+    return false;
+  }
+  let ledger: AppliedLedgerEntry | null = null;
+  if (ledgerRaw !== null && ledgerRaw !== undefined) {
+    // 壊れた台帳は applying 扱い（ワーカーの _parse_applied と同じ安全側の倒し方）
+    ledger = parseAppliedLedger(ledgerRaw) ?? { status: "applying", at: 0 };
+  }
+  if (ledger?.status === "applied") {
+    const applied = ledger.appliedAmount ?? 0;
+    await writeOpTerminal(op, "done", { appliedAmount: applied });
+    if (!ledger.metricRecorded) {
+      const metricRecorded = await recordMetricDirect(op, applied);
+      if (metricRecorded) {
+        await saveAppliedLedger(op.id, { status: "applied", appliedAmount: applied, metricRecorded: true, at: Date.now() });
+      }
+    }
+    return true;
+  }
+  if (ledger?.status === "failed") {
+    await writeOpTerminal(op, "failed", { error: ledger.error ?? "apply_failed" });
+    return true;
+  }
+  if (ledger?.status === "applying") {
+    // 適用の成否が曖昧。再適用せず安全側に倒す（ワーカーと同じ）。
+    await writeOpTerminal(op, "failed", { error: "apply_uncertain" });
+    return true;
+  }
+
+  // 台帳なし: applying を書いてから適用する。書けなければ適用しない。
+  if (!(await saveAppliedLedger(op.id, { status: "applying", at: Date.now() }))) {
+    return false;
+  }
+  let applied: number;
+  try {
+    applied = await applySweepByKind(op);
+  } catch (error) {
+    if (error instanceof DirectFailure) {
+      // 確定失敗は台帳も failed で終端化する（apply_uncertain に化けないように）
+      await saveAppliedLedger(op.id, { status: "failed", error: error.code, at: Date.now() });
+      await writeOpTerminal(op, "failed", { error: error.code });
+      return true;
+    }
+    // 成否曖昧: 台帳は applying のまま残し、オプは failed にする
+    await writeOpTerminal(op, "failed", { error: "apply_failed" });
+    return true;
+  }
+  const metricRecorded = await recordMetricDirect(op, applied);
+  await saveAppliedLedger(op.id, {
+    status: "applied",
+    appliedAmount: applied,
+    metricRecorded,
+    at: Date.now(),
+  });
+  await writeOpTerminal(op, "done", { appliedAmount: applied });
+  return true;
+}
+
+/** 終端オプの間引き（ワーカーの _prune_terminal）。スナップショット基準。 */
+async function pruneSweepTerminal(records: Map<string, unknown>): Promise<number> {
+  const terminal: { at: number; key: string }[] = [];
+  for (const [key, raw] of records) {
+    const value = asRecord(raw);
+    if (!value || (value.status !== "done" && value.status !== "failed")) continue;
+    const at = typeof value.appliedAt === "number" && Number.isFinite(value.appliedAt) ? Math.trunc(value.appliedAt) : 0;
+    terminal.push({ at, key });
+  }
+  terminal.sort((a, b) => b.at - a.at || (a.key < b.key ? 1 : a.key > b.key ? -1 : 0));
+  let pruned = 0;
+  for (const entry of terminal.slice(ECONOMY_PRUNE_KEEP_TERMINAL)) {
+    try {
+      await kvDelete(WORLDBOX_ECONOMY_NAMESPACE, entry.key);
+      pruned += 1;
+    } catch {
+      // ベストエフォート
+    }
+  }
+  // 終端オプの台帳は二度と読まれないため同じタイミングで消す
+  for (const entry of terminal) {
+    try {
+      await kvDelete(WORLDBOX_ECONOMY_APPLIED_NAMESPACE, entry.key);
+    } catch {
+      // ベストエフォート
+    }
+  }
+  return pruned;
+}
+
+export interface EconomySweepResult {
+  handled: number;
+  pruned: number;
+  candidates: number;
+}
+
+/**
+ * 経済オプのスイープ1回分（ワーカーの poll_once 相当）。
+ * bot-api 未設定・読み取り失敗時は静かに 0 を返す（次回に回す）。
+ */
+export async function sweepEconomyOps(): Promise<EconomySweepResult> {
+  const zero: EconomySweepResult = { handled: 0, pruned: 0, candidates: 0 };
+  if (!isBotApiConfigured()) return zero;
+  let records: Map<string, unknown>;
+  try {
+    records = await kvList(WORLDBOX_ECONOMY_NAMESPACE);
+  } catch {
+    return zero;
+  }
+  const candidates = selectSweepCandidates(records, Date.now());
+  let handled = 0;
+  for (const candidate of candidates) {
+    try {
+      if (await sweepOneOp(candidate.key, candidate.raw)) handled += 1;
+    } catch {
+      // 1件の予期しない例外でスイープ全体は止めない（ワーカーと同じ）
+    }
+  }
+  const pruned = await pruneSweepTerminal(records);
+  return { handled, pruned, candidates: candidates.length };
 }
