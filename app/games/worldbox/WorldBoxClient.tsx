@@ -284,6 +284,7 @@ import {
 import { useGamesNav } from "../GamesShell";
 import WorldBoxCasinoPanel from "./WorldBoxCasinoPanel";
 import WorldBoxRacingPanel from "./WorldBoxRacingPanel";
+import WorldBoxStockPanel from "./WorldBoxStockPanel";
 import WorldBoxPianoPanel from "./WorldBoxPianoPanel";
 import WorldBoxArcadePanel from "./WorldBoxArcadePanel";
 import { getWebGame } from "@/lib/games-catalog";
@@ -932,6 +933,7 @@ const STATION_LABEL: Record<LobbyStation, string> = {
   piano: "ピアノ",
   sell: "売却専用ショップ",
   telescope: "展望台",
+  stock: "取引所",
 };
 
 export default function WorldBoxClient() {
@@ -1282,6 +1284,7 @@ export default function WorldBoxClient() {
   const respawnActionRef = useRef<(point: { x: number; y: number }) => void>(() => {});
   const [casinoOpen, setCasinoOpen] = useState(false);
   const [racingOpen, setRacingOpen] = useState(false);
+  const [stockOpen, setStockOpen] = useState(false);
   const [plazaMsg, setPlazaMsg] = useState("");
   const staminaBoostRef = useRef(false);
   const [boardOpen, setBoardOpen] = useState(false);
@@ -1420,6 +1423,7 @@ export default function WorldBoxClient() {
     if (stationUi !== "casino") setCasinoOpen(false);
     if (stationUi !== "guild") setGuildBoardOpen(false);
     if (stationUi !== "arcade") setArcadeOpen(false);
+    if (stationUi !== "stock") setStockOpen(false);
     setPlazaMsg("");
   }, [stationUi]);
 
@@ -7146,6 +7150,15 @@ export default function WorldBoxClient() {
                 {racingOpen ? "閉じる" : "馬券"}
               </button>
             )}
+            {stationUi === "stock" && (
+              <button
+                type="button"
+                style={{ ...btn, minHeight: hud.buttonMinHeight, padding: "2px 10px" }}
+                onClick={() => setStockOpen((v) => !v)}
+              >
+                {stockOpen ? "閉じる" : "株式"}
+              </button>
+            )}
             {stationUi === "fountain" && (
               <button
                 type="button"
@@ -8405,6 +8418,9 @@ export default function WorldBoxClient() {
         )}
         {racingOpen && spaceUi === "lobby" && (
           <WorldBoxRacingPanel onClose={() => setRacingOpen(false)} />
+        )}
+        {stockOpen && spaceUi === "lobby" && (
+          <WorldBoxStockPanel onClose={() => setStockOpen(false)} />
         )}
         {pianoOpen && spaceUi === "lobby" && (
           <WorldBoxPianoPanel onClose={() => setPianoOpen(false)} onPlay={playPianoNote} />
