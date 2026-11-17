@@ -26,7 +26,7 @@ AGO WORLD BOX の中身だけを本家 [deshihito/BOT](https://github.com/deshih
 ```sh
 npm install
 npm run build   # 本番ビルド（確認済み: 全ルート生成成功）
-npm test        # 944件中939件パス。残りは設計上の既知の失敗3件（下記。集計上はファイル単位の失敗を含み5件と表示される）
+npm test        # 950件中945件パス。残りは設計上の既知の失敗3件（下記。集計上はファイル単位の失敗を含み5件と表示される）
 node scripts/relay-local-check.mjs   # WS 中継ハブの動作確認（全9項目）
 npm run dev     # 開発サーバー（.env.local に同じ環境変数を置く）
 ```
