@@ -354,7 +354,7 @@ test("配線: ゲート画面にゲスト導線、経済・カジノパネルに
   ]) {
     const src = fs.readFileSync(path.join(appDir, "games/worldbox", panel), "utf8");
     assert.ok(
-      src.includes('guest_not_allowed: "ゲストはコイン機能を使えません"'),
+      src.includes('guest_not_allowed: "ゲストはお金の機能を使えません"'),
       `${panel} にゲスト文言が無い`,
     );
   }

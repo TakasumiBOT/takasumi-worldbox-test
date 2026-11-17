@@ -48,16 +48,16 @@ type Tab = "bag" | "shop" | "sell" | "craft" | "bank";
 type LoadState = "loading" | "ready" | "guest" | "unavailable";
 
 const ERROR_LABEL: Record<string, string> = {
-  not_enough_coins: "コインが足りません",
+  not_enough_coins: "お金が足りません",
   not_enough_items: "アイテムが足りません",
   hunger_full: "もう満腹です",
   work_disabled: "労働は廃止されました",
   steal_disabled: "steal は廃止されました",
   unauthorized: "ログインが必要です",
-  guest_not_allowed: "ゲストはコイン機能を使えません",
-  discord_required: "コインの移動には Discord ログインが必要です",
+  guest_not_allowed: "ゲストはお金の機能を使えません",
+  discord_required: "お金の移動には Discord ログインが必要です",
   economy_unavailable: "いま経済ブリッジを使えません",
-  economy_failed: "コインの移動を受け付けられませんでした",
+  economy_failed: "お金の移動を受け付けられませんでした",
   invalid_recipient: "相手のIDが不正です",
   self_transfer: "自分には送れません",
   invalid_amount: "金額が不正です",
@@ -539,7 +539,7 @@ export default function WorldBoxEconomyPanel({
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
           <strong>経済</strong>
           <span>
-            残高 <strong>{balance === null ? "—" : balance}</strong> コイン
+            残高 <strong>{balance === null ? "—" : balance}</strong> 円
           </span>
           <span style={{ flex: 1 }} />
           {closeBtn}
@@ -632,7 +632,7 @@ export default function WorldBoxEconomyPanel({
                     )
                   }
                 >
-                  買う（{priceOf(shopSelItem)} コイン）
+                  買う（{priceOf(shopSelItem)} 円）
                 </button>
               </div>
             </ItemAnnotation>
@@ -666,7 +666,7 @@ export default function WorldBoxEconomyPanel({
                     void act(
                       { action: "sell", itemId: sellSelItem.id },
                       () =>
-                        `${sellSelItem.name}を売った（代金 ${sellPrice(sellSelItem)} コインは処理中）`,
+                        `${sellSelItem.name}を売った（代金 ${sellPrice(sellSelItem)} 円は処理中）`,
                     )
                   }
                 >
@@ -945,7 +945,7 @@ export default function WorldBoxEconomyPanel({
                           <span className="muted">
                             {itemById(material.itemId)?.name}×{material.count}（所持{" "}
                             {profile.items[material.itemId] ?? 0}）・
-                            {ENHANCE_BASE_COST * (level + 1)} コイン
+                            {ENHANCE_BASE_COST * (level + 1)} 円
                           </span>
                         ) : null}
                       </div>
@@ -1020,13 +1020,13 @@ export default function WorldBoxEconomyPanel({
               更新
             </button>
           </div>
-          {ops.length === 0 && <p className="muted">まだコインの移動はありません。</p>}
+          {ops.length === 0 && <p className="muted">まだお金の移動はありません。</p>}
           {ops.map((op) => (
             <div key={op.id} style={row}>
               <strong>{OP_KIND_LABEL[op.kind]}</strong>
               <span className="muted">{op.reason}</span>
               <span style={{ flex: 1 }} />
-              <span>{op.appliedAmount ?? op.amount} コイン</span>
+              <span>{op.appliedAmount ?? op.amount} 円</span>
               <span className="muted">{OP_STATUS_LABEL[op.status]}</span>
             </div>
           ))}

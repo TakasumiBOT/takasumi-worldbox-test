@@ -829,8 +829,8 @@ test("クライアント: ハンバーガーメニューと空間ワープがあ
     "utf8",
   );
   assert.ok(client.includes("≡"), "ハンバーガーボタンが無い");
-  assert.ok(client.includes("ロビーへ行く"), "ロビーへの導線が無い");
-  assert.ok(client.includes("ワールドへ戻る"), "ワールドへの導線が無い");
+  assert.ok(client.includes("中央広場へ行く"), "中央広場への導線が無い");
+  assert.ok(client.includes("郊外へ戻る"), "郊外への導線が無い");
   assert.ok(client.includes("ago-worldbox-save-v6"), "セーブキーが v6 でない");
   assert.ok(client.includes("LOBBY_WARP_PAD"), "ロビー側ワープパッド判定が無い");
   assert.ok(!client.includes("WORLD_WARP_PAD"), "ワールド側の固定ワープパッドが残っている");

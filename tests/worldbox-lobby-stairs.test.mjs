@@ -406,7 +406,7 @@ test("client: 階データが indoorData / 境界 / 描画へ配線され、階�
   // 復帰時のステータス文言が階を持つ
   assert.match(
     client,
-    /space === "lobby2"\s*\? "ロビー 2F"\s*: space === "lobby3"\s*\? "ロビー 3F"/,
+    /space === "lobby2"\s*\? "ラウンジ"\s*: space === "lobby3"\s*\? "展望デッキ"/,
     "復帰時の階の文言が無い",
   );
   // 1F の従来導線（ワープパッド・擬似2F）は 1F 限定に絞られている

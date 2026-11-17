@@ -133,7 +133,13 @@ export const ITEMS: readonly ItemDef[] = [
   { id: "glass", name: "ガラス", desc: "透明な素材", category: "material", price: 180 },
   { id: "iron_ore", name: "鉄鉱石", desc: "金属の素材", category: "material", price: 200 },
   { id: "gold_ore", name: "金鉱石", desc: "高価な金属の素材", category: "material", price: 600 },
-  { id: "mithril", name: "ミスリル", desc: "希少な魔法金属", category: "material", price: 1500 },
+  {
+    id: "mithril",
+    name: "チタン合金",
+    desc: "希少な高性能合金",
+    category: "material",
+    price: 1500,
+  },
   // ---- 合成品（合成で作る。売ると素材代より高くなる） -----------------
   {
     id: "carving",
@@ -152,8 +158,8 @@ export const ITEMS: readonly ItemDef[] = [
   { id: "blanket", name: "毛布", desc: "布を重ねた防寒具", category: "crafted", price: 560 },
   {
     id: "potion",
-    name: "薬草ポーション",
-    desc: "飲むと空腹度とHPが回復し、毒も治す",
+    name: "ハーブドリンク",
+    desc: "飲むと空腹が大きく回復する",
     category: "crafted",
     price: 760,
     hunger: 60,
@@ -517,7 +523,7 @@ export const ITEMS: readonly ItemDef[] = [
   },
   {
     id: "slime_block",
-    name: "スライムブロック",
+    name: "ジェルブロック",
     desc: "弾む塊",
     category: "block",
     price: 400,
@@ -561,7 +567,7 @@ export const ITEMS: readonly ItemDef[] = [
   },
   {
     id: "mithril_block",
-    name: "ミスリルブロック",
+    name: "チタン合金ブロック",
     desc: "希少金属の塊",
     category: "block",
     price: 3000,
@@ -578,7 +584,7 @@ export const ITEMS: readonly ItemDef[] = [
   { id: "charcoal", name: "木炭", desc: "燃料になる素材", category: "material", price: 100 },
   { id: "feather", name: "羽根", desc: "軽い素材", category: "material", price: 100 },
   { id: "bone", name: "骨", desc: "硬い素材", category: "material", price: 140 },
-  { id: "slime", name: "スライム", desc: "粘る素材", category: "material", price: 220 },
+  { id: "slime", name: "粘着ジェル", desc: "粘る素材", category: "material", price: 220 },
   // 合成の失敗作: レシピに無い組み合わせで台に入れると生まれる。
   // レシピの材料にはしない（RECIPES には一切載せない）。アイコンは新規
   // png を作らず、塊っぽいスライムの絵を明示指定で流用する
@@ -806,7 +812,7 @@ export const ITEMS: readonly ItemDef[] = [
   // ---- 道具（ミスリル段位: 鉄の上の4段目） ------------------------------
   {
     id: "mithril_axe",
-    name: "ミスリルの斧",
+    name: "チタン合金の斧",
     desc: "木を伐る道具",
     category: "tool",
     price: 8500,
@@ -816,7 +822,7 @@ export const ITEMS: readonly ItemDef[] = [
   },
   {
     id: "mithril_pickaxe",
-    name: "ミスリルのツルハシ",
+    name: "チタン合金のツルハシ",
     desc: "岩を掘る道具",
     category: "tool",
     price: 8500,
@@ -826,7 +832,7 @@ export const ITEMS: readonly ItemDef[] = [
   },
   {
     id: "mithril_hoe",
-    name: "ミスリルのクワ",
+    name: "チタン合金のクワ",
     desc: "地面を耕す道具",
     category: "tool",
     price: 8500,
@@ -841,8 +847,8 @@ export const ITEMS: readonly ItemDef[] = [
   // レア品の販売除外（tier 4）にも掛からず、道具屋で通常販売される。
   {
     id: "explorer_compass",
-    name: "開拓のコンパス",
-    desc: "最も近い洞窟とダンジョンの方向を示す",
+    name: "探索コンパス",
+    desc: "最も近い採掘場と廃ビルの方向を示す",
     category: "tool",
     price: 10000,
   },
@@ -857,7 +863,7 @@ export const ITEMS: readonly ItemDef[] = [
   },
   { id: "coal", name: "石炭", desc: "燃料になる素材", category: "material", price: 120 },
   { id: "flint", name: "火打石", desc: "火を起こす素材", category: "material", price: 90 },
-  { id: "sulfur", name: "硫黄", desc: "洞窟で取れる素材", category: "material", price: 260 },
+  { id: "sulfur", name: "硫黄", desc: "採掘場で取れる素材", category: "material", price: 260 },
   { id: "salt", name: "塩", desc: "料理の素材", category: "material", price: 70 },
   { id: "ruby", name: "ルビー", desc: "赤い宝石", category: "material", price: 1800 },
   { id: "sapphire", name: "サファイア", desc: "青い宝石", category: "material", price: 1800 },
@@ -1161,37 +1167,37 @@ export const ITEMS: readonly ItemDef[] = [
   // ---- 特殊（追加分: 遺跡・洞窟・ダンジョンの宝） -------------------------
   {
     id: "ancient_coin",
-    name: "古代のコイン",
-    desc: "遺跡で見つかる古い硬貨",
+    name: "古い硬貨",
+    desc: "旧市街で見つかる古い硬貨",
     category: "special",
     price: 2400,
   },
   {
     id: "ancient_relic",
-    name: "古代の遺物",
-    desc: "遺跡の奥に眠る遺物",
+    name: "古い遺物",
+    desc: "旧市街で見つかる古い遺物",
     category: "special",
     price: 4200,
   },
   {
     id: "dragon_scale",
-    name: "竜のうろこ",
-    desc: "強敵が落とす希少なうろこ",
+    name: "硬質うろこ素材",
+    desc: "廃ビルで見つかる希少な素材",
     category: "special",
     price: 3800,
   },
   {
     id: "ghost_tear",
-    name: "幽霊の涙",
-    desc: "ダンジョンで見つかる雫",
+    name: "ガラスの雫",
+    desc: "廃ビルで見つかる雫",
     category: "special",
     price: 3000,
   },
-  { id: "golden_key", name: "金の鍵", desc: "宝箱を開ける鍵", category: "special", price: 3500 },
+  { id: "golden_key", name: "金の鍵", desc: "保管箱を開ける鍵", category: "special", price: 3500 },
   {
     id: "dungeon_key",
-    name: "ダンジョンの鍵",
-    desc: "ダンジョンの扉を開ける鍵",
+    name: "廃ビルの鍵",
+    desc: "廃ビルの扉を開ける鍵",
     category: "special",
     price: 1500,
   },
@@ -1467,7 +1473,7 @@ export const ITEMS: readonly ItemDef[] = [
   {
     id: "honey_tea",
     name: "はちみつティー",
-    desc: "甘い温かい飲み物。毒も流す",
+    desc: "甘い温かい飲み物",
     category: "food",
     price: 750,
     hunger: 16,
@@ -1488,12 +1494,12 @@ export const ITEMS: readonly ItemDef[] = [
   // ---- 特殊（追加分2: モブの落とし物） -----------------------------------------
   {
     id: "slime_core",
-    name: "スライムコア",
-    desc: "スライムの核",
+    name: "ジェルコア",
+    desc: "ジェルの塊",
     category: "special",
     price: 1600,
   },
-  { id: "wolf_fang", name: "狼の牙", desc: "狼が落とす牙", category: "special", price: 1900 },
+  { id: "wolf_fang", name: "オオカミの牙", desc: "大きな牙", category: "special", price: 1900 },
   // ---- 家具（追加分2） -----------------------------------------------------------
   {
     id: "stone_fence",
@@ -1837,17 +1843,23 @@ export const ITEMS: readonly ItemDef[] = [
   { id: "bomb", name: "爆弾", desc: "危ない玉", category: "crafted", price: 560 },
   {
     id: "dragon_charm",
-    name: "竜鱗のお守り",
-    desc: "鱗を編んだお守り",
+    name: "うろこ模様のお守り",
+    desc: "うろこ模様を編んだお守り",
     category: "crafted",
     price: 6490,
   },
-  { id: "ghost_lantern", name: "幽霊提灯", desc: "青く光る提灯", category: "crafted", price: 5140 },
+  { id: "ghost_lantern", name: "LED提灯", desc: "青く光る提灯", category: "crafted", price: 5140 },
   { id: "spider_silk", name: "蜘蛛の糸玉", desc: "粘る糸の玉", category: "crafted", price: 1180 },
-  { id: "turtle_shield", name: "亀甲の盾", desc: "甲羅の盾", category: "crafted", price: 2580 },
+  {
+    id: "turtle_shield",
+    name: "亀甲の置物",
+    desc: "甲羅で作った置物",
+    category: "crafted",
+    price: 2580,
+  },
   {
     id: "chest_box",
-    name: "宝箱",
+    name: "収納箱",
     desc: "物を入れる箱",
     category: "furniture",
     price: 650,
@@ -1895,7 +1907,13 @@ export const ITEMS: readonly ItemDef[] = [
   },
   { id: "scepter", name: "王笏", desc: "王の持つ笏", category: "special", price: 8500 },
   { id: "tiara", name: "ティアラ", desc: "宝石の髪飾り", category: "special", price: 5700 },
-  { id: "dragon_egg", name: "竜の卵", desc: "大きな卵", category: "special", price: 9000 },
+  {
+    id: "dragon_egg",
+    name: "大きな卵",
+    desc: "正体不明の大きな卵",
+    category: "special",
+    price: 9000,
+  },
   { id: "star_crown", name: "星の王冠", desc: "星を冠した王冠", category: "special", price: 15500 },
   {
     id: "world_seed",

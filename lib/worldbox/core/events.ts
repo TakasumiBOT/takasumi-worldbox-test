@@ -34,7 +34,7 @@ export const WORLD_EVENTS: readonly WorldEventDef[] = [
   },
   {
     id: "stardust_ruins",
-    name: "星屑の遺跡",
+    name: "星屑の旧市街",
     kind: "limited_dungeon",
     startMonth: 12,
     startDay: 20,

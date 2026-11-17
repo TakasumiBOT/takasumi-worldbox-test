@@ -196,7 +196,7 @@ export const SPECIAL_OBJECTS: readonly SpecialObjectDef[] = [
   },
   {
     id: "mithril_vein",
-    name: "ミスリルの鉱脈",
+    name: "チタン合金の鉱脈",
     interaction: "mine",
     biomes: [],
     density: 0,
@@ -222,7 +222,7 @@ export const SPECIAL_OBJECTS: readonly SpecialObjectDef[] = [
   // ---- 宝箱系（遺跡・洞窟・ダンジョンの中身の性格を地表の宝箱にも） -------
   {
     id: "ruins_chest",
-    name: "遺跡の宝箱",
+    name: "旧市街の保管箱",
     interaction: "open",
     biomes: ["plains", "forest", "dryland"],
     density: 0.12,
@@ -238,7 +238,7 @@ export const SPECIAL_OBJECTS: readonly SpecialObjectDef[] = [
   },
   {
     id: "cave_chest",
-    name: "洞窟の宝箱",
+    name: "採掘場の保管箱",
     interaction: "open",
     biomes: ["highland"],
     density: 0.1,
@@ -253,7 +253,7 @@ export const SPECIAL_OBJECTS: readonly SpecialObjectDef[] = [
   },
   {
     id: "dungeon_chest",
-    name: "ダンジョンの宝箱",
+    name: "廃ビルの保管箱",
     interaction: "open",
     biomes: ["dense_forest", "snowfield", "highland"],
     density: 0.07,
@@ -280,7 +280,7 @@ export const SPECIAL_OBJECTS: readonly SpecialObjectDef[] = [
   },
   {
     id: "ancient_pillar",
-    name: "古代の石柱",
+    name: "古い石柱",
     interaction: "search",
     biomes: ["plains", "dryland", "snowfield"],
     density: 0.14,

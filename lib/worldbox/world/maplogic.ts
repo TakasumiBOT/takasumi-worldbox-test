@@ -58,8 +58,8 @@ export const BIOMES: readonly BiomeDef[] = [
   { id: "highland", name: "岩場", resources: ["stone", "copper_ore", "iron_ore", "coal", "flint"] },
   { id: "snowfield", name: "雪原", resources: ["feather", "raw_meat"] },
   { id: "snow_forest", name: "雪の森", resources: ["wood", "raw_meat", "feather"] },
-  { id: "cave_deep", name: "洞窟", resources: ["coal", "copper_ore", "iron_ore", "gold_ore"] },
-  { id: "ruins_belt", name: "遺跡帯", resources: ["stone", "ancient_coin", "flint"] },
+  { id: "cave_deep", name: "採掘場", resources: ["coal", "copper_ore", "iron_ore", "gold_ore"] },
+  { id: "ruins_belt", name: "旧市街", resources: ["stone", "ancient_coin", "flint"] },
 ];
 
 /** インスタンス空間のバイオーム（洞窟・遺跡・ダンジョン）。対象外は null。 */
@@ -185,7 +185,7 @@ export type StructureDef = {
 export const STRUCTURES: readonly StructureDef[] = [
   {
     id: "cave_entrance",
-    name: "洞窟の入口",
+    name: "採掘場の入口",
     kind: "entrance",
     targetSpace: "cave",
     biomes: ["highland", "forest", "dense_forest"],
@@ -195,7 +195,7 @@ export const STRUCTURES: readonly StructureDef[] = [
   },
   {
     id: "dungeon_entrance",
-    name: "ダンジョンの入口",
+    name: "廃ビルの入口",
     kind: "entrance",
     targetSpace: "dungeon",
     biomes: ["highland", "dense_forest", "snowfield"],
@@ -205,7 +205,7 @@ export const STRUCTURES: readonly StructureDef[] = [
   },
   {
     id: "ruins_entrance",
-    name: "遺跡の入口",
+    name: "旧市街の入口",
     kind: "entrance",
     targetSpace: "ruins",
     biomes: ["plains", "forest", "dryland"],

@@ -113,7 +113,7 @@ const MACHINE_LABEL: Record<CasinoMachine, string> = {
 };
 
 const ERROR_LABEL: Record<string, string> = {
-  not_enough_coins: "コインが足りません",
+  not_enough_coins: "お金が足りません",
   not_at_casino: "カジノの機器の前にいません",
   wrong_machine: "その機器では遊べません",
   invalid_bet: "ベット額が不正です",
@@ -124,7 +124,7 @@ const ERROR_LABEL: Record<string, string> = {
   bet_pending: "前のベットを精算中です。少し待ってください",
   bet_failed: "ベットが失敗しました",
   unauthorized: "ログインが必要です",
-  guest_not_allowed: "ゲストはコイン機能を使えません",
+  guest_not_allowed: "ゲストはお金の機能を使えません",
   discord_required: "Discord ログインが必要です",
   economy_unavailable: "いまカジノを使えません",
   economy_failed: "受け付けられませんでした",
@@ -1009,7 +1009,7 @@ export default function WorldBoxCasinoPanel({ onClose }: { onClose: () => void }
                 ))}
               </div>
               {betRow(startBtn("始める", () => void act({ action: "slot7_start", bet })))}
-              <p style={{ margin: "8px 0 0", fontSize: 12, opacity: 0.8 }}>先払い {bet} コイン</p>
+              <p style={{ margin: "8px 0 0", fontSize: 12, opacity: 0.8 }}>先払い {bet} 円</p>
             </>
           )}
         </div>
@@ -1346,7 +1346,7 @@ export default function WorldBoxCasinoPanel({ onClose }: { onClose: () => void }
                     durationMs={450}
                     runKey={session.currentValue ?? 0}
                   />{" "}
-                  コイン
+                  円
                 </span>
                 <span style={{ opacity: 0.8 }}>{session.streak} 連勝</span>
                 {state.userState.internalMode === "FEVER" && (
@@ -1415,7 +1415,7 @@ export default function WorldBoxCasinoPanel({ onClose }: { onClose: () => void }
 
       {pending.length > 0 && (
         <p style={{ margin: "8px 0 0", fontSize: 12, opacity: 0.8 }}>
-          処理中 {pending.reduce((sum, op) => sum + op.amount, 0)} コイン
+          処理中 {pending.reduce((sum, op) => sum + op.amount, 0)} 円
         </p>
       )}
 

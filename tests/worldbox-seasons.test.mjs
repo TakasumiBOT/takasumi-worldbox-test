@@ -81,8 +81,8 @@ const M = await loadBundle(
 );
 
 test("biomes: cave layers and ruins belt are registered", () => {
-  assert.equal(M.biomeById("cave_deep")?.name, "洞窟");
-  assert.equal(M.biomeById("ruins_belt")?.name, "遺跡帯");
+  assert.equal(M.biomeById("cave_deep")?.name, "採掘場");
+  assert.equal(M.biomeById("ruins_belt")?.name, "旧市街");
   assert.ok(M.BIOMES.length >= 12);
   assert.equal(M.biomeForInstanceSpace("cave:3,4:2"), "cave_deep");
   assert.equal(M.biomeForInstanceSpace("dungeon:3,4:0"), "cave_deep");

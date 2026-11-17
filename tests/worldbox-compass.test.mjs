@@ -78,8 +78,8 @@ const cp = await loadBundle(
 
 test("compass: カタログ（価格10,000・道具・販売対象・アイコン）", () => {
   const def = cat.itemById("explorer_compass");
-  assert.ok(def, "開拓のコンパスがカタログに無い");
-  assert.equal(def.name, "開拓のコンパス");
+  assert.ok(def, "探索コンパスがカタログに無い");
+  assert.equal(def.name, "探索コンパス");
   assert.equal(def.price, 10000);
   assert.equal(def.category, "tool");
   // tool 種別は持たない（伐採等の道具判定に使わない）
