@@ -859,9 +859,11 @@ export default function WorldBoxClient() {
     return () => window.clearInterval(timer);
   }, []);
 
-  // 入場ゲート（Discord ログイン必須。許可されるまでワールドは描画しない）
+  // 入場ゲート（Discord ログインかゲスト入場が必須。許可されるまでワールドは描画しない）
   const [gate, setGate] = useState<"checking" | "ok" | "denied">("checking");
   const [gateTry, setGateTry] = useState(0);
+  // ゲスト入場リクエストの送信中フラグ（連打で二重に送らないため）
+  const [guestBusy, setGuestBusy] = useState(false);
   // 先読み完了までワールドを出さない（初フレームで平色フォールバックがチラつかないように）。
   const [booted, setBooted] = useState(false);
   const gateOk = gate === "ok" && booted;
@@ -6618,7 +6620,7 @@ export default function WorldBoxClient() {
     { id: "close", label: "閉じる", show: true, run: () => {} },
   ];
 
-  // 入場ゲート: Discord ログインが確認できるまではワールドを描画しない。
+  // 入場ゲート: Discord ログインかゲスト入場が確認できるまではワールドを描画しない。
   // ゲートも独立シェル（100svh・中央寄せ）で完結させる。
   if (!gateOk) {
     return (
@@ -6658,14 +6660,44 @@ export default function WorldBoxClient() {
                 再試行
               </button>
             ) : (
-              <a
-                href="/api/auth/discord/authorize?next=/games/worldbox"
-                style={{
-                  ...btn, textDecoration: "none", display: "inline-flex", alignItems: "center",
-                }}
-              >
-                Discordでログイン
-              </a>
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
+                <a
+                  href="/api/auth/discord/authorize?next=/games/worldbox"
+                  style={{
+                    ...btn, textDecoration: "none", display: "inline-flex", alignItems: "center",
+                  }}
+                >
+                  Discordでログイン
+                </a>
+                <button
+                  type="button"
+                  disabled={guestBusy}
+                  onClick={async () => {
+                    if (guestBusy) return;
+                    setGuestBusy(true);
+                    try {
+                      // ゲストセッションを張ってから、ログイン直後と同じく
+                      // ゲートを引き直す（サーバー側は冪等: 既存のゲスト
+                      // セッションがあればそれが返る）。
+                      const res = await fetch("/api/auth/guest", {
+                        method: "POST",
+                        headers: { Accept: "application/json" },
+                      });
+                      if (res.ok) setGateTry((t) => t + 1);
+                    } catch {
+                      // 失敗時はその場に留まる（もう一度押せる）
+                    } finally {
+                      setGuestBusy(false);
+                    }
+                  }}
+                  style={{
+                    ...btn, display: "inline-flex", alignItems: "center",
+                    background: "rgba(255,255,255,0.02)", color: "#c8d2dc",
+                  }}
+                >
+                  ゲストで入る
+                </button>
+              </div>
             )}
             <Link href={`${prefix}/games`} style={{ color: "#9fd8e8", fontSize: 13 }}>
               ゲーム一覧へ

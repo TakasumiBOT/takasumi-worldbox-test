@@ -108,6 +108,7 @@ const ERROR_LABEL: Record<string, string> = {
   bet_pending: "前のベットを精算中です。少し待ってください",
   bet_failed: "ベットが失敗しました",
   unauthorized: "ログインが必要です",
+  guest_not_allowed: "ゲストはコイン機能を使えません",
   discord_required: "Discord ログインが必要です",
   economy_unavailable: "いまカジノを使えません",
   economy_failed: "受け付けられませんでした",

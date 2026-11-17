@@ -41,6 +41,7 @@ const ERROR_LABEL: Record<string, string> = {
   work_disabled: "労働は廃止されました",
   steal_disabled: "steal は廃止されました",
   unauthorized: "ログインが必要です",
+  guest_not_allowed: "ゲストはコイン機能を使えません",
   discord_required: "コインの移動には Discord ログインが必要です",
   economy_unavailable: "いま経済ブリッジを使えません",
   economy_failed: "コインの移動を受け付けられませんでした",

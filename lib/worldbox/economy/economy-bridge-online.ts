@@ -18,6 +18,19 @@ export function isEconomyEnabled(): boolean {
   return isBotApiConfigured();
 }
 
+/** ゲストがコイン経済で弾かれる理由コード（クライアントの表示文言と対応）。 */
+export const GUEST_NOT_ALLOWED = "guest_not_allowed";
+
+/**
+ * ゲスト（所有者キー "guest:<uuid>"）のオプかどうか。ゲストはコイン経済の
+ * 対象外: ゲストの id は UUID で users テーブルの Discord ID にはならず、
+ * ゲストを無限に作れる以上、1コインでも渡せば蛇口になる。提出の入口で
+ * 一律に弾く（個別ルートの provider 判定に加えた二重の防壁）。
+ */
+export function isGuestEconomyOp(op: EconomyOp): boolean {
+  return op.userKey.startsWith("guest:");
+}
+
 /** オプをキューへそのまま積む（直接適用のフォールバック専用）。 */
 async function queueEconomyOp(op: EconomyOp): Promise<boolean> {
   if (!isBotApiConfigured()) return false;
@@ -36,6 +49,7 @@ async function queueEconomyOp(op: EconomyOp): Promise<boolean> {
  * waitForOpDone で読む。直接適用後は done/failed が即座に読める）。
  */
 export async function enqueueEconomyOp(op: EconomyOp): Promise<boolean> {
+  if (isGuestEconomyOp(op)) return false;
   const result = await submitEconomyOp(op);
   return result.state !== "unavailable";
 }
@@ -49,6 +63,7 @@ export async function enqueueEconomyOp(op: EconomyOp): Promise<boolean> {
  * オプを pending で上書きして再適用させることもない。
  */
 export async function enqueueEconomyOpOnce(op: EconomyOp): Promise<boolean> {
+  if (isGuestEconomyOp(op)) return false;
   const result = await submitEconomyOp(op);
   return result.state !== "unavailable";
 }
@@ -655,9 +670,15 @@ export type SubmitEconomyOpResult =
  * - pending: キューに積んだ（または既に提出済み）。従来どおり
  *   waitForOpDone やクライアントのポーリングで追うこと
  * - unavailable: 直接もキューも使えなかった
+ * ゲストのオプは記録を残さず failed（error = guest_not_allowed）で即終端する。
  * 決定的 ID のオプは既存記録・台帳を先に見るため、二重適用にならない。
  */
 export async function submitEconomyOp(op: EconomyOp): Promise<SubmitEconomyOpResult> {
+  // ゲストはコイン経済の対象外。どの経路から積まれても、その場で
+  // guest_not_allowed として終端させる（記録も台帳も残さない）。
+  if (isGuestEconomyOp(op)) {
+    return { state: "failed", op: { ...op, status: "failed", error: GUEST_NOT_ALLOWED, appliedAt: Date.now() } };
+  }
   if (!isBotApiConfigured()) return { state: "unavailable" };
 
   // 既存のオプ記録: 終端していればそれが結果。pending なら提出済み。

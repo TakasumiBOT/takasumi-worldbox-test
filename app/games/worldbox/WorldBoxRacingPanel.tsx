@@ -65,6 +65,7 @@ const ERROR_LABEL: Record<string, string> = {
   bet_failed: "コインが足りません",
   invalid_bet: "その馬券は買えません",
   economy_unavailable: "いま競馬場を使えません",
+  guest_not_allowed: "ゲストはコイン機能を使えません",
   unauthorized: "ログインが必要です",
 };
 

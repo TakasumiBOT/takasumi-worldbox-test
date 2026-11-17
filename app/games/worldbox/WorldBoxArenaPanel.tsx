@@ -81,6 +81,7 @@ const ERROR_LABEL: Record<string, string> = {
   bad_tier: "相手が不正です",
   bad_move: "手が不正です",
   unauthorized: "ログインが必要です",
+  guest_not_allowed: "ゲストはコイン機能を使えません",
   economy_unavailable: "いま闘技場を使えません",
 };
 

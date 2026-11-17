@@ -610,7 +610,9 @@ test("クライアント: 入場ゲート（未ログインではワールドを
   assert.ok(client.includes("ログインが必要"), "ログインゲートの文言が無い");
   assert.ok(client.includes("Discordでログイン"), "Discord ログインボタンが無い");
   assert.ok(client.includes("/api/auth/discord/authorize?next=/games/worldbox"), "ログイン導線が無い");
-  assert.ok(!client.includes("ゲスト"), "ゲスト表記が残っている");
+  // takasumi 版ではゲスト入場を許可する（本家の「ゲスト不可」から仕様変更）
+  assert.ok(client.includes("ゲストで入る"), "ゲスト入場の導線が無い");
+  assert.ok(client.includes("/api/auth/guest"), "ゲスト入場 API を呼んでいない");
 });
 
 test("クライアント: ハンバーガーはデータ駆動のアクションリスト（ワープ・設定トグル）", () => {

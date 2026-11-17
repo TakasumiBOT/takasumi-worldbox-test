@@ -11,7 +11,7 @@ export const OAUTH_NEXT_COOKIE = "ago_oauth_next";
 const SESSION_MAX_AGE = 60 * 60 * 24 * 7;
 
 /** ログインに使ったプロバイダ。旧セッション（フィールドなし）は discord として読む。 */
-export type AuthProvider = "discord" | "google";
+export type AuthProvider = "discord" | "google" | "guest";
 
 type SessionPayload = {
   id: string;
@@ -41,10 +41,23 @@ function sessionSecret() {
   return process.env.DISCORD_SESSION_SECRET || process.env.DISCORD_CLIENT_SECRET || "";
 }
 
-function sign(value: string) {
-  const secret = sessionSecret();
+/**
+ * ゲストセッション専用のフォールバック署名鍵。セッション秘密が未設定の
+ * 環境でもゲストだけは入れるようにするためのもので、provider が "guest" の
+ * ペイロードの署名・検証にだけ使う。discord / google のペイロードでは
+ * 絶対に受理しない（受理すると Discord ユーザーへのなりすましが可能になる）。
+ * ゲストはコイン経済の対象外で、推測不能な UUID がそのまま資格になるため、
+ * この鍵で署名できても得られるのは「自分専用のゲスト枠」だけ。
+ */
+const GUEST_SESSION_FALLBACK_SECRET = "ago-worldbox-guest-session-fallback";
+
+function signWith(secret: string, value: string) {
   if (!secret) return "";
   return crypto.createHmac("sha256", secret).update(value).digest("base64url");
+}
+
+function sign(value: string) {
+  return signWith(sessionSecret(), value);
 }
 
 function safelyEqual(left: string, right: string) {
@@ -71,7 +84,10 @@ export function createSession(user: DiscordUser, sid?: string) {
     ...(user.provider ? { provider: user.provider } : {}),
   };
   const encoded = Buffer.from(JSON.stringify(payload)).toString("base64url");
-  const signature = sign(encoded);
+  // ゲストだけは、セッション秘密が未設定でもフォールバック鍵で署名する
+  // （Discord OAuth が一切未設定の環境でもゲスト入場を成立させるため）。
+  const secret = sessionSecret() || (user.provider === "guest" ? GUEST_SESSION_FALLBACK_SECRET : "");
+  const signature = signWith(secret, encoded);
   if (!signature) throw new Error("session secret is not configured");
   return `${encoded}.${signature}`;
 }
@@ -81,21 +97,42 @@ export function readSession(value?: string): DiscordUser | null {
   return info ? { id: info.id, username: info.username, avatar: info.avatar ?? null, provider: info.provider } : null;
 }
 
+const GUEST_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export function readSessionInfo(value?: string): SessionInfo | null {
   if (!value) return null;
   const [encoded, signature, ...rest] = value.split(".");
-  if (!encoded || !signature || rest.length > 0 || !safelyEqual(signature, sign(encoded))) return null;
+  if (!encoded || !signature || rest.length > 0) return null;
+
+  let payload: Partial<SessionPayload>;
+  try {
+    payload = JSON.parse(Buffer.from(encoded, "base64url").toString("utf8")) as Partial<SessionPayload>;
+  } catch {
+    return null;
+  }
+  // 署名検証。鍵の候補はペイロードの provider で決める: ゲストだけは
+  // フォールバック鍵も候補に入れる（未検証ペイロードは鍵の選択にしか
+  // 使わない。discord / google のつもりでフォールバック鍵の署名を
+  // 受理することは決してない）。
+  const candidates = payload.provider === "guest"
+    ? [sessionSecret(), GUEST_SESSION_FALLBACK_SECRET]
+    : [sessionSecret()];
+  if (!candidates.some((secret) => secret && safelyEqual(signature, signWith(secret, encoded)))) return null;
 
   try {
-    const payload = JSON.parse(Buffer.from(encoded, "base64url").toString("utf8")) as Partial<SessionPayload>;
-    if (typeof payload.id !== "string" || !/^\d+$/.test(payload.id)) return null;
+    // provider が無い旧セッションは Discord ログインとして扱う（後方互換）
+    const provider: AuthProvider =
+      payload.provider === "google" ? "google" : payload.provider === "guest" ? "guest" : "discord";
+    // id の形はプロバイダで違う: Discord / Google は数字、ゲストは UUID。
+    const idOk =
+      typeof payload.id === "string" &&
+      (provider === "guest" ? GUEST_ID_RE.test(payload.id) : /^\d+$/.test(payload.id));
+    if (!idOk) return null;
     if (typeof payload.username !== "string" || !payload.username.trim()) return null;
     if (typeof payload.expiresAt !== "number" || payload.expiresAt <= Date.now()) return null;
     const sid = typeof payload.sid === "string" && /^[0-9a-f]{64}$/.test(payload.sid) ? payload.sid : undefined;
     const avatar = typeof payload.avatar === "string" && payload.avatar ? payload.avatar : null;
-    // provider が無い旧セッションは Discord ログインとして扱う（後方互換）
-    const provider: AuthProvider = payload.provider === "google" ? "google" : "discord";
-    return { id: payload.id, username: payload.username, avatar, provider, ...(sid ? { sid } : {}) };
+    return { id: payload.id as string, username: payload.username, avatar, provider, ...(sid ? { sid } : {}) };
   } catch {
     return null;
   }
@@ -142,12 +179,14 @@ function discordAvatarUrl(userId: string, avatarHash: string | null): string {
 /**
  * セッションから本人のアバター画像 URL を組み立てる（/api/auth/me と同じ規則）。
  * Discord はハッシュから CDN URL（無ければ既定アバター）、Google はプロフィール
- * 画像の完全な URL をそのまま、Google で画像が無い場合だけ null。
+ * 画像の完全な URL をそのまま、Google で画像が無い場合とゲストは null。
  */
 export function sessionAvatarUrl(session: SessionInfo): string | null {
   const avatar = session.avatar ?? null;
   if (avatar && avatar.startsWith("http")) return avatar;
-  if (session.provider === "google") return null;
+  // Google（画像が無い）とゲストはアイコン無し（クライアントが従来キャラで描く）。
+  // ゲストの id は UUID で、Discord CDN の URL を組み立てても実在しない。
+  if (session.provider === "google" || session.provider === "guest") return null;
   return discordAvatarUrl(session.id, avatar);
 }
 
