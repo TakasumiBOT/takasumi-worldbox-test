@@ -2,7 +2,7 @@
 // 名前空間: worldbox_metrics（キー = 日付）/ worldbox_metrics_users
 // （キー = 所有者キー）。記録はベストエフォート: 失敗しても呼び出し元の
 // ゲーム処理は止めない。read-modify-write はプロセス内ロックで直列化する
-// （Web は Pi 上の単一プロセス前提、他の状態と同じ）。
+// （Web は単一プロセス前提、他の状態と同じ）。
 import { isBotApiConfigured, kvGet, kvSet } from "../../bot-api";
 import {
   dayKeyOf, emptyDayMetrics, parseDayMetrics, parseUserFirstSteps,

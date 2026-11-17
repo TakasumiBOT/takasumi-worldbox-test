@@ -136,7 +136,7 @@ export function skillCooldownLeft(profile: PlayerProfile, skillId: SkillId, now:
 }
 
 // ---------------------------------------------------------------- 転職コスト
-/** 転職（2回目以降の役職変更）の価格（アゴコイン、ユーザー決定 2026-11-16）。 */
+/** 転職（2回目以降の役職変更）の価格（アゴコイン）。 */
 export const ROLE_CHANGE_COST = 100_000;
 /** 転職の spend オプの理由（ブリッジの spend は理由ホワイトリストを持たない）。 */
 export const ROLE_CHANGE_REASON = "role_change";

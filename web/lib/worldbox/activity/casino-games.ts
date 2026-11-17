@@ -1,5 +1,5 @@
 // WORLD BOX カジノのセッション型ゲームの純粋ロジック。
-// Bot 側ギャンブル（core/game/gambling/gambling.py）の slot7 / ダブルアップ /
+// Bot 側ギャンブルの slot7 / ダブルアップ /
 // ダイスの状態遷移を、原典パラメータのまま Web へ移行したもの。
 // 乱数は引数で受け取る（テストで差し替え可能）。状態は JSON 化可能な値のみ。
 //
@@ -39,7 +39,7 @@ export function cleanCasinoUserState(raw: unknown): CasinoUserState {
 }
 
 // ---------------------------------------------------------------- slot7
-// 回数指定は廃止済み（2026-11-17）: セッションは常に1回分（route.ts の slot7_start）。
+// 回数指定は廃止済み: セッションは常に1回分（route.ts の slot7_start）。
 /** 揃った個数 → 基本倍率（原典 SLOT_BASE_MULTIPLIERS）。 */
 export const SLOT7_BASE_MULTIPLIERS: Record<number, number> = { 2: 1.1, 3: 6, 4: 25, 5: 120, 6: 500, 7: 2000 };
 export const SLOT7_PITY_STREAK = 3;

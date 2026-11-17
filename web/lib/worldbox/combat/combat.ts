@@ -24,7 +24,7 @@ export function mobRespawnDelayMs(key: string): number {
 /**
  * モブの素材スプライト（実体は web/public/img/worldbox/mobs/）。
  * 基本セットは確定素材セット td16 由来（16×16）で、描き直した種から
- * 32×32 の新スプライトに順次置換している（2026-11-17〜、docs/world-box-shared.md）。
+ * 32×32 の新スプライトに順次置換している。
  * ここに無い種は MOB_SPRITE_FALLBACK に明示したものだけが図形フォールバックで描かれる。
  */
 export const MOB_SPRITE: Readonly<Record<string, string>> = {
@@ -108,7 +108,7 @@ export const MOB_ATTACK_MAX_DISTANCE = 2;
  * アンカーからうろつき/追跡する（行動側の LEASH_DISTANCE=11＋サイズ・
  * 丸めのマージン）。申告がこの範囲を外れたらアンカー位置で検証する。
  * 申告なしの検証（アンカーのみ）だと、追跡してきたモブが画面では足元に
- * いてもサーバーには遠くに見えて攻撃が通らなかった（2026-11-16 実害）。
+ * いてもサーバーには遠くに見えて攻撃が通らなかった（実害）。
  */
 export const MOB_REPORT_LEASH = 13;
 

@@ -1,5 +1,5 @@
 // AGO WORLD BOX のプレイヤープロフィール（純粋ロジック）。
-// 仕様書（Discord仮想国家経済MMO 基本仕様書）3.3 の個人データ:
+// 個人データ:
 // 空腹度（hunger, 0〜100）と steal のクールダウン時刻に、手持ちの
 // インベントリ（ホットバー5枠＝すぐ使う手持ち、ストレージ10枠＝
 // 持ち歩く裏の手持ち。マイクラ式）を加えたもの。
@@ -27,7 +27,7 @@ export function isAdventureRoleId(v: unknown): v is AdventureRoleId {
 }
 import { ITEMS, itemById, type ItemDef, type ToolKind } from "../economy/items";
 
-/** 空腹度の上限（仕様書 3.3: 0〜100）。 */
+/** 空腹度の上限（0〜100）。 */
 export const HUNGER_MAX = 100;
 /** プレイヤー HP の上限。 */
 export const HP_MAX = 100;

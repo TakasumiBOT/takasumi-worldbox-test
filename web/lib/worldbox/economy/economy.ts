@@ -253,7 +253,7 @@ export interface StealBalances {
 }
 
 /**
- * steal の解決（ボット側 circulation/steal と同じ規則）。
+ * steal の解決（ボット側と同じ規則）。
  * - 実行者はクールダウン中は実行できない
  * - 対象は実残高が下限未満なら保護、防犯チャーム所持でも保護、
  *   直近に盗まれたばかりでも保護

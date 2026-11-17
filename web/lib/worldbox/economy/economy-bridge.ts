@@ -2,12 +2,12 @@
 // Web は残高を直接触らない。経済操作は「オプ」として bot_kv
 // （名前空間 "worldbox_economy"、キー = オプID）に積み、Bot 本体の
 // ワーカーが既存の経済機構（pay_house / wallet / transfer_coins）で
-// 適用して結果を書き戻す（設計: ago-coin-connection-design.md 案B）。
+// 適用して結果を書き戻す（案B ブリッジ）。
 // ここはオプの形・検証・解釈だけを持ち、保存は economy-bridge-online.ts。
-// steal は一旦廃止（2026-11-16）: buildEconomyOp は steal を作らず、
+// steal は一旦廃止: buildEconomyOp は steal を作らず、
 // Bot 側ワーカーも steal オプを failed(steal_disabled) で終端化する。
 // 型と解釈（parseEconomyOp）は既存レコードの表示のために残す。
-// 労働も廃止（2026-11-16）: earn の許可リストから "work" を外し、
+// 労働も廃止: earn の許可リストから "work" を外し、
 // 新規の work オプは作れない（過去オプの parse は壊さない）。
 // なお lib/worldbox/economy/economy.ts はプロフィール側の状態遷移（かばん・
 // 空腹度などコイン以外の検証）で、コインの移動はすべてこのブリッジの
@@ -144,7 +144,7 @@ export function buildEconomyOp(input: BuildEconomyOpInput, id: string, now: numb
   if (reason === null) return null;
   if (input.kind === "earn" && !EARN_REASONS.has(reason)) return null;
   if (input.kind === "gamble" && !GAMBLE_REASONS.has(reason)) return null;
-  // steal は一旦廃止（2026-11-16 ユーザー指示）。新規オプはどの経路からも作れない
+  // steal は一旦廃止。新規オプはどの経路からも作れない
   // （保存済みオプの解釈は parseEconomyOp 側に残し、ワーカーが終端化する）。
   if (input.kind === "steal") return null;
   const op: EconomyOp = {
