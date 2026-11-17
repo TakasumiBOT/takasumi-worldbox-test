@@ -66,7 +66,7 @@ const tilesUrl = bundleModule(
 const T = await import(tilesUrl);
 
 const instUrl = bundleModule(
-  ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/world/lobby.ts", "worldbox/economy/items.ts", "worldbox/combat/mobs.ts", "worldbox/world/objects.ts", "worldbox/world/instances.ts"],
+  ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/world/lobby.ts", "worldbox/economy/items.ts", "worldbox/world/objects.ts", "worldbox/world/instances.ts"],
   ["placedLightRadiusTiles", "PLACED_LIGHT_RADIUS"],
 );
 const I = await import(instUrl);

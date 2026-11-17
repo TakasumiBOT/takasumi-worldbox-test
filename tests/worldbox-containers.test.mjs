@@ -332,11 +332,8 @@ const nationsOnlineStubUrl = dataUrl(`
 export function isNationsEnabled() { return true; }
 export async function loadNationsState() { return { nations: {} }; }
 `);
-// 戦争のスタブ: 空の戦争状態を返す（平時＝他者ブロックは掘れない）。
-const warUrl = bundleModule(["worldbox/combat/war.ts"], ["canBreakOthersBlock"]);
-const warsOnlineStubUrl = dataUrl(`
-export async function loadWarState() { return globalThis.__wbContainersWars ?? { v: 1, wars: {}, history: [], lastDeclaredAt: {} }; }
-`);
+
+
 const nextServerStubUrl = dataUrl(`
 export class NextResponse {
   static json(body, init = {}) {
@@ -417,8 +414,6 @@ const tilesRoute = await routeImport("api/worldbox/tiles/route.ts", [
   ['"@/lib/worldbox/world/tiles"', tilesUrl],
   ['"@/lib/worldbox/world/tiles-online"', tilesOnlineStubUrl],
   ['"@/lib/worldbox/social/nations-online"', nationsOnlineStubUrl],
-  ['"@/lib/worldbox/combat/war"', warUrl],
-  ['"@/lib/worldbox/combat/war-online"', warsOnlineStubUrl],
   ['"@/lib/worldbox/economy/containers"', containersUrl],
   ['"@/lib/worldbox/economy/containers-online"', containersOnlineStubUrl],
   ['"@/lib/worldbox/economy/machines"', machinesUrl],

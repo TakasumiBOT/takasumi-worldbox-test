@@ -13,8 +13,8 @@ const client = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxCl
 test("ダブルタップで食べる: スロット（ストレージ/ホットバー共通ハンドラ）に判定がある", () => {
   assert.match(client, /lastSlotTapRef/);
   assert.match(client, /tapAt - lastTap\.at < 350/);
-  // 食べられる条件は経済パネルの「食べる」ボタンと同じ（hunger / heal / curePoison）
-  assert.match(client, /def\.hunger \|\| def\.heal \|\| def\.curePoison/);
+  // 食べられる条件は経済パネルの「食べる」ボタンと同じ（hunger / buff）
+  assert.match(client, /def\.hunger \|\| def\.buff/);
 });
 
 test("ダブルタップで食べる: ホットバーにも判定があり、単タップは従来どおり選択", () => {

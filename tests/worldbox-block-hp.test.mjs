@@ -2,7 +2,7 @@
 // - 最大 HP = アイテムの durability（未定義は既定値）、設置で満タンになる
 // - 採掘は1回=1ヒット: HP が残ればアイテムは得られず、0以下で壊れて戻る
 // - ダメージは道具ティアで変わる（道具ゲートは維持）
-// - 戦争中の他者ブロック破壊も同じ HP 経路
+// - 他者ブロックの破壊可否も同じ HP 経路
 // - hp の無い旧データは満タン扱い、parse は壊れた hp を落とす
 // - クライアント配線（ひび割れ描画・ヒット/破壊の FX 分岐・ビューへの hpFrac）
 import { test } from "node:test";
@@ -168,22 +168,6 @@ test("HP: 道具ゲートは維持される（要求道具なしでは1ヒット
   assert.equal(mineBlock(placed.override, withItems({}), ME_KEY).error, "tool_required");
   assert.equal(mineBlock(placed.override, withItems({ mithril_axe: 1 }), ME_KEY).error, "tool_required", "斧では掘れない");
   assert.equal(placed.override.block.hp, 120, "hp は減っていない");
-});
-
-test("HP: 戦争破壊も複数ヒット（1ヒット即消しにしない）", () => {
-  const placed = place(withItems({ stone_block: 1 }), OTHER_KEY, "stone_block");
-  assert.equal(placed.ok, true);
-  // 許可が無ければ従来どおり掘れず、hp も減らない
-  assert.equal(mineBlock(placed.override, withItems({}), ME_KEY).error, "not_owner");
-  assert.equal(placed.override.block.hp, 40);
-  // 戦争許可あり: ヒットごとに減り、壊したときに掘った者へ入る
-  const hit = mineBlock(placed.override, withItems({}), ME_KEY, { warBreakAllowed: true });
-  assert.equal(hit.ok, true);
-  assert.equal(hit.override.block.hp, 34);
-  assert.deepEqual(hit.gained, {});
-  const { hits, last } = hitsToBreak({ override: hit.override }, withItems({}), ME_KEY, { warBreakAllowed: true });
-  assert.equal(hits, 6, "残り34を素手6で掘る");
-  assert.equal(inv.countItem(last.profile, "stone_block"), 1, "略奪ルール: 掘った者の所持品に入る");
 });
 
 test("HP: hp の無い旧データは満タン扱いで、ヒットから記録が付く", () => {

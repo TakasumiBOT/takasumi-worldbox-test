@@ -70,7 +70,7 @@ test("watch: WATCH_PLAN は対象系統の名前空間と間隔を持つ", () =>
   assert.equal(byKind.get("party").namespace, "worldbox_party");
   assert.equal(byKind.get("requests").namespace, "worldbox_requests");
   assert.equal(byKind.get("tiles").namespace, "worldbox_tiles");
-  assert.equal(byKind.get("mobs").namespace, "worldbox_mobs");
+  assert.equal(byKind.has("mobs"), false, "モブ watch は存在しない");
   assert.equal(byKind.get("board").namespace, "worldbox_board");
   assert.equal(byKind.get("nations").namespace, "worldbox_nations");
   assert.equal(byKind.get("economy").namespace, "worldbox_economy");
@@ -170,7 +170,7 @@ test("watch 配線: ラッパーが watch を起動し、クライアントが p
   assert.ok(server.includes("routeWatchChanges"), "差分配信が無い");
   const client = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"), "utf8");
   assert.ok(client.includes('msg.kind === "tiles"'), "タイル push 適用が無い");
-  assert.ok(client.includes('msg.kind === "mobs"'), "モブ push 適用が無い");
+  assert.ok(!client.includes('msg.kind === "mobs"'), "モブ push 適用が残っている");
   assert.ok(client.includes('msg.kind === "board"'), "掲示板 push 適用が無い");
   assert.ok(client.includes('msg.kind === "nations"'), "国家 poke が無い");
   assert.ok(client.includes('msg.kind === "party"'), "パーティ poke が無い");
@@ -178,12 +178,12 @@ test("watch 配線: ラッパーが watch を起動し、クライアントが p
   assert.ok(client.includes('msg.kind === "economy"'), "経済 poke が無い");
   assert.ok(client.includes("notifyEconomyApplied()"), "パネルへの合図が無い");
   assert.ok(server.includes("economyTargetPids"), "経済の宛先解決が無い");
-  for (const panel of ["WorldBoxCasinoPanel.tsx", "WorldBoxArenaPanel.tsx", "WorldBoxEconomyPanel.tsx"]) {
+  for (const panel of ["WorldBoxCasinoPanel.tsx", "WorldBoxEconomyPanel.tsx"]) {
     const src = fs.readFileSync(path.join(rootDir, "app/games/worldbox", panel), "utf8");
     assert.ok(src.includes("onEconomyApplied("), `${panel} が経済 push を購読していない`);
   }
   assert.ok(client.includes("parseTileOverride(c.value)"), "タイル parse が無い");
-  assert.ok(client.includes("parseMobState(c.value)"), "モブ parse が無い");
+  assert.ok(!client.includes("parseMobState(c.value)"), "モブ parse が残っている");
   assert.ok(client.includes("parseBoardPosts(msg.value ?? null)"), "掲示板 parse が無い");
   // 再接続時の再同期
   assert.ok(client.includes("if (reconnected)"), "再接続時の再同期が無い");

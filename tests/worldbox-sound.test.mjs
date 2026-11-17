@@ -59,7 +59,7 @@ const sound = await loadBundle(
   ["worldbox/media/sound.ts"],
   [
     "BGM_STEPS", "BGM_TRACKS", "bgmSceneFor", "semitoneFreq", "degreeFreq", "leadNoteCount",
-    "tensionFor", "BGM_CROSSFADE_MS", "setWbBgmTension", "currentWbBgmTension",
+    "BGM_CROSSFADE_MS",
     "WB_SE_TIER_GAIN", "WB_SE_TIERS", "WB_SE_MIN_INTERVAL_MS", "seForFxBurst",
     "footstepMaterialFor", "distanceGain", "seVariation",
     "SE_BURST_WINDOW_MS", "SE_BURST_MAX", "SE_DISTANCE_MAX_TILES", "SE_DISTANCE_MIN_GAIN",
@@ -105,12 +105,8 @@ test("sound: 場面選択は カジノ > ロビー > 夜 > 昼", () => {
   assert.equal(sound.bgmSceneFor({ space: "ruins:10,20:0", night: 0, casinoOpen: true }), "casino", "カジノが最優先");
 });
 
-test("sound: 緊張レイヤーは敵の接近か HP25%以下で入る（遺跡は洞窟より速くキックなし）", () => {
-  assert.equal(sound.tensionFor({ hostileNear: true, hpFrac: 1 }), true, "敵が近い");
-  assert.equal(sound.tensionFor({ hostileNear: false, hpFrac: 0.25 }), true, "HP25%");
-  assert.equal(sound.tensionFor({ hostileNear: false, hpFrac: 0.1 }), true, "HP10%");
-  assert.equal(sound.tensionFor({ hostileNear: false, hpFrac: 0.26 }), false, "HP26%は平常");
-  assert.equal(sound.tensionFor({ hostileNear: false, hpFrac: 1 }), false, "平常");
+test("sound: 遺跡は洞窟より速くキックなし（緊張レイヤーは存在しない）", () => {
+  assert.equal("tensionFor" in sound, false, "緊張レイヤーが残っている");
   const ruins = sound.BGM_TRACKS.ruins;
   assert.ok(ruins.bpm > sound.BGM_TRACKS.cave.bpm, "遺跡は洞窟より速い");
   assert.ok(ruins.kick.every((k) => !k), "遺跡はキックなし");
@@ -127,16 +123,10 @@ test("sound: 場面遷移はクロスフェードで、SE/BGM はマスターで
   assert.match(src, /gain\.connect\(masterBus\)/, "BGM の声はマスター経由");
   // タイマー遅延時は過去のステップを束で鳴らさない（ループ継ぎ目の段差を消す）
   assert.match(src, /nextStepAt < ctx\.currentTime - stepSec/, "遅延分の飛ばしがある");
-  assert.equal(sound.currentWbBgmTension(), false, "初期状態は平常");
-  sound.setWbBgmTension(true);
-  assert.equal(sound.currentWbBgmTension(), true, "ON にできる");
-  sound.setWbBgmTension(false);
-  assert.equal(sound.currentWbBgmTension(), false, "OFF に戻せる");
-  assert.match(src, /step % 8 === 0/, "心拍は小節単位");
+  assert.ok(!src.includes("tension"), "緊張レイヤー（心拍）が残っている");
   const client = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"), "utf8");
-  assert.match(client, /setWbBgmTension\(/, "場面判定で緊張レイヤーを更新する");
-  assert.match(client, /tensionFor\(\{ hostileNear, hpFrac \}\)/, "敵の接近と HP で危険度を決める");
-  assert.match(client, /dangerRef/, "危険度は描画ループからの ref で渡す");
+  assert.ok(!client.includes("setWbBgmTension"), "クライアントに緊張レイヤー更新が残っている");
+  assert.ok(!client.includes("dangerRef"), "危険度 ref が残っている");
 });
 
 test("sound: 夜が一番静かで、カジノが一番速い", () => {
@@ -251,7 +241,6 @@ test("sound: クライアント配線（解錠・場面・行為SE・足音・�
   assert.match(client, /from "@\/lib\/worldbox\/media\/sound"/, "sound 基盤を使う");
   assert.match(client, /unlockWbAudio\(\)/, "最初の操作で AudioContext を解錠する");
   assert.match(client, /setWbBgmScene\(bgmSceneFor\(/, "場面で BGM を切り替える");
-  assert.match(client, /playWbSe\(seForFxBurst\(ev\.kind\), \{ distance: evDist \}\)/, "モブ演出の SE は距離で減衰する");
   assert.match(client, /playWbSe\(seForFxBurst\(ev\.kind\), \{ distance: Math\.max/, "行為イベントの SE も距離で減衰する");
   assert.match(client, /playWbSe\("swing"\)/, "振りに風切り");
   assert.match(client, /playWbSe\("warp"\)/, "ワープ音");

@@ -70,7 +70,7 @@ const T = await import(tilesUrl);
 
 const v = loadBundle(
   ["worldbox/economy/items.ts", "worldbox/player/profile.ts", "worldbox/player/roles.ts", "worldbox/player/vitals.ts", "worldbox/economy/economy.ts"],
-  ["parseProfile", "HP_MAX", "hazardDamageFor", "applyHazardDamage", "MOB_DAMAGE_COOLDOWN_MS"],
+  ["parseProfile"],
 );
 
 const map = T.worldTileSource();
@@ -116,20 +116,15 @@ test("橋: 水の上に置ける。通常ブロックと床（橋以外）は水
   assert.equal(place(null, withItems({ bridge_block: 1 }), ME_KEY, grassAt, "bridge_block").ok, true);
 });
 
-test("ハザード: ダメージ量と適用（クールダウン共有・スポーン保護）", () => {
-  assert.equal(v.hazardDamageFor("cactus_block"), 4);
-  assert.equal(v.hazardDamageFor("magma_block"), 10);
-  assert.equal(v.hazardDamageFor("stone_block"), 0);
-  assert.equal(v.hazardDamageFor(null), 0);
-  const fresh = v.parseProfile(null);
-  const hit = v.applyHazardDamage(fresh, 10, NOW);
-  assert.equal(hit.applied, true);
-  assert.equal(hit.profile.hp, v.HP_MAX - 10);
-  // 被弾クールダウン中は当たらない
-  const again = v.applyHazardDamage(hit.profile, 10, NOW + 500);
-  assert.equal(again.applied, false);
-  const later = v.applyHazardDamage(hit.profile, 10, NOW + v.MOB_DAMAGE_COOLDOWN_MS + 1);
-  assert.equal(later.applied, true);
+test("ハザード: サボテン/マグマは通常ブロック（ダメージの仕組みは無い）", () => {
+  for (const id of ["cactus_block", "magma_block"]) {
+    const p = withItems({ [id]: 1 });
+    const placed = place(null, p, ME_KEY, grassAt, id);
+    assert.equal(placed.ok, true, `${id} が置ける`);
+    assert.equal(placed.view.block.itemId, id);
+  }
+  assert.equal("hazardDamageFor" in v, false);
+  assert.equal("applyHazardDamage" in v, false);
 });
 
 test("柵と門: 柵は固体、門は開閉でき、状態が parse を往復する", () => {
@@ -172,14 +167,14 @@ test("actionForTile: 門は開閉、所有者＋道具なら採掘、橋は水�
   assert.equal(T.actionForTile(waterView, { blockId: "dirt_block" }), null);
 });
 
-test("配線: vitals ルートの hazard とクライアントの床・滑り・ハザード送信", () => {
+test("配線: ハザード送信は無く、クライアントの床・滑りは配線されている", () => {
   const route = fs.readFileSync(path.join(rootDir, "app/api/worldbox/vitals/route.ts"), "utf8");
-  assert.match(route, /data\.action === "hazard"/);
-  assert.match(route, /applyHazardDamage/);
+  assert.ok(!route.includes('"hazard"'), "vitals ルートに hazard が残っている");
+  assert.ok(!route.includes("applyHazardDamage"));
   const tilesRoute = fs.readFileSync(path.join(rootDir, "app/api/worldbox/tiles/route.ts"), "utf8");
   assert.match(tilesRoute, /applyToggleGate/);
   const client = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"), "utf8");
-  assert.match(client, /postHazard/);
+  assert.ok(!client.includes("postHazard"), "クライアントにハザード送信が残っている");
   assert.match(client, /slideVel/);
   assert.match(client, /onFloor !== "bridge_block"/);
   assert.match(client, /floorSpeedMultiplier/);

@@ -116,9 +116,9 @@ test("teleporter: activeSkillFor は porter を戦闘技として返さない", 
   assert.equal(L.activeSkillFor(profileWith("teleporter")), null);
   const r5 = profileWith("teleporter", { mastery: { teleporter: { xp: 300 } } });
   assert.equal(L.activeSkillFor(r5), null);
-  // 他役職の発動技は従来どおり
-  assert.equal(L.activeSkillFor(profileWith("blade"))?.id, "sweep");
-  assert.equal(L.activeSkillFor(profileWith("medic"))?.id, "heal_zone");
+  // 戦闘技は存在しない: 他役職にも発動技は無い
+  assert.equal(L.activeSkillFor(profileWith("blade")), null);
+  assert.equal(L.activeSkillFor(profileWith("medic")), null);
 });
 
 test("teleporter: 熟練は既存役職と同じ仕組みで保持される", () => {
@@ -344,9 +344,6 @@ const itemsUrl = mod("worldbox/economy/items.ts");
 const profileUrl = mod("worldbox/player/profile.ts", { "../economy/items": itemsUrl });
 const rolesUrl = mod("worldbox/player/roles.ts", { "./profile": profileUrl });
 const maplogicUrl = mod("worldbox/world/maplogic.ts", { "../core/rng": rngUrl, "./mapgen": mapgenUrl });
-const mobsUrl = mod("worldbox/combat/mobs.ts", { "../economy/items": itemsUrl, "../world/mapgen": mapgenUrl, "../world/maplogic": maplogicUrl });
-const combatUrl = mod("worldbox/combat/combat.ts", { "../world/maplogic": maplogicUrl, "./mobs": mobsUrl });
-const arenaUrl = mod("worldbox/combat/arena.ts");
 const moveUrl = mod("worldbox/player/move.ts", { "../world/mapgen": mapgenUrl });
 const nationsUrl = mod("worldbox/social/nations.ts", { "../world/mapgen": mapgenUrl, "../player/move": moveUrl, "../player/presence": presenceUrl });
 const lobbyUrl = mod("worldbox/world/lobby.ts", { "./mapgen": mapgenUrl });
@@ -357,19 +354,17 @@ const saveUrl = mod("worldbox/core/save.ts", { "../world/lobby": lobbyUrl, "../w
 const seasonsUrl = mod("worldbox/world/seasons.ts");
 const tilesUrl = mod("worldbox/world/tiles.ts", { "../economy/items": itemsUrl, "./mapgen": mapgenUrl, "../player/profile": profileUrl, "../player/presence": presenceUrl, "./seasons": seasonsUrl });
 const objectsUrl = mod("worldbox/world/objects.ts", { "../economy/items": itemsUrl, "./mapgen": mapgenUrl, "./maplogic": maplogicUrl, "../core/rng": rngUrl });
-const instancesUrl = mod("worldbox/world/instances.ts", { "./lobby": lobbyUrl, "./mapgen": mapgenUrl, "../combat/mobs": mobsUrl, "./objects": objectsUrl, "../core/rng": rngUrl });
+const instancesUrl = mod("worldbox/world/instances.ts", { "./lobby": lobbyUrl, "./mapgen": mapgenUrl, "./objects": objectsUrl, "../core/rng": rngUrl });
 const partyUrl = mod("worldbox/social/party.ts", { "../player/profile": profileUrl });
 const warpUrl = mod("worldbox/world/warp.ts", { "./mapgen": mapgenUrl, "../player/move": moveUrl });
 const economyUrl = mod("worldbox/economy/economy-bridge.ts");
 const profileOnlineUrl = mod("worldbox/player/profile-online.ts", { "../../bot-api": botApiStubUrl, "./profile": profileUrl });
 const saveOnlineUrl = mod("worldbox/core/save-online.ts", { "../../bot-api": botApiStubUrl });
 const presenceOnlineUrl = mod("worldbox/player/presence-online.ts", { "../../bot-api": botApiStubUrl, "./presence": presenceUrl });
-const mobsOnlineUrl = mod("worldbox/combat/mobs-online.ts", { "../../bot-api": botApiStubUrl, "./combat": combatUrl });
 const nationsOnlineUrl = mod("worldbox/social/nations-online.ts", { "../../bot-api": botApiStubUrl, "./nations": nationsUrl });
 const tilesOnlineUrl = mod("worldbox/world/tiles-online.ts", { "../../bot-api": botApiStubUrl, "./tiles": tilesUrl });
 const warpOnlineUrl = mod("worldbox/world/warp-online.ts", { "../../bot-api": botApiStubUrl, "./warp": warpUrl });
 const economyOnlineUrl = mod("worldbox/economy/economy-bridge-online.ts", { "../../bot-api": botApiStubUrl, "./economy-bridge": economyUrl });
-const rolesOnlineUrl = mod("worldbox/player/roles-online.ts", { "../../bot-api": botApiStubUrl });
 const partyOnlineUrl = mod("worldbox/social/party-online.ts", { "../../bot-api": botApiStubUrl, "./party": partyUrl });
 const instancesOnlineUrl = mod("worldbox/world/instances-online.ts", { "../../bot-api": botApiStubUrl, "./instances": instancesUrl, "../player/profile-online": profileOnlineUrl, "../player/roles": rolesUrl });
 const stationOnlineUrl = mod("worldbox/world/station-online.ts", {
@@ -398,10 +393,6 @@ const rolesRoute = await import(routeMod("api/worldbox/roles/route.ts", {
   "@/lib/worldbox/world/mapgen": mapgenUrl,
   "@/lib/worldbox/player/profile-online": profileOnlineUrl,
   "@/lib/worldbox/player/profile": profileUrl,
-  "@/lib/worldbox/combat/arena": arenaUrl,
-  "@/lib/worldbox/combat/mobs": mobsUrl,
-  "@/lib/worldbox/combat/combat": combatUrl,
-  "@/lib/worldbox/combat/mobs-online": mobsOnlineUrl,
   "@/lib/worldbox/player/presence-online": presenceOnlineUrl,
   "@/lib/worldbox/player/presence": presenceUrl,
   "@/lib/worldbox/core/save": saveUrl,
@@ -412,7 +403,6 @@ const rolesRoute = await import(routeMod("api/worldbox/roles/route.ts", {
   "@/lib/worldbox/world/instances-online": instancesOnlineUrl,
   "@/lib/worldbox/social/party": partyUrl,
   "@/lib/worldbox/social/party-online": partyOnlineUrl,
-  "@/lib/worldbox/player/roles-online": rolesOnlineUrl,
   "@/lib/worldbox/social/nations-online": nationsOnlineUrl,
   "@/lib/worldbox/world/warp": warpUrl,
   "@/lib/worldbox/world/warp-online": warpOnlineUrl,

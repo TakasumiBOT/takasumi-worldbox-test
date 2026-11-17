@@ -91,24 +91,3 @@ test("metrics: retention is the share of day-A users also in day-B", () => {
   assert.equal(M.retentionRate(a, b), 0.5);
   assert.equal(M.retentionRate(M.emptyDayMetrics("d1"), b), null);
 });
-
-const V = await loadBundle(
-  ["worldbox/economy/items.ts", "worldbox/player/profile.ts", "worldbox/player/vitals.ts"],
-  ["applyMobDamage", "parseProfile"],
-);
-
-test("spawn protection: new players take no mob damage during the window", () => {
-  const now = 2_000_000;
-  const fresh = {
-    ...V.parseProfile(null),
-    hp: 100, hunger: 100, vitalAt: now - 1000, lastDamageAt: 0,
-    spawnProtectedUntil: now + 60_000,
-  };
-  const hit = V.applyMobDamage(fresh, "slime", 10, now, () => 0);
-  assert.equal(hit.applied, false);
-  assert.equal(hit.profile.hp, 100);
-  const expired = { ...fresh, spawnProtectedUntil: now - 1 };
-  const hit2 = V.applyMobDamage(expired, "slime", 10, now, () => 0);
-  assert.equal(hit2.applied, true);
-  assert.equal(hit2.profile.hp, 90);
-});

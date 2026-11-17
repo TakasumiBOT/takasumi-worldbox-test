@@ -115,7 +115,7 @@ test("surface-objects: 再出現は定義の respawnMs が正（0 は一回き�
   assert.equal(O.objectRespawned(chest, now - 365 * 24 * 3600 * 1000, now), false);
   const spring = O.specialObjectById("hot_spring");
   assert.equal(spring.interaction, "rest");
-  assert.equal(spring.heal, 50);
+  assert.equal("heal" in spring, false, "温泉に回復効果は無い（休憩のみ）");
   assert.equal(O.objectRespawned(spring, now, now + 1000), false);
 });
 
@@ -190,7 +190,7 @@ test("surface-objects wiring: 採取APIが検証と永続化を持つ", () => {
   for (const needle of [
     "surfaceObjectAt", "objectRespawned", "storeHarvestedAt", "loadObjectStates",
     "withUserLock", "bestToolTier", "too_far", "depleted", "needs_pickaxe",
-    "pickaxe_tier", "TRAP_DAMAGE", "MINER_BONUS_CHANCE", "addMasteryXp",
+    "pickaxe_tier", "MINER_BONUS_CHANCE", "addMasteryXp",
   ]) {
     assert.ok(routeSrc.includes(needle), `objects route に ${needle} が無い`);
   }

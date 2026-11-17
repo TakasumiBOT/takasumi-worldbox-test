@@ -275,7 +275,7 @@ test("配線: ゲート画面にゲスト導線、経済・カジノパネルに
   assert.ok(client.includes("ゲストで入る"), "ゲストボタンが無い");
   assert.ok(client.includes('fetch("/api/auth/guest"'), "ゲスト API を呼んでいない");
   assert.ok(client.includes("/api/auth/discord/authorize?next=/games/worldbox"), "Discord 導線が残っていない");
-  for (const panel of ["WorldBoxEconomyPanel.tsx", "WorldBoxCasinoPanel.tsx", "WorldBoxArenaPanel.tsx", "WorldBoxRacingPanel.tsx"]) {
+  for (const panel of ["WorldBoxEconomyPanel.tsx", "WorldBoxCasinoPanel.tsx", "WorldBoxRacingPanel.tsx"]) {
     const src = fs.readFileSync(path.join(appDir, "games/worldbox", panel), "utf8");
     assert.ok(src.includes('guest_not_allowed: "ゲストはコイン機能を使えません"'), `${panel} にゲスト文言が無い`);
   }

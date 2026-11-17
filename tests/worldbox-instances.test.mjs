@@ -50,7 +50,7 @@ async function loadBundle(files, exportNames) {
 }
 
 const T = await loadBundle(
-  ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/world/lobby.ts", "worldbox/economy/items.ts", "worldbox/combat/mobs.ts", "worldbox/world/objects.ts", "worldbox/world/instances.ts", "worldbox/core/save.ts", "worldbox/player/presence.ts"],
+  ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/world/lobby.ts", "worldbox/economy/items.ts", "worldbox/world/objects.ts", "worldbox/world/instances.ts", "worldbox/core/save.ts", "worldbox/player/presence.ts"],
   ["makeInstanceSpace", "parseInstanceSpace", "isInstanceSpace", "buildCaveLayer", "lightRadiusTiles", "CAVE_LAYERS", "CAVE_W", "CAVE_H", "isCaveSafeTile", "parseSave", "serializeSave", "sanitizePresenceSpace", "validateSpecialObjects", "specialObjectById", "ruinsCompleteOpId"],
 );
 
@@ -148,9 +148,8 @@ for (const [i, cave] of layers.entries()) {
     });
     assert.ok(near(cave.stairsDown ?? cave.stairsUp ?? cave.portal), "stairs");
     assert.ok(near(cave.chest), "chest");
-    assert.ok(cave.mobs.every((m) => near(m)), "mobs");
     assert.ok(T.isCaveSafeTile(cave, cave.portal.x, cave.portal.y));
-    assert.ok(cave.mobs.every((m) => Math.hypot(m.x - cave.portal.x, m.y - cave.portal.y) > 4));
+    assert.equal("mobs" in cave, false, "洞窟にモブは湧かない");
   });
 }
 
@@ -169,14 +168,14 @@ test("vein gates and respawn", () => {
   assert.equal(T.validateSpecialObjects().length, 0);
 });
 
-test("cave mobs and vein walls", () => {
-  assert.ok(layers.every((c) => c.mobs.every((m) => m.mobId === "cave_bat" || m.mobId === "golem")));
+test("cave has no mobs, vein walls", () => {
+  assert.ok(layers.every((c) => !("mobs" in c)));
   assert.ok(layers.every((c) => c.veins.every((v) => c.data.tiles[v.y * T.CAVE_W + v.x] === 1)));
 });
 
 // ---- 遺跡（バッチ3） ----
 const R = await loadBundle(
-  ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/world/lobby.ts", "worldbox/economy/items.ts", "worldbox/combat/mobs.ts", "worldbox/world/objects.ts", "worldbox/world/instances.ts"],
+  ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/world/lobby.ts", "worldbox/economy/items.ts", "worldbox/world/objects.ts", "worldbox/world/instances.ts"],
   ["buildRuins", "RUINS_W", "RUINS_H", "weekKeyOf", "RUINS_MAIN_CHEST_LOOT", "RUINS_TRAP_KINDS"],
 );
 
@@ -224,10 +223,10 @@ test("ruins connectivity: portal reaches all rooms (door excluded)", () => {
   assert.ok(ruins.roomCenters.length >= 8);
 });
 
-test("ruins traps: 4 kinds cycle, away from portal", () => {
+test("ruins traps: teleport only, away from portal", () => {
   const ruins = R.buildRuins(SEED, 300, 400);
-  assert.ok(ruins.traps.length >= 4);
-  assert.ok(ruins.traps.every((t) => R.RUINS_TRAP_KINDS.includes(t.kind)));
+  assert.deepEqual(R.RUINS_TRAP_KINDS, ["teleport"]);
+  assert.ok(ruins.traps.every((t) => t.kind === "teleport"));
   assert.ok(ruins.traps.every((t) => Math.hypot(t.x - ruins.portal.x, t.y - ruins.portal.y) > 4));
 });
 

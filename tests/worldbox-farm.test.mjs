@@ -96,8 +96,8 @@ test("カタログ: ブロックは30種以上で全て耐久を持ち、硬さ�
   assert.ok(softest.durability < hardest.durability / 10);
 });
 
-test("カタログ: 道具は4種×4段（木・石・鉄・ミスリル）", () => {
-  for (const kind of ["axe", "pickaxe", "sword", "hoe"]) {
+test("カタログ: 道具は3種×4段（木・石・鉄・ミスリル、剣は無い）", () => {
+  for (const kind of ["axe", "pickaxe", "hoe"]) {
     const tools = inv.itemsWithTool(kind);
     assert.equal(tools.length, 4, kind);
     assert.deepEqual(tools.map((t) => t.tier), [1, 2, 3, 4], kind);
@@ -398,11 +398,8 @@ const nationsOnlineStubUrl = dataUrl(`
 export function isNationsEnabled() { return true; }
 export async function loadNationsState() { return { nations: {} }; }
 `);
-// 戦争のスタブ: 空の戦争状態を返す（平時＝他者ブロックは掘れない）。
-const warUrl = bundleModule(["worldbox/combat/war.ts"], ["canBreakOthersBlock"]);
-const warsOnlineStubUrl = dataUrl(`
-export async function loadWarState() { return globalThis.__wbFarmWars ?? { v: 1, wars: {}, history: [], lastDeclaredAt: {} }; }
-`);
+
+
 const profileOnlineStubUrl = dataUrl(`
 import { parseProfile, serializeProfile } from ${JSON.stringify(invUrl)};
 const store = (globalThis.__wbFarmProfiles ??= new Map());
@@ -491,8 +488,6 @@ const tilesRoute = await import(
       .replaceAll('"@/lib/worldbox/core/ops-online"', JSON.stringify(opsOnlineStubUrl))
       .replaceAll('"@/lib/worldbox/core/user-lock"', JSON.stringify(userLockUrl))
       .replaceAll('"@/lib/worldbox/social/nations-online"', JSON.stringify(nationsOnlineStubUrl))
-      .replaceAll('"@/lib/worldbox/combat/war"', JSON.stringify(warUrl))
-      .replaceAll('"@/lib/worldbox/combat/war-online"', JSON.stringify(warsOnlineStubUrl)),
   ),
 );
 
