@@ -251,7 +251,7 @@ async function handlePost(request: Request, session: AuthedSession) {
   };
 
   /** 作業場所の検証: ロビーの鍛冶屋は全種別可。ワールドでは設置した
-   * 作業台・鍛冶台・金床・かまど・焚き火・調理鍋・織り機の近くでも可。 */
+   * 作業台・精密加工機・プレス機・溶解炉・焚き火・調理鍋・織機の近くでも可。 */
   const workGate = async (kind: StationKind) => {
     if ((await loadMyLobbyStation(ownerKey)) === "smith") return null;
     const kinds = await loadMyWorldStationKinds(ownerKey);

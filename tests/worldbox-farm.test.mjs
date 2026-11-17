@@ -302,7 +302,7 @@ test("タイル: 伐採は素手でもでき（収量1）、斧があると収�
     );
   }
   assert.deepEqual(bare.gained, { wood: 1 });
-  // 木の斧（10/ヒット）は3ヒットで倒れ、収量2
+  // 木柄の斧（10/ヒット）は3ヒットで倒れ、収量2
   let ok = T.applyTileAction(
     null,
     withItems({ wooden_axe: 1 }),
@@ -340,7 +340,7 @@ test("タイル: 伐採は素手でもでき（収量1）、斧があると収�
   const regrown = T.tileView(map, overrides, treeAt.x, treeAt.y, NOW + T.TREE_REGROW_MS + 1, null);
   assert.equal(regrown.tile, T.T_TREE);
   assert.equal(regrown.stump, false);
-  // 雪の木は雪地になる（石の斧 16/ヒット → 2ヒット）
+  // 雪の木は雪地になる（グラスファイバーの斧 16/ヒット → 2ヒット）
   let snow = T.applyTileAction(
     null,
     withItems({ stone_axe: 1 }),
