@@ -57,9 +57,9 @@ async function loadBundle(files, exportNames) {
 
 const wb = await loadBundle(
   [
-    "worldbox/rng.ts", "worldbox/mapgen.ts", "worldbox/move.ts", "worldbox/presence.ts",
-    "worldbox/lobby.ts", "worldbox/save.ts", "worldbox/save-source.ts", "worldbox/daynight.ts",
-    "worldbox/spawn.ts",
+    "worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/player/move.ts", "worldbox/player/presence.ts",
+    "worldbox/world/lobby.ts", "worldbox/core/save.ts", "worldbox/core/save-source.ts", "worldbox/world/daynight.ts",
+    "worldbox/world/spawn.ts",
   ],
   [
     "MAP_SEED", "T_GRASS", "T_WATER", "T_SAND", "T_TREE", "T_ROCK", "T_DIRT",
@@ -407,33 +407,33 @@ const authUrl = dataUrl(
   transpile("auth.ts").replaceAll('"./subdomain"', JSON.stringify(subdomainUrl)).replaceAll('"next/headers"', JSON.stringify(headersStubUrl)),
 );
 const auth = await import(authUrl);
-const rngUrl = dataUrl(transpile("worldbox/rng.ts"));
-const mapgenUrl = dataUrl(transpile("worldbox/mapgen.ts").replaceAll('"./rng"', JSON.stringify(rngUrl)));
-const lobbyUrl = dataUrl(transpile("worldbox/lobby.ts").replaceAll('"./mapgen"', JSON.stringify(mapgenUrl)));
+const rngUrl = dataUrl(transpile("worldbox/core/rng.ts"));
+const mapgenUrl = dataUrl(transpile("worldbox/world/mapgen.ts").replaceAll('"../core/rng"', JSON.stringify(rngUrl)));
+const lobbyUrl = dataUrl(transpile("worldbox/world/lobby.ts").replaceAll('"./mapgen"', JSON.stringify(mapgenUrl)));
 const tentUrl = dataUrl(
-  transpile("worldbox/tent.ts")
+  transpile("worldbox/world/tent.ts")
     .replaceAll('"./mapgen"', JSON.stringify(mapgenUrl))
     .replaceAll('"./lobby"', JSON.stringify(lobbyUrl)),
 );
 const floorsUrl = dataUrl(
-  transpile("worldbox/lobby-floors.ts")
+  transpile("worldbox/world/lobby-floors.ts")
     .replaceAll('"./mapgen"', JSON.stringify(mapgenUrl))
     .replaceAll('"./lobby"', JSON.stringify(lobbyUrl)),
 );
-const presenceUrl = dataUrl(transpile("worldbox/presence.ts").replaceAll('"./mapgen"', JSON.stringify(mapgenUrl)));
+const presenceUrl = dataUrl(transpile("worldbox/player/presence.ts").replaceAll('"../world/mapgen"', JSON.stringify(mapgenUrl)));
 const presenceOnlineUrl = dataUrl(
-  transpile("worldbox/presence-online.ts")
-    .replaceAll('"../bot-api"', JSON.stringify(botApiStubUrl))
+  transpile("worldbox/player/presence-online.ts")
+    .replaceAll('"../../bot-api"', JSON.stringify(botApiStubUrl))
     .replaceAll('"./presence"', JSON.stringify(presenceUrl)),
 );
 const saveUrl = dataUrl(
-  transpile("worldbox/save.ts")
-    .replaceAll('"./lobby"', JSON.stringify(lobbyUrl))
-    .replaceAll('"./tent"', JSON.stringify(tentUrl))
-    .replaceAll('"./mapgen"', JSON.stringify(mapgenUrl)),
+  transpile("worldbox/core/save.ts")
+    .replaceAll('"../world/lobby"', JSON.stringify(lobbyUrl))
+    .replaceAll('"../world/tent"', JSON.stringify(tentUrl))
+    .replaceAll('"../world/mapgen"', JSON.stringify(mapgenUrl)),
 );
 const saveOnlineUrl = dataUrl(
-  transpile("worldbox/save-online.ts").replaceAll('"../bot-api"', JSON.stringify(botApiStubUrl)),
+  transpile("worldbox/core/save-online.ts").replaceAll('"../../bot-api"', JSON.stringify(botApiStubUrl)),
 );
 const nextServerStubUrl = dataUrl(`
 export class NextResponse {
@@ -457,15 +457,15 @@ const presenceRoute = await import(
     transpile("api/worldbox/presence/route.ts", rootDir + "/app")
       .replaceAll('"next/server"', JSON.stringify(nextServerStubUrl))
       .replaceAll('"@/lib/auth"', JSON.stringify(authUrl))
-      .replaceAll('"@/lib/worldbox/mapgen"', JSON.stringify(mapgenUrl))
-      .replaceAll('"@/lib/worldbox/lobby"', JSON.stringify(lobbyUrl))
-      .replaceAll('"@/lib/worldbox/lobby-floors"', JSON.stringify(floorsUrl))
-      .replaceAll('"@/lib/worldbox/tent"', JSON.stringify(tentUrl))
-      .replaceAll('"@/lib/worldbox/presence-online"', JSON.stringify(presenceOnlineUrl))
-      .replaceAll('"@/lib/worldbox/presence"', JSON.stringify(presenceUrl))
-      .replaceAll('"@/lib/worldbox/save"', JSON.stringify(saveUrl))
-      .replaceAll('"@/lib/worldbox/save-online"', JSON.stringify(saveOnlineUrl))
-      .replaceAll('"@/lib/worldbox/metrics-online"', JSON.stringify(metricsOnlineStubUrl)),
+      .replaceAll('"@/lib/worldbox/world/mapgen"', JSON.stringify(mapgenUrl))
+      .replaceAll('"@/lib/worldbox/world/lobby"', JSON.stringify(lobbyUrl))
+      .replaceAll('"@/lib/worldbox/world/lobby-floors"', JSON.stringify(floorsUrl))
+      .replaceAll('"@/lib/worldbox/world/tent"', JSON.stringify(tentUrl))
+      .replaceAll('"@/lib/worldbox/player/presence-online"', JSON.stringify(presenceOnlineUrl))
+      .replaceAll('"@/lib/worldbox/player/presence"', JSON.stringify(presenceUrl))
+      .replaceAll('"@/lib/worldbox/core/save"', JSON.stringify(saveUrl))
+      .replaceAll('"@/lib/worldbox/core/save-online"', JSON.stringify(saveOnlineUrl))
+      .replaceAll('"@/lib/worldbox/core/metrics-online"', JSON.stringify(metricsOnlineStubUrl)),
   ),
 );
 
@@ -559,7 +559,7 @@ test("クライアント: 見下ろし＋プレゼンス配線があり、横ス
   assert.ok(entry.includes("見下ろし"), "カタログが見下ろし表記でない");
   assert.ok(!entry.includes("横スクロール"), "カタログに旧表記が残っている");
   assert.ok(entry.includes("同時接続"), "カタログに同時接続の表記が無い");
-  const textures = fs.readFileSync(path.join(libDir, "worldbox/textures.ts"), "utf8");
+  const textures = fs.readFileSync(path.join(libDir, "worldbox/world/textures.ts"), "utf8");
   assert.ok(textures.includes("water:"), "水テクスチャが無い");
 });
 
@@ -568,7 +568,7 @@ test("クライアント: 地面タイルはダンジョン流用 PNG（grass/di
   assert.ok(client.includes("loadDungeonTiles"), "ダンジョンタイルを読み込んでいない");
   assert.ok(client.includes("imageSmoothingEnabled = false"), "ピクセルアートの補間を切っていない");
   assert.ok(!client.includes("textures.leaves"), "木タイルに旧キャノピー合成が残っている");
-  const textures = fs.readFileSync(path.join(libDir, "worldbox/textures.ts"), "utf8");
+  const textures = fs.readFileSync(path.join(libDir, "worldbox/world/textures.ts"), "utf8");
   for (const name of ["grass", "dirt", "tree", "rock"]) {
     assert.ok(textures.includes(`/img/worldbox/${name}.png`), `テクスチャ定義に ${name} が無い`);
     const file = path.join(rootDir, "public/img/worldbox", `${name}.png`);
@@ -585,7 +585,7 @@ test("クライアント: 雪タイルもダンジョン流用 PNG（snow/snow-t
   const client = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"), "utf8");
   assert.ok(client.includes("paintLocalTerrain"), "周辺マップの地形描画を使っていない");
   assert.ok(client.includes("T_SNOW"), "雪タイルを描画していない");
-  const textures = fs.readFileSync(path.join(libDir, "worldbox/textures.ts"), "utf8");
+  const textures = fs.readFileSync(path.join(libDir, "worldbox/world/textures.ts"), "utf8");
   for (const name of ["snow", "snow-tree"]) {
     assert.ok(textures.includes(`/img/worldbox/${name}.png`), `テクスチャ定義に ${name} が無い`);
     const file = path.join(rootDir, "public/img/worldbox", `${name}.png`);

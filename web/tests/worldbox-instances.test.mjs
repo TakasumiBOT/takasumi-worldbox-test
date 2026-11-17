@@ -50,7 +50,7 @@ async function loadBundle(files, exportNames) {
 }
 
 const T = await loadBundle(
-  ["worldbox/rng.ts", "worldbox/mapgen.ts", "worldbox/lobby.ts", "worldbox/items.ts", "worldbox/mobs.ts", "worldbox/objects.ts", "worldbox/instances.ts", "worldbox/save.ts", "worldbox/presence.ts"],
+  ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/world/lobby.ts", "worldbox/economy/items.ts", "worldbox/combat/mobs.ts", "worldbox/world/objects.ts", "worldbox/world/instances.ts", "worldbox/core/save.ts", "worldbox/player/presence.ts"],
   ["makeInstanceSpace", "parseInstanceSpace", "isInstanceSpace", "buildCaveLayer", "lightRadiusTiles", "CAVE_LAYERS", "CAVE_W", "CAVE_H", "isCaveSafeTile", "parseSave", "serializeSave", "sanitizePresenceSpace", "validateSpecialObjects", "specialObjectById", "ruinsCompleteOpId"],
 );
 
@@ -176,7 +176,7 @@ test("cave mobs and vein walls", () => {
 
 // ---- 遺跡（バッチ3） ----
 const R = await loadBundle(
-  ["worldbox/rng.ts", "worldbox/mapgen.ts", "worldbox/lobby.ts", "worldbox/items.ts", "worldbox/mobs.ts", "worldbox/objects.ts", "worldbox/instances.ts"],
+  ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/world/lobby.ts", "worldbox/economy/items.ts", "worldbox/combat/mobs.ts", "worldbox/world/objects.ts", "worldbox/world/instances.ts"],
   ["buildRuins", "RUINS_W", "RUINS_H", "weekKeyOf", "RUINS_MAIN_CHEST_LOOT", "RUINS_TRAP_KINDS"],
 );
 
@@ -262,9 +262,9 @@ test("冪等性の配線: instances ルートは空間ロックと決定的 ID �
 });
 
 test("冪等性の配線: 共有ロックと冪等登録がブリッジ側に用意されている", () => {
-  const lock = fs.readFileSync(path.join(libDir, "worldbox/user-lock.ts"), "utf8");
+  const lock = fs.readFileSync(path.join(libDir, "worldbox/core/user-lock.ts"), "utf8");
   assert.match(lock, /export async function withUserLock/);
-  const online = fs.readFileSync(path.join(libDir, "worldbox/economy-bridge-online.ts"), "utf8");
+  const online = fs.readFileSync(path.join(libDir, "worldbox/economy/economy-bridge-online.ts"), "utf8");
   assert.match(online, /export async function enqueueEconomyOpOnce/);
   assert.match(online, /submitEconomyOp\(op\)/, "冪等登録は直接適用（submitEconomyOp）へ委譲する");
   assert.match(online, /existing\.status === "done"/, "既存オプが終端していれば作り直さない");

@@ -1,22 +1,22 @@
 import { NextResponse } from "next/server";
 import { getRequestSession, publicOrigin, sessionOwnerKey } from "@/lib/auth";
-import { MAP_SEED, WORLD_COORD_LIMIT } from "@/lib/worldbox/mapgen";
-import { makeRng } from "@/lib/worldbox/rng";
+import { MAP_SEED, WORLD_COORD_LIMIT } from "@/lib/worldbox/world/mapgen";
+import { makeRng } from "@/lib/worldbox/core/rng";
 import {
   objectRespawned, rollObjectLoot, specialObjectById, surfaceObjectAt,
-} from "@/lib/worldbox/objects";
+} from "@/lib/worldbox/world/objects";
 import {
   isObjectsEnabled, loadHarvestedAt, loadObjectStates, storeHarvestedAt,
-} from "@/lib/worldbox/objects-online";
-import { listPresence } from "@/lib/worldbox/presence-online";
-import { presenceIdFor } from "@/lib/worldbox/presence";
-import { addItem, maxHpFor, wearTool } from "@/lib/worldbox/profile";
-import { loadProfile, storeProfile } from "@/lib/worldbox/profile-online";
-import { addMasteryXp, MINER_BONUS_CHANCE } from "@/lib/worldbox/roles";
-import { bestToolTier } from "@/lib/worldbox/tiles";
-import { parseSave } from "@/lib/worldbox/save";
-import { loadWorldBoxSave } from "@/lib/worldbox/save-online";
-import { withUserLock } from "@/lib/worldbox/user-lock";
+} from "@/lib/worldbox/world/objects-online";
+import { listPresence } from "@/lib/worldbox/player/presence-online";
+import { presenceIdFor } from "@/lib/worldbox/player/presence";
+import { addItem, maxHpFor, wearTool } from "@/lib/worldbox/player/profile";
+import { loadProfile, storeProfile } from "@/lib/worldbox/player/profile-online";
+import { addMasteryXp, MINER_BONUS_CHANCE } from "@/lib/worldbox/player/roles";
+import { bestToolTier } from "@/lib/worldbox/world/tiles";
+import { parseSave } from "@/lib/worldbox/core/save";
+import { loadWorldBoxSave } from "@/lib/worldbox/core/save-online";
+import { withUserLock } from "@/lib/worldbox/core/user-lock";
 
 export const runtime = "nodejs";
 

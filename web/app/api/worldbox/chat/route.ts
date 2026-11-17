@@ -3,16 +3,16 @@ import { getRequestSession, publicOrigin, sessionOwnerKey } from "@/lib/auth";
 import {
   isChatChannel, sanitizeChatText, visibleChatMessages, CHAT_MIN_INTERVAL_MS,
   type ChatMessage,
-} from "@/lib/worldbox/chat";
+} from "@/lib/worldbox/social/chat";
 import {
   appendChatMessage, enqueueChatOutbox, isChatEnabled, loadChatMessages, loadUnionChatSettings,
-} from "@/lib/worldbox/chat-online";
-import { resolveLinkedChannelId } from "@/lib/worldbox/discord-directory";
-import { loadDiscordDirectory } from "@/lib/worldbox/discord-directory-online";
-import { loadMyPresence } from "@/lib/worldbox/presence-online";
-import { sanitizePresenceSpace } from "@/lib/worldbox/presence";
-import { loadNationsState } from "@/lib/worldbox/nations-online";
-import { bumpMetric } from "@/lib/worldbox/metrics-online";
+} from "@/lib/worldbox/social/chat-online";
+import { resolveLinkedChannelId } from "@/lib/worldbox/social/discord-directory";
+import { loadDiscordDirectory } from "@/lib/worldbox/social/discord-directory-online";
+import { loadMyPresence } from "@/lib/worldbox/player/presence-online";
+import { sanitizePresenceSpace } from "@/lib/worldbox/player/presence";
+import { loadNationsState } from "@/lib/worldbox/social/nations-online";
+import { bumpMetric } from "@/lib/worldbox/core/metrics-online";
 
 export const runtime = "nodejs";
 

@@ -4,8 +4,8 @@
 // ロビー2階の屋台区画（6つ）をユニオンが借り、所属員が出品し誰でも買える。
 // 状態の正はサーバー（/api/worldbox/guild-shop）。購入は区画の近くでのみ。
 import { useCallback, useEffect, useState } from "react";
-import type { PlayerProfile } from "@/lib/worldbox/profile";
-import { onGuildShopChanged } from "@/lib/worldbox/guild-shop-push";
+import type { PlayerProfile } from "@/lib/worldbox/player/profile";
+import { onGuildShopChanged } from "@/lib/worldbox/economy/guild-shop-push";
 import { ItemAnnotation, ItemSlot, ItemSlotGrid } from "./ItemSlotGrid";
 
 const panelStyle: React.CSSProperties = {

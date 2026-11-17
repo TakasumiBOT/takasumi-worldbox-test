@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { getRequestSession, publicOrigin, sessionOwnerKey } from "@/lib/auth";
-import { buildEconomyOp } from "@/lib/worldbox/economy-bridge";
-import { isEconomyEnabled, loadMyEconomyOps, readUserBalance, submitEconomyOp, waitForOpDone } from "@/lib/worldbox/economy-bridge-online";
-import { loadMyLobbyStation } from "@/lib/worldbox/station-online";
+import { buildEconomyOp } from "@/lib/worldbox/economy/economy-bridge";
+import { isEconomyEnabled, loadMyEconomyOps, readUserBalance, submitEconomyOp, waitForOpDone } from "@/lib/worldbox/economy/economy-bridge-online";
+import { loadMyLobbyStation } from "@/lib/worldbox/world/station-online";
 
 export const runtime = "nodejs";
 

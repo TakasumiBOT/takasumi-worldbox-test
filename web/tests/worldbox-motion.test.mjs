@@ -54,7 +54,7 @@ async function loadBundle(files, exportNames) {
 }
 
 const st = await loadBundle(
-  ["worldbox/stamina.ts"],
+  ["worldbox/player/stamina.ts"],
   [
     "STAMINA_MAX", "DASH_DRAIN_PER_SEC", "SWIM_DRAIN_PER_SEC", "SWIM_DASH_DRAIN_PER_SEC",
     "STAMINA_REGEN_PER_SEC", "STAMINA_REGEN_DELAY_SEC", "DASH_RELOCK_STAMINA", "SWIM_RESCUE_STAMINA",
@@ -64,7 +64,7 @@ const st = await loadBundle(
 );
 
 const mv = await loadBundle(
-  ["worldbox/rng.ts", "worldbox/mapgen.ts", "worldbox/move.ts"],
+  ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/player/move.ts"],
   [
     "T_GRASS", "T_WATER", "T_TREE", "WALK_SPEED", "SWIM_SPEED", "DASH_SPEED", "tilesSource",
     "stepMove", "canStandAt", "findFreeNear", "isWaterAt",
@@ -72,7 +72,7 @@ const mv = await loadBundle(
 );
 
 const rm = await loadBundle(
-  ["worldbox/presence.ts", "worldbox/remote.ts"],
+  ["worldbox/player/presence.ts", "worldbox/core/remote.ts"],
   [
     "REMOTE_SNAP_DISTANCE", "createRemoteTrack", "updateRemoteTrack", "stepRemoteTrack", "predictPosition",
   ],

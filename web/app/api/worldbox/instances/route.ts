@@ -1,35 +1,35 @@
 import { NextResponse } from "next/server";
 import { getRequestSession, publicOrigin, sessionOwnerKey } from "@/lib/auth";
-import { MAP_SEED } from "@/lib/worldbox/mapgen";
-import { loadProfile, storeProfile } from "@/lib/worldbox/profile-online";
-import { addItem, wearTool } from "@/lib/worldbox/profile";
-import { itemById } from "@/lib/worldbox/items";
-import { listPresence, putPresence } from "@/lib/worldbox/presence-online";
-import { presenceIdFor } from "@/lib/worldbox/presence";
-import { parseSave } from "@/lib/worldbox/save";
-import { loadWorldBoxSave, storeWorldBoxSave } from "@/lib/worldbox/save-online";
-import { serializeSave } from "@/lib/worldbox/save";
+import { MAP_SEED } from "@/lib/worldbox/world/mapgen";
+import { loadProfile, storeProfile } from "@/lib/worldbox/player/profile-online";
+import { addItem, wearTool } from "@/lib/worldbox/player/profile";
+import { itemById } from "@/lib/worldbox/economy/items";
+import { listPresence, putPresence } from "@/lib/worldbox/player/presence-online";
+import { presenceIdFor } from "@/lib/worldbox/player/presence";
+import { parseSave } from "@/lib/worldbox/core/save";
+import { loadWorldBoxSave, storeWorldBoxSave } from "@/lib/worldbox/core/save-online";
+import { serializeSave } from "@/lib/worldbox/core/save";
 import {
   buildCaveLayer, buildDungeonFloor, buildRuins, makeInstanceSpace, parseInstanceSpace, ruinsCompleteOpId, weekKeyOf,
   CAVE_CHEST_RESPAWN_MS, DUNGEON_FLOORS, RUINS_COMPLETE_EARN, RUINS_MAIN_CHEST_LOOT,
-} from "@/lib/worldbox/instances";
-import { activeLimitedDungeon, isEventDungeonEntrance } from "@/lib/worldbox/events";
-import { withUserLock } from "@/lib/worldbox/user-lock";
+} from "@/lib/worldbox/world/instances";
+import { activeLimitedDungeon, isEventDungeonEntrance } from "@/lib/worldbox/core/events";
+import { withUserLock } from "@/lib/worldbox/core/user-lock";
 import {
   deleteDungeonSession, dungeonGateSatisfied, dungeonSessionClosed, loadDungeonSession, loadRuinsPersonal,
   storeDungeonSession, storeRuinsPersonal, type DungeonSession,
-} from "@/lib/worldbox/instances-online";
-import { partyKeyOf } from "@/lib/worldbox/party";
-import { loadPartyOf } from "@/lib/worldbox/party-online";
-import { buildEconomyOp } from "@/lib/worldbox/economy-bridge";
-import { enqueueEconomyOpOnce, isEconomyEnabled } from "@/lib/worldbox/economy-bridge-online";
-import { applyPoison } from "@/lib/worldbox/vitals";
-import { addMasteryXp, MINER_BONUS_CHANCE } from "@/lib/worldbox/roles";
-import { removeItem } from "@/lib/worldbox/profile";
-import { isInstancesEnabled, loadInstanceState, storeInstanceState } from "@/lib/worldbox/instances-online";
-import { rollObjectLoot, specialObjectById } from "@/lib/worldbox/objects";
-import { makeRng } from "@/lib/worldbox/rng";
-import { applyRest } from "@/lib/worldbox/vitals";
+} from "@/lib/worldbox/world/instances-online";
+import { partyKeyOf } from "@/lib/worldbox/social/party";
+import { loadPartyOf } from "@/lib/worldbox/social/party-online";
+import { buildEconomyOp } from "@/lib/worldbox/economy/economy-bridge";
+import { enqueueEconomyOpOnce, isEconomyEnabled } from "@/lib/worldbox/economy/economy-bridge-online";
+import { applyPoison } from "@/lib/worldbox/player/vitals";
+import { addMasteryXp, MINER_BONUS_CHANCE } from "@/lib/worldbox/player/roles";
+import { removeItem } from "@/lib/worldbox/player/profile";
+import { isInstancesEnabled, loadInstanceState, storeInstanceState } from "@/lib/worldbox/world/instances-online";
+import { rollObjectLoot, specialObjectById } from "@/lib/worldbox/world/objects";
+import { makeRng } from "@/lib/worldbox/core/rng";
+import { applyRest } from "@/lib/worldbox/player/vitals";
 
 export const runtime = "nodejs";
 

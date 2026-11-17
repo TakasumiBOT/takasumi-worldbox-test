@@ -53,8 +53,8 @@ async function loadBundle(files, exportNames) {
 
 const O = await loadBundle(
   [
-    "worldbox/rng.ts", "worldbox/mapgen.ts", "worldbox/maplogic.ts", "worldbox/items.ts",
-    "worldbox/objects.ts",
+    "worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/world/maplogic.ts", "worldbox/economy/items.ts",
+    "worldbox/world/objects.ts",
   ],
   [
     "SPECIAL_OBJECTS", "specialObjectById", "validateSpecialObjects", "objectsForChunk",

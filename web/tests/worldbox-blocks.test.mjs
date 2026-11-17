@@ -48,7 +48,7 @@ function bundleModule(files, names) {
 }
 
 const invUrl = bundleModule(
-  ["worldbox/items.ts", "worldbox/profile.ts"],
+  ["worldbox/economy/items.ts", "worldbox/player/profile.ts"],
   [
     "ITEMS", "ITEM_ICON_IDS", "itemById",
     "parseProfile", "serializeProfile", "countItem", "addItem", "moveSlot",
@@ -57,7 +57,7 @@ const invUrl = bundleModule(
 const inv = await import(invUrl);
 
 const tilesUrl = bundleModule(
-  ["worldbox/rng.ts", "worldbox/mapgen.ts", "worldbox/items.ts", "worldbox/profile.ts", "worldbox/presence.ts", "worldbox/seasons.ts", "worldbox/tiles.ts"],
+  ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/economy/items.ts", "worldbox/player/profile.ts", "worldbox/player/presence.ts", "worldbox/world/seasons.ts", "worldbox/world/tiles.ts"],
   [
     "worldTileSource", "mapTileAt",
     "T_GRASS", "T_TREE", "T_ROCK", "T_DIRT", "T_SAND", "T_SNOW", "T_WATER",
@@ -70,13 +70,13 @@ const tilesUrl = bundleModule(
 const T = await import(tilesUrl);
 
 const moveUrl = bundleModule(
-  ["worldbox/rng.ts", "worldbox/mapgen.ts", "worldbox/move.ts"],
+  ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/player/move.ts"],
   ["worldTileSource", "circleHitsSolid", "canStandAt", "PLAYER_RADIUS"],
 );
 const MV = await import(moveUrl);
 
 const mapgenUrl = bundleModule(
-  ["worldbox/rng.ts", "worldbox/mapgen.ts"],
+  ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts"],
   ["worldTileSource", "WORLD_COORD_LIMIT"],
 );
 
@@ -332,7 +332,7 @@ const authUrl = dataUrl(
 );
 const auth = await import(authUrl);
 
-const presenceBundleUrl = bundleModule(["worldbox/presence.ts"], ["presenceIdFor"]);
+const presenceBundleUrl = bundleModule(["worldbox/player/presence.ts"], ["presenceIdFor"]);
 const profileOnlineStubUrl = dataUrl(`
 import { parseProfile, serializeProfile } from ${JSON.stringify(invUrl)};
 const store = (globalThis.__wbBlockProfiles ??= new Map());
@@ -355,7 +355,7 @@ export async function loadTileOverride(x, y) { const v = store.get(x + "," + y);
 export async function storeTileOverride(x, y, ov) { if (ov === null) store.delete(x + "," + y); else store.set(x + "," + y, JSON.stringify(ov)); return true; }
 `);
 const containersBundleUrl = bundleModule(
-  ["worldbox/items.ts", "worldbox/profile.ts", "worldbox/containers.ts"],
+  ["worldbox/economy/items.ts", "worldbox/player/profile.ts", "worldbox/economy/containers.ts"],
   ["isContainerItem", "containerIsEmpty", "parseContainerState", "serializeContainerState"],
 );
 const containersOnlineStubUrl = dataUrl(`
@@ -370,7 +370,7 @@ export function isNationsEnabled() { return true; }
 export async function loadNationsState() { return globalThis.__wbBlockNations ?? { nations: {} }; }
 `);
 // 戦争のスタブ: 空の戦争状態を返す（平時＝他者ブロックは掘れない）。
-const warUrl = bundleModule(["worldbox/war.ts"], ["canBreakOthersBlock"]);
+const warUrl = bundleModule(["worldbox/combat/war.ts"], ["canBreakOthersBlock"]);
 const warsOnlineStubUrl = dataUrl(`
 export async function loadWarState() { return globalThis.__wbBlockWars ?? { v: 1, wars: {}, history: [], lastDeclaredAt: {} }; }
 `);
@@ -383,9 +383,9 @@ export class NextResponse {
   }
 }
 `);
-const userLockUrl = dataUrl(transpile("worldbox/user-lock.ts"));
+const userLockUrl = dataUrl(transpile("worldbox/core/user-lock.ts"));
 // 装置のスタブ: 実ロジック（isMachineItem / machineBufferCount）と空の保存層。
-const machinesUrl = bundleModule(["worldbox/items.ts", "worldbox/machines.ts"], ["isMachineItem", "machineBufferCount"]);
+const machinesUrl = bundleModule(["worldbox/economy/items.ts", "worldbox/economy/machines.ts"], ["isMachineItem", "machineBufferCount"]);
 const opsOnlineStubUrl = dataUrl(`
 export async function loadFrozen() { return false; }
 export async function appendTileJournal() {}
@@ -402,7 +402,7 @@ const machinesOnlineStubUrl = dataUrl(`
 export async function loadMachine() { return null; }
 export async function deleteMachine() {}
 `);
-const stallsUrl = bundleModule(["worldbox/items.ts", "worldbox/stalls.ts"], ["isStallItem"]);
+const stallsUrl = bundleModule(["worldbox/economy/items.ts", "worldbox/economy/stalls.ts"], ["isStallItem"]);
 const stallsOnlineStubUrl = dataUrl(`
 export async function loadStall() { return null; }
 export async function storeStall() { return true; }
@@ -412,26 +412,26 @@ const tilesRoute = await import(
     transpile("api/worldbox/tiles/route.ts", rootDir + "/app")
       .replaceAll('"next/server"', JSON.stringify(nextServerStubUrl))
       .replaceAll('"@/lib/auth"', JSON.stringify(authUrl))
-      .replaceAll('"@/lib/worldbox/mapgen"', JSON.stringify(mapgenUrl))
-      .replaceAll('"@/lib/worldbox/profile-online"', JSON.stringify(profileOnlineStubUrl))
-      .replaceAll('"@/lib/worldbox/presence-online"', JSON.stringify(presenceOnlineStubUrl))
-      .replaceAll('"@/lib/worldbox/presence"', JSON.stringify(presenceBundleUrl))
-      .replaceAll('"@/lib/worldbox/save"', JSON.stringify(saveStubUrl))
-      .replaceAll('"@/lib/worldbox/save-online"', JSON.stringify(saveOnlineStubUrl))
-      .replaceAll('"@/lib/worldbox/tiles"', JSON.stringify(tilesUrl))
-      .replaceAll('"@/lib/worldbox/tiles-online"', JSON.stringify(tilesOnlineStubUrl))
-      .replaceAll('"@/lib/worldbox/containers"', JSON.stringify(containersBundleUrl))
-      .replaceAll('"@/lib/worldbox/containers-online"', JSON.stringify(containersOnlineStubUrl))
-      .replaceAll('"@/lib/worldbox/machines"', JSON.stringify(machinesUrl))
-      .replaceAll('"@/lib/worldbox/machines-online"', JSON.stringify(machinesOnlineStubUrl))
-      .replaceAll('"@/lib/worldbox/stalls"', JSON.stringify(stallsUrl))
-      .replaceAll('"@/lib/worldbox/stalls-online"', JSON.stringify(stallsOnlineStubUrl))
-      .replaceAll('"@/lib/worldbox/metrics-online"', JSON.stringify(metricsOnlineStubUrl))
-      .replaceAll('"@/lib/worldbox/ops-online"', JSON.stringify(opsOnlineStubUrl))
-      .replaceAll('"@/lib/worldbox/user-lock"', JSON.stringify(userLockUrl))
-      .replaceAll('"@/lib/worldbox/nations-online"', JSON.stringify(nationsOnlineStubUrl))
-      .replaceAll('"@/lib/worldbox/war"', JSON.stringify(warUrl))
-      .replaceAll('"@/lib/worldbox/war-online"', JSON.stringify(warsOnlineStubUrl)),
+      .replaceAll('"@/lib/worldbox/world/mapgen"', JSON.stringify(mapgenUrl))
+      .replaceAll('"@/lib/worldbox/player/profile-online"', JSON.stringify(profileOnlineStubUrl))
+      .replaceAll('"@/lib/worldbox/player/presence-online"', JSON.stringify(presenceOnlineStubUrl))
+      .replaceAll('"@/lib/worldbox/player/presence"', JSON.stringify(presenceBundleUrl))
+      .replaceAll('"@/lib/worldbox/core/save"', JSON.stringify(saveStubUrl))
+      .replaceAll('"@/lib/worldbox/core/save-online"', JSON.stringify(saveOnlineStubUrl))
+      .replaceAll('"@/lib/worldbox/world/tiles"', JSON.stringify(tilesUrl))
+      .replaceAll('"@/lib/worldbox/world/tiles-online"', JSON.stringify(tilesOnlineStubUrl))
+      .replaceAll('"@/lib/worldbox/economy/containers"', JSON.stringify(containersBundleUrl))
+      .replaceAll('"@/lib/worldbox/economy/containers-online"', JSON.stringify(containersOnlineStubUrl))
+      .replaceAll('"@/lib/worldbox/economy/machines"', JSON.stringify(machinesUrl))
+      .replaceAll('"@/lib/worldbox/economy/machines-online"', JSON.stringify(machinesOnlineStubUrl))
+      .replaceAll('"@/lib/worldbox/economy/stalls"', JSON.stringify(stallsUrl))
+      .replaceAll('"@/lib/worldbox/economy/stalls-online"', JSON.stringify(stallsOnlineStubUrl))
+      .replaceAll('"@/lib/worldbox/core/metrics-online"', JSON.stringify(metricsOnlineStubUrl))
+      .replaceAll('"@/lib/worldbox/core/ops-online"', JSON.stringify(opsOnlineStubUrl))
+      .replaceAll('"@/lib/worldbox/core/user-lock"', JSON.stringify(userLockUrl))
+      .replaceAll('"@/lib/worldbox/social/nations-online"', JSON.stringify(nationsOnlineStubUrl))
+      .replaceAll('"@/lib/worldbox/combat/war"', JSON.stringify(warUrl))
+      .replaceAll('"@/lib/worldbox/combat/war-online"', JSON.stringify(warsOnlineStubUrl)),
   ),
 );
 

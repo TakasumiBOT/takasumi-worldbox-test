@@ -11,15 +11,15 @@
 // コインの正は AGO コイン本体: 残高と移動履歴は経済ブリッジ
 // （/api/worldbox/economy）が返し、移動は Bot 本体が数十秒で適用する。
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { EconomyOp } from "@/lib/worldbox/economy-bridge";
-import { onEconomyApplied } from "@/lib/worldbox/economy-push";
-import { ITEMS, itemById, recipeById, sellPrice } from "@/lib/worldbox/items";
-import type { StationKind } from "@/lib/worldbox/tiles";
-import { dailyPriceFor, dailyStockForGenre, genreById, isShopExcluded, itemsForGenre, shopDayKeyOf, type ShopGenreId } from "@/lib/worldbox/shops";
-import type { LobbyStation } from "@/lib/worldbox/lobby";
-import { ENHANCE_BASE_COST, ENHANCE_MATERIALS, ENHANCE_MAX_LEVEL, type PlayerProfile } from "@/lib/worldbox/profile";
-import type { SaveSpace } from "@/lib/worldbox/save";
-import { playWbSe, type WbSeName } from "@/lib/worldbox/sound";
+import type { EconomyOp } from "@/lib/worldbox/economy/economy-bridge";
+import { onEconomyApplied } from "@/lib/worldbox/economy/economy-push";
+import { ITEMS, itemById, recipeById, sellPrice } from "@/lib/worldbox/economy/items";
+import type { StationKind } from "@/lib/worldbox/world/tiles";
+import { dailyPriceFor, dailyStockForGenre, genreById, isShopExcluded, itemsForGenre, shopDayKeyOf, type ShopGenreId } from "@/lib/worldbox/economy/shops";
+import type { LobbyStation } from "@/lib/worldbox/world/lobby";
+import { ENHANCE_BASE_COST, ENHANCE_MATERIALS, ENHANCE_MAX_LEVEL, type PlayerProfile } from "@/lib/worldbox/player/profile";
+import type { SaveSpace } from "@/lib/worldbox/core/save";
+import { playWbSe, type WbSeName } from "@/lib/worldbox/media/sound";
 import { ItemAnnotation, ItemIcon, ItemSlot, ItemSlotGrid } from "./ItemSlotGrid";
 
 /** 経済アクションの成功音（行為の意味で選ぶ）。 */

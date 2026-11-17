@@ -1,45 +1,45 @@
 import { NextResponse } from "next/server";
 import { getRequestSession, publicOrigin, sessionOwnerKey } from "@/lib/auth";
-import { MAP_SEED, tileAt } from "@/lib/worldbox/mapgen";
-import { isProfileEnabled, loadProfile, storeProfile } from "@/lib/worldbox/profile-online";
-import { addItem, type PlayerProfile } from "@/lib/worldbox/profile";
-import { playerAttack } from "@/lib/worldbox/arena";
-import { mobById, type PlacedMob } from "@/lib/worldbox/mobs";
+import { MAP_SEED, tileAt } from "@/lib/worldbox/world/mapgen";
+import { isProfileEnabled, loadProfile, storeProfile } from "@/lib/worldbox/player/profile-online";
+import { addItem, type PlayerProfile } from "@/lib/worldbox/player/profile";
+import { playerAttack } from "@/lib/worldbox/combat/arena";
+import { mobById, type PlacedMob } from "@/lib/worldbox/combat/mobs";
 import {
   applyMobAttack, mobKeyOf, resolveMobPosition, visibleMobs,
   MOB_REPORT_LEASH, type MobState,
-} from "@/lib/worldbox/combat";
-import { isMobsEnabled, loadMobState, storeMobState } from "@/lib/worldbox/mobs-online";
-import { listPresence, listPresenceWithOwners } from "@/lib/worldbox/presence-online";
-import { presenceIdFor } from "@/lib/worldbox/presence";
-import { parseSave } from "@/lib/worldbox/save";
-import { loadWorldBoxSave } from "@/lib/worldbox/save-online";
-import { loadMyLobbyStation } from "@/lib/worldbox/station-online";
+} from "@/lib/worldbox/combat/combat";
+import { isMobsEnabled, loadMobState, storeMobState } from "@/lib/worldbox/combat/mobs-online";
+import { listPresence, listPresenceWithOwners } from "@/lib/worldbox/player/presence-online";
+import { presenceIdFor } from "@/lib/worldbox/player/presence";
+import { parseSave } from "@/lib/worldbox/core/save";
+import { loadWorldBoxSave } from "@/lib/worldbox/core/save-online";
+import { loadMyLobbyStation } from "@/lib/worldbox/world/station-online";
 import {
   activeSkillFor, addMasteryXp, applyRoleChange, isAdventureRoleId, masteryRankOf,
   roleById, ROLE_CHANGE_REASON, skillCooldownLeft, SKILLS, type SkillId,
-} from "@/lib/worldbox/roles";
-import { isNationsEnabled, loadNationsState } from "@/lib/worldbox/nations-online";
-import { porterInRange, porterTileError } from "@/lib/worldbox/warp";
-import { storePorter } from "@/lib/worldbox/warp-online";
-import { isOverrideActive } from "@/lib/worldbox/tiles";
-import { loadTileOverride } from "@/lib/worldbox/tiles-online";
-import { buildEconomyOp } from "@/lib/worldbox/economy-bridge";
+} from "@/lib/worldbox/player/roles";
+import { isNationsEnabled, loadNationsState } from "@/lib/worldbox/social/nations-online";
+import { porterInRange, porterTileError } from "@/lib/worldbox/world/warp";
+import { storePorter } from "@/lib/worldbox/world/warp-online";
+import { isOverrideActive } from "@/lib/worldbox/world/tiles";
+import { loadTileOverride } from "@/lib/worldbox/world/tiles-online";
+import { buildEconomyOp } from "@/lib/worldbox/economy/economy-bridge";
 import {
   isEconomyEnabled, readUserBalance, submitEconomyOp, waitForOpDone,
-} from "@/lib/worldbox/economy-bridge-online";
-import { withUserLock } from "@/lib/worldbox/user-lock";
-import { maxHpFor } from "@/lib/worldbox/profile";
+} from "@/lib/worldbox/economy/economy-bridge-online";
+import { withUserLock } from "@/lib/worldbox/core/user-lock";
+import { maxHpFor } from "@/lib/worldbox/player/profile";
 import {
   buildCaveLayer, buildDungeonFloor, dungeonHpScale, makeInstanceSpace, parseInstanceSpace,
-} from "@/lib/worldbox/instances";
+} from "@/lib/worldbox/world/instances";
 import {
   loadDungeonSession, loadRuinsPersonal, storeDungeonSession, storeRuinsPersonal,
-} from "@/lib/worldbox/instances-online";
-import { partyKeyOf } from "@/lib/worldbox/party";
-import { loadPartyOf } from "@/lib/worldbox/party-online";
-import { weekKeyOf } from "@/lib/worldbox/instances";
-import { clearDeath, listDeaths } from "@/lib/worldbox/roles-online";
+} from "@/lib/worldbox/world/instances-online";
+import { partyKeyOf } from "@/lib/worldbox/social/party";
+import { loadPartyOf } from "@/lib/worldbox/social/party-online";
+import { weekKeyOf } from "@/lib/worldbox/world/instances";
+import { clearDeath, listDeaths } from "@/lib/worldbox/player/roles-online";
 
 export const runtime = "nodejs";
 

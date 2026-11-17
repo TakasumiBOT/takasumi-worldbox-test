@@ -24,7 +24,7 @@ function dataUrl(js) {
   return "data:text/javascript;base64," + Buffer.from(js).toString("base64");
 }
 
-const economyUrl = dataUrl(transpile("worldbox/economy-bridge.ts"));
+const economyUrl = dataUrl(transpile("worldbox/economy/economy-bridge.ts"));
 const eco = await import(economyUrl);
 
 const ME = "611111111111111111";
@@ -238,11 +238,11 @@ const authUrl = dataUrl(
 );
 const auth = await import(authUrl);
 const economyOnlineUrl = dataUrl(
-  transpile("worldbox/economy-bridge-online.ts")
-    .replaceAll('"../bot-api"', JSON.stringify(botApiStubUrl))
+  transpile("worldbox/economy/economy-bridge-online.ts")
+    .replaceAll('"../../bot-api"', JSON.stringify(botApiStubUrl))
     .replaceAll('"./economy-bridge"', JSON.stringify(economyUrl)),
 );
-const userLockUrl = dataUrl(transpile("worldbox/user-lock.ts"));
+const userLockUrl = dataUrl(transpile("worldbox/core/user-lock.ts"));
 const nextServerStubUrl = dataUrl(`
 export class NextResponse {
   static json(body, init = {}) {
@@ -262,9 +262,9 @@ const economyRoute = await import(
     transpile("api/worldbox/economy/route.ts", rootDir + "/app")
       .replaceAll('"next/server"', JSON.stringify(nextServerStubUrl))
       .replaceAll('"@/lib/auth"', JSON.stringify(authUrl))
-      .replaceAll('"@/lib/worldbox/economy-bridge"', JSON.stringify(economyUrl))
-      .replaceAll('"@/lib/worldbox/economy-bridge-online"', JSON.stringify(economyOnlineUrl))
-      .replaceAll('"@/lib/worldbox/station-online"', JSON.stringify(stationStubUrl)),
+      .replaceAll('"@/lib/worldbox/economy/economy-bridge"', JSON.stringify(economyUrl))
+      .replaceAll('"@/lib/worldbox/economy/economy-bridge-online"', JSON.stringify(economyOnlineUrl))
+      .replaceAll('"@/lib/worldbox/world/station-online"', JSON.stringify(stationStubUrl)),
   ),
 );
 
@@ -429,7 +429,7 @@ function bundleModule(files, names) {
   return dataUrl(`${code}\nexport { ${names.join(", ")} };`);
 }
 const profileEcoUrl = bundleModule(
-  ["worldbox/items.ts", "worldbox/profile.ts", "worldbox/vitals.ts", "worldbox/economy.ts"],
+  ["worldbox/economy/items.ts", "worldbox/player/profile.ts", "worldbox/player/vitals.ts", "worldbox/economy/economy.ts"],
   ["buyItem", "sellItem", "eatItem", "doWork", "craftItem", "craftFromInputs", "resolveSteal"],
 );
 const bridgeOnlineStubUrl = dataUrl(`
@@ -458,9 +458,9 @@ export function isPresenceEnabled() { return true; }
 export async function findPresenceOwnerKey(id) { return map.has(id) ? map.get(id) : null; }
 `);
 await import(presenceStubUrl); // ルートはもう presence-online を読まないため、状態だけ先に作る
-const profileSwapUrl = bundleModule(["worldbox/items.ts", "worldbox/profile.ts"], ["swapSlots", "moveSlot", "countItem", "removeItem", "ENHANCE_BASE_COST", "ENHANCE_MATERIALS", "ENHANCE_MAX_LEVEL"]);
-const rolesUrl = bundleModule(["worldbox/items.ts", "worldbox/profile.ts", "worldbox/roles.ts"], ["addMasteryXp"]);
-const shopsRealUrl = bundleModule(["worldbox/items.ts", "worldbox/shops.ts"], ["checkBuyGenre", "checkBuySold", "checkDailyStock", "dailyPriceFor", "shopDayKeyOf"]);
+const profileSwapUrl = bundleModule(["worldbox/economy/items.ts", "worldbox/player/profile.ts"], ["swapSlots", "moveSlot", "countItem", "removeItem", "ENHANCE_BASE_COST", "ENHANCE_MATERIALS", "ENHANCE_MAX_LEVEL"]);
+const rolesUrl = bundleModule(["worldbox/economy/items.ts", "worldbox/player/profile.ts", "worldbox/player/roles.ts"], ["addMasteryXp"]);
+const shopsRealUrl = bundleModule(["worldbox/economy/items.ts", "worldbox/economy/shops.ts"], ["checkBuyGenre", "checkBuySold", "checkDailyStock", "dailyPriceFor", "shopDayKeyOf"]);
 // 日次ローテーションは日付依存なので、このブリッジテストでは中立化する
 // （日次そのものの検証は worldbox-shop-daily / worldbox-shops が担う）。
 const shopsUrl = dataUrl(`
@@ -471,7 +471,7 @@ export function checkDailyStock() { return null; }
 export function dailyPriceFor(item) { return item.price; }
 export function shopDayKeyOf() { return "test-day"; }
 `);
-const itemsOnlyUrl = bundleModule(["worldbox/items.ts"], ["itemById", "recipeById", "recipeKind"]);
+const itemsOnlyUrl = bundleModule(["worldbox/economy/items.ts"], ["itemById", "recipeById", "recipeKind"]);
 const tentStubUrl = dataUrl(`export const TENT_MAX_TIER = 2; export const TENT_TIERS = [{ w: 13, h: 10, price: 0 }, { w: 17, h: 13, price: 3000 }, { w: 22, h: 17, price: 10000 }];`);
 
 const profileRoute = await import(
@@ -479,18 +479,18 @@ const profileRoute = await import(
     transpile("api/worldbox/profile/route.ts", rootDir + "/app")
       .replaceAll('"next/server"', JSON.stringify(nextServerStubUrl))
       .replaceAll('"@/lib/auth"', JSON.stringify(authUrl))
-      .replaceAll('"@/lib/worldbox/economy-bridge-online"', JSON.stringify(bridgeOnlineStubUrl))
-      .replaceAll('"@/lib/worldbox/economy-bridge"', JSON.stringify(economyUrl))
-      .replaceAll('"@/lib/worldbox/economy"', JSON.stringify(profileEcoUrl))
-      .replaceAll('"@/lib/worldbox/presence-online"', JSON.stringify(presenceStubUrl))
-      .replaceAll('"@/lib/worldbox/shops"', JSON.stringify(shopsUrl))
-      .replaceAll('"@/lib/worldbox/items"', JSON.stringify(itemsOnlyUrl))
-      .replaceAll('"@/lib/worldbox/tent"', JSON.stringify(tentStubUrl))
-      .replaceAll('"@/lib/worldbox/station-online"', JSON.stringify(stationStubUrl))
-      .replaceAll('"@/lib/worldbox/profile-online"', JSON.stringify(profileOnlineStubUrl))
-      .replaceAll('"@/lib/worldbox/profile"', JSON.stringify(profileSwapUrl))
-      .replaceAll('"@/lib/worldbox/user-lock"', JSON.stringify(userLockUrl))
-      .replaceAll('"@/lib/worldbox/roles"', JSON.stringify(rolesUrl)),
+      .replaceAll('"@/lib/worldbox/economy/economy-bridge-online"', JSON.stringify(bridgeOnlineStubUrl))
+      .replaceAll('"@/lib/worldbox/economy/economy-bridge"', JSON.stringify(economyUrl))
+      .replaceAll('"@/lib/worldbox/economy/economy"', JSON.stringify(profileEcoUrl))
+      .replaceAll('"@/lib/worldbox/player/presence-online"', JSON.stringify(presenceStubUrl))
+      .replaceAll('"@/lib/worldbox/economy/shops"', JSON.stringify(shopsUrl))
+      .replaceAll('"@/lib/worldbox/economy/items"', JSON.stringify(itemsOnlyUrl))
+      .replaceAll('"@/lib/worldbox/world/tent"', JSON.stringify(tentStubUrl))
+      .replaceAll('"@/lib/worldbox/world/station-online"', JSON.stringify(stationStubUrl))
+      .replaceAll('"@/lib/worldbox/player/profile-online"', JSON.stringify(profileOnlineStubUrl))
+      .replaceAll('"@/lib/worldbox/player/profile"', JSON.stringify(profileSwapUrl))
+      .replaceAll('"@/lib/worldbox/core/user-lock"', JSON.stringify(userLockUrl))
+      .replaceAll('"@/lib/worldbox/player/roles"', JSON.stringify(rolesUrl)),
   ),
 );
 const URL_P = "http://localhost/api/worldbox/profile";

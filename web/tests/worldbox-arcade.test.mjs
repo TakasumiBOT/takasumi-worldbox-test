@@ -43,7 +43,7 @@ async function loadOnline(name, exportsList) {
   return import("data:text/javascript;base64," + Buffer.from(code).toString("base64"));
 }
 
-const arcade = await loadLib("worldbox/arcade.ts");
+const arcade = await loadLib("worldbox/activity/arcade.ts");
 
 // registry.ts が import するゲームモジュール名が ONLINE_GAMES の正。
 const registrySrc = fs.readFileSync(path.join(libDir, "online/registry.ts"), "utf8");
@@ -107,7 +107,7 @@ test("arcade: スプライト名は arcade_<id> で一意（素材は L3 で作�
     assert.ok(/^[a-z0-9_]+$/.test(e.sprite), `不正なスプライト名: ${e.sprite}`);
   }
   // arcade.ts は人数・タイトルを重複して持たない（registry 側が正）
-  const src = fs.readFileSync(path.join(libDir, "worldbox/arcade.ts"), "utf8");
+  const src = fs.readFileSync(path.join(libDir, "worldbox/activity/arcade.ts"), "utf8");
   assert.ok(!src.includes("minPlayers") && !src.includes("maxPlayers"), "人数を arcade.ts に重複させている");
   assert.ok(!src.includes("title:"), "タイトルを arcade.ts に重複させている");
 });

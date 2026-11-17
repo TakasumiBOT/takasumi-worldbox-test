@@ -56,7 +56,7 @@ async function loadBundle(files, exportNames) {
 }
 
 const af = await loadBundle(
-  ["worldbox/affordance.ts"],
+  ["worldbox/player/affordance.ts"],
   [
     "AFFORDANCE_RANGE_TILES", "AFFORDANCE_PULSE_DIVISOR", "AFFORDANCE_NUDGE_MS",
     "DENIED_MS", "DENIED_ALPHA_MAX", "STICK_KNOB_RADIUS", "STICK_KNOB_RADIUS_ACTIVE",

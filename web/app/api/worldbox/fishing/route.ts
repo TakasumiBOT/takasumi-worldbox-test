@@ -1,16 +1,16 @@
 import { NextResponse } from "next/server";
 import { getRequestSession, publicOrigin, sessionOwnerKey } from "@/lib/auth";
-import { MAP_SEED, WORLD_COORD_LIMIT } from "@/lib/worldbox/mapgen";
-import { fishingNonce, fishingReady, fishingSpotAt } from "@/lib/worldbox/fishing";
-import { isFishingEnabled, loadAllCaughtAt, loadCaughtAt, storeCaughtAt } from "@/lib/worldbox/fishing-online";
-import { lootForObjectAt } from "@/lib/worldbox/objects";
-import { listPresence } from "@/lib/worldbox/presence-online";
-import { presenceIdFor } from "@/lib/worldbox/presence";
-import { addItem } from "@/lib/worldbox/profile";
-import { loadProfile, storeProfile } from "@/lib/worldbox/profile-online";
-import { parseSave } from "@/lib/worldbox/save";
-import { loadWorldBoxSave } from "@/lib/worldbox/save-online";
-import { withUserLock } from "@/lib/worldbox/user-lock";
+import { MAP_SEED, WORLD_COORD_LIMIT } from "@/lib/worldbox/world/mapgen";
+import { fishingNonce, fishingReady, fishingSpotAt } from "@/lib/worldbox/activity/fishing";
+import { isFishingEnabled, loadAllCaughtAt, loadCaughtAt, storeCaughtAt } from "@/lib/worldbox/activity/fishing-online";
+import { lootForObjectAt } from "@/lib/worldbox/world/objects";
+import { listPresence } from "@/lib/worldbox/player/presence-online";
+import { presenceIdFor } from "@/lib/worldbox/player/presence";
+import { addItem } from "@/lib/worldbox/player/profile";
+import { loadProfile, storeProfile } from "@/lib/worldbox/player/profile-online";
+import { parseSave } from "@/lib/worldbox/core/save";
+import { loadWorldBoxSave } from "@/lib/worldbox/core/save-online";
+import { withUserLock } from "@/lib/worldbox/core/user-lock";
 
 export const runtime = "nodejs";
 

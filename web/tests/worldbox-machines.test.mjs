@@ -50,7 +50,7 @@ async function loadBundle(files, exportNames) {
 }
 
 const M = await loadBundle(
-  ["worldbox/items.ts", "worldbox/machines.ts"],
+  ["worldbox/economy/items.ts", "worldbox/economy/machines.ts"],
   [
     "isMachineItem", "defaultProgram", "parseProgram", "encodeProgram", "decodeProgram",
     "DEVICE_PRESETS", "parseMachineState", "machineBufferCount", "evaluateMachine",

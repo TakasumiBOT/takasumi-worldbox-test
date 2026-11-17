@@ -64,7 +64,7 @@ function readApp(rel) {
 
 // ---------------------------------------------------------------- 道具強化
 const T = await loadBundle(
-  ["worldbox/rng.ts", "worldbox/mapgen.ts", "worldbox/items.ts", "worldbox/profile.ts", "worldbox/presence.ts", "worldbox/seasons.ts", "worldbox/tiles.ts"],
+  ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/economy/items.ts", "worldbox/player/profile.ts", "worldbox/player/presence.ts", "worldbox/world/seasons.ts", "worldbox/world/tiles.ts"],
   ["parseProfile", "bestToolTier", "blockMineDamage", "itemById", "BLOCK_MINE_DAMAGE"],
 );
 
@@ -96,7 +96,7 @@ test("enhance: blockMineDamage follows the effective pickaxe tier", () => {
 
 // ---------------------------------------------------------------- 食事まわり
 const E = await loadBundle(
-  ["worldbox/items.ts", "worldbox/profile.ts", "worldbox/vitals.ts", "worldbox/economy.ts"],
+  ["worldbox/economy/items.ts", "worldbox/player/profile.ts", "worldbox/player/vitals.ts", "worldbox/economy/economy.ts"],
   ["eatItem", "consumeEffect", "parseProfile", "itemById", "BUFF_DURATION_MS", "maxHpFor"],
 );
 

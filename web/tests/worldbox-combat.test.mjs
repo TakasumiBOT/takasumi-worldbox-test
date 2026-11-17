@@ -48,7 +48,7 @@ function bundleModule(files, names) {
 }
 
 const combatUrl = bundleModule(
-  ["worldbox/rng.ts", "worldbox/mapgen.ts", "worldbox/maplogic.ts", "worldbox/items.ts", "worldbox/mobs.ts", "worldbox/combat.ts", "worldbox/arena.ts"],
+  ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/world/maplogic.ts", "worldbox/economy/items.ts", "worldbox/combat/mobs.ts", "worldbox/combat/combat.ts", "worldbox/combat/arena.ts"],
   [
     "mobById", "MOBS",
     "mobKeyOf", "parseMobKey", "parseMobState", "parseMobStates", "mobHpNow",
@@ -69,7 +69,7 @@ const always = () => 0; // chance を必ず通し、個数は min になる乱�
 const never = () => 0.999999;
 
 test("combat モジュールが存在する", () => {
-  assert.ok(combat, "lib/worldbox/combat.ts が無い");
+  assert.ok(combat, "lib/worldbox/combat/combat.ts が無い");
   assert.ok(mobs && arena);
 });
 
@@ -231,7 +231,7 @@ test("API ルート: 実在検証・距離検証・闘技場式ダメージ・�
   assert.ok(rolesRoute.includes("resolveMobPosition"), "技の対象解決が実位置を使っていない");
   assert.ok(rolesRoute.includes("fields.mobs"), "技がモブ現在タイルの申告を受けていない");
   assert.ok(rolesRoute.includes("MOB_REPORT_LEASH"), "技の候補取得がリーシュ分広がっていない");
-  const online = fs.readFileSync(path.join(rootDir, "lib/worldbox/mobs-online.ts"), "utf8");
+  const online = fs.readFileSync(path.join(rootDir, "lib/worldbox/combat/mobs-online.ts"), "utf8");
   assert.ok(online.includes('"worldbox_mobs"'), "bot_kv 名前空間が違う");
 });
 

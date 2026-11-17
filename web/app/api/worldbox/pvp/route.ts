@@ -1,20 +1,20 @@
 import { NextResponse } from "next/server";
 import { getRequestSession, publicOrigin, sessionOwnerKey } from "@/lib/auth";
-import { playerAttack } from "@/lib/worldbox/arena";
-import { buildEconomyOp, type EconomyOp } from "@/lib/worldbox/economy-bridge";
+import { playerAttack } from "@/lib/worldbox/combat/arena";
+import { buildEconomyOp, type EconomyOp } from "@/lib/worldbox/economy/economy-bridge";
 import {
   deleteEconomyOp, enqueueEconomyOpOnce, findEconomyOp, isEconomyEnabled, loadMyEconomyOps,
   readUserBalance, submitEconomyOp, waitForOpsDone,
-} from "@/lib/worldbox/economy-bridge-online";
-import { loadProfile } from "@/lib/worldbox/profile-online";
+} from "@/lib/worldbox/economy/economy-bridge-online";
+import { loadProfile } from "@/lib/worldbox/player/profile-online";
 import {
   PVP_FEE, PVP_MAX_LOG, PVP_PRIZE, createDuel, publicPvpView, pvpFeeRefundOpId, pvpPrizeOpId, pvpStep, tryMatch,
   type PvpDuel, type PvpMove, type PvpPlayer, type PvpQueueEntry,
-} from "@/lib/worldbox/pvp";
-import { clearPvpDuel, loadMyPvpDuel, loadPvpQueue, savePvpDuel, savePvpQueue } from "@/lib/worldbox/pvp-online";
-import { loadMyLobbyStation } from "@/lib/worldbox/station-online";
-import { advanceTournamentMatch } from "@/lib/worldbox/tournament-online";
-import { withUserLock } from "@/lib/worldbox/user-lock";
+} from "@/lib/worldbox/combat/pvp";
+import { clearPvpDuel, loadMyPvpDuel, loadPvpQueue, savePvpDuel, savePvpQueue } from "@/lib/worldbox/combat/pvp-online";
+import { loadMyLobbyStation } from "@/lib/worldbox/world/station-online";
+import { advanceTournamentMatch } from "@/lib/worldbox/combat/tournament-online";
+import { withUserLock } from "@/lib/worldbox/core/user-lock";
 
 export const runtime = "nodejs";
 

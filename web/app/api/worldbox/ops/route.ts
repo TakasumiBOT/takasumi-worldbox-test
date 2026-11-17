@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import { getRequestSession, publicOrigin, sessionOwnerKey } from "@/lib/auth";
-import { dayKeyOf } from "@/lib/worldbox/metrics";
-import { stateAtTime } from "@/lib/worldbox/ops";
+import { dayKeyOf } from "@/lib/worldbox/core/metrics";
+import { stateAtTime } from "@/lib/worldbox/core/ops";
 import {
   appendReport, loadFrozen, loadReports, loadTileJournal, storeFrozen, worldboxAdminIds,
-} from "@/lib/worldbox/ops-online";
-import { isTilesEnabled, storeTileOverride } from "@/lib/worldbox/tiles-online";
-import { parseTileKey } from "@/lib/worldbox/tiles";
+} from "@/lib/worldbox/core/ops-online";
+import { isTilesEnabled, storeTileOverride } from "@/lib/worldbox/world/tiles-online";
+import { parseTileKey } from "@/lib/worldbox/world/tiles";
 
 export const runtime = "nodejs";
 

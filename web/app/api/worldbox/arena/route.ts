@@ -3,16 +3,16 @@ import { getRequestSession, publicOrigin, sessionOwnerKey } from "@/lib/auth";
 import {
   ARENA_PLAYER_HP, ARENA_TIERS, arenaStep, arenaTier, playerAttack, publicArenaView,
   type ArenaActionKind, type ArenaSession,
-} from "@/lib/worldbox/arena";
-import { clearArenaSession, loadArenaSession, saveArenaSession } from "@/lib/worldbox/arena-online";
-import { buildEconomyOp, type EconomyOp } from "@/lib/worldbox/economy-bridge";
+} from "@/lib/worldbox/combat/arena";
+import { clearArenaSession, loadArenaSession, saveArenaSession } from "@/lib/worldbox/combat/arena-online";
+import { buildEconomyOp, type EconomyOp } from "@/lib/worldbox/economy/economy-bridge";
 import {
   enqueueEconomyOp, enqueueEconomyOpOnce, findEconomyOp, isEconomyEnabled, loadMyEconomyOps, readUserBalance,
   waitForOpDone,
-} from "@/lib/worldbox/economy-bridge-online";
-import { loadProfile } from "@/lib/worldbox/profile-online";
-import { loadMyLobbyStation } from "@/lib/worldbox/station-online";
-import { withUserLock } from "@/lib/worldbox/user-lock";
+} from "@/lib/worldbox/economy/economy-bridge-online";
+import { loadProfile } from "@/lib/worldbox/player/profile-online";
+import { loadMyLobbyStation } from "@/lib/worldbox/world/station-online";
+import { withUserLock } from "@/lib/worldbox/core/user-lock";
 
 export const runtime = "nodejs";
 

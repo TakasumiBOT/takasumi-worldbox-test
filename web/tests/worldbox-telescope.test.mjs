@@ -51,7 +51,7 @@ async function loadBundle(files, exportNames) {
 }
 
 const wb = await loadBundle(
-  ["worldbox/rng.ts", "worldbox/mapgen.ts", "worldbox/lobby.ts", "worldbox/lobby-floors.ts"],
+  ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/world/lobby.ts", "worldbox/world/lobby-floors.ts"],
   ["buildLobby", "stationNear", "buildLobby3", "LOBBY3_ENTRY"],
 );
 
@@ -81,7 +81,7 @@ test("望遠鏡: 3F展望デッキに配置され、隣で station が返る", (
 });
 
 test("望遠鏡: スプライト登録と実ファイル", () => {
-  const tex = fs.readFileSync(path.join(libDir, "worldbox/textures.ts"), "utf8");
+  const tex = fs.readFileSync(path.join(libDir, "worldbox/world/textures.ts"), "utf8");
   assert.match(tex, /telescope: "\/img\/worldbox\/lobby\/telescope\.png"/);
   const png = fs.readFileSync(path.join(rootDir, "public/img/worldbox/lobby/telescope.png"));
   assert.equal(png.subarray(1, 4).toString("ascii"), "PNG");

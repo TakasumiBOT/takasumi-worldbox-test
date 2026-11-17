@@ -46,7 +46,7 @@ function bundleModule(files, names) {
 }
 
 const url = bundleModule(
-  ["worldbox/mapgen.ts", "worldbox/presence.ts"],
+  ["worldbox/world/mapgen.ts", "worldbox/player/presence.ts"],
   ["clockOffsetEstimate", "predictPosition", "EXTRAPOLATE_CAP_SEC", "checkMovementContinuity", "checkSaveFallbackContinuity", "MAX_MOVE_SPEED", "MOVEMENT_MARGIN_TILES", "MOVEMENT_RESET_MS", "SAVE_FALLBACK_MAX_TILES"],
 );
 const wb = await import(url);

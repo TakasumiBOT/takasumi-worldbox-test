@@ -51,7 +51,7 @@ async function loadBundle(files, exportNames) {
 }
 
 const E = await loadBundle(
-  ["worldbox/events.ts"],
+  ["worldbox/core/events.ts"],
   [
     "WORLD_EVENTS", "EVENT_DUNGEON_ENTRANCE", "isEventActive", "activeEvents",
     "activeLimitedDungeon", "isEventDungeonEntrance", "eventDaysLeft",
@@ -82,7 +82,7 @@ test("events: limited dungeon follows the same window; entrance is reserved", ()
 });
 
 const T = await loadBundle(
-  ["worldbox/rng.ts", "worldbox/mapgen.ts", "worldbox/lobby.ts", "worldbox/tent.ts"],
+  ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/world/lobby.ts", "worldbox/world/tent.ts"],
   [
     "TENT_TIERS", "TENT_MAX_TIER", "tentTierOf", "tentSizeForTier", "tentExitFor",
     "tentEntryFor", "buildTent", "tentTileAt", "TENT_ENTRY", "TENT_EXIT",
@@ -125,7 +125,7 @@ test("tent: higher tiers are bigger, exit stays on the south wall center", () =>
 });
 
 const P = await loadBundle(
-  ["worldbox/items.ts", "worldbox/profile.ts"],
+  ["worldbox/economy/items.ts", "worldbox/player/profile.ts"],
   ["parseProfile", "serializeProfile"],
 );
 

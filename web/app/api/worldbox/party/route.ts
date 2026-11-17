@@ -1,27 +1,27 @@
 import { NextResponse } from "next/server";
 import { getRequestSession, publicOrigin, sessionOwnerKey } from "@/lib/auth";
-import { MAP_SEED } from "@/lib/worldbox/mapgen";
-import { CHUNK_SIZE, structuresForChunk } from "@/lib/worldbox/maplogic";
-import { isProfileEnabled, loadProfile, storeProfile } from "@/lib/worldbox/profile-online";
-import { masteryRankOf } from "@/lib/worldbox/roles";
-import { listPresenceWithOwners } from "@/lib/worldbox/presence-online";
-import { presenceIdFor } from "@/lib/worldbox/presence";
+import { MAP_SEED } from "@/lib/worldbox/world/mapgen";
+import { CHUNK_SIZE, structuresForChunk } from "@/lib/worldbox/world/maplogic";
+import { isProfileEnabled, loadProfile, storeProfile } from "@/lib/worldbox/player/profile-online";
+import { masteryRankOf } from "@/lib/worldbox/player/roles";
+import { listPresenceWithOwners } from "@/lib/worldbox/player/presence-online";
+import { presenceIdFor } from "@/lib/worldbox/player/presence";
 import {
   addInvite, createParty, inviteFor, isPartyLeader, isPartyMember, joinParty,
   leaveParty, makePartyId, partyKeyOf, type Party, type PartyMember,
-} from "@/lib/worldbox/party";
+} from "@/lib/worldbox/social/party";
 import {
   clearInviteIndex, clearMemberIndex, deleteParty, loadInvitedParty, loadParty,
   loadPartyOf, storeParty,
-} from "@/lib/worldbox/party-online";
+} from "@/lib/worldbox/social/party-online";
 import {
   deleteDungeonSession, dungeonGateSatisfied, dungeonSessionClosed, loadDungeonSession, storeDungeonSession,
   type DungeonSession,
-} from "@/lib/worldbox/instances-online";
-import { DUNGEON_FLOORS, makeInstanceSpace, parseInstanceSpace } from "@/lib/worldbox/instances";
-import { parseSave } from "@/lib/worldbox/save";
-import { loadWorldBoxSave } from "@/lib/worldbox/save-online";
-import { withUserLock } from "@/lib/worldbox/user-lock";
+} from "@/lib/worldbox/world/instances-online";
+import { DUNGEON_FLOORS, makeInstanceSpace, parseInstanceSpace } from "@/lib/worldbox/world/instances";
+import { parseSave } from "@/lib/worldbox/core/save";
+import { loadWorldBoxSave } from "@/lib/worldbox/core/save-online";
+import { withUserLock } from "@/lib/worldbox/core/user-lock";
 
 export const runtime = "nodejs";
 

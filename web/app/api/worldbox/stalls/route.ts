@@ -1,20 +1,20 @@
 import { NextResponse } from "next/server";
 import { getRequestSession, publicOrigin, sessionOwnerKey } from "@/lib/auth";
-import { WORLD_COORD_LIMIT } from "@/lib/worldbox/mapgen";
-import { itemById } from "@/lib/worldbox/items";
-import { addItem, removeItem } from "@/lib/worldbox/profile";
-import { loadProfile, storeProfile } from "@/lib/worldbox/profile-online";
-import { listPresence } from "@/lib/worldbox/presence-online";
-import { presenceIdFor } from "@/lib/worldbox/presence";
-import { parseSave } from "@/lib/worldbox/save";
-import { loadWorldBoxSave } from "@/lib/worldbox/save-online";
-import { isOverrideActive } from "@/lib/worldbox/tiles";
-import { isTilesEnabled, loadTileOverride } from "@/lib/worldbox/tiles-online";
-import { isStallItem, stallAfterSale, validStallCount, validStallPrice } from "@/lib/worldbox/stalls";
-import { isStallsEnabled, loadStall, storeStall } from "@/lib/worldbox/stalls-online";
-import { buildEconomyOp } from "@/lib/worldbox/economy-bridge";
-import { enqueueEconomyOp, isEconomyEnabled, readUserBalance } from "@/lib/worldbox/economy-bridge-online";
-import { withUserLock } from "@/lib/worldbox/user-lock";
+import { WORLD_COORD_LIMIT } from "@/lib/worldbox/world/mapgen";
+import { itemById } from "@/lib/worldbox/economy/items";
+import { addItem, removeItem } from "@/lib/worldbox/player/profile";
+import { loadProfile, storeProfile } from "@/lib/worldbox/player/profile-online";
+import { listPresence } from "@/lib/worldbox/player/presence-online";
+import { presenceIdFor } from "@/lib/worldbox/player/presence";
+import { parseSave } from "@/lib/worldbox/core/save";
+import { loadWorldBoxSave } from "@/lib/worldbox/core/save-online";
+import { isOverrideActive } from "@/lib/worldbox/world/tiles";
+import { isTilesEnabled, loadTileOverride } from "@/lib/worldbox/world/tiles-online";
+import { isStallItem, stallAfterSale, validStallCount, validStallPrice } from "@/lib/worldbox/economy/stalls";
+import { isStallsEnabled, loadStall, storeStall } from "@/lib/worldbox/economy/stalls-online";
+import { buildEconomyOp } from "@/lib/worldbox/economy/economy-bridge";
+import { enqueueEconomyOp, isEconomyEnabled, readUserBalance } from "@/lib/worldbox/economy/economy-bridge-online";
+import { withUserLock } from "@/lib/worldbox/core/user-lock";
 
 export const runtime = "nodejs";
 

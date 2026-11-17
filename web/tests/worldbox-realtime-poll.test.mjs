@@ -44,7 +44,7 @@ function loadBundle(files, names) {
 const {
   PRESENCE_POLL_MS, PRESENCE_SAFETY_POLL_MS, WS_ALIVE_WINDOW_MS,
   isWsHealthy, presencePollDue,
-} = loadBundle(["worldbox/realtime-poll.ts"], [
+} = loadBundle(["worldbox/core/realtime-poll.ts"], [
   "PRESENCE_POLL_MS", "PRESENCE_SAFETY_POLL_MS", "WS_ALIVE_WINDOW_MS",
   "isWsHealthy", "presencePollDue",
 ]);

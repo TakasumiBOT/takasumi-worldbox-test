@@ -31,13 +31,13 @@ async function loadLib(name) {
   return import(dataUrl(js));
 }
 
-const arcade = await loadLib("worldbox/arcade.ts");
-const rngUrl = dataUrl(transpile("worldbox/rng.ts"));
-const mapgenUrl = dataUrl(transpile("worldbox/mapgen.ts").replaceAll('"./rng"', JSON.stringify(rngUrl)));
-const lobbyUrl = dataUrl(transpile("worldbox/lobby.ts").replaceAll('"./mapgen"', JSON.stringify(mapgenUrl)));
+const arcade = await loadLib("worldbox/activity/arcade.ts");
+const rngUrl = dataUrl(transpile("worldbox/core/rng.ts"));
+const mapgenUrl = dataUrl(transpile("worldbox/world/mapgen.ts").replaceAll('"../core/rng"', JSON.stringify(rngUrl)));
+const lobbyUrl = dataUrl(transpile("worldbox/world/lobby.ts").replaceAll('"./mapgen"', JSON.stringify(mapgenUrl)));
 const lobby = await import(lobbyUrl);
 const floorsUrl = dataUrl(
-  transpile("worldbox/lobby-floors.ts")
+  transpile("worldbox/world/lobby-floors.ts")
     .replaceAll('"./mapgen"', JSON.stringify(mapgenUrl))
     .replaceAll('"./lobby"', JSON.stringify(lobbyUrl)),
 );
@@ -113,7 +113,7 @@ test("cabinets: 南側の前列（y=10）に立て、入口から届く。列の
 
 test("cabinets: スプライト PNG が 64x64 RGBA で存在し、textures.ts に登録されている", () => {
   const spriteDir = path.join(rootDir, "public/img/worldbox/lobby");
-  const texturesSrc = fs.readFileSync(path.join(libDir, "worldbox/textures.ts"), "utf8");
+  const texturesSrc = fs.readFileSync(path.join(libDir, "worldbox/world/textures.ts"), "utf8");
   for (const id of arcade.ARCADE_FIRST_WAVE) {
     const name = `arcade_${id}`;
     const file = path.join(spriteDir, `${name}.png`);

@@ -50,7 +50,7 @@ async function loadBundle(files, exportNames) {
 }
 
 const M = await loadBundle(
-  ["worldbox/metrics.ts"],
+  ["worldbox/core/metrics.ts"],
   [
     "emptyDayMetrics", "parseDayMetrics", "parseUserFirstSteps", "dayKeyOf",
     "funnelRates", "retentionRate", "FUNNEL_WINDOW_MS",
@@ -93,7 +93,7 @@ test("metrics: retention is the share of day-A users also in day-B", () => {
 });
 
 const V = await loadBundle(
-  ["worldbox/items.ts", "worldbox/profile.ts", "worldbox/vitals.ts"],
+  ["worldbox/economy/items.ts", "worldbox/player/profile.ts", "worldbox/player/vitals.ts"],
   ["applyMobDamage", "parseProfile"],
 );
 

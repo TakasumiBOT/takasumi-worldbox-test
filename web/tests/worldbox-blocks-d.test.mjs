@@ -52,13 +52,13 @@ function loadBundle(files, names) {
 }
 
 const invUrl = bundleModule(
-  ["worldbox/items.ts", "worldbox/profile.ts"],
+  ["worldbox/economy/items.ts", "worldbox/player/profile.ts"],
   ["parseProfile", "countItem", "itemById"],
 );
 const inv = await import(invUrl);
 
 const tilesUrl = bundleModule(
-  ["worldbox/rng.ts", "worldbox/mapgen.ts", "worldbox/items.ts", "worldbox/profile.ts", "worldbox/presence.ts", "worldbox/seasons.ts", "worldbox/tiles.ts"],
+  ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/economy/items.ts", "worldbox/player/profile.ts", "worldbox/player/presence.ts", "worldbox/world/seasons.ts", "worldbox/world/tiles.ts"],
   [
     "worldTileSource", "mapTileAt", "T_GRASS",
     "applyPlaceBlock", "applySetSign", "applyDisplayAction", "applyDrawWater",
@@ -68,7 +68,7 @@ const tilesUrl = bundleModule(
 const T = await import(tilesUrl);
 
 const eco = loadBundle(
-  ["worldbox/items.ts", "worldbox/profile.ts", "worldbox/roles.ts", "worldbox/vitals.ts", "worldbox/economy.ts"],
+  ["worldbox/economy/items.ts", "worldbox/player/profile.ts", "worldbox/player/roles.ts", "worldbox/player/vitals.ts", "worldbox/economy/economy.ts"],
   ["parseProfile", "countItem", "eatItem"],
 );
 
@@ -156,7 +156,7 @@ test("井戸と水: バケツで汲め、飲むとバケツに戻る", () => {
 
 test("屋台: 出品の検証と売れた後の残数、parse の往復", async () => {
   const stallsUrl = bundleModule(
-    ["worldbox/items.ts", "worldbox/stalls.ts"],
+    ["worldbox/economy/items.ts", "worldbox/economy/stalls.ts"],
     ["parseStall", "serializeStall", "stallAfterSale", "validStallPrice", "validStallCount", "isStallItem"],
   );
   const S = await import(stallsUrl);

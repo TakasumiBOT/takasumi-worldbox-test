@@ -27,9 +27,9 @@ function dataUrl(js) {
   return "data:text/javascript;base64," + Buffer.from(js).toString("base64");
 }
 
-const T = await import(dataUrl(transpile("worldbox/tournament.ts")));
-const P = await import(dataUrl(transpile("worldbox/pvp.ts")));
-const E = await import(dataUrl(transpile("worldbox/economy-bridge.ts")));
+const T = await import(dataUrl(transpile("worldbox/combat/tournament.ts")));
+const P = await import(dataUrl(transpile("worldbox/combat/pvp.ts")));
+const E = await import(dataUrl(transpile("worldbox/economy/economy-bridge.ts")));
 
 const NOW = 1_700_000_000_000;
 const A = "111111111111111111";

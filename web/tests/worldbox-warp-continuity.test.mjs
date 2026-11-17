@@ -51,14 +51,14 @@ function bundleModule(files, names) {
 }
 
 const url = bundleModule(
-  ["worldbox/mapgen.ts", "worldbox/presence.ts"],
+  ["worldbox/world/mapgen.ts", "worldbox/player/presence.ts"],
   ["checkMovementContinuity", "checkSaveFallbackContinuity", "isRegisteredWarpJump", "SAME_SPACE_WARPS", "WARP_LANDING_TOLERANCE_TILES", "WARP_FALLBACK_SOURCE_REACH_TILES"],
 );
 const wb = await import(url);
 
-const rngUrl = dataUrl(transpile("worldbox/rng.ts"));
-const mapgenUrl = dataUrl(transpile("worldbox/mapgen.ts").replaceAll('"./rng"', JSON.stringify(rngUrl)));
-const lobbyUrl = dataUrl(transpile("worldbox/lobby.ts").replaceAll('"./mapgen"', JSON.stringify(mapgenUrl)));
+const rngUrl = dataUrl(transpile("worldbox/core/rng.ts"));
+const mapgenUrl = dataUrl(transpile("worldbox/world/mapgen.ts").replaceAll('"../core/rng"', JSON.stringify(rngUrl)));
+const lobbyUrl = dataUrl(transpile("worldbox/world/lobby.ts").replaceAll('"./mapgen"', JSON.stringify(mapgenUrl)));
 const lobby = await import(lobbyUrl);
 
 const NOW = 1_700_000_000_000;

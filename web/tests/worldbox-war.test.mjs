@@ -49,7 +49,7 @@ function bundleModule(files, names) {
   return dataUrl(`${code}\nexport { ${names.join(", ")} };`);
 }
 
-const warUrl = dataUrl(transpile("worldbox/war.ts"));
+const warUrl = dataUrl(transpile("worldbox/combat/war.ts"));
 const W = await import(warUrl);
 
 const NOW = 1_700_000_000_000;
@@ -236,7 +236,7 @@ test("war: 保存→復元の往復で戦争と履歴が残り、壊れた値は
 // ---------- タイル採掘への配線 ----------
 
 const tilesUrl = bundleModule(
-  ["worldbox/rng.ts", "worldbox/mapgen.ts", "worldbox/items.ts", "worldbox/profile.ts", "worldbox/presence.ts", "worldbox/seasons.ts", "worldbox/tiles.ts"],
+  ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/economy/items.ts", "worldbox/player/profile.ts", "worldbox/player/presence.ts", "worldbox/world/seasons.ts", "worldbox/world/tiles.ts"],
   [
     "worldTileSource", "mapTileAt", "T_GRASS",
     "parseProfile", "addItem", "countItem",
@@ -298,7 +298,7 @@ test("war: ルート配線（state は全体ロックで直列化、解散は冪
   for (const needle of ["withWarLock", "settleDisbands", "loadWarStateSettled", "handlePost"]) {
     assert.ok(route.includes(needle), `war ルートに ${needle} が無い`);
   }
-  const warOnline = fs.readFileSync(path.join(libDir, "worldbox/war-online.ts"), "utf8");
+  const warOnline = fs.readFileSync(path.join(libDir, "worldbox/combat/war-online.ts"), "utf8");
   assert.ok(warOnline.includes("withWarLock"), "war-online に withWarLock が無い");
   assert.ok(warOnline.includes("withUserLock"), "war-online が全体ロックを使っていない");
   const tilesRoute = fs.readFileSync(path.join(rootDir, "app/api/worldbox/tiles/route.ts"), "utf8");

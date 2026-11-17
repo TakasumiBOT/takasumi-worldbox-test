@@ -26,7 +26,7 @@ function dataUrl(js) {
   return "data:text/javascript;base64," + Buffer.from(js).toString("base64");
 }
 
-const presence = await import(dataUrl(transpile("worldbox/presence.ts")));
+const presence = await import(dataUrl(transpile("worldbox/player/presence.ts")));
 
 const NOW = 1_700_000_000_000;
 const AV = "https://cdn.discordapp.com/avatars/123456789/abcdef.png?size=64";
@@ -97,7 +97,7 @@ test("配線: ルート/トークン/ラッパー/クライアント", () => {
   const route = fs.readFileSync(path.join(rootDir, "app/api/worldbox/presence/route.ts"), "utf8");
   assert.match(route, /sessionAvatarUrl\(session\)/);
   assert.match(route, /\{ \.\.\.heartbeat, name, \.\.\.\(avatar \? \{ avatar \} : \{\}\) \}/);
-  const token = fs.readFileSync(path.join(libDir, "worldbox/realtime-token.ts"), "utf8");
+  const token = fs.readFileSync(path.join(libDir, "worldbox/core/realtime-token.ts"), "utf8");
   assert.match(token, /av: avatarUrl/);
   const wrapper = fs.readFileSync(path.join(rootDir, "realtime-server.js"), "utf8");
   assert.match(wrapper, /avatar: auth\.av \?\? null/);

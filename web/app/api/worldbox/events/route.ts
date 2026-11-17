@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getRequestSession } from "@/lib/auth";
-import { activeEvents, eventDaysLeft, EVENT_DUNGEON_ENTRANCE } from "@/lib/worldbox/events";
+import { activeEvents, eventDaysLeft, EVENT_DUNGEON_ENTRANCE } from "@/lib/worldbox/core/events";
 
 export const runtime = "nodejs";
 

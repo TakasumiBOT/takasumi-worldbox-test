@@ -57,11 +57,11 @@ async function loadBundle(files, exportNames) {
 }
 
 const cat = await loadBundle(
-  ["worldbox/items.ts"],
+  ["worldbox/economy/items.ts"],
   ["ITEMS", "RECIPES", "CROPS", "ITEM_ICON_IDS", "itemById", "itemsWithTool", "cropBySeedId"],
 );
 const ml = await loadBundle(
-  ["worldbox/rng.ts", "worldbox/mapgen.ts", "worldbox/maplogic.ts"],
+  ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/world/maplogic.ts"],
   [
     "BIOMES", "biomeById", "biomeAt", "classifyBiome", "elevationAt", "moistureAt",
     "isSnowZone", "CHUNK_SIZE", "chunkOf", "chunkKey", "parseChunkKey",
@@ -70,7 +70,7 @@ const ml = await loadBundle(
   ],
 );
 const ob = await loadBundle(
-  ["worldbox/rng.ts", "worldbox/mapgen.ts", "worldbox/maplogic.ts", "worldbox/items.ts", "worldbox/objects.ts", "worldbox/mobs.ts"],
+  ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/world/maplogic.ts", "worldbox/economy/items.ts", "worldbox/world/objects.ts", "worldbox/combat/mobs.ts"],
   [
     "SPECIAL_OBJECTS", "specialObjectById", "validateSpecialObjects", "objectsForChunk",
     "rollObjectLoot", "lootForObjectAt", "objectRespawned", "makeRng",

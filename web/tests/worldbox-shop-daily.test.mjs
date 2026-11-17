@@ -51,7 +51,7 @@ async function loadBundle(files, exportNames) {
 
 
 const S = await loadBundle(
-  ["worldbox/items.ts", "worldbox/shops.ts"],
+  ["worldbox/economy/items.ts", "worldbox/economy/shops.ts"],
   ["shopDayKeyOf", "dailyPriceFor", "dailyStockForGenre", "checkDailyStock", "itemsForGenre", "itemById"],
 );
 

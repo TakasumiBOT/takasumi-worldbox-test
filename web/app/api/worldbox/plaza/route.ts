@@ -1,17 +1,17 @@
 import { NextResponse } from "next/server";
 import { getRequestSession, publicOrigin, sessionOwnerKey } from "@/lib/auth";
 import { kvGet, kvSet } from "@/lib/bot-api";
-import { buildEconomyOp } from "@/lib/worldbox/economy-bridge";
+import { buildEconomyOp } from "@/lib/worldbox/economy/economy-bridge";
 import {
   enqueueEconomyOp, isEconomyEnabled, loadMyEconomyOps, readUserBalance,
-} from "@/lib/worldbox/economy-bridge-online";
-import { addItem } from "@/lib/worldbox/profile";
-import { loadProfile, storeProfile } from "@/lib/worldbox/profile-online";
-import { loadMyLobbyStation } from "@/lib/worldbox/station-online";
-import { withUserLock } from "@/lib/worldbox/user-lock";
-import { parseSave } from "@/lib/worldbox/save";
-import { loadWorldBoxSave } from "@/lib/worldbox/save-online";
-import { applyRest } from "@/lib/worldbox/vitals";
+} from "@/lib/worldbox/economy/economy-bridge-online";
+import { addItem } from "@/lib/worldbox/player/profile";
+import { loadProfile, storeProfile } from "@/lib/worldbox/player/profile-online";
+import { loadMyLobbyStation } from "@/lib/worldbox/world/station-online";
+import { withUserLock } from "@/lib/worldbox/core/user-lock";
+import { parseSave } from "@/lib/worldbox/core/save";
+import { loadWorldBoxSave } from "@/lib/worldbox/core/save-online";
+import { applyRest } from "@/lib/worldbox/player/vitals";
 
 export const runtime = "nodejs";
 

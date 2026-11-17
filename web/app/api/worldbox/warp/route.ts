@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import { getRequestSession, publicOrigin, sessionOwnerKey } from "@/lib/auth";
-import { worldTileSource } from "@/lib/worldbox/mapgen";
-import { isNationsEnabled, loadNationsState } from "@/lib/worldbox/nations-online";
-import { porterDestination } from "@/lib/worldbox/warp";
-import { isWarpEnabled, loadPorter } from "@/lib/worldbox/warp-online";
-import { parseSave, serializeSave } from "@/lib/worldbox/save";
-import { loadWorldBoxSave, storeWorldBoxSave } from "@/lib/worldbox/save-online";
-import { putPresence } from "@/lib/worldbox/presence-online";
+import { worldTileSource } from "@/lib/worldbox/world/mapgen";
+import { isNationsEnabled, loadNationsState } from "@/lib/worldbox/social/nations-online";
+import { porterDestination } from "@/lib/worldbox/world/warp";
+import { isWarpEnabled, loadPorter } from "@/lib/worldbox/world/warp-online";
+import { parseSave, serializeSave } from "@/lib/worldbox/core/save";
+import { loadWorldBoxSave, storeWorldBoxSave } from "@/lib/worldbox/core/save-online";
+import { putPresence } from "@/lib/worldbox/player/presence-online";
 
 export const runtime = "nodejs";
 

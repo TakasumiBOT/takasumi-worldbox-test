@@ -1,14 +1,14 @@
 import { NextResponse } from "next/server";
 import { getRequestSession, publicOrigin, sessionAvatarUrl, sessionOwnerKey } from "@/lib/auth";
-import { rectBounds, worldBounds } from "@/lib/worldbox/mapgen";
-import { LOBBY_H, LOBBY_W } from "@/lib/worldbox/lobby";
-import { LOBBY2_H, LOBBY2_W, LOBBY3_H, LOBBY3_W } from "@/lib/worldbox/lobby-floors";
-import { TENT_MAX_H, TENT_MAX_W } from "@/lib/worldbox/tent";
-import { isPresenceEnabled, listPresence, loadStoredPresence, putPresenceTabGuarded, removePresence } from "@/lib/worldbox/presence-online";
-import { parseSave } from "@/lib/worldbox/save";
-import { loadWorldBoxSave } from "@/lib/worldbox/save-online";
-import { recordFirstStep, recordPresenceMetric } from "@/lib/worldbox/metrics-online";
-import { checkMovementContinuity, checkSaveFallbackContinuity, presenceIdFor, sanitizeHeartbeat, sanitizePresenceSpace, selectVisiblePlayers, thinPresenceNear } from "@/lib/worldbox/presence";
+import { rectBounds, worldBounds } from "@/lib/worldbox/world/mapgen";
+import { LOBBY_H, LOBBY_W } from "@/lib/worldbox/world/lobby";
+import { LOBBY2_H, LOBBY2_W, LOBBY3_H, LOBBY3_W } from "@/lib/worldbox/world/lobby-floors";
+import { TENT_MAX_H, TENT_MAX_W } from "@/lib/worldbox/world/tent";
+import { isPresenceEnabled, listPresence, loadStoredPresence, putPresenceTabGuarded, removePresence } from "@/lib/worldbox/player/presence-online";
+import { parseSave } from "@/lib/worldbox/core/save";
+import { loadWorldBoxSave } from "@/lib/worldbox/core/save-online";
+import { recordFirstStep, recordPresenceMetric } from "@/lib/worldbox/core/metrics-online";
+import { checkMovementContinuity, checkSaveFallbackContinuity, presenceIdFor, sanitizeHeartbeat, sanitizePresenceSpace, selectVisiblePlayers, thinPresenceNear } from "@/lib/worldbox/player/presence";
 
 export const runtime = "nodejs";
 

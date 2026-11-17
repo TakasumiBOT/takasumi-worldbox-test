@@ -1,30 +1,30 @@
 import { NextResponse } from "next/server";
 import { getRequestSession, publicOrigin, sessionOwnerKey } from "@/lib/auth";
-import { WORLD_COORD_LIMIT, worldTileSource } from "@/lib/worldbox/mapgen";
-import { loadProfile, storeProfile } from "@/lib/worldbox/profile-online";
-import { listPresence } from "@/lib/worldbox/presence-online";
-import { presenceIdFor } from "@/lib/worldbox/presence";
-import { parseSave } from "@/lib/worldbox/save";
-import { loadWorldBoxSave } from "@/lib/worldbox/save-online";
+import { WORLD_COORD_LIMIT, worldTileSource } from "@/lib/worldbox/world/mapgen";
+import { loadProfile, storeProfile } from "@/lib/worldbox/player/profile-online";
+import { listPresence } from "@/lib/worldbox/player/presence-online";
+import { presenceIdFor } from "@/lib/worldbox/player/presence";
+import { parseSave } from "@/lib/worldbox/core/save";
+import { loadWorldBoxSave } from "@/lib/worldbox/core/save-online";
 import {
   applyDisplayAction, applyDrawWater, applyFlowerAction, applyMineBlock, applyPlaceBlock, applySetSign, applyTileAction, applyToggleGate, isOverrideActive, tileKey,
   type TileActionResult, type TileOverridesMap,
-} from "@/lib/worldbox/tiles";
-import { loadNationsState } from "@/lib/worldbox/nations-online";
-import { loadWarState } from "@/lib/worldbox/war-online";
-import { canBreakOthersBlock } from "@/lib/worldbox/war";
-import { containerIsEmpty, isContainerItem } from "@/lib/worldbox/containers";
-import { isMachineItem, machineBufferCount } from "@/lib/worldbox/machines";
-import { deleteMachine, loadMachine } from "@/lib/worldbox/machines-online";
-import { isStallItem } from "@/lib/worldbox/stalls";
-import { loadStall } from "@/lib/worldbox/stalls-online";
-import { bumpMetric, recordFirstStep } from "@/lib/worldbox/metrics-online";
-import { appendTileJournal, loadFrozen } from "@/lib/worldbox/ops-online";
-import { loadContainer, storeContainer } from "@/lib/worldbox/containers-online";
-import { withUserLock } from "@/lib/worldbox/user-lock";
+} from "@/lib/worldbox/world/tiles";
+import { loadNationsState } from "@/lib/worldbox/social/nations-online";
+import { loadWarState } from "@/lib/worldbox/combat/war-online";
+import { canBreakOthersBlock } from "@/lib/worldbox/combat/war";
+import { containerIsEmpty, isContainerItem } from "@/lib/worldbox/economy/containers";
+import { isMachineItem, machineBufferCount } from "@/lib/worldbox/economy/machines";
+import { deleteMachine, loadMachine } from "@/lib/worldbox/economy/machines-online";
+import { isStallItem } from "@/lib/worldbox/economy/stalls";
+import { loadStall } from "@/lib/worldbox/economy/stalls-online";
+import { bumpMetric, recordFirstStep } from "@/lib/worldbox/core/metrics-online";
+import { appendTileJournal, loadFrozen } from "@/lib/worldbox/core/ops-online";
+import { loadContainer, storeContainer } from "@/lib/worldbox/economy/containers-online";
+import { withUserLock } from "@/lib/worldbox/core/user-lock";
 import {
   isTilesEnabled, loadTileOverride, loadTileOverrides, storeTileOverride,
-} from "@/lib/worldbox/tiles-online";
+} from "@/lib/worldbox/world/tiles-online";
 
 export const runtime = "nodejs";
 

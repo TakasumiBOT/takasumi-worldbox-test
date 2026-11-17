@@ -5,7 +5,7 @@
 // スロットをタップした時だけ開く。ホットバー/コンテナの SlotContent と
 // 同じ文法（ピクセル絵・右下の個数・選択時は金枠）に揃える。
 import type { ReactNode } from "react";
-import { itemById } from "@/lib/worldbox/items";
+import { itemById } from "@/lib/worldbox/economy/items";
 
 /** アイテムのドット絵アイコン（無いアイテムは名前ラベルのみで出す）。 */
 export function ItemIcon({ id, size = 24 }: { id: string; size?: number }) {

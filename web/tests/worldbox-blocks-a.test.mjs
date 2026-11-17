@@ -49,13 +49,13 @@ function bundleModule(files, names) {
 }
 
 const invUrl = bundleModule(
-  ["worldbox/items.ts", "worldbox/profile.ts"],
+  ["worldbox/economy/items.ts", "worldbox/player/profile.ts"],
   ["itemById", "parseProfile", "countItem", "addItem"],
 );
 const inv = await import(invUrl);
 
 const tilesUrl = bundleModule(
-  ["worldbox/rng.ts", "worldbox/mapgen.ts", "worldbox/items.ts", "worldbox/profile.ts", "worldbox/presence.ts", "worldbox/seasons.ts", "worldbox/tiles.ts"],
+  ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/economy/items.ts", "worldbox/player/profile.ts", "worldbox/player/presence.ts", "worldbox/world/seasons.ts", "worldbox/world/tiles.ts"],
   [
     "worldTileSource", "mapTileAt", "T_GRASS",
     "parseProfile", "countItem",
@@ -66,13 +66,13 @@ const tilesUrl = bundleModule(
 const T = await import(tilesUrl);
 
 const instUrl = bundleModule(
-  ["worldbox/rng.ts", "worldbox/mapgen.ts", "worldbox/lobby.ts", "worldbox/items.ts", "worldbox/mobs.ts", "worldbox/objects.ts", "worldbox/instances.ts"],
+  ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/world/lobby.ts", "worldbox/economy/items.ts", "worldbox/combat/mobs.ts", "worldbox/world/objects.ts", "worldbox/world/instances.ts"],
   ["placedLightRadiusTiles", "PLACED_LIGHT_RADIUS"],
 );
 const I = await import(instUrl);
 
 const presenceUrl = bundleModule(
-  ["worldbox/presence.ts"],
+  ["worldbox/player/presence.ts"],
   ["sanitizeHeartbeat"],
 );
 const P = await import(presenceUrl);
@@ -220,7 +220,7 @@ test("プレゼンス: sit は true のときだけ残る", () => {
 // ---------- クライアント配線・SE ----------
 
 const clientSrc = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"), "utf8");
-const soundSrc = fs.readFileSync(path.join(libDir, "worldbox/sound.ts"), "utf8");
+const soundSrc = fs.readFileSync(path.join(libDir, "worldbox/media/sound.ts"), "utf8");
 const routeSrc = fs.readFileSync(path.join(rootDir, "app/api/worldbox/tiles/route.ts"), "utf8");
 
 test("配線: ピアノはタップで note SE を音階で鳴らす", () => {

@@ -1,27 +1,27 @@
 import { NextResponse } from "next/server";
 import { getRequestSession, publicOrigin, sessionOwnerKey } from "@/lib/auth";
-import { buildEconomyOp } from "@/lib/worldbox/economy-bridge";
+import { buildEconomyOp } from "@/lib/worldbox/economy/economy-bridge";
 import {
   enqueueEconomyOpOnce, isEconomyEnabled, loadMyEconomyOps, readUserBalance, submitEconomyOp,
-} from "@/lib/worldbox/economy-bridge-online";
+} from "@/lib/worldbox/economy/economy-bridge-online";
 import {
   GUILD_LISTING_MAX, GUILD_PLOT_ANCHORS, GUILD_PLOT_COUNT, GUILD_PLOT_FEE,
   findListing, listingAvailable, plotOfGuild, saleTaxAmount, sellerProceeds,
   type GuildShopState,
-} from "@/lib/worldbox/guild-shop";
-import { isGuildShopEnabled, loadGuildShopState, storeGuildShopState } from "@/lib/worldbox/guild-shop-online";
-import { itemById } from "@/lib/worldbox/items";
-import { loadNationsState } from "@/lib/worldbox/nations-online";
-import { memberKeysOf, resolveMemberRole, taxRateOf } from "@/lib/worldbox/nation-settings";
-import { loadNationSettings, updateNationSettings } from "@/lib/worldbox/nation-settings-online";
-import { listPresence } from "@/lib/worldbox/presence-online";
-import { presenceIdFor } from "@/lib/worldbox/presence";
-import { addItem, countItem, removeItem } from "@/lib/worldbox/profile";
-import { loadProfile, storeProfile } from "@/lib/worldbox/profile-online";
-import { parseSave } from "@/lib/worldbox/save";
-import { loadWorldBoxSave } from "@/lib/worldbox/save-online";
-import { withUserLock } from "@/lib/worldbox/user-lock";
-import { bumpMetric } from "@/lib/worldbox/metrics-online";
+} from "@/lib/worldbox/economy/guild-shop";
+import { isGuildShopEnabled, loadGuildShopState, storeGuildShopState } from "@/lib/worldbox/economy/guild-shop-online";
+import { itemById } from "@/lib/worldbox/economy/items";
+import { loadNationsState } from "@/lib/worldbox/social/nations-online";
+import { memberKeysOf, resolveMemberRole, taxRateOf } from "@/lib/worldbox/social/nation-settings";
+import { loadNationSettings, updateNationSettings } from "@/lib/worldbox/social/nation-settings-online";
+import { listPresence } from "@/lib/worldbox/player/presence-online";
+import { presenceIdFor } from "@/lib/worldbox/player/presence";
+import { addItem, countItem, removeItem } from "@/lib/worldbox/player/profile";
+import { loadProfile, storeProfile } from "@/lib/worldbox/player/profile-online";
+import { parseSave } from "@/lib/worldbox/core/save";
+import { loadWorldBoxSave } from "@/lib/worldbox/core/save-online";
+import { withUserLock } from "@/lib/worldbox/core/user-lock";
+import { bumpMetric } from "@/lib/worldbox/core/metrics-online";
 
 export const runtime = "nodejs";
 

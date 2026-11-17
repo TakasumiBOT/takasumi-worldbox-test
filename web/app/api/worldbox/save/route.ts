@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { getRequestSession, publicOrigin, sessionOwnerKey } from "@/lib/auth";
-import { parseSave, serializeSave } from "@/lib/worldbox/save";
-import { MAX_SAVE_JSON_LENGTH, isOnlineSaveEnabled, loadWorldBoxSave, storeWorldBoxSave } from "@/lib/worldbox/save-online";
-import { loadMyPresence } from "@/lib/worldbox/presence-online";
-import { checkMovementContinuity, checkSaveFallbackContinuity } from "@/lib/worldbox/presence";
-import { pickRandomSpawn } from "@/lib/worldbox/spawn";
+import { parseSave, serializeSave } from "@/lib/worldbox/core/save";
+import { MAX_SAVE_JSON_LENGTH, isOnlineSaveEnabled, loadWorldBoxSave, storeWorldBoxSave } from "@/lib/worldbox/core/save-online";
+import { loadMyPresence } from "@/lib/worldbox/player/presence-online";
+import { checkMovementContinuity, checkSaveFallbackContinuity } from "@/lib/worldbox/player/presence";
+import { pickRandomSpawn } from "@/lib/worldbox/world/spawn";
 
 export const runtime = "nodejs";
 

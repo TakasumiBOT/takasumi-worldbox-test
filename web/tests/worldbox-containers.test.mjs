@@ -48,13 +48,13 @@ function bundleModule(files, names) {
 }
 
 const invUrl = bundleModule(
-  ["worldbox/items.ts", "worldbox/profile.ts"],
+  ["worldbox/economy/items.ts", "worldbox/player/profile.ts"],
   ["parseProfile", "serializeProfile", "countItem"],
 );
 const inv = await import(invUrl);
 
 const containersUrl = bundleModule(
-  ["worldbox/items.ts", "worldbox/profile.ts", "worldbox/containers.ts"],
+  ["worldbox/economy/items.ts", "worldbox/player/profile.ts", "worldbox/economy/containers.ts"],
   [
     "CONTAINER_DEFS", "containerCapacity", "isContainerItem", "emptyContainer",
     "containerIsEmpty", "parseContainerState", "serializeContainerState",
@@ -64,7 +64,7 @@ const containersUrl = bundleModule(
 const C = await import(containersUrl);
 
 const tilesUrl = bundleModule(
-  ["worldbox/rng.ts", "worldbox/mapgen.ts", "worldbox/items.ts", "worldbox/profile.ts", "worldbox/presence.ts", "worldbox/seasons.ts", "worldbox/tiles.ts"],
+  ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/economy/items.ts", "worldbox/player/profile.ts", "worldbox/player/presence.ts", "worldbox/world/seasons.ts", "worldbox/world/tiles.ts"],
   [
     "worldTileSource", "mapTileAt", "T_GRASS",
     "applyTileAction", "applyPlaceBlock", "applyMineBlock", "applyFlowerAction", "applyToggleGate",
@@ -76,7 +76,7 @@ const tilesUrl = bundleModule(
 const T = await import(tilesUrl);
 
 const mapgenUrl = bundleModule(
-  ["worldbox/rng.ts", "worldbox/mapgen.ts"],
+  ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts"],
   ["worldTileSource", "WORLD_COORD_LIMIT"],
 );
 
@@ -247,10 +247,10 @@ export function __clear() { store.clear(); }
 `);
 const s4BotApi = await import(s4BotApiStubUrl);
 const containersOnlineUrl = dataUrl(
-  transpile("worldbox/containers-online.ts")
-    .replaceAll('"../bot-api"', JSON.stringify(s4BotApiStubUrl))
+  transpile("worldbox/economy/containers-online.ts")
+    .replaceAll('"../../bot-api"', JSON.stringify(s4BotApiStubUrl))
     .replaceAll('"./containers"', JSON.stringify(containersUrl))
-    .replaceAll('"./tiles"', JSON.stringify(tilesUrl)),
+    .replaceAll('"../world/tiles"', JSON.stringify(tilesUrl)),
 );
 const CONLINE = await import(containersOnlineUrl);
 
@@ -299,7 +299,7 @@ const authUrl = dataUrl(
 );
 const auth = await import(authUrl);
 
-const presenceBundleUrl = bundleModule(["worldbox/presence.ts"], ["presenceIdFor"]);
+const presenceBundleUrl = bundleModule(["worldbox/player/presence.ts"], ["presenceIdFor"]);
 const profileOnlineStubUrl = dataUrl(`
 import { parseProfile, serializeProfile } from ${JSON.stringify(invUrl)};
 const store = (globalThis.__wbContainerProfiles ??= new Map());
@@ -333,7 +333,7 @@ export function isNationsEnabled() { return true; }
 export async function loadNationsState() { return { nations: {} }; }
 `);
 // 戦争のスタブ: 空の戦争状態を返す（平時＝他者ブロックは掘れない）。
-const warUrl = bundleModule(["worldbox/war.ts"], ["canBreakOthersBlock"]);
+const warUrl = bundleModule(["worldbox/combat/war.ts"], ["canBreakOthersBlock"]);
 const warsOnlineStubUrl = dataUrl(`
 export async function loadWarState() { return globalThis.__wbContainersWars ?? { v: 1, wars: {}, history: [], lastDeclaredAt: {} }; }
 `);
@@ -351,39 +351,39 @@ function routeImport(file, replacements) {
   for (const [from, to] of replacements) code = code.replaceAll(from, JSON.stringify(to));
   return import(dataUrl(code));
 }
-const userLockUrl = dataUrl(transpile("worldbox/user-lock.ts"));
+const userLockUrl = dataUrl(transpile("worldbox/core/user-lock.ts"));
 const tentUrl = bundleModule(
-  ["worldbox/rng.ts", "worldbox/mapgen.ts", "worldbox/items.ts", "worldbox/profile.ts", "worldbox/presence.ts", "worldbox/seasons.ts", "worldbox/tiles.ts", "worldbox/lobby.ts", "worldbox/tent.ts"],
+  ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/economy/items.ts", "worldbox/player/profile.ts", "worldbox/player/presence.ts", "worldbox/world/seasons.ts", "worldbox/world/tiles.ts", "worldbox/world/lobby.ts", "worldbox/world/tent.ts"],
   ["buildTent", "TENT_H", "SEAT_SPRITES"],
 );
 const lobbyUrl = bundleModule(
-  ["worldbox/rng.ts", "worldbox/mapgen.ts", "worldbox/items.ts", "worldbox/profile.ts", "worldbox/presence.ts", "worldbox/seasons.ts", "worldbox/tiles.ts", "worldbox/lobby.ts", "worldbox/shops.ts"],
+  ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/economy/items.ts", "worldbox/player/profile.ts", "worldbox/player/presence.ts", "worldbox/world/seasons.ts", "worldbox/world/tiles.ts", "worldbox/world/lobby.ts", "worldbox/economy/shops.ts"],
   ["buildLobby"],
 );
 const lobbyFloorsUrl = bundleModule(
-  ["worldbox/rng.ts", "worldbox/mapgen.ts", "worldbox/items.ts", "worldbox/profile.ts", "worldbox/presence.ts", "worldbox/seasons.ts", "worldbox/tiles.ts", "worldbox/lobby.ts", "worldbox/shops.ts", "worldbox/lobby-floors.ts"],
+  ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/economy/items.ts", "worldbox/player/profile.ts", "worldbox/player/presence.ts", "worldbox/world/seasons.ts", "worldbox/world/tiles.ts", "worldbox/world/lobby.ts", "worldbox/economy/shops.ts", "worldbox/world/lobby-floors.ts"],
   ["buildLobby2", "buildLobby3"],
 );
 const tentMod = await import(tentUrl);
 const containersRoute = await routeImport("api/worldbox/containers/route.ts", [
   ['"next/server"', nextServerStubUrl],
   ['"@/lib/auth"', authUrl],
-  ['"@/lib/worldbox/mapgen"', mapgenUrl],
-  ['"@/lib/worldbox/profile-online"', profileOnlineStubUrl],
-  ['"@/lib/worldbox/presence-online"', presenceOnlineStubUrl],
-  ['"@/lib/worldbox/presence"', presenceBundleUrl],
-  ['"@/lib/worldbox/save"', saveStubUrl],
-  ['"@/lib/worldbox/save-online"', saveOnlineStubUrl],
-  ['"@/lib/worldbox/tiles"', tilesUrl],
-  ['"@/lib/worldbox/tiles-online"', tilesOnlineStubUrl],
-  ['"@/lib/worldbox/containers"', containersUrl],
-  ['"@/lib/worldbox/containers-online"', containersOnlineStubUrl],
-  ['"@/lib/worldbox/tent"', tentUrl],
-  ['"@/lib/worldbox/lobby"', lobbyUrl],
-  ['"@/lib/worldbox/lobby-floors"', lobbyFloorsUrl],
-  ['"@/lib/worldbox/user-lock"', userLockUrl],
+  ['"@/lib/worldbox/world/mapgen"', mapgenUrl],
+  ['"@/lib/worldbox/player/profile-online"', profileOnlineStubUrl],
+  ['"@/lib/worldbox/player/presence-online"', presenceOnlineStubUrl],
+  ['"@/lib/worldbox/player/presence"', presenceBundleUrl],
+  ['"@/lib/worldbox/core/save"', saveStubUrl],
+  ['"@/lib/worldbox/core/save-online"', saveOnlineStubUrl],
+  ['"@/lib/worldbox/world/tiles"', tilesUrl],
+  ['"@/lib/worldbox/world/tiles-online"', tilesOnlineStubUrl],
+  ['"@/lib/worldbox/economy/containers"', containersUrl],
+  ['"@/lib/worldbox/economy/containers-online"', containersOnlineStubUrl],
+  ['"@/lib/worldbox/world/tent"', tentUrl],
+  ['"@/lib/worldbox/world/lobby"', lobbyUrl],
+  ['"@/lib/worldbox/world/lobby-floors"', lobbyFloorsUrl],
+  ['"@/lib/worldbox/core/user-lock"', userLockUrl],
 ]);
-const machinesUrl = bundleModule(["worldbox/items.ts", "worldbox/machines.ts"], ["isMachineItem", "machineBufferCount"]);
+const machinesUrl = bundleModule(["worldbox/economy/items.ts", "worldbox/economy/machines.ts"], ["isMachineItem", "machineBufferCount"]);
 const opsOnlineStubUrl = dataUrl(`
 export async function loadFrozen() { return false; }
 export async function appendTileJournal() {}
@@ -400,7 +400,7 @@ const machinesOnlineStubUrl = dataUrl(`
 export async function loadMachine() { return null; }
 export async function deleteMachine() {}
 `);
-const stallsUrl = bundleModule(["worldbox/items.ts", "worldbox/stalls.ts"], ["isStallItem"]);
+const stallsUrl = bundleModule(["worldbox/economy/items.ts", "worldbox/economy/stalls.ts"], ["isStallItem"]);
 const stallsOnlineStubUrl = dataUrl(`
 export async function loadStall() { return null; }
 export async function storeStall() { return true; }
@@ -408,26 +408,26 @@ export async function storeStall() { return true; }
 const tilesRoute = await routeImport("api/worldbox/tiles/route.ts", [
   ['"next/server"', nextServerStubUrl],
   ['"@/lib/auth"', authUrl],
-  ['"@/lib/worldbox/mapgen"', mapgenUrl],
-  ['"@/lib/worldbox/profile-online"', profileOnlineStubUrl],
-  ['"@/lib/worldbox/presence-online"', presenceOnlineStubUrl],
-  ['"@/lib/worldbox/presence"', presenceBundleUrl],
-  ['"@/lib/worldbox/save"', saveStubUrl],
-  ['"@/lib/worldbox/save-online"', saveOnlineStubUrl],
-  ['"@/lib/worldbox/tiles"', tilesUrl],
-  ['"@/lib/worldbox/tiles-online"', tilesOnlineStubUrl],
-  ['"@/lib/worldbox/nations-online"', nationsOnlineStubUrl],
-  ['"@/lib/worldbox/war"', warUrl],
-  ['"@/lib/worldbox/war-online"', warsOnlineStubUrl],
-  ['"@/lib/worldbox/containers"', containersUrl],
-  ['"@/lib/worldbox/containers-online"', containersOnlineStubUrl],
-  ['"@/lib/worldbox/machines"', machinesUrl],
-  ['"@/lib/worldbox/machines-online"', machinesOnlineStubUrl],
-  ['"@/lib/worldbox/stalls"', stallsUrl],
-  ['"@/lib/worldbox/stalls-online"', stallsOnlineStubUrl],
-  ['"@/lib/worldbox/metrics-online"', metricsOnlineStubUrl],
-  ['"@/lib/worldbox/ops-online"', opsOnlineStubUrl],
-  ['"@/lib/worldbox/user-lock"', userLockUrl],
+  ['"@/lib/worldbox/world/mapgen"', mapgenUrl],
+  ['"@/lib/worldbox/player/profile-online"', profileOnlineStubUrl],
+  ['"@/lib/worldbox/player/presence-online"', presenceOnlineStubUrl],
+  ['"@/lib/worldbox/player/presence"', presenceBundleUrl],
+  ['"@/lib/worldbox/core/save"', saveStubUrl],
+  ['"@/lib/worldbox/core/save-online"', saveOnlineStubUrl],
+  ['"@/lib/worldbox/world/tiles"', tilesUrl],
+  ['"@/lib/worldbox/world/tiles-online"', tilesOnlineStubUrl],
+  ['"@/lib/worldbox/social/nations-online"', nationsOnlineStubUrl],
+  ['"@/lib/worldbox/combat/war"', warUrl],
+  ['"@/lib/worldbox/combat/war-online"', warsOnlineStubUrl],
+  ['"@/lib/worldbox/economy/containers"', containersUrl],
+  ['"@/lib/worldbox/economy/containers-online"', containersOnlineStubUrl],
+  ['"@/lib/worldbox/economy/machines"', machinesUrl],
+  ['"@/lib/worldbox/economy/machines-online"', machinesOnlineStubUrl],
+  ['"@/lib/worldbox/economy/stalls"', stallsUrl],
+  ['"@/lib/worldbox/economy/stalls-online"', stallsOnlineStubUrl],
+  ['"@/lib/worldbox/core/metrics-online"', metricsOnlineStubUrl],
+  ['"@/lib/worldbox/core/ops-online"', opsOnlineStubUrl],
+  ['"@/lib/worldbox/core/user-lock"', userLockUrl],
 ]);
 
 process.env["DISCORD_SESSION" + "_SECRET"] = "worldbox-containers-test-secret";
@@ -787,7 +787,7 @@ test("API(containers): ロビーの備え付け樽が収納として開け、中
 });
 
 test("座席リスト: 室内（lobby の SEAT_SPRITES）とタイル側（tiles の SEAT_ITEM_IDS）が一致する", () => {
-  const tilesSrc = fs.readFileSync(path.join(libDir, "worldbox/tiles.ts"), "utf8");
+  const tilesSrc = fs.readFileSync(path.join(libDir, "worldbox/world/tiles.ts"), "utf8");
   const m = tilesSrc.match(/SEAT_ITEM_IDS[^=]*=\s*\[([^\]]+)\]/);
   assert.ok(m, "SEAT_ITEM_IDS が見つからない");
   const ids = [...m[1].matchAll(/"([^"]+)"/g)].map((x) => x[1]).sort();
@@ -824,6 +824,6 @@ test("クライアント: コンテナのタップ分岐・パネル・回収が
   const containersRouteSrc = fs.readFileSync(path.join(rootDir, "app/api/worldbox/containers/route.ts"), "utf8");
   assert.ok(containersRouteSrc.includes("withUserLock(ownerKey"), "コンテナルートがユーザー単位で直列化されていない（S4）");
   assert.ok(containersRouteSrc.includes('loadContainer("world"'), "コンテナルートが空間つきキーを使っていない（S4）");
-  const containersOnlineSrc = fs.readFileSync(path.join(libDir, "worldbox/containers-online.ts"), "utf8");
+  const containersOnlineSrc = fs.readFileSync(path.join(libDir, "worldbox/economy/containers-online.ts"), "utf8");
   assert.ok(containersOnlineSrc.includes("containerKey"), "空間修飾キー containerKey が無い（S4）");
 });

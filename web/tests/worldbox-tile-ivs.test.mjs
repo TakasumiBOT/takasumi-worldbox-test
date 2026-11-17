@@ -45,19 +45,19 @@ function bundleModule(files, names) {
 }
 
 const mapgenUrl = bundleModule(
-  ["worldbox/rng.ts", "worldbox/mapgen.ts"],
+  ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts"],
   ["tileIvsAt", "worldTileSource", "mapTileAt", "T_GRASS", "T_ROCK"],
 );
 const G = await import(mapgenUrl);
 
 const invUrl = bundleModule(
-  ["worldbox/items.ts", "worldbox/profile.ts"],
+  ["worldbox/economy/items.ts", "worldbox/player/profile.ts"],
   ["parseProfile", "countItem", "cropBySeedId"],
 );
 const inv = await import(invUrl);
 
 const tilesUrl = bundleModule(
-  ["worldbox/rng.ts", "worldbox/mapgen.ts", "worldbox/items.ts", "worldbox/profile.ts", "worldbox/presence.ts", "worldbox/seasons.ts", "worldbox/tiles.ts"],
+  ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/economy/items.ts", "worldbox/player/profile.ts", "worldbox/player/presence.ts", "worldbox/world/seasons.ts", "worldbox/world/tiles.ts"],
   [
     "worldTileSource", "mapTileAt", "T_GRASS", "T_ROCK",
     "applyTileAction", "tileView",

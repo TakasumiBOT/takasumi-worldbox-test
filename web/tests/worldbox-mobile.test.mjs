@@ -32,10 +32,10 @@ test("≡ メニューはステージ下端からはみ出さない（収まら�
 test("ホットバーのスロットは画面幅でスケーリングする（縦画面ではみ出さない）", async () => {
   // スロット枠は --slot 変数に従う
   assert.match(client, /width: "var\(--slot, 42px\)"/);
-  // ホットバー側の寸法はレイアウトモード（lib/worldbox/layout）が決める:
+  // ホットバー側の寸法はレイアウトモード（lib/worldbox/world/layout）が決める:
   // wide は従来の画面幅クランプ、縦持ちは 44px 級に広げる
   assert.match(client, /"--slot": hud\.hotbarSlotCss/);
-  const layout = await readFile(new URL("../lib/worldbox/layout.ts", import.meta.url), "utf8");
+  const layout = await readFile(new URL("../lib/worldbox/world/layout.ts", import.meta.url), "utf8");
   assert.match(layout, /"clamp\(30px, 10\.5vw, 42px\)"/);
   assert.match(layout, /"clamp\(38px, 12vw, 44px\)"/);
   // インベントリボタンは潰さず、バー全体はステージ幅に収める

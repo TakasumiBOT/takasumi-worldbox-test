@@ -1,24 +1,24 @@
 import { NextResponse } from "next/server";
 import { getRequestSession, publicOrigin, sessionOwnerKey } from "@/lib/auth";
-import { WORLD_COORD_LIMIT } from "@/lib/worldbox/mapgen";
-import { loadProfile, storeProfile } from "@/lib/worldbox/profile-online";
-import { listPresence } from "@/lib/worldbox/presence-online";
-import { presenceIdFor } from "@/lib/worldbox/presence";
-import { parseSave } from "@/lib/worldbox/save";
-import { loadWorldBoxSave } from "@/lib/worldbox/save-online";
-import { isOverrideActive } from "@/lib/worldbox/tiles";
-import { isTilesEnabled, loadTileOverride } from "@/lib/worldbox/tiles-online";
+import { WORLD_COORD_LIMIT } from "@/lib/worldbox/world/mapgen";
+import { loadProfile, storeProfile } from "@/lib/worldbox/player/profile-online";
+import { listPresence } from "@/lib/worldbox/player/presence-online";
+import { presenceIdFor } from "@/lib/worldbox/player/presence";
+import { parseSave } from "@/lib/worldbox/core/save";
+import { loadWorldBoxSave } from "@/lib/worldbox/core/save-online";
+import { isOverrideActive } from "@/lib/worldbox/world/tiles";
+import { isTilesEnabled, loadTileOverride } from "@/lib/worldbox/world/tiles-online";
 import {
   containerCapacity, emptyContainer, isContainerItem, moveContainerSlot,
   type ContainerState,
-} from "@/lib/worldbox/containers";
+} from "@/lib/worldbox/economy/containers";
 import {
   isContainersEnabled, loadContainer, storeContainer,
-} from "@/lib/worldbox/containers-online";
-import { TENT_H, buildTent } from "@/lib/worldbox/tent";
-import { buildLobby } from "@/lib/worldbox/lobby";
-import { buildLobby2, buildLobby3 } from "@/lib/worldbox/lobby-floors";
-import { withUserLock } from "@/lib/worldbox/user-lock";
+} from "@/lib/worldbox/economy/containers-online";
+import { TENT_H, buildTent } from "@/lib/worldbox/world/tent";
+import { buildLobby } from "@/lib/worldbox/world/lobby";
+import { buildLobby2, buildLobby3 } from "@/lib/worldbox/world/lobby-floors";
+import { withUserLock } from "@/lib/worldbox/core/user-lock";
 
 export const runtime = "nodejs";
 

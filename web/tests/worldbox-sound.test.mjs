@@ -56,7 +56,7 @@ async function loadBundle(files, exportNames) {
 }
 
 const sound = await loadBundle(
-  ["worldbox/sound.ts"],
+  ["worldbox/media/sound.ts"],
   [
     "BGM_STEPS", "BGM_TRACKS", "bgmSceneFor", "semitoneFreq", "degreeFreq", "leadNoteCount",
     "tensionFor", "BGM_CROSSFADE_MS", "setWbBgmTension", "currentWbBgmTension",
@@ -118,7 +118,7 @@ test("sound: 緊張レイヤーは敵の接近か HP25%以下で入る（遺跡�
 });
 
 test("sound: 場面遷移はクロスフェードで、SE/BGM はマスターで統一する", () => {
-  const src = fs.readFileSync(path.join(libDir, "worldbox/sound.ts"), "utf8");
+  const src = fs.readFileSync(path.join(libDir, "worldbox/media/sound.ts"), "utf8");
   assert.ok(sound.BGM_CROSSFADE_MS >= 800 && sound.BGM_CROSSFADE_MS <= 2000, "クロスフェードは 0.8〜2 秒");
   assert.match(src, /fadeOutVoice\(activeVoice\)/, "旧声を絞る");
   assert.match(src, /gain\.gain\.setTargetAtTime\(BGM_VOLUME/, "新声を 0 から立ち上げる");
@@ -230,7 +230,7 @@ test("sound: B4 同時発音の整理と連打防止の間隔", () => {
   assert.ok(sound.WB_SE_MIN_INTERVAL_MS.hit >= 30, "命中にも連打防止がある");
   assert.ok(sound.WB_SE_MIN_INTERVAL_MS.kill >= 100, "撃破の連打防止");
   assert.ok(sound.WB_SE_MIN_INTERVAL_MS.coin >= 50, "コインの連打防止");
-  const src = fs.readFileSync(path.join(libDir, "worldbox/sound.ts"), "utf8");
+  const src = fs.readFileSync(path.join(libDir, "worldbox/media/sound.ts"), "utf8");
   assert.match(src, /recentSeTimes/, "同時発音の窓を持つ");
   assert.match(src, /WB_SE_TIERS\[name\] >= 4/, "tier 4 以下だけを落とす");
   assert.match(src, /distanceGain\(opts\.distance/, "距離でゲインを絞る");
@@ -238,7 +238,7 @@ test("sound: B4 同時発音の整理と連打防止の間隔", () => {
 });
 
 test("sound: opus っぽさ回避（音声ファイルなし・BGM パッドなし・ローパスで曇らせない）", () => {
-  const src = fs.readFileSync(path.join(libDir, "worldbox/sound.ts"), "utf8");
+  const src = fs.readFileSync(path.join(libDir, "worldbox/media/sound.ts"), "utf8");
   assert.ok(!/\.(opus|mp3|ogg|wav|m4a)["'`]/i.test(src), "音声ファイルの参照を持たない");
   assert.ok(!/new Audio\(|<audio/i.test(src), "ファイル再生を使わない");
   assert.ok(!/function pad\(/.test(src), "BGM にパッド wash を使わない");
@@ -248,7 +248,7 @@ test("sound: opus っぽさ回避（音声ファイルなし・BGM パッドな�
 
 test("sound: クライアント配線（解錠・場面・行為SE・足音・経済・切替）", () => {
   const client = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"), "utf8");
-  assert.match(client, /from "@\/lib\/worldbox\/sound"/, "sound 基盤を使う");
+  assert.match(client, /from "@\/lib\/worldbox\/media\/sound"/, "sound 基盤を使う");
   assert.match(client, /unlockWbAudio\(\)/, "最初の操作で AudioContext を解錠する");
   assert.match(client, /setWbBgmScene\(bgmSceneFor\(/, "場面で BGM を切り替える");
   assert.match(client, /playWbSe\(seForFxBurst\(ev\.kind\), \{ distance: evDist \}\)/, "モブ演出の SE は距離で減衰する");
@@ -262,7 +262,7 @@ test("sound: クライアント配線（解錠・場面・行為SE・足音・�
   assert.match(client, /BGMを切る|BGMを入れる/, "≡ メニューに BGM 切替");
   assert.match(client, /効果音を切る|効果音を入れる/, "≡ メニューに SE 切替");
   const eco = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxEconomyPanel.tsx"), "utf8");
-  assert.match(eco, /from "@\/lib\/worldbox\/sound"/, "経済パネルも sound 基盤を使う");
+  assert.match(eco, /from "@\/lib\/worldbox\/media\/sound"/, "経済パネルも sound 基盤を使う");
   assert.match(eco, /ACTION_SE/, "経済アクションの成功音マップがある");
   assert.match(eco, /playWbSe\(se\)/, "経済アクション成功で SE");
 });

@@ -46,7 +46,7 @@ function bundleModule(files, names) {
 }
 
 const url = bundleModule(
-  ["worldbox/rng.ts", "worldbox/mapgen.ts", "worldbox/maplogic.ts", "worldbox/items.ts", "worldbox/mobs.ts", "worldbox/combat.ts"],
+  ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/world/maplogic.ts", "worldbox/economy/items.ts", "worldbox/combat/mobs.ts", "worldbox/combat/combat.ts"],
   ["mobFootprintTiles", "mobBlockedTiles", "knockbackTarget", "mobOccupiesTile", "mobFootprintBounds"],
 );
 const wb = await import(url);

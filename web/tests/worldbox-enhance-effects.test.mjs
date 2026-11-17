@@ -50,7 +50,7 @@ async function loadBundle(files, exportNames) {
 }
 
 const A = await loadBundle(
-  ["worldbox/items.ts", "worldbox/profile.ts", "worldbox/arena.ts"],
+  ["worldbox/economy/items.ts", "worldbox/player/profile.ts", "worldbox/combat/arena.ts"],
   ["playerAttack", "parseProfile", "serializeProfile", "ENHANCE_MAX_LEVEL", "ENHANCE_MATERIALS"],
 );
 
@@ -74,7 +74,7 @@ test("enhance: profile roundtrips and clamps levels", () => {
 });
 
 const V = await loadBundle(
-  ["worldbox/items.ts", "worldbox/profile.ts", "worldbox/vitals.ts"],
+  ["worldbox/economy/items.ts", "worldbox/player/profile.ts", "worldbox/player/vitals.ts"],
   ["stepVitals", "applyBuff", "parseProfile", "BUFF_DURATION_MS"],
 );
 
@@ -99,7 +99,7 @@ test("buffs: warm slows hunger drain, alert regenerates while fed", () => {
 });
 
 const E = await loadBundle(
-  ["worldbox/items.ts", "worldbox/profile.ts", "worldbox/vitals.ts", "worldbox/economy.ts"],
+  ["worldbox/economy/items.ts", "worldbox/player/profile.ts", "worldbox/player/vitals.ts", "worldbox/economy/economy.ts"],
   ["eatItem", "sellItem", "parseProfile"],
 );
 

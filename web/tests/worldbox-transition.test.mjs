@@ -55,7 +55,7 @@ async function loadBundle(files, exportNames) {
 }
 
 const tr = await loadBundle(
-  ["worldbox/transition.ts"],
+  ["worldbox/world/transition.ts"],
   [
     "TRANSITION_FADE_OUT_MS", "TRANSITION_FADE_IN_MS", "TRANSITION_TOTAL_MS",
     "TRANSITION_ENTER_MS", "RECONNECT_PULSE_MS", "RECONNECT_PULSE_ALPHA",

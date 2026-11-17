@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createHash, timingSafeEqual } from "node:crypto";
-import { sweepEconomyOps } from "@/lib/worldbox/economy-bridge-online";
+import { sweepEconomyOps } from "@/lib/worldbox/economy/economy-bridge-online";
 
 // 経済オプのスイープ用内部ルート（旧 Python ワーカーの代替）。
 // Vercel Cron が毎分 GET する（vercel.json の crons 参照）。Vercel は

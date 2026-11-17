@@ -52,12 +52,12 @@ async function loadBundle(files, exportNames) {
 }
 
 const wb = await loadBundle(
-  ["worldbox/rng.ts", "worldbox/mapgen.ts", "worldbox/lobby.ts"],
+  ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/world/lobby.ts"],
   ["buildLobby", "stationNear"],
 );
 const client = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"), "utf8");
 const server = fs.readFileSync(path.join(rootDir, "realtime-server.js"), "utf8");
-const sound = fs.readFileSync(path.join(rootDir, "lib/worldbox/sound.ts"), "utf8");
+const sound = fs.readFileSync(path.join(rootDir, "lib/worldbox/media/sound.ts"), "utf8");
 
 test("ピアノ: ロビーのピアノに station が付き、隣で返る", () => {
   const lobby = wb.buildLobby();

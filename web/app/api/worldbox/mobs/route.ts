@@ -1,34 +1,34 @@
 import { NextResponse } from "next/server";
 import { getRequestSession, publicOrigin, sessionOwnerKey } from "@/lib/auth";
-import { MAP_SEED, WORLD_COORD_LIMIT } from "@/lib/worldbox/mapgen";
-import { loadProfile, storeProfile } from "@/lib/worldbox/profile-online";
-import { listPresence } from "@/lib/worldbox/presence-online";
-import { presenceIdFor } from "@/lib/worldbox/presence";
-import { parseSave } from "@/lib/worldbox/save";
-import { loadWorldBoxSave } from "@/lib/worldbox/save-online";
-import { addItem, bestToolItem, wearTool } from "@/lib/worldbox/profile";
-import { playerAttack } from "@/lib/worldbox/arena";
-import { mobById } from "@/lib/worldbox/mobs";
-import { isNightPhase, phaseAtTime } from "@/lib/worldbox/daynight";
+import { MAP_SEED, WORLD_COORD_LIMIT } from "@/lib/worldbox/world/mapgen";
+import { loadProfile, storeProfile } from "@/lib/worldbox/player/profile-online";
+import { listPresence } from "@/lib/worldbox/player/presence-online";
+import { presenceIdFor } from "@/lib/worldbox/player/presence";
+import { parseSave } from "@/lib/worldbox/core/save";
+import { loadWorldBoxSave } from "@/lib/worldbox/core/save-online";
+import { addItem, bestToolItem, wearTool } from "@/lib/worldbox/player/profile";
+import { playerAttack } from "@/lib/worldbox/combat/arena";
+import { mobById } from "@/lib/worldbox/combat/mobs";
+import { isNightPhase, phaseAtTime } from "@/lib/worldbox/world/daynight";
 import {
   applyMobAttack, mobDistance, mobExistsAt, mobKeyOf, resolveMobPosition, visibleMobs,
   MOB_ATTACK_MAX_DISTANCE, type MobState,
-} from "@/lib/worldbox/combat";
-import { isMobsEnabled, loadMobState, loadMobStates, storeMobState } from "@/lib/worldbox/mobs-online";
+} from "@/lib/worldbox/combat/combat";
+import { isMobsEnabled, loadMobState, loadMobStates, storeMobState } from "@/lib/worldbox/combat/mobs-online";
 import {
   buildCaveLayer, buildDungeonFloor, dungeonHpScale, makeInstanceSpace, parseInstanceSpace, weekKeyOf,
-} from "@/lib/worldbox/instances";
-import { addMasteryXp } from "@/lib/worldbox/roles";
+} from "@/lib/worldbox/world/instances";
+import { addMasteryXp } from "@/lib/worldbox/player/roles";
 import {
   dungeonGateSatisfied, loadDungeonClearWeek, loadDungeonSession, loadRuinsPersonal, storeDungeonClearWeek,
   storeDungeonSession, storeRuinsPersonal,
-} from "@/lib/worldbox/instances-online";
-import { partyKeyOf } from "@/lib/worldbox/party";
-import { loadPartyOf } from "@/lib/worldbox/party-online";
-import { DUNGEON_CLEAR_EARN } from "@/lib/worldbox/instances";
-import { buildEconomyOp } from "@/lib/worldbox/economy-bridge";
-import { enqueueEconomyOpOnce, isEconomyEnabled } from "@/lib/worldbox/economy-bridge-online";
-import { withUserLock } from "@/lib/worldbox/user-lock";
+} from "@/lib/worldbox/world/instances-online";
+import { partyKeyOf } from "@/lib/worldbox/social/party";
+import { loadPartyOf } from "@/lib/worldbox/social/party-online";
+import { DUNGEON_CLEAR_EARN } from "@/lib/worldbox/world/instances";
+import { buildEconomyOp } from "@/lib/worldbox/economy/economy-bridge";
+import { enqueueEconomyOpOnce, isEconomyEnabled } from "@/lib/worldbox/economy/economy-bridge-online";
+import { withUserLock } from "@/lib/worldbox/core/user-lock";
 
 export const runtime = "nodejs";
 

@@ -50,7 +50,7 @@ async function loadBundle(files, exportNames) {
 }
 
 const T = await loadBundle(
-  ["worldbox/rng.ts", "worldbox/mapgen.ts", "worldbox/lobby.ts", "worldbox/items.ts", "worldbox/mobs.ts", "worldbox/objects.ts", "worldbox/instances.ts", "worldbox/party.ts"],
+  ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/world/lobby.ts", "worldbox/economy/items.ts", "worldbox/combat/mobs.ts", "worldbox/world/objects.ts", "worldbox/world/instances.ts", "worldbox/social/party.ts"],
   [
     "buildDungeonFloor", "dungeonHpScale", "dungeonBossForEntrance", "dungeonFloorBossFor", "DUNGEON_FLOORS",
     "createParty", "joinParty", "leaveParty", "addInvite", "inviteFor", "parseParty", "partyKeyOf",

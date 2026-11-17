@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getRequestSession, publicOrigin } from "@/lib/auth";
-import { issueRealtimeToken } from "@/lib/worldbox/realtime-token";
+import { issueRealtimeToken } from "@/lib/worldbox/core/realtime-token";
 
 export const runtime = "nodejs";
 

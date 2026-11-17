@@ -66,7 +66,7 @@ function diffKv(prev, next) {
   return changes;
 }
 
-/** 所有者キー → プレゼンス ID（lib/worldbox/presence.ts の presenceIdFor と同じ FNV-1a）。 */
+/** 所有者キー → プレゼンス ID（lib/worldbox/player/presence.ts の presenceIdFor と同じ FNV-1a）。 */
 function presenceIdFor(ownerKey) {
   let h = 0x811c9dc5;
   for (let i = 0; i < ownerKey.length; i++) {
