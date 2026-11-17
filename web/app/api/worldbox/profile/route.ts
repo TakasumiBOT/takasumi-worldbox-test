@@ -1,31 +1,31 @@
-import { addMasteryXp } from "@/lib/worldbox/roles";
+import { addMasteryXp } from "@/lib/worldbox/player/roles";
 import { NextResponse } from "next/server";
 import { getRequestSession, publicOrigin, sessionOwnerKey } from "@/lib/auth";
 import {
   buyItem, craftFromInputs, craftItem, eatItem, sellItem,
   type CoinMovement, type EconomyError,
-} from "@/lib/worldbox/economy";
-import { buildEconomyOp, type EconomyOp } from "@/lib/worldbox/economy-bridge";
+} from "@/lib/worldbox/economy/economy";
+import { buildEconomyOp, type EconomyOp } from "@/lib/worldbox/economy/economy-bridge";
 import {
   deleteEconomyOp, deleteEconomyOpLedger, findEconomyOp, isEconomyEnabled, readUserBalance, submitEconomyOp, waitForOpDone,
-} from "@/lib/worldbox/economy-bridge-online";
-import { TENT_MAX_TIER, TENT_TIERS } from "@/lib/worldbox/tent";
+} from "@/lib/worldbox/economy/economy-bridge-online";
+import { TENT_MAX_TIER, TENT_TIERS } from "@/lib/worldbox/world/tent";
 import {
   countItem, ENHANCE_BASE_COST, ENHANCE_MATERIALS, ENHANCE_MAX_LEVEL, moveSlot, removeItem,
   swapSlots, type PlayerProfile,
-} from "@/lib/worldbox/profile";
-import { itemById, recipeById, recipeKind } from "@/lib/worldbox/items";
-import { findPresenceOwnerKey, isPresenceEnabled } from "@/lib/worldbox/presence-online";
-import { checkBuyGenre, checkBuySold, checkDailyStock, dailyPriceFor, shopDayKeyOf } from "@/lib/worldbox/shops";
-import { loadMyLobbyShopGenre, loadMyLobbyStation, loadMyWorldStationKinds } from "@/lib/worldbox/station-online";
-import type { StationKind } from "@/lib/worldbox/tiles";
-import { isProfileEnabled, loadProfile, storeProfile } from "@/lib/worldbox/profile-online";
-import { withUserLock } from "@/lib/worldbox/user-lock";
+} from "@/lib/worldbox/player/profile";
+import { itemById, recipeById, recipeKind } from "@/lib/worldbox/economy/items";
+import { findPresenceOwnerKey, isPresenceEnabled } from "@/lib/worldbox/player/presence-online";
+import { checkBuyGenre, checkBuySold, checkDailyStock, dailyPriceFor, shopDayKeyOf } from "@/lib/worldbox/economy/shops";
+import { loadMyLobbyShopGenre, loadMyLobbyStation, loadMyWorldStationKinds } from "@/lib/worldbox/world/station-online";
+import type { StationKind } from "@/lib/worldbox/world/tiles";
+import { isProfileEnabled, loadProfile, storeProfile } from "@/lib/worldbox/player/profile-online";
+import { withUserLock } from "@/lib/worldbox/core/user-lock";
 
 export const runtime = "nodejs";
 
 // AGO WORLD BOX の経済（プロフィール＋かばん＋ショップ＋合成。steal・労働は廃止済み）。
-// 状態遷移の規則は lib/worldbox/economy（ボット側経済機能の写し）。
+// 状態遷移の規則は lib/worldbox/economy/economy（ボット側経済機能の写し）。
 // コインの正は AGO コイン本体: 遷移が返した coin は経済ブリッジの
 // オプとして submitEconomyOp へ渡す。spend は bot-api 経由でその場で
 // 適用され、直接適用できない種別・環境では bot_kv のキュー経由で

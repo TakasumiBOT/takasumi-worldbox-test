@@ -3,8 +3,8 @@
 // 位置の検証はサーバー側（プレゼンス）。参加費と賞金は経済ブリッジ経由で、
 // 試合の状態はサーバー側セッションが持つ。ここは表示と入力だけ。
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { ArenaTier } from "@/lib/worldbox/arena";
-import { onEconomyApplied } from "@/lib/worldbox/economy-push";
+import type { ArenaTier } from "@/lib/worldbox/combat/arena";
+import { onEconomyApplied } from "@/lib/worldbox/economy/economy-push";
 import { createPollGuard, type PollGuard } from "@/lib/poll-guard";
 
 type LoadState = "loading" | "ready" | "guest" | "unavailable";

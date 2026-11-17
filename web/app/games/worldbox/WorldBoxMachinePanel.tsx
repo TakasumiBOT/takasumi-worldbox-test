@@ -4,11 +4,11 @@
 // バッファの回収、プログラム（有効/間隔/プリセット）の変更、共有コードの
 // 書き出し・取り込みを行う。状態の正はサーバー（/api/worldbox/machines）。
 import { useCallback, useEffect, useState } from "react";
-import type { PlayerProfile } from "@/lib/worldbox/profile";
+import type { PlayerProfile } from "@/lib/worldbox/player/profile";
 import { ItemAnnotation, ItemSlot, ItemSlotGrid } from "./ItemSlotGrid";
 import {
   DEVICE_INTERVAL_CHOICES, DEVICE_PRESETS, type DeviceProgram,
-} from "@/lib/worldbox/machines";
+} from "@/lib/worldbox/economy/machines";
 
 const panelStyle: React.CSSProperties = {
   position: "absolute", left: "50%", bottom: 12, transform: "translateX(-50%)",

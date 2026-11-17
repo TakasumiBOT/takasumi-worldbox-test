@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { getRequestSession, publicOrigin, sessionOwnerKey } from "@/lib/auth";
-import { appendBoardPost, sanitizeBoardText } from "@/lib/worldbox/board";
-import { isBoardEnabled, loadBoardPosts, storeBoardPosts } from "@/lib/worldbox/board-online";
-import { loadMyLobbyStation } from "@/lib/worldbox/station-online";
+import { appendBoardPost, sanitizeBoardText } from "@/lib/worldbox/social/board";
+import { isBoardEnabled, loadBoardPosts, storeBoardPosts } from "@/lib/worldbox/social/board-online";
+import { loadMyLobbyStation } from "@/lib/worldbox/world/station-online";
 
 export const runtime = "nodejs";
 

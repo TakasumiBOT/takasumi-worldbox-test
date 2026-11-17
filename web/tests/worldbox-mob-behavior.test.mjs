@@ -43,7 +43,7 @@ function bundleModule(files, names) {
 }
 
 const url = bundleModule(
-  ["worldbox/rng.ts", "worldbox/mapgen.ts", "worldbox/maplogic.ts", "worldbox/items.ts", "worldbox/mobs.ts", "worldbox/mob-behavior.ts"],
+  ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/world/maplogic.ts", "worldbox/economy/items.ts", "worldbox/combat/mobs.ts", "worldbox/combat/mob-behavior.ts"],
   [
     "MOBS", "mobById",
     "MOB_LOCOMOTION", "locomotionFor", "locomotionPose", "LOCOMOTION_SPEED", "MOB_SPEED_MUL",

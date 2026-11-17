@@ -8,7 +8,7 @@
 // arcade-clients.tsx から遅延読み込みしてこの画面に埋め込む。プレイヤーは
 // 筐体の前に立ったまま（プレゼンスも継続する）で、閉じればすぐワールドに戻る。
 import { getWebGame } from "@/lib/games-catalog";
-import { playWbSe } from "@/lib/worldbox/sound";
+import { playWbSe } from "@/lib/worldbox/media/sound";
 import { arcadeClientFor } from "./arcade-clients";
 
 const wrap: React.CSSProperties = {

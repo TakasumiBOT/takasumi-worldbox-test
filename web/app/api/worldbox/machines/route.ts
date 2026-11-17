@@ -1,20 +1,20 @@
 import { NextResponse } from "next/server";
 import { getRequestSession, publicOrigin, sessionOwnerKey } from "@/lib/auth";
-import { WORLD_COORD_LIMIT } from "@/lib/worldbox/mapgen";
-import { loadProfile, storeProfile } from "@/lib/worldbox/profile-online";
-import { addItem } from "@/lib/worldbox/profile";
-import { listPresence } from "@/lib/worldbox/presence-online";
-import { presenceIdFor } from "@/lib/worldbox/presence";
-import { parseSave } from "@/lib/worldbox/save";
-import { loadWorldBoxSave } from "@/lib/worldbox/save-online";
-import { isOverrideActive, tileKey, type TileOverride } from "@/lib/worldbox/tiles";
-import { isTilesEnabled, loadTileOverride, loadTileOverrides, storeTileOverride } from "@/lib/worldbox/tiles-online";
+import { WORLD_COORD_LIMIT } from "@/lib/worldbox/world/mapgen";
+import { loadProfile, storeProfile } from "@/lib/worldbox/player/profile-online";
+import { addItem } from "@/lib/worldbox/player/profile";
+import { listPresence } from "@/lib/worldbox/player/presence-online";
+import { presenceIdFor } from "@/lib/worldbox/player/presence";
+import { parseSave } from "@/lib/worldbox/core/save";
+import { loadWorldBoxSave } from "@/lib/worldbox/core/save-online";
+import { isOverrideActive, tileKey, type TileOverride } from "@/lib/worldbox/world/tiles";
+import { isTilesEnabled, loadTileOverride, loadTileOverrides, storeTileOverride } from "@/lib/worldbox/world/tiles-online";
 import {
   decodeProgram, defaultProgram, encodeProgram, evaluateMachine, isMachineItem,
   machineBufferCount, parseProgram, type MachineState,
-} from "@/lib/worldbox/machines";
-import { isMachinesEnabled, loadMachine, storeMachine } from "@/lib/worldbox/machines-online";
-import { withUserLock } from "@/lib/worldbox/user-lock";
+} from "@/lib/worldbox/economy/machines";
+import { isMachinesEnabled, loadMachine, storeMachine } from "@/lib/worldbox/economy/machines-online";
+import { withUserLock } from "@/lib/worldbox/core/user-lock";
 
 export const runtime = "nodejs";
 

@@ -49,13 +49,13 @@ function bundleModule(files, names) {
 }
 
 const invUrl = bundleModule(
-  ["worldbox/items.ts", "worldbox/profile.ts"],
+  ["worldbox/economy/items.ts", "worldbox/player/profile.ts"],
   ["itemById", "parseProfile", "countItem"],
 );
 const inv = await import(invUrl);
 
 const tilesUrl = bundleModule(
-  ["worldbox/rng.ts", "worldbox/mapgen.ts", "worldbox/items.ts", "worldbox/profile.ts", "worldbox/presence.ts", "worldbox/seasons.ts", "worldbox/tiles.ts"],
+  ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/economy/items.ts", "worldbox/player/profile.ts", "worldbox/player/presence.ts", "worldbox/world/seasons.ts", "worldbox/world/tiles.ts"],
   [
     "worldTileSource", "mapTileAt", "T_GRASS",
     "parseProfile", "countItem",

@@ -59,11 +59,11 @@ async function loadBundle(files, exportNames) {
 }
 
 const shops = await loadBundle(
-  ["worldbox/items.ts", "worldbox/shops.ts"],
+  ["worldbox/economy/items.ts", "worldbox/economy/shops.ts"],
   ["ITEMS", "SHOP_GENRES", "genreById", "genreForCategory", "genreOfItem", "itemsForGenre", "checkBuyGenre", "isShopExcluded", "checkBuySold"],
 );
 const wb = await loadBundle(
-  ["worldbox/rng.ts", "worldbox/mapgen.ts", "worldbox/lobby.ts"],
+  ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/world/lobby.ts"],
   ["LOBBY_OBJECTS", "stationNear", "stationGenreNear"],
 );
 
@@ -226,7 +226,7 @@ test("配線: クライアントが genre を経済パネルへ渡し、API が�
   assert.match(route, /wrong_shop|genreError/);
   assert.match(route, /checkBuySold/);
   assert.match(route, /not_sold|soldError/);
-  const stationOnline = fs.readFileSync(path.join(libDir, "worldbox/station-online.ts"), "utf8");
+  const stationOnline = fs.readFileSync(path.join(libDir, "worldbox/world/station-online.ts"), "utf8");
   assert.match(stationOnline, /loadMyLobbyShopGenre/);
   assert.match(stationOnline, /stationGenreNear/);
 });

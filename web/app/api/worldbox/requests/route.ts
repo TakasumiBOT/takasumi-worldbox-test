@@ -1,24 +1,24 @@
 import { NextResponse } from "next/server";
 import { getRequestSession, publicOrigin, sessionOwnerKey } from "@/lib/auth";
-import type { CoinMovement } from "@/lib/worldbox/economy";
-import { buildEconomyOp } from "@/lib/worldbox/economy-bridge";
+import type { CoinMovement } from "@/lib/worldbox/economy/economy";
+import { buildEconomyOp } from "@/lib/worldbox/economy/economy-bridge";
 import {
   enqueueEconomyOpOnce, findEconomyOp, isEconomyEnabled, readUserBalance, waitForOpDone,
-} from "@/lib/worldbox/economy-bridge-online";
-import { withUserLock } from "@/lib/worldbox/user-lock";
-import { loadNationsState } from "@/lib/worldbox/nations-online";
-import { isProfileEnabled, loadProfile, storeProfile } from "@/lib/worldbox/profile-online";
+} from "@/lib/worldbox/economy/economy-bridge-online";
+import { withUserLock } from "@/lib/worldbox/core/user-lock";
+import { loadNationsState } from "@/lib/worldbox/social/nations-online";
+import { isProfileEnabled, loadProfile, storeProfile } from "@/lib/worldbox/player/profile-online";
 import {
   cancelRequest, fulfillRequest, postRequest, requestsForGuild,
-} from "@/lib/worldbox/requests";
-import { isRequestsEnabled, loadRequestsState, storeRequestsState } from "@/lib/worldbox/requests-online";
-import { loadMyLobbyStation } from "@/lib/worldbox/station-online";
+} from "@/lib/worldbox/social/requests";
+import { isRequestsEnabled, loadRequestsState, storeRequestsState } from "@/lib/worldbox/social/requests-online";
+import { loadMyLobbyStation } from "@/lib/worldbox/world/station-online";
 
 export const runtime = "nodejs";
 
 // AGO WORLD BOX のギルド依頼（ロビーのギルドボード）。
 // 依頼はユニオン（国 = Discord サーバー）単位: 投稿・納品・取消の規則は
-// lib/worldbox/requests、保存は bot_kv（名前空間 worldbox_requests）。
+// lib/worldbox/social/requests、保存は bot_kv（名前空間 worldbox_requests）。
 // コインの正は AGO コイン本体: 投稿時の預かりは spend オプ、納品の報酬と
 // 取消の返金は earn オプとして経済ブリッジへ積むだけ（案B）。
 // GET: { loggedIn, me: { guildId, guildName, role } | null, requests }

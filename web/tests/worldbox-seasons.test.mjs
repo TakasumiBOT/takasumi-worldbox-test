@@ -50,7 +50,7 @@ async function loadBundle(files, exportNames) {
 }
 
 const S = await loadBundle(
-  ["worldbox/seasons.ts"],
+  ["worldbox/world/seasons.ts"],
   ["seasonOf", "seasonDaysLeft", "seasonGrowthMult", "SEASON_LENGTH_MS", "SEASON_IDS"],
 );
 
@@ -76,7 +76,7 @@ test("seasons: growth multiplier favors the preferred season", () => {
 });
 
 const M = await loadBundle(
-  ["worldbox/rng.ts", "worldbox/mapgen.ts", "worldbox/maplogic.ts"],
+  ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/world/maplogic.ts"],
   ["BIOMES", "biomeForInstanceSpace", "biomeById"],
 );
 
@@ -92,7 +92,7 @@ test("biomes: cave layers and ruins belt are registered", () => {
 });
 
 const I = await loadBundle(
-  ["worldbox/items.ts"],
+  ["worldbox/economy/items.ts"],
   ["CROPS", "cropById"],
 );
 

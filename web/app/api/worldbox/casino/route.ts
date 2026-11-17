@@ -6,26 +6,26 @@ import {
 import {
   CASINO_REASON, CASINO_SESSION_REASONS, casinoMachineNear, isCasinoSpendReason, type CasinoMachine,
   playRoulette, playSlot, validateCasinoBet, type CasinoGame, type RoulettePick,
-} from "@/lib/worldbox/casino";
+} from "@/lib/worldbox/activity/casino";
 import {
   doubleCashout, doubleGo, rollDice, spinSlot7,
   validateDice,
-} from "@/lib/worldbox/casino-games";
+} from "@/lib/worldbox/activity/casino-games";
 import {
   CASINO_SESSION_TTL_MS, publicSessionView, publicUserStateView, type CasinoSession,
-} from "@/lib/worldbox/casino-session";
+} from "@/lib/worldbox/activity/casino-session";
 import {
   clearCasinoSession, loadCasinoSession, loadCasinoUserState, saveCasinoSession,
   saveCasinoUserState,
-} from "@/lib/worldbox/casino-session-online";
-import { reconcileCasinoTournamentScores } from "@/lib/worldbox/casino-tournament-online";
-import { buildEconomyOp, ECONOMY_AMOUNT_MAX, GAMBLE_PAYOUT_MAX, type EconomyOp } from "@/lib/worldbox/economy-bridge";
+} from "@/lib/worldbox/activity/casino-session-online";
+import { reconcileCasinoTournamentScores } from "@/lib/worldbox/activity/casino-tournament-online";
+import { buildEconomyOp, ECONOMY_AMOUNT_MAX, GAMBLE_PAYOUT_MAX, type EconomyOp } from "@/lib/worldbox/economy/economy-bridge";
 import {
   enqueueEconomyOp, findEconomyOp, isEconomyEnabled, loadMyEconomyOps, readUserBalance,
   submitEconomyOp, waitForOpDone, waitForOpsDone,
-} from "@/lib/worldbox/economy-bridge-online";
-import { buildLobby } from "@/lib/worldbox/lobby";
-import { isPresenceEnabled, loadMyPresence } from "@/lib/worldbox/presence-online";
+} from "@/lib/worldbox/economy/economy-bridge-online";
+import { buildLobby } from "@/lib/worldbox/world/lobby";
+import { isPresenceEnabled, loadMyPresence } from "@/lib/worldbox/player/presence-online";
 
 export const runtime = "nodejs";
 

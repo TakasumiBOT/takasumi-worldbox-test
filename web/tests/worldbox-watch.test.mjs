@@ -1,6 +1,6 @@
 // AGO WORLD BOX: relay の bot_kv watch（Phase 1）のテスト。
 // - watch-core: 差分検出 / パーティ通知先の解決 / チャットのスコープ解決
-// - presenceIdFor が lib/worldbox/presence.ts の実装と一致すること
+// - presenceIdFor が lib/worldbox/player/presence.ts の実装と一致すること
 // - botkv: /v1/query へのリクエスト形式が lib/bot-api.ts と同じこと
 // - 配線: ラッパーの watch 起動 / クライアントの push 適用と間引き
 import { test } from "node:test";
@@ -39,7 +39,7 @@ function stripModuleSyntax(code) {
   return out.join("\n");
 }
 const presenceTs = new Function(
-  `${stripModuleSyntax(transpile("worldbox/presence.ts"))}\nreturn { presenceIdFor };`,
+  `${stripModuleSyntax(transpile("worldbox/player/presence.ts"))}\nreturn { presenceIdFor };`,
 )();
 
 test("watch: presenceIdFor は presence.ts の実装と一致する", () => {

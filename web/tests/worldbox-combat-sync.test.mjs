@@ -53,7 +53,7 @@ function bundleModule(files, names) {
 }
 
 const combat = await import(bundleModule(
-  ["worldbox/rng.ts", "worldbox/mapgen.ts", "worldbox/maplogic.ts", "worldbox/items.ts", "worldbox/mobs.ts", "worldbox/combat.ts", "worldbox/arena.ts"],
+  ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/world/maplogic.ts", "worldbox/economy/items.ts", "worldbox/combat/mobs.ts", "worldbox/combat/combat.ts", "worldbox/combat/arena.ts"],
   ["mobById", "MOBS", "mobDistance", "resolveMobPosition", "MOB_ATTACK_MAX_DISTANCE"],
 ));
 

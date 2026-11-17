@@ -55,7 +55,7 @@ async function loadBundle(files, exportNames) {
 }
 
 const wb = await loadBundle(
-  ["worldbox/nation-settings.ts", "worldbox/guild-shop.ts"],
+  ["worldbox/social/nation-settings.ts", "worldbox/economy/guild-shop.ts"],
   [
     "TAX_RATE_DEFAULT", "TAX_RATE_MAX",
     "defaultNationSettings", "normalizeTaxRate", "parseNationSettings",

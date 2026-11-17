@@ -1,21 +1,21 @@
 import { NextResponse } from "next/server";
 import { getRequestSession, publicOrigin, sessionOwnerKey } from "@/lib/auth";
-import { loadNationsState, storeNationsState } from "@/lib/worldbox/nations-online";
-import { nationViews, type NationsState } from "@/lib/worldbox/nations";
-import { loadMyLobbyStation } from "@/lib/worldbox/station-online";
-import { listPresence } from "@/lib/worldbox/presence-online";
-import { presenceIdFor } from "@/lib/worldbox/presence";
-import { parseSave } from "@/lib/worldbox/save";
-import { loadWorldBoxSave } from "@/lib/worldbox/save-online";
-import { loadWarState, storeWarState, isWarsEnabled, withWarLock } from "@/lib/worldbox/war-online";
+import { loadNationsState, storeNationsState } from "@/lib/worldbox/social/nations-online";
+import { nationViews, type NationsState } from "@/lib/worldbox/social/nations";
+import { loadMyLobbyStation } from "@/lib/worldbox/world/station-online";
+import { listPresence } from "@/lib/worldbox/player/presence-online";
+import { presenceIdFor } from "@/lib/worldbox/player/presence";
+import { parseSave } from "@/lib/worldbox/core/save";
+import { loadWorldBoxSave } from "@/lib/worldbox/core/save-online";
+import { loadWarState, storeWarState, isWarsEnabled, withWarLock } from "@/lib/worldbox/combat/war-online";
 import {
   attackMark, declareWar, expireWars, prosperityRanking, repairMark,
   warView, WAR_MARK_RANGE, type WarState,
-} from "@/lib/worldbox/war";
+} from "@/lib/worldbox/combat/war";
 import {
   isNationHiddenFrom, memberKeysOf, resolveMemberRole,
-} from "@/lib/worldbox/nation-settings";
-import { loadNationSettings, loadNationSettingsMap } from "@/lib/worldbox/nation-settings-online";
+} from "@/lib/worldbox/social/nation-settings";
+import { loadNationSettings, loadNationSettingsMap } from "@/lib/worldbox/social/nation-settings-online";
 
 export const runtime = "nodejs";
 

@@ -50,7 +50,7 @@ async function loadBundle(files, exportNames) {
 }
 
 const O = await loadBundle(
-  ["worldbox/ops.ts"],
+  ["worldbox/core/ops.ts"],
   ["parseJournal", "appendJournal", "stateAtTime", "parseReports", "JOURNAL_DAILY_CAP"],
 );
 

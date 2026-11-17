@@ -54,7 +54,7 @@ async function loadBundle(files, exportNames) {
 }
 
 const layout = await loadBundle(
-  ["worldbox/layout.ts"],
+  ["worldbox/world/layout.ts"],
   ["WB_PORTRAIT_MAX_WIDTH", "WB_LANDSCAPE_MAX_HEIGHT", "WB_CHAT_LEFT_CLEARANCE_PX", "wbLayoutMode", "wbHudMetrics"],
 );
 
@@ -126,7 +126,7 @@ test("layout: wide のメトリクスは従来値（PC 退行なし）", () => {
 
 test("layout: クライアント配線と CSS シート化", () => {
   const client = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"), "utf8");
-  assert.ok(client.includes('from "@/lib/worldbox/layout"'), "クライアントが layout を使っていない");
+  assert.ok(client.includes('from "@/lib/worldbox/world/layout"'), "クライアントが layout を使っていない");
   assert.ok(client.includes("wbLayoutMode(viewport.w, viewport.h)"));
   assert.ok(client.includes("safe-area-inset"), "safe-area が HUD に入っていない");
   assert.ok(client.includes("hud.hotbarSlotCss"));

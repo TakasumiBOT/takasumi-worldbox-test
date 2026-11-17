@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import { getRequestSession, publicOrigin, sessionOwnerKey } from "@/lib/auth";
-import type { UnionChatMode } from "@/lib/worldbox/chat";
-import { isChatEnabled, loadUnionChatSettings, storeUnionChatSettings } from "@/lib/worldbox/chat-online";
-import { loadDiscordDirectory } from "@/lib/worldbox/discord-directory-online";
-import { loadNationsState } from "@/lib/worldbox/nations-online";
-import { memberKeysOf, resolveMemberRole } from "@/lib/worldbox/nation-settings";
-import { loadNationSettings } from "@/lib/worldbox/nation-settings-online";
+import type { UnionChatMode } from "@/lib/worldbox/social/chat";
+import { isChatEnabled, loadUnionChatSettings, storeUnionChatSettings } from "@/lib/worldbox/social/chat-online";
+import { loadDiscordDirectory } from "@/lib/worldbox/social/discord-directory-online";
+import { loadNationsState } from "@/lib/worldbox/social/nations-online";
+import { memberKeysOf, resolveMemberRole } from "@/lib/worldbox/social/nation-settings";
+import { loadNationSettings } from "@/lib/worldbox/social/nation-settings-online";
 
 export const runtime = "nodejs";
 

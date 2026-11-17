@@ -1,19 +1,19 @@
 import { NextResponse } from "next/server";
 import { getRequestSession, publicOrigin, sessionOwnerKey } from "@/lib/auth";
-import { buildEconomyOp, GAMBLE_PAYOUT_MAX } from "@/lib/worldbox/economy-bridge";
+import { buildEconomyOp, GAMBLE_PAYOUT_MAX } from "@/lib/worldbox/economy/economy-bridge";
 import {
   enqueueEconomyOpOnce, findEconomyOp, isEconomyEnabled, readUserBalance, submitEconomyOp,
-} from "@/lib/worldbox/economy-bridge-online";
+} from "@/lib/worldbox/economy/economy-bridge-online";
 import {
   BET_CLOSE_BEFORE_MS, RACE_DURATION_MS, generateRaceCore, isBettingOpen,
   recentForm, scheduleAt, validateBetAmount,
-} from "@/lib/worldbox/racing";
-import { horseById } from "@/lib/worldbox/racing/horses";
+} from "@/lib/worldbox/activity/racing";
+import { horseById } from "@/lib/worldbox/activity/racing/horses";
 import {
   appendPopularity, loadMyBets, loadOrEstimateOdds, loadPopularity, popularityCounts,
   saveMyBets, settleMyBets, type RaceBet, type RaceBetType,
-} from "@/lib/worldbox/racing-online";
-import { loadMyLobbyStation } from "@/lib/worldbox/station-online";
+} from "@/lib/worldbox/activity/racing-online";
+import { loadMyLobbyStation } from "@/lib/worldbox/world/station-online";
 
 export const runtime = "nodejs";
 

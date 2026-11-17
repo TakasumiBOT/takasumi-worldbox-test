@@ -11,13 +11,13 @@
 // コインの正は AGO コイン本体: 依頼の預かり・報酬・返金は API 側が
 // 経済ブリッジのオプとして積む（このパネルは結果を表示するだけ）。
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ITEMS, itemById } from "@/lib/worldbox/items";
-import { onGuildBoardChanged, onGuildRequestsChanged } from "@/lib/worldbox/guild-board-push";
+import { ITEMS, itemById } from "@/lib/worldbox/economy/items";
+import { onGuildBoardChanged, onGuildRequestsChanged } from "@/lib/worldbox/social/guild-board-push";
 import { ItemAnnotation, ItemSlot, ItemSlotGrid } from "./ItemSlotGrid";
-import type { NationRole, NationsResponse } from "@/lib/worldbox/nations";
-import type { PlayerProfile } from "@/lib/worldbox/profile";
-import { ADVENTURE_ROLES, masteryRankOf, roleChangeCost, type AdventureRoleId } from "@/lib/worldbox/roles";
-import type { GuildRequest } from "@/lib/worldbox/requests";
+import type { NationRole, NationsResponse } from "@/lib/worldbox/social/nations";
+import type { PlayerProfile } from "@/lib/worldbox/player/profile";
+import { ADVENTURE_ROLES, masteryRankOf, roleChangeCost, type AdventureRoleId } from "@/lib/worldbox/player/roles";
+import type { GuildRequest } from "@/lib/worldbox/social/requests";
 
 const ROLE_LABEL: Record<NationRole, string> = { king: "王", minister: "大臣", citizen: "国民" };
 

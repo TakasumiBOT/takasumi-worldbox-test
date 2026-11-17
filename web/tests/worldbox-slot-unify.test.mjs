@@ -56,7 +56,7 @@ async function loadBundle(files, exportNames) {
 }
 
 const wb = await loadBundle(
-  ["worldbox/rng.ts", "worldbox/mapgen.ts", "worldbox/lobby.ts"],
+  ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/world/lobby.ts"],
   ["LOBBY_OBJECTS", "LOBBY_NPCS", "buildLobby", "stationNear", "isSolidLobbyTile"],
 );
 const lobby = wb.buildLobby();

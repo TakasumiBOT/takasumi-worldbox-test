@@ -65,51 +65,51 @@ export async function tableUpdate(table, values, filters) {
 export async function rpc(name, params) { throw new Error("unexpected rpc " + name); }
 `);
 
-const economyUrl = dataUrl(transpile("worldbox/economy-bridge.ts"));
+const economyUrl = dataUrl(transpile("worldbox/economy/economy-bridge.ts"));
 const economyOnlineUrl = dataUrl(
-  transpile("worldbox/economy-bridge-online.ts")
-    .replaceAll('"../bot-api"', JSON.stringify(botApiStubUrl))
+  transpile("worldbox/economy/economy-bridge-online.ts")
+    .replaceAll('"../../bot-api"', JSON.stringify(botApiStubUrl))
     .replaceAll('"./economy-bridge"', JSON.stringify(economyUrl)),
 );
-const arenaUrl = dataUrl(transpile("worldbox/arena.ts"));
-const tournamentUrl = dataUrl(transpile("worldbox/tournament.ts"));
-const pvpUrl = dataUrl(transpile("worldbox/pvp.ts"));
-const itemsUrl = dataUrl(transpile("worldbox/items.ts"));
+const arenaUrl = dataUrl(transpile("worldbox/combat/arena.ts"));
+const tournamentUrl = dataUrl(transpile("worldbox/combat/tournament.ts"));
+const pvpUrl = dataUrl(transpile("worldbox/combat/pvp.ts"));
+const itemsUrl = dataUrl(transpile("worldbox/economy/items.ts"));
 const profileUrl = dataUrl(
-  transpile("worldbox/profile.ts")
-    .replaceAll('"./items"', JSON.stringify(itemsUrl)),
+  transpile("worldbox/player/profile.ts")
+    .replaceAll('"../economy/items"', JSON.stringify(itemsUrl)),
 );
 const profileOnlineUrl = dataUrl(
-  transpile("worldbox/profile-online.ts")
-    .replaceAll('"../bot-api"', JSON.stringify(botApiStubUrl))
+  transpile("worldbox/player/profile-online.ts")
+    .replaceAll('"../../bot-api"', JSON.stringify(botApiStubUrl))
     .replaceAll('"./profile"', JSON.stringify(profileUrl)),
 );
 const pvpOnlineUrl = dataUrl(
-  transpile("worldbox/pvp-online.ts")
-    .replaceAll('"../bot-api"', JSON.stringify(botApiStubUrl))
+  transpile("worldbox/combat/pvp-online.ts")
+    .replaceAll('"../../bot-api"', JSON.stringify(botApiStubUrl))
     .replaceAll('"./pvp"', JSON.stringify(pvpUrl)),
 );
-const userLockUrl = dataUrl(transpile("worldbox/user-lock.ts"));
+const userLockUrl = dataUrl(transpile("worldbox/core/user-lock.ts"));
 const tournamentOnlineUrl = dataUrl(
-  transpile("worldbox/tournament-online.ts")
-    .replaceAll('"../bot-api"', JSON.stringify(botApiStubUrl))
-    .replaceAll('"./economy-bridge-online"', JSON.stringify(economyOnlineUrl))
-    .replaceAll('"./economy-bridge"', JSON.stringify(economyUrl))
-    .replaceAll('"./profile-online"', JSON.stringify(profileOnlineUrl))
+  transpile("worldbox/combat/tournament-online.ts")
+    .replaceAll('"../../bot-api"', JSON.stringify(botApiStubUrl))
+    .replaceAll('"../economy/economy-bridge-online"', JSON.stringify(economyOnlineUrl))
+    .replaceAll('"../economy/economy-bridge"', JSON.stringify(economyUrl))
+    .replaceAll('"../player/profile-online"', JSON.stringify(profileOnlineUrl))
     .replaceAll('"./pvp-online"', JSON.stringify(pvpOnlineUrl))
     .replaceAll('"./arena"', JSON.stringify(arenaUrl))
     .replaceAll('"./tournament"', JSON.stringify(tournamentUrl))
     .replaceAll('"./pvp"', JSON.stringify(pvpUrl))
-    .replaceAll('"./user-lock"', JSON.stringify(userLockUrl)),
+    .replaceAll('"../core/user-lock"', JSON.stringify(userLockUrl)),
 );
-const casinoTournamentUrl = dataUrl(transpile("worldbox/casino-tournament.ts"));
+const casinoTournamentUrl = dataUrl(transpile("worldbox/activity/casino-tournament.ts"));
 const casinoTournamentOnlineUrl = dataUrl(
-  transpile("worldbox/casino-tournament-online.ts")
-    .replaceAll('"../bot-api"', JSON.stringify(botApiStubUrl))
-    .replaceAll('"./economy-bridge-online"', JSON.stringify(economyOnlineUrl))
-    .replaceAll('"./economy-bridge"', JSON.stringify(economyUrl))
+  transpile("worldbox/activity/casino-tournament-online.ts")
+    .replaceAll('"../../bot-api"', JSON.stringify(botApiStubUrl))
+    .replaceAll('"../economy/economy-bridge-online"', JSON.stringify(economyOnlineUrl))
+    .replaceAll('"../economy/economy-bridge"', JSON.stringify(economyUrl))
     .replaceAll('"./casino-tournament"', JSON.stringify(casinoTournamentUrl))
-    .replaceAll('"./user-lock"', JSON.stringify(userLockUrl)),
+    .replaceAll('"../core/user-lock"', JSON.stringify(userLockUrl)),
 );
 
 const eco = await import(economyUrl);

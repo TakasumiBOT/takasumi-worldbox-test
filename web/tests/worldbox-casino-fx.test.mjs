@@ -18,7 +18,7 @@ function dataUrl(js) {
   return "data:text/javascript;base64," + Buffer.from(js).toString("base64");
 }
 
-const fx = await import(dataUrl(transpile("worldbox/casino-fx.ts")));
+const fx = await import(dataUrl(transpile("worldbox/activity/casino-fx.ts")));
 
 test("casino-fx: 配当倍率で階級が上がる", () => {
   assert.equal(fx.winTier(0, 100), 0);

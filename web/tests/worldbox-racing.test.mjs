@@ -53,7 +53,7 @@ async function loadBundle(files, exportNames) {
 }
 
 const R = await loadBundle(
-  ["worldbox/rng.ts", "worldbox/racing/horses.ts", "worldbox/racing.ts"],
+  ["worldbox/core/rng.ts", "worldbox/activity/racing/horses.ts", "worldbox/activity/racing.ts"],
   [
     "HORSES", "horseById", "RACE_INTERVAL_MS", "BET_CLOSE_BEFORE_MS", "ODDS_K",
     "scheduleAt", "isBettingOpen", "raceShape", "selectEntries", "generateRaceCore",

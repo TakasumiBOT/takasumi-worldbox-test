@@ -42,8 +42,8 @@ WORLD BOX の種ファイル（`web/lib/worldbox`、`web/app/games/worldbox`、`
 - `web/lib/db.ts`: `@neondatabase/serverless` の Pool によるアクセス層（トランザクション可）。SQL 実行は `SqlExecutor` インターフェース越しで、テスト差し替え可能。
 - `web/lib/botapi-server.ts`: bot-api 契約のサーバー実装。`api/app.py` の許可リスト・検証順・エラー意味論を移植。許可テーブルは4つのみ（`bump_rta_settings` 等の AGO 残存物は除外）。経済 RPC 4本は SQL 関数を作らず、トランザクション + `SELECT ... FOR UPDATE` で SQL 定義と同じ意味論を実装（pay はプール→国庫の順で内訳返し、add_loss は 70/30（端数は国庫）、transfer は原子的で未登録の受取人を `p_new_user_balance` で作成）。
 - `web/app/botapi/v1/query/route.ts`・`web/app/botapi/v1/rpc/route.ts`: 上記の薄いルート。`BOT_API_BASE_URL=https://<自ドメイン>/botapi` にすると既存クライアントがそのまま自前 DB へつながる。
-- 経済オプのスイープ: 旧 Python ワーカー（`core/general/circulation/worldbox_economy.py`）の回収役を `sweepEconomyOps()` として `web/lib/worldbox/economy-bridge-online.ts` に移植（claim 失効90秒、台帳プロトコル、apply_uncertain、終端の間引き）。適用は既存の直接適用関数を再利用し、二重実装は作っていない。入口は `web/app/api/worldbox/internal/economy-sweep`（`CRON_SECRET` の Bearer 必須、未設定は fail-closed）で、`web/vercel.json` に毎分 cron を登録。
-- ハードコード除去: `lib/site.ts` の `SITE_URL` は `NEXT_PUBLIC_SITE_URL` env（＋ `resolveSiteUrl` でリクエスト origin フォールバック）。ユニオン招待 URL は `window.location.origin` から組み立てる。`lib/worldbox/ops-online.ts` の管理者 ID は `WORLDBOX_ADMIN_IDS` env のみ（AGO 管理者 ID の埋め込みフォールバック削除）。
+- 経済オプのスイープ: 旧 Python ワーカー（`core/general/circulation/worldbox_economy.py`）の回収役を `sweepEconomyOps()` として `web/lib/worldbox/economy/economy-bridge-online.ts` に移植（claim 失効90秒、台帳プロトコル、apply_uncertain、終端の間引き）。適用は既存の直接適用関数を再利用し、二重実装は作っていない。入口は `web/app/api/worldbox/internal/economy-sweep`（`CRON_SECRET` の Bearer 必須、未設定は fail-closed）で、`web/vercel.json` に毎分 cron を登録。
+- ハードコード除去: `lib/site.ts` の `SITE_URL` は `NEXT_PUBLIC_SITE_URL` env（＋ `resolveSiteUrl` でリクエスト origin フォールバック）。ユニオン招待 URL は `window.location.origin` から組み立てる。`lib/worldbox/core/ops-online.ts` の管理者 ID は `WORLDBOX_ADMIN_IDS` env のみ（AGO 管理者 ID の埋め込みフォールバック削除）。
 - テスト: `web/tests/botapi-server.test.mjs`（14件、インメモリ fake DB）: 認証の fail-closed、許可リスト拒否、pay_house の内訳、add_loss の 70/30、transfer の原子性・新規受取人・失敗時 P0001、大きな整数の生リテラル往復。
 - Phase 1 の劣化（意図的）: チャット outbox は配送されずに溜まる、Discord ディレクトリは空、ユニオン掲示板の Discord 中継と `!wbstate` は対象外。詳細は README 参照。
 

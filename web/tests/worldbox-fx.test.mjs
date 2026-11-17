@@ -56,7 +56,7 @@ async function loadBundle(files, exportNames) {
 }
 
 const fx = await loadBundle(
-  ["worldbox/fx.ts"],
+  ["worldbox/media/fx.ts"],
   [
     "FX_CAP", "FX_BURST_MAX", "createFxSystem", "fxRand", "fxLifeRatio", "stepFx", "spawnBurst",
     "ambientKindFor", "spawnAmbient", "createShake", "startShake", "shakeOffsetAt",
@@ -286,7 +286,7 @@ test("fx2: 空振り係数は成功時より薄い（0〜1）", () => {
 
 test("fx: クライアント配線（イベント→粒/揺れ/ポップ、スイング、環境粒）", () => {
   const client = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"), "utf8");
-  assert.match(client, /from "@\/lib\/worldbox\/fx"/, "fx 基盤を使う");
+  assert.match(client, /from "@\/lib\/worldbox\/media\/fx"/, "fx 基盤を使う");
   assert.match(client, /fxEventsRef\.current\.push/, "行為の成功が演出イベントになる");
   assert.match(client, /spawnBurst\(fxSys, ev\.kind/, "描画ループでイベントを粒に変換する");
   assert.match(client, /startShake/, "行為で画面が揺れる");

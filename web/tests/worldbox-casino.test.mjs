@@ -25,22 +25,22 @@ function dataUrl(js) {
   return "data:text/javascript;base64," + Buffer.from(js).toString("base64");
 }
 
-const casinoUrl = dataUrl(transpile("worldbox/casino.ts"));
+const casinoUrl = dataUrl(transpile("worldbox/activity/casino.ts"));
 const casino = await import(casinoUrl);
-const casinoGamesUrl = dataUrl(transpile("worldbox/casino-games.ts"));
+const casinoGamesUrl = dataUrl(transpile("worldbox/activity/casino-games.ts"));
 const games = await import(casinoGamesUrl);
 const blackjackUrl = dataUrl(transpile("games/blackjack.ts"));
 const casinoSessionUrl = dataUrl(
-  transpile("worldbox/casino-session.ts")
-    .replaceAll('"../games/blackjack"', JSON.stringify(blackjackUrl))
+  transpile("worldbox/activity/casino-session.ts")
+    .replaceAll('"../../games/blackjack"', JSON.stringify(blackjackUrl))
     .replaceAll('"./casino-games"', JSON.stringify(casinoGamesUrl)),
 );
 const sessionLib = await import(casinoSessionUrl);
-const rngUrl = dataUrl(transpile("worldbox/rng.ts"));
-const mapgenUrl = dataUrl(transpile("worldbox/mapgen.ts").replaceAll('"./rng"', JSON.stringify(rngUrl)));
-const lobbyUrl = dataUrl(transpile("worldbox/lobby.ts").replaceAll('"./mapgen"', JSON.stringify(mapgenUrl)));
+const rngUrl = dataUrl(transpile("worldbox/core/rng.ts"));
+const mapgenUrl = dataUrl(transpile("worldbox/world/mapgen.ts").replaceAll('"../core/rng"', JSON.stringify(rngUrl)));
+const lobbyUrl = dataUrl(transpile("worldbox/world/lobby.ts").replaceAll('"./mapgen"', JSON.stringify(mapgenUrl)));
 const lobby = await import(lobbyUrl);
-const economyUrl = dataUrl(transpile("worldbox/economy-bridge.ts"));
+const economyUrl = dataUrl(transpile("worldbox/economy/economy-bridge.ts"));
 const eco = await import(economyUrl);
 
 const ME = "611111111111111111";
@@ -199,19 +199,19 @@ const authUrl = dataUrl(
 );
 const auth = await import(authUrl);
 const economyOnlineUrl = dataUrl(
-  transpile("worldbox/economy-bridge-online.ts")
-    .replaceAll('"../bot-api"', JSON.stringify(botApiStubUrl))
+  transpile("worldbox/economy/economy-bridge-online.ts")
+    .replaceAll('"../../bot-api"', JSON.stringify(botApiStubUrl))
     .replaceAll('"./economy-bridge"', JSON.stringify(economyUrl)),
 );
-const presenceUrl = dataUrl(transpile("worldbox/presence.ts"));
+const presenceUrl = dataUrl(transpile("worldbox/player/presence.ts"));
 const presenceOnlineUrl = dataUrl(
-  transpile("worldbox/presence-online.ts")
-    .replaceAll('"../bot-api"', JSON.stringify(botApiStubUrl))
+  transpile("worldbox/player/presence-online.ts")
+    .replaceAll('"../../bot-api"', JSON.stringify(botApiStubUrl))
     .replaceAll('"./presence"', JSON.stringify(presenceUrl)),
 );
 const casinoSessionOnlineUrl = dataUrl(
-  transpile("worldbox/casino-session-online.ts")
-    .replaceAll('"../bot-api"', JSON.stringify(botApiStubUrl))
+  transpile("worldbox/activity/casino-session-online.ts")
+    .replaceAll('"../../bot-api"', JSON.stringify(botApiStubUrl))
     .replaceAll('"./casino-session"', JSON.stringify(casinoSessionUrl))
     .replaceAll('"./casino-games"', JSON.stringify(casinoGamesUrl)),
 );
@@ -239,16 +239,16 @@ const casinoRoute = await import(
     transpile("api/worldbox/casino/route.ts", rootDir + "/app")
       .replaceAll('"next/server"', JSON.stringify(nextServerStubUrl))
       .replaceAll('"@/lib/auth"', JSON.stringify(authUrl))
-      .replaceAll('"@/lib/worldbox/casino"', JSON.stringify(casinoUrl))
+      .replaceAll('"@/lib/worldbox/activity/casino"', JSON.stringify(casinoUrl))
       .replaceAll('"@/lib/games/blackjack"', JSON.stringify(blackjackUrl))
-      .replaceAll('"@/lib/worldbox/casino-games"', JSON.stringify(casinoGamesUrl))
-      .replaceAll('"@/lib/worldbox/casino-session"', JSON.stringify(casinoSessionUrl))
-      .replaceAll('"@/lib/worldbox/casino-session-online"', JSON.stringify(casinoSessionOnlineUrl))
-      .replaceAll('"@/lib/worldbox/casino-tournament-online"', JSON.stringify(casinoTournamentOnlineUrl))
-      .replaceAll('"@/lib/worldbox/economy-bridge"', JSON.stringify(economyUrl))
-      .replaceAll('"@/lib/worldbox/economy-bridge-online"', JSON.stringify(economyOnlineUrl))
-      .replaceAll('"@/lib/worldbox/lobby"', JSON.stringify(lobbyUrl))
-      .replaceAll('"@/lib/worldbox/presence-online"', JSON.stringify(presenceOnlineUrl)),
+      .replaceAll('"@/lib/worldbox/activity/casino-games"', JSON.stringify(casinoGamesUrl))
+      .replaceAll('"@/lib/worldbox/activity/casino-session"', JSON.stringify(casinoSessionUrl))
+      .replaceAll('"@/lib/worldbox/activity/casino-session-online"', JSON.stringify(casinoSessionOnlineUrl))
+      .replaceAll('"@/lib/worldbox/activity/casino-tournament-online"', JSON.stringify(casinoTournamentOnlineUrl))
+      .replaceAll('"@/lib/worldbox/economy/economy-bridge"', JSON.stringify(economyUrl))
+      .replaceAll('"@/lib/worldbox/economy/economy-bridge-online"', JSON.stringify(economyOnlineUrl))
+      .replaceAll('"@/lib/worldbox/world/lobby"', JSON.stringify(lobbyUrl))
+      .replaceAll('"@/lib/worldbox/player/presence-online"', JSON.stringify(presenceOnlineUrl)),
   ),
 );
 

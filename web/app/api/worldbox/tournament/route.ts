@@ -1,19 +1,19 @@
 import { NextResponse } from "next/server";
 import { getRequestSession, publicOrigin, sessionOwnerKey } from "@/lib/auth";
-import { buildEconomyOp, type EconomyOp } from "@/lib/worldbox/economy-bridge";
+import { buildEconomyOp, type EconomyOp } from "@/lib/worldbox/economy/economy-bridge";
 import {
   enqueueEconomyOpOnce, isEconomyEnabled, loadMyEconomyOps, readUserBalance,
-} from "@/lib/worldbox/economy-bridge-online";
-import { loadMyPvpDuel } from "@/lib/worldbox/pvp-online";
-import { loadMyLobbyStation } from "@/lib/worldbox/station-online";
+} from "@/lib/worldbox/economy/economy-bridge-online";
+import { loadMyPvpDuel } from "@/lib/worldbox/combat/pvp-online";
+import { loadMyLobbyStation } from "@/lib/worldbox/world/station-online";
 import {
   closeEntryInner, loadCurrentTournament, saveTournament,
-} from "@/lib/worldbox/tournament-online";
+} from "@/lib/worldbox/combat/tournament-online";
 import {
   TOURNAMENT_ENTRY_MS, TOURNAMENT_FEE, TOURNAMENT_MAX_ENTRANTS,
   publicTournamentView, tournamentFeeOpId, tournamentId, type Tournament,
-} from "@/lib/worldbox/tournament";
-import { withUserLock } from "@/lib/worldbox/user-lock";
+} from "@/lib/worldbox/combat/tournament";
+import { withUserLock } from "@/lib/worldbox/core/user-lock";
 
 export const runtime = "nodejs";
 

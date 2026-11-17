@@ -44,7 +44,7 @@ function loadBundle(files, names) {
 }
 
 const eco = loadBundle(
-  ["worldbox/items.ts", "worldbox/profile.ts", "worldbox/roles.ts", "worldbox/vitals.ts", "worldbox/economy.ts"],
+  ["worldbox/economy/items.ts", "worldbox/player/profile.ts", "worldbox/player/roles.ts", "worldbox/player/vitals.ts", "worldbox/economy/economy.ts"],
   [
     "ITEMS", "itemById", "RECIPES", "recipeById", "sellPrice",
     "DEFAULT_PROFILE", "parseProfile", "serializeProfile", "countItem",
@@ -270,7 +270,7 @@ test("クライアント配線: 経済パネルと API がつながっている"
   assert.match(client, /WorldBoxEconomyPanel/);
   assert.match(client, /経済/);
   assert.match(client, /座標 X/);
-  const presenceOnline = fs.readFileSync(path.join(libDir, "worldbox/presence-online.ts"), "utf8");
+  const presenceOnline = fs.readFileSync(path.join(libDir, "worldbox/player/presence-online.ts"), "utf8");
   assert.match(presenceOnline, /findPresenceOwnerKey/);
   const panel = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxEconomyPanel.tsx"), "utf8");
   for (const action of ["buy", "sell", "eat", "craft"]) {

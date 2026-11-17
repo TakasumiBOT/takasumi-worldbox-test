@@ -50,7 +50,7 @@ async function loadBundle(files, exportNames) {
 }
 
 const G = await loadBundle(
-  ["worldbox/guild-shop.ts"],
+  ["worldbox/economy/guild-shop.ts"],
   [
     "GUILD_PLOT_COUNT", "GUILD_PLOT_FEE", "GUILD_PLOT_ANCHORS", "emptyGuildShopState",
     "parseGuildShopState", "listingAvailable", "sellerProceeds", "plotOfGuild", "findListing",

@@ -25,7 +25,7 @@ function dataUrl(js) {
   return "data:text/javascript;base64," + Buffer.from(js).toString("base64");
 }
 
-const presence = await import(dataUrl(transpile("worldbox/presence.ts")));
+const presence = await import(dataUrl(transpile("worldbox/player/presence.ts")));
 
 const NOW = 1_700_000_000_000;
 const entry = (tab, tabAt, ts = NOW) => ({
@@ -83,7 +83,7 @@ test("配線: ルートは 409 を返し、クライアントはタブを申告�
   assert.match(route, /putPresenceTabGuarded/);
   assert.match(route, /tab_superseded/);
   assert.match(route, /status: 409/);
-  const online = fs.readFileSync(path.join(libDir, "worldbox/presence-online.ts"), "utf8");
+  const online = fs.readFileSync(path.join(libDir, "worldbox/player/presence-online.ts"), "utf8");
   assert.match(online, /export async function putPresenceTabGuarded/);
   const server = fs.readFileSync(path.join(rootDir, "realtime-server.js"), "utf8");
   assert.match(server, /admitTab/);

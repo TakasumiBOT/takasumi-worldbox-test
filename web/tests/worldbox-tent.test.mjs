@@ -50,17 +50,17 @@ function bundle(names, exportNames) {
 }
 
 const world = bundle(
-  ["worldbox/mapgen.ts", "worldbox/lobby.ts", "worldbox/tent.ts"],
+  ["worldbox/world/mapgen.ts", "worldbox/world/lobby.ts", "worldbox/world/tent.ts"],
   ["buildTent", "tentTileAt", "TENT_W", "TENT_H", "TENT_MAX_W", "TENT_MAX_H", "TENT_ENTRY", "TENT_EXIT", "L_WALL", "L_WOOD", "stationNear"],
 );
 
 const saveMod = bundle(
-  ["worldbox/mapgen.ts", "worldbox/lobby.ts", "worldbox/tent.ts", "worldbox/save.ts"],
+  ["worldbox/world/mapgen.ts", "worldbox/world/lobby.ts", "worldbox/world/tent.ts", "worldbox/core/save.ts"],
   ["serializeSave", "parseSave"],
 );
 
 const presenceMod = bundle(
-  ["worldbox/presence.ts"],
+  ["worldbox/player/presence.ts"],
   ["sanitizePresenceSpace"],
 );
 
@@ -134,14 +134,14 @@ test("プレゼンス: tent 空間を通す", () => {
 });
 
 test("配線: テントは facility で置け、クライアントとサーバーが tent を扱う", () => {
-  const items = fs.readFileSync(path.join(libDir, "worldbox/items.ts"), "utf8");
+  const items = fs.readFileSync(path.join(libDir, "worldbox/economy/items.ts"), "utf8");
   assert.match(items, /id: "tent"[^}]*facility: true/);
   const client = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"), "utf8");
   assert.ok(client.includes('doWarp("tent")'), "テントを踏んで入る配線が無い");
   assert.ok(client.includes("tentExitFor"), "出口の配線が無い");
   assert.ok(client.includes("buildTent"), "内装の読み込みが無い");
   assert.ok(client.includes('spaceUi !== "world" && stationUi'), "室内チップ表示が tent に広がっていない");
-  const station = fs.readFileSync(path.join(libDir, "worldbox/station-online.ts"), "utf8");
+  const station = fs.readFileSync(path.join(libDir, "worldbox/world/station-online.ts"), "utf8");
   assert.ok(station.includes('presence.space === "tent"'), "サーバー検証に tent が無い");
   assert.ok(station.includes("buildTent"), "サーバー検証が内装を読まない");
   const panel = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxEconomyPanel.tsx"), "utf8");

@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import { getRequestSession } from "@/lib/auth";
 import { kvList } from "@/lib/bot-api";
-import { dayKeyOf, funnelRates, parseUserFirstSteps, retentionRate } from "@/lib/worldbox/metrics";
+import { dayKeyOf, funnelRates, parseUserFirstSteps, retentionRate } from "@/lib/worldbox/core/metrics";
 import {
   WORLDBOX_METRICS_USERS_NAMESPACE, loadDayMetrics, loadEconDay,
-} from "@/lib/worldbox/metrics-online";
-import { loadNationsState } from "@/lib/worldbox/nations-online";
-import { worldboxAdminIds } from "@/lib/worldbox/ops-online";
+} from "@/lib/worldbox/core/metrics-online";
+import { loadNationsState } from "@/lib/worldbox/social/nations-online";
+import { worldboxAdminIds } from "@/lib/worldbox/core/ops-online";
 
 export const runtime = "nodejs";
 

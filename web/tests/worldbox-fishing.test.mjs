@@ -51,8 +51,8 @@ async function loadBundle(files, exportNames) {
 
 const F = await loadBundle(
   [
-    "worldbox/rng.ts", "worldbox/mapgen.ts", "worldbox/maplogic.ts", "worldbox/items.ts",
-    "worldbox/objects.ts", "worldbox/fishing.ts",
+    "worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/world/maplogic.ts", "worldbox/economy/items.ts",
+    "worldbox/world/objects.ts", "worldbox/activity/fishing.ts",
   ],
   ["fishingSpotAt", "fishingReady", "fishingNonce", "objectsForChunk", "lootForObjectAt", "MAP_SEED"],
 );

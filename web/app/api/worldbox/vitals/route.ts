@@ -1,34 +1,34 @@
 import { NextResponse } from "next/server";
 import { getRequestSession, publicOrigin, sessionOwnerKey } from "@/lib/auth";
-import { MAP_SEED, WORLD_COORD_LIMIT } from "@/lib/worldbox/mapgen";
-import { isNightPhase, phaseAtTime } from "@/lib/worldbox/daynight";
-import { mobById } from "@/lib/worldbox/mobs";
-import { mobDistance, mobExistsAt, resolveMobPosition, MOB_ATTACK_MAX_DISTANCE } from "@/lib/worldbox/combat";
-import { isProfileEnabled, loadProfile, storeProfile } from "@/lib/worldbox/profile-online";
-import { listPresence } from "@/lib/worldbox/presence-online";
-import { presenceIdFor } from "@/lib/worldbox/presence";
-import { parseSave, serializeSave } from "@/lib/worldbox/save";
-import { loadWorldBoxSave, storeWorldBoxSave } from "@/lib/worldbox/save-online";
-import { loadNationsState } from "@/lib/worldbox/nations-online";
-import { loadTileOverride } from "@/lib/worldbox/tiles-online";
-import { buildCaveLayer, buildDungeonFloor, makeInstanceSpace, parseInstanceSpace, weekKeyOf } from "@/lib/worldbox/instances";
-import { loadRuinsPersonal } from "@/lib/worldbox/instances-online";
-import { listPresenceWithOwners, putPresence } from "@/lib/worldbox/presence-online";
-import { addMasteryXp, BLADE_ATTACK_MULT, GUARD_AURA_REDUCTION } from "@/lib/worldbox/roles";
-import { playerAttack } from "@/lib/worldbox/arena";
-import { withUserLock } from "@/lib/worldbox/user-lock";
-import { recordDeath } from "@/lib/worldbox/roles-online";
-import { loadMobState } from "@/lib/worldbox/mobs-online";
+import { MAP_SEED, WORLD_COORD_LIMIT } from "@/lib/worldbox/world/mapgen";
+import { isNightPhase, phaseAtTime } from "@/lib/worldbox/world/daynight";
+import { mobById } from "@/lib/worldbox/combat/mobs";
+import { mobDistance, mobExistsAt, resolveMobPosition, MOB_ATTACK_MAX_DISTANCE } from "@/lib/worldbox/combat/combat";
+import { isProfileEnabled, loadProfile, storeProfile } from "@/lib/worldbox/player/profile-online";
+import { listPresence } from "@/lib/worldbox/player/presence-online";
+import { presenceIdFor } from "@/lib/worldbox/player/presence";
+import { parseSave, serializeSave } from "@/lib/worldbox/core/save";
+import { loadWorldBoxSave, storeWorldBoxSave } from "@/lib/worldbox/core/save-online";
+import { loadNationsState } from "@/lib/worldbox/social/nations-online";
+import { loadTileOverride } from "@/lib/worldbox/world/tiles-online";
+import { buildCaveLayer, buildDungeonFloor, makeInstanceSpace, parseInstanceSpace, weekKeyOf } from "@/lib/worldbox/world/instances";
+import { loadRuinsPersonal } from "@/lib/worldbox/world/instances-online";
+import { listPresenceWithOwners, putPresence } from "@/lib/worldbox/player/presence-online";
+import { addMasteryXp, BLADE_ATTACK_MULT, GUARD_AURA_REDUCTION } from "@/lib/worldbox/player/roles";
+import { playerAttack } from "@/lib/worldbox/combat/arena";
+import { withUserLock } from "@/lib/worldbox/core/user-lock";
+import { recordDeath } from "@/lib/worldbox/player/roles-online";
+import { loadMobState } from "@/lib/worldbox/combat/mobs-online";
 import {
   deleteDungeonSession, dungeonSessionClosed, loadDungeonSession, storeDungeonSession,
-} from "@/lib/worldbox/instances-online";
-import { partyKeyOf } from "@/lib/worldbox/party";
-import { loadPartyOf } from "@/lib/worldbox/party-online";
-import type { PlayerProfile, RespawnPoint } from "@/lib/worldbox/profile";
+} from "@/lib/worldbox/world/instances-online";
+import { partyKeyOf } from "@/lib/worldbox/social/party";
+import { loadPartyOf } from "@/lib/worldbox/social/party-online";
+import type { PlayerProfile, RespawnPoint } from "@/lib/worldbox/player/profile";
 import {
   activityForWindow, applyDeath, applyHazardDamage, applyMobDamage, applyPvpDamage, hazardDamageFor, pvpSpaceAllowed,
   PVP_ATTACK_MAX_DISTANCE, resolveRespawnPoint, setBedRespawn, stepVitals,
-} from "@/lib/worldbox/vitals";
+} from "@/lib/worldbox/player/vitals";
 
 export const runtime = "nodejs";
 

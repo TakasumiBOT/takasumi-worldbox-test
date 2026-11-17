@@ -48,13 +48,13 @@ function bundleModule(files, names) {
 }
 
 const ecoUrl = bundleModule(
-  ["worldbox/items.ts", "worldbox/profile.ts", "worldbox/roles.ts", "worldbox/vitals.ts", "worldbox/economy.ts"],
+  ["worldbox/economy/items.ts", "worldbox/player/profile.ts", "worldbox/player/roles.ts", "worldbox/player/vitals.ts", "worldbox/economy/economy.ts"],
   ["RECIPES", "recipeById", "recipeKind", "parseProfile", "countItem", "craftItem"],
 );
 const E = await import(ecoUrl);
 
 const tilesUrl = bundleModule(
-  ["worldbox/rng.ts", "worldbox/mapgen.ts", "worldbox/items.ts", "worldbox/profile.ts", "worldbox/presence.ts", "worldbox/seasons.ts", "worldbox/tiles.ts"],
+  ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/economy/items.ts", "worldbox/player/profile.ts", "worldbox/player/presence.ts", "worldbox/world/seasons.ts", "worldbox/world/tiles.ts"],
   ["placedStationKinds", "PLACED_STATION_KINDS"],
 );
 const T = await import(tilesUrl);
@@ -139,7 +139,7 @@ test("設置施設: 作業種別の対応", () => {
 // ---------- 配線 ----------
 
 const routeSrc = fs.readFileSync(path.join(rootDir, "app/api/worldbox/profile/route.ts"), "utf8");
-const stationSrc = fs.readFileSync(path.join(libDir, "worldbox/station-online.ts"), "utf8");
+const stationSrc = fs.readFileSync(path.join(libDir, "worldbox/world/station-online.ts"), "utf8");
 const clientSrc = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"), "utf8");
 const panelSrc = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxEconomyPanel.tsx"), "utf8");
 

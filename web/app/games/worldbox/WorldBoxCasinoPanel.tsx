@@ -12,14 +12,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   CASINO_BET_TIERS, SLOT_SYMBOLS,
   type CasinoMachine, type RouletteColor, type RoulettePick,
-} from "@/lib/worldbox/casino";
-import { DICE_RANGES } from "@/lib/worldbox/casino-games";
+} from "@/lib/worldbox/activity/casino";
+import { DICE_RANGES } from "@/lib/worldbox/activity/casino-games";
 import { createPollGuard, type PollGuard } from "@/lib/poll-guard";
-import { onEconomyApplied } from "@/lib/worldbox/economy-push";
+import { onEconomyApplied } from "@/lib/worldbox/economy/economy-push";
 import {
   confettiParticles, countUpValue, isReach, tierFx, winTier, type WinTier,
-} from "@/lib/worldbox/casino-fx";
-import type { EconomyOp } from "@/lib/worldbox/economy-bridge";
+} from "@/lib/worldbox/activity/casino-fx";
+import type { EconomyOp } from "@/lib/worldbox/economy/economy-bridge";
 import {
   sfxCorrect, sfxDeal, sfxDice, sfxFlip, sfxJingle, sfxLose, sfxPlace, sfxTick, sfxWin, sfxWrong,
 } from "@/lib/sfx";

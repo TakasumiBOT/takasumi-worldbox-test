@@ -3,15 +3,15 @@ import { getRequestSession, publicOrigin, sessionOwnerKey } from "@/lib/auth";
 import {
   TAX_RATE_MAX, isPrivateNation, memberKeysOf, normalizeTaxRate, resolveMemberRole,
   type NationSettings,
-} from "@/lib/worldbox/nation-settings";
+} from "@/lib/worldbox/social/nation-settings";
 import {
   isNationSettingsEnabled, loadNationSettings, updateNationSettings,
-} from "@/lib/worldbox/nation-settings-online";
-import { loadNationsState } from "@/lib/worldbox/nations-online";
-import type { NationsState } from "@/lib/worldbox/nations";
-import { listPresence } from "@/lib/worldbox/presence-online";
-import { presenceIdFor } from "@/lib/worldbox/presence";
-import { loadMyLobbyStation } from "@/lib/worldbox/station-online";
+} from "@/lib/worldbox/social/nation-settings-online";
+import { loadNationsState } from "@/lib/worldbox/social/nations-online";
+import type { NationsState } from "@/lib/worldbox/social/nations";
+import { listPresence } from "@/lib/worldbox/player/presence-online";
+import { presenceIdFor } from "@/lib/worldbox/player/presence";
+import { loadMyLobbyStation } from "@/lib/worldbox/world/station-online";
 
 export const runtime = "nodejs";
 

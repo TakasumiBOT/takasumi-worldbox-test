@@ -44,7 +44,7 @@ function loadBundle(files, names) {
 }
 
 const rq = loadBundle(
-  ["worldbox/items.ts", "worldbox/profile.ts", "worldbox/vitals.ts", "worldbox/economy.ts", "worldbox/requests.ts"],
+  ["worldbox/economy/items.ts", "worldbox/player/profile.ts", "worldbox/player/vitals.ts", "worldbox/economy/economy.ts", "worldbox/social/requests.ts"],
   [
     "itemById", "parseProfile", "countItem",
     "emptyRequestsState", "postRequest", "fulfillRequest", "cancelRequest",
@@ -182,10 +182,10 @@ test("保存形式: 直列化→復元で往復し、壊れた要素と旧版は
 });
 
 test("ギルドボードの配線: ロビー配置・チップ・パネル・API・理由ホワイトリスト", () => {
-  const lobby = fs.readFileSync(path.join(libDir, "worldbox/lobby.ts"), "utf8");
+  const lobby = fs.readFileSync(path.join(libDir, "worldbox/world/lobby.ts"), "utf8");
   assert.match(lobby, /"guild"/);
   assert.match(lobby, /guild_board.*station: "guild"/);
-  const textures = fs.readFileSync(path.join(libDir, "worldbox/textures.ts"), "utf8");
+  const textures = fs.readFileSync(path.join(libDir, "worldbox/world/textures.ts"), "utf8");
   assert.match(textures, /guild_board: "\/img\/worldbox\/lobby\/guild_board\.png"/);
   assert.ok(fs.existsSync(path.join(rootDir, "public/img/worldbox/lobby/guild_board.png")));
 
@@ -214,7 +214,7 @@ test("ギルドボードの配線: ロビー配置・チップ・パネル・API
   // 場所制約: 操作はギルドボード前のみ（場所検証の共通方式）
   assert.match(route, /loadMyLobbyStation/);
   assert.match(route, /not_at_guild_board/);
-  const bridge = fs.readFileSync(path.join(libDir, "worldbox/economy-bridge.ts"), "utf8");
+  const bridge = fs.readFileSync(path.join(libDir, "worldbox/economy/economy-bridge.ts"), "utf8");
   assert.match(bridge, /"guild_request_reward"/);
   assert.match(bridge, /"guild_request_refund"/);
   const botWorker = fs.readFileSync(
@@ -280,69 +280,69 @@ const apiAuthUrl = dataUrl(
   transpile("auth.ts").replaceAll('"./subdomain"', JSON.stringify(apiSubdomainUrl)).replaceAll('"next/headers"', JSON.stringify(apiHeadersStubUrl)),
 );
 const apiAuth = await import(apiAuthUrl);
-const apiRngUrl = dataUrl(transpile("worldbox/rng.ts"));
-const apiMapgenUrl = dataUrl(transpile("worldbox/mapgen.ts").replaceAll('"./rng"', JSON.stringify(apiRngUrl)));
-const apiLobbyUrl = dataUrl(transpile("worldbox/lobby.ts").replaceAll('"./mapgen"', JSON.stringify(apiMapgenUrl)));
-const apiItemsUrl = dataUrl(transpile("worldbox/items.ts"));
-const apiProfileUrl = dataUrl(transpile("worldbox/profile.ts").replaceAll('"./items"', JSON.stringify(apiItemsUrl)));
-const apiBridgeUrl = dataUrl(transpile("worldbox/economy-bridge.ts"));
+const apiRngUrl = dataUrl(transpile("worldbox/core/rng.ts"));
+const apiMapgenUrl = dataUrl(transpile("worldbox/world/mapgen.ts").replaceAll('"../core/rng"', JSON.stringify(apiRngUrl)));
+const apiLobbyUrl = dataUrl(transpile("worldbox/world/lobby.ts").replaceAll('"./mapgen"', JSON.stringify(apiMapgenUrl)));
+const apiItemsUrl = dataUrl(transpile("worldbox/economy/items.ts"));
+const apiProfileUrl = dataUrl(transpile("worldbox/player/profile.ts").replaceAll('"../economy/items"', JSON.stringify(apiItemsUrl)));
+const apiBridgeUrl = dataUrl(transpile("worldbox/economy/economy-bridge.ts"));
 const apiBridgeOnlineUrl = dataUrl(
-  transpile("worldbox/economy-bridge-online.ts")
-    .replaceAll('"../bot-api"', JSON.stringify(apiBotStubUrl))
+  transpile("worldbox/economy/economy-bridge-online.ts")
+    .replaceAll('"../../bot-api"', JSON.stringify(apiBotStubUrl))
     .replaceAll('"./economy-bridge"', JSON.stringify(apiBridgeUrl)),
 );
-const apiPresenceUrl = dataUrl(transpile("worldbox/presence.ts"));
+const apiPresenceUrl = dataUrl(transpile("worldbox/player/presence.ts"));
 const apiPresenceOnlineUrl = dataUrl(
-  transpile("worldbox/presence-online.ts")
-    .replaceAll('"../bot-api"', JSON.stringify(apiBotStubUrl))
+  transpile("worldbox/player/presence-online.ts")
+    .replaceAll('"../../bot-api"', JSON.stringify(apiBotStubUrl))
     .replaceAll('"./presence"', JSON.stringify(apiPresenceUrl)),
 );
 const apiTentUrl = dataUrl(
-  transpile("worldbox/tent.ts")
+  transpile("worldbox/world/tent.ts")
     .replaceAll('"./mapgen"', JSON.stringify(apiMapgenUrl))
     .replaceAll('"./lobby"', JSON.stringify(apiLobbyUrl)),
 );
 const apiFloorsUrl = dataUrl(
-  transpile("worldbox/lobby-floors.ts")
+  transpile("worldbox/world/lobby-floors.ts")
     .replaceAll('"./mapgen"', JSON.stringify(apiMapgenUrl))
     .replaceAll('"./lobby"', JSON.stringify(apiLobbyUrl)),
 );
 const apiSaveUrl = dataUrl(
-  transpile("worldbox/save.ts")
-    .replaceAll('"./lobby"', JSON.stringify(apiLobbyUrl))
-    .replaceAll('"./tent"', JSON.stringify(apiTentUrl))
-    .replaceAll('"./mapgen"', JSON.stringify(apiMapgenUrl)),
+  transpile("worldbox/core/save.ts")
+    .replaceAll('"../world/lobby"', JSON.stringify(apiLobbyUrl))
+    .replaceAll('"../world/tent"', JSON.stringify(apiTentUrl))
+    .replaceAll('"../world/mapgen"', JSON.stringify(apiMapgenUrl)),
 );
 const apiSaveOnlineUrl = dataUrl(
-  transpile("worldbox/save-online.ts").replaceAll('"../bot-api"', JSON.stringify(apiBotStubUrl)),
+  transpile("worldbox/core/save-online.ts").replaceAll('"../../bot-api"', JSON.stringify(apiBotStubUrl)),
 );
 const apiProfileOnlineUrl = dataUrl(
-  transpile("worldbox/profile-online.ts")
-    .replaceAll('"../bot-api"', JSON.stringify(apiBotStubUrl))
+  transpile("worldbox/player/profile-online.ts")
+    .replaceAll('"../../bot-api"', JSON.stringify(apiBotStubUrl))
     .replaceAll('"./profile"', JSON.stringify(apiProfileUrl)),
 );
 const tilesStubUrl = dataUrl(`export function placedStationKinds() { return []; }`);
 const tilesOnlineStubUrl = dataUrl(`export async function loadTileOverride() { return null; }`);
 const apiStationOnlineUrl = dataUrl(
-  transpile("worldbox/station-online.ts")
+  transpile("worldbox/world/station-online.ts")
     .replaceAll('"./lobby"', JSON.stringify(apiLobbyUrl))
     .replaceAll('"./lobby-floors"', JSON.stringify(apiFloorsUrl))
     .replaceAll('"./tent"', JSON.stringify(apiTentUrl))
-    .replaceAll('"./presence-online"', JSON.stringify(apiPresenceOnlineUrl))
-    .replaceAll('"./save"', JSON.stringify(apiSaveUrl))
-    .replaceAll('"./save-online"', JSON.stringify(apiSaveOnlineUrl))
-    .replaceAll('"./profile-online"', JSON.stringify(apiProfileOnlineUrl))
+    .replaceAll('"../player/presence-online"', JSON.stringify(apiPresenceOnlineUrl))
+    .replaceAll('"../core/save"', JSON.stringify(apiSaveUrl))
+    .replaceAll('"../core/save-online"', JSON.stringify(apiSaveOnlineUrl))
+    .replaceAll('"../player/profile-online"', JSON.stringify(apiProfileOnlineUrl))
     .replaceAll('"./tiles"', JSON.stringify(tilesStubUrl))
     .replaceAll('"./tiles-online"', JSON.stringify(tilesOnlineStubUrl)),
 );
 const apiRequestsUrl = dataUrl(
-  transpile("worldbox/requests.ts")
-    .replaceAll('"./items"', JSON.stringify(apiItemsUrl))
-    .replaceAll('"./profile"', JSON.stringify(apiProfileUrl)),
+  transpile("worldbox/social/requests.ts")
+    .replaceAll('"../economy/items"', JSON.stringify(apiItemsUrl))
+    .replaceAll('"../player/profile"', JSON.stringify(apiProfileUrl)),
 );
 const apiRequestsOnlineUrl = dataUrl(
-  transpile("worldbox/requests-online.ts")
-    .replaceAll('"../bot-api"', JSON.stringify(apiBotStubUrl))
+  transpile("worldbox/social/requests-online.ts")
+    .replaceAll('"../../bot-api"', JSON.stringify(apiBotStubUrl))
     .replaceAll('"./requests"', JSON.stringify(apiRequestsUrl)),
 );
 const apiNationsStubUrl = dataUrl(`
@@ -352,7 +352,7 @@ export function isNationsEnabled() { return true; }
 export async function loadNationsState() { return JSON.parse(JSON.stringify(state)); }
 export async function storeNationsState() { return true; }
 `);
-const apiUserLockUrl = dataUrl(transpile("worldbox/user-lock.ts"));
+const apiUserLockUrl = dataUrl(transpile("worldbox/core/user-lock.ts"));
 const apiNextServerStubUrl = dataUrl(`
 export class NextResponse {
   static json(body, init = {}) {
@@ -367,14 +367,14 @@ const apiRequestsRoute = await import(
     transpile("api/worldbox/requests/route.ts", rootDir + "/app")
       .replaceAll('"next/server"', JSON.stringify(apiNextServerStubUrl))
       .replaceAll('"@/lib/auth"', JSON.stringify(apiAuthUrl))
-      .replaceAll('"@/lib/worldbox/economy-bridge"', JSON.stringify(apiBridgeUrl))
-      .replaceAll('"@/lib/worldbox/economy-bridge-online"', JSON.stringify(apiBridgeOnlineUrl))
-      .replaceAll('"@/lib/worldbox/nations-online"', JSON.stringify(apiNationsStubUrl))
-      .replaceAll('"@/lib/worldbox/profile-online"', JSON.stringify(apiProfileOnlineUrl))
-      .replaceAll('"@/lib/worldbox/requests"', JSON.stringify(apiRequestsUrl))
-      .replaceAll('"@/lib/worldbox/requests-online"', JSON.stringify(apiRequestsOnlineUrl))
-      .replaceAll('"@/lib/worldbox/station-online"', JSON.stringify(apiStationOnlineUrl))
-      .replaceAll('"@/lib/worldbox/user-lock"', JSON.stringify(apiUserLockUrl)),
+      .replaceAll('"@/lib/worldbox/economy/economy-bridge"', JSON.stringify(apiBridgeUrl))
+      .replaceAll('"@/lib/worldbox/economy/economy-bridge-online"', JSON.stringify(apiBridgeOnlineUrl))
+      .replaceAll('"@/lib/worldbox/social/nations-online"', JSON.stringify(apiNationsStubUrl))
+      .replaceAll('"@/lib/worldbox/player/profile-online"', JSON.stringify(apiProfileOnlineUrl))
+      .replaceAll('"@/lib/worldbox/social/requests"', JSON.stringify(apiRequestsUrl))
+      .replaceAll('"@/lib/worldbox/social/requests-online"', JSON.stringify(apiRequestsOnlineUrl))
+      .replaceAll('"@/lib/worldbox/world/station-online"', JSON.stringify(apiStationOnlineUrl))
+      .replaceAll('"@/lib/worldbox/core/user-lock"', JSON.stringify(apiUserLockUrl)),
   ),
 );
 

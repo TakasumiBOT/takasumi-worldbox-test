@@ -44,7 +44,7 @@ function bundleModule(files, names) {
 }
 
 const tilesUrl = bundleModule(
-  ["worldbox/rng.ts", "worldbox/mapgen.ts", "worldbox/items.ts", "worldbox/profile.ts", "worldbox/presence.ts", "worldbox/seasons.ts", "worldbox/tiles.ts"],
+  ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/economy/items.ts", "worldbox/player/profile.ts", "worldbox/player/presence.ts", "worldbox/world/seasons.ts", "worldbox/world/tiles.ts"],
   ["tileKey", "parseTileOverride", "parseTileOverrides"],
 );
 
@@ -63,8 +63,8 @@ export function __seed(key, value) { store.set(key, value); }
 const botApi = await import(botApiStubUrl);
 
 const tilesOnlineUrl = dataUrl(
-  transpile("worldbox/tiles-online.ts")
-    .replaceAll('"../bot-api"', JSON.stringify(botApiStubUrl))
+  transpile("worldbox/world/tiles-online.ts")
+    .replaceAll('"../../bot-api"', JSON.stringify(botApiStubUrl))
     .replaceAll('"./tiles"', JSON.stringify(tilesUrl)),
 );
 const online = await import(tilesOnlineUrl);
@@ -108,7 +108,7 @@ test("tiles-online: 書き込みはキャッシュへ即時反映される（自
 // ---------- 埋没判定 ----------
 
 const moveUrl = bundleModule(
-  ["worldbox/rng.ts", "worldbox/mapgen.ts", "worldbox/move.ts"],
+  ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/player/move.ts"],
   ["worldTileSource", "mapTileAt", "T_GRASS", "circleHitsSolid", "canStandAt", "findFreeNear", "PLAYER_RADIUS"],
 );
 const MV = await import(moveUrl);
@@ -162,8 +162,8 @@ export function __releaseLists() { const ps = pending; pending = []; for (const 
 export function __seed(key, value) { store.set(key, value); }
 `);
 const raceOnlineUrl = dataUrl(
-  transpile("worldbox/tiles-online.ts")
-    .replaceAll('"../bot-api"', JSON.stringify(raceBotApiStubUrl))
+  transpile("worldbox/world/tiles-online.ts")
+    .replaceAll('"../../bot-api"', JSON.stringify(raceBotApiStubUrl))
     .replaceAll('"./tiles"', JSON.stringify(tilesUrl)),
 );
 const raceOnline = await import(raceOnlineUrl);
@@ -199,7 +199,7 @@ test("tiles-online(S4): スキャン中の書き込みは古いスナップシ�
 
 // ---------- S4: withUserLock の直列化 ----------
 
-const userLockUrl = dataUrl(transpile("worldbox/user-lock.ts"));
+const userLockUrl = dataUrl(transpile("worldbox/core/user-lock.ts"));
 const userLock = await import(userLockUrl);
 
 test("user-lock(S4): 同じキーの並行呼び出しは直列化され、違うキーは並走する", async () => {
@@ -223,7 +223,7 @@ test("user-lock(S4): 同じキーの並行呼び出しは直列化され、違�
 test("tiles-load: ルート GET はキャッシュつき読み取りを使い、クライアントは先読みと救済を持つ", () => {
   const route = fs.readFileSync(path.join(rootDir, "app/api/worldbox/tiles/route.ts"), "utf8");
   assert.ok(route.includes("loadTileOverrides"), "タイル GET は全件読みを使う");
-  const onlineSrc = fs.readFileSync(path.join(libDir, "worldbox/tiles-online.ts"), "utf8");
+  const onlineSrc = fs.readFileSync(path.join(libDir, "worldbox/world/tiles-online.ts"), "utf8");
   assert.ok(onlineSrc.includes("OVERRIDES_CACHE_TTL_MS"), "全件読みは短TTLキャッシュつき");
   assert.ok(onlineSrc.includes("overridesEpoch"), "スキャン中の書き込み競合に epoch ガードが無い（S4）");
   assert.ok(route.includes("withUserLock(`tile:${tx},${ty}`"), "タイル行為がタイル単位で直列化されていない（S4）");

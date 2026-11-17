@@ -28,7 +28,7 @@ function dataUrl(js) {
   return "data:text/javascript;base64," + Buffer.from(js).toString("base64");
 }
 
-const P = await import(dataUrl(transpile("worldbox/pvp.ts")));
+const P = await import(dataUrl(transpile("worldbox/combat/pvp.ts")));
 
 const NOW = 1_700_000_000_000;
 const A = { ownerKey: "discord:111111111111111111", discordId: "111111111111111111", attack: 12, queuedAt: NOW };

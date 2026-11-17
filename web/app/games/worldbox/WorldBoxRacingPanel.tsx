@@ -4,8 +4,8 @@
 // 購入の入力だけ。購入はカウンター前でのみサーバーが受け付ける。
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPollGuard, type PollGuard } from "@/lib/poll-guard";
-import { onEconomyApplied } from "@/lib/worldbox/economy-push";
-import { BET_PRESETS, COAT_COLORS } from "@/lib/worldbox/racing";
+import { onEconomyApplied } from "@/lib/worldbox/economy/economy-push";
+import { BET_PRESETS, COAT_COLORS } from "@/lib/worldbox/activity/racing";
 
 type LoadState = "loading" | "ready" | "guest" | "unavailable";
 

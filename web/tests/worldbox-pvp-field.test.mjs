@@ -45,7 +45,7 @@ function loadBundle(files, names) {
 }
 
 const v = loadBundle(
-  ["worldbox/items.ts", "worldbox/profile.ts", "worldbox/vitals.ts"],
+  ["worldbox/economy/items.ts", "worldbox/player/profile.ts", "worldbox/player/vitals.ts"],
   [
     "parseProfile", "serializeProfile", "applyPvpDamage", "applyMobDamage",
     "pvpSpaceAllowed", "PVP_ATTACK_MAX_DISTANCE", "MOB_DAMAGE_COOLDOWN_MS", "HP_MAX",
@@ -188,7 +188,7 @@ test("pvp: クライアントが他プレイヤーのタップを攻撃として
   assert.match(client, /action: "pvp"/);
   assert.match(client, /attackPlayer/);
   assert.match(client, /pvpSpaceAllowed\(space\)/);
-  assert.match(client, /from "@\/lib\/worldbox\/vitals"/);
+  assert.match(client, /from "@\/lib\/worldbox\/player\/vitals"/);
 });
 
 test("pvp: クライアントのタップ振り分けは距離で分ける（範囲内=攻撃、範囲外=カード）", () => {

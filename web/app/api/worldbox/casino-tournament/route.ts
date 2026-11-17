@@ -1,21 +1,21 @@
 import { NextResponse } from "next/server";
 import { getRequestSession, publicOrigin, sessionOwnerKey } from "@/lib/auth";
-import { buildEconomyOp, type EconomyOp } from "@/lib/worldbox/economy-bridge";
+import { buildEconomyOp, type EconomyOp } from "@/lib/worldbox/economy/economy-bridge";
 import {
   enqueueEconomyOpOnce, isEconomyEnabled, loadMyEconomyOps, readUserBalance,
-} from "@/lib/worldbox/economy-bridge-online";
-import { casinoMachineNear } from "@/lib/worldbox/casino";
+} from "@/lib/worldbox/economy/economy-bridge-online";
+import { casinoMachineNear } from "@/lib/worldbox/activity/casino";
 import {
   CASINO_TOURNAMENT_ENTRY_MS, CASINO_TOURNAMENT_FEE, CASINO_TOURNAMENT_MAX_ENTRANTS,
   CASINO_TOURNAMENT_PLAY_MS, casinoTournamentFeeOpId, casinoTournamentId,
   publicCasinoTournamentView, type CasinoTournament,
-} from "@/lib/worldbox/casino-tournament";
+} from "@/lib/worldbox/activity/casino-tournament";
 import {
   advanceCasinoTournamentInner, loadCurrentCasinoTournament, saveCasinoTournament,
-} from "@/lib/worldbox/casino-tournament-online";
-import { buildLobby } from "@/lib/worldbox/lobby";
-import { isPresenceEnabled, loadMyPresence } from "@/lib/worldbox/presence-online";
-import { withUserLock } from "@/lib/worldbox/user-lock";
+} from "@/lib/worldbox/activity/casino-tournament-online";
+import { buildLobby } from "@/lib/worldbox/world/lobby";
+import { isPresenceEnabled, loadMyPresence } from "@/lib/worldbox/player/presence-online";
+import { withUserLock } from "@/lib/worldbox/core/user-lock";
 
 export const runtime = "nodejs";
 

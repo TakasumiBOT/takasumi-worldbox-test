@@ -33,7 +33,7 @@ function read(rel) {
   return fs.readFileSync(path.join(rootDir, rel), "utf8");
 }
 
-const W = await import(dataUrl(transpile("worldbox/war.ts")));
+const W = await import(dataUrl(transpile("worldbox/combat/war.ts")));
 const NOW = 1_700_000_000_000;
 const A = { id: "111111111111111111", name: "あごサーバー" };
 const B = { id: "222222222222222222", name: "もちサーバー" };
@@ -62,7 +62,7 @@ test("war-marks: 削られた HP がそのまま出る / 期限切れと終了�
 });
 
 test("war-marks: nations 応答に warMarks が載り、ルートが表示国だけに絞る", () => {
-  const nationsSrc = read("lib/worldbox/nations.ts");
+  const nationsSrc = read("lib/worldbox/social/nations.ts");
   assert.match(nationsSrc, /warMarks: Record<string, \{ markHp: number \| null; markMax: number \}>/);
   assert.match(nationsSrc, /warMarks: \{\},/);
   const routeSrc = read("app/api/worldbox/nations/route.ts");
@@ -122,7 +122,7 @@ test("guild-shop watch: relay が sync guildShop を流し、クライアント�
 // ---------- チャット掲示の RMW 直列化 ----------
 
 test("chat: appendChatMessage がリスト単位のロックで直列化される", () => {
-  const src = read("lib/worldbox/chat-online.ts");
+  const src = read("lib/worldbox/social/chat-online.ts");
   assert.match(src, /withUserLock\(`chat-list:\$\{namespaceFor\(message\.channel\)\}:\$\{key\}`/);
 });
 

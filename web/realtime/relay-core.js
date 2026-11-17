@@ -16,7 +16,7 @@ const NAME_MAX = 24;
 /** 中継トークンの有効期限（ミリ秒）。 */
 const TOKEN_TTL_MS = 10 * 60 * 1000;
 
-/** 空間ごとの境界（lib/worldbox/mapgen.ts の MAP_W/MAP_H、lobby.ts の LOBBY_W/LOBBY_H）。 */
+/** 空間ごとの境界（lib/worldbox/world/mapgen.ts の MAP_W/MAP_H、lobby.ts の LOBBY_W/LOBBY_H）。 */
 /** ワールドは実質無制限のため、ここには有限空間の矩形だけを置く。 */
 const SPACE_BOUNDS = {
   lobby: { width: 126, height: 64 }, // 競馬場拡張で東へ拡大（lobby.ts の LOBBY_W/H）
@@ -278,7 +278,7 @@ function pruneRoom(room, now) {
   return removed;
 }
 
-// ---- 中継トークン（形式は lib/worldbox/realtime-token.ts と一致させること） ----
+// ---- 中継トークン（形式は lib/worldbox/core/realtime-token.ts と一致させること） ----
 // 形式: "v1." + base64url(JSON payload) + "." + base64url(HMAC-SHA256("v1." + payload))
 // payload: { pid: プレゼンス ID, name: 表示名, exp: 有効期限ミリ秒 }
 

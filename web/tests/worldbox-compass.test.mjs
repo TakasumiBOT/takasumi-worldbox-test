@@ -56,11 +56,11 @@ async function loadBundle(files, exportNames) {
 }
 
 const cat = await loadBundle(
-  ["worldbox/items.ts", "worldbox/shops.ts"],
+  ["worldbox/economy/items.ts", "worldbox/economy/shops.ts"],
   ["ITEMS", "ITEM_ICON_IDS", "itemById", "isShopExcluded", "itemsForGenre", "genreOfItem"],
 );
 const cp = await loadBundle(
-  ["worldbox/rng.ts", "worldbox/mapgen.ts", "worldbox/maplogic.ts", "worldbox/compass.ts"],
+  ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/world/maplogic.ts", "worldbox/activity/compass.ts"],
   ["MAP_SEED", "CHUNK_SIZE", "structuresForChunk", "nearestEntrance", "nearestEntrances", "COMPASS_MAX_TILES"],
 );
 
@@ -143,7 +143,7 @@ test("compass: 決定性と探索上限", () => {
 test("compass: クライアント配線（所持時のみ・ワールドのみ HUD が出る）", () => {
   const client = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"), "utf8");
   // 純粋ロジックを読み、最寄り探索を呼ぶ
-  assert.match(client, /from "@\/lib\/worldbox\/compass"/);
+  assert.match(client, /from "@\/lib\/worldbox\/activity\/compass"/);
   assert.match(client, /nearestEntrances\(MAP_SEED, player\.x, player\.y\)/);
   // 所持判定（プロフィールの所持数）でのみ表示する
   assert.match(client, /countItem\(invProfile, "explorer_compass"\) > 0/);

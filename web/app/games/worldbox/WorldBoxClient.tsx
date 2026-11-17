@@ -13,97 +13,97 @@ import { useEffect, useRef, useState } from "react";
 import {
   CHUNK_SIZE, MAP_SEED, T_DIRT, T_GRASS, T_ROCK, T_SAND, T_SNOW, T_SNOW_TREE, T_TREE, T_WATER,
   generateChunk, mapTileAt, rectBounds, tileAt, tileIvsAt, worldBounds, type TopDownMap,
-} from "@/lib/worldbox/mapgen";
-import { pickRandomSpawn } from "@/lib/worldbox/spawn";
-import { DASH_SPEED, PLAYER_RADIUS, SWIM_DASH_SPEED, SWIM_SPEED, WALK_SPEED, circleHitsSolid, findFreeNear, isWaterAt, stepMove } from "@/lib/worldbox/move";
-import { isNightPhase, nightAmount, phaseAtTime } from "@/lib/worldbox/daynight";
-import { mobById, mobOccupiesTile, type PlacedMob } from "@/lib/worldbox/mobs";
-import { PATTERN_DEF, createBehaviorState, isBossMob, locomotionFor, locomotionPose, stepMobBehavior, type BehaviorEvent, type MobBehaviorState, type MobPatternId } from "@/lib/worldbox/mob-behavior";
+} from "@/lib/worldbox/world/mapgen";
+import { pickRandomSpawn } from "@/lib/worldbox/world/spawn";
+import { DASH_SPEED, PLAYER_RADIUS, SWIM_DASH_SPEED, SWIM_SPEED, WALK_SPEED, circleHitsSolid, findFreeNear, isWaterAt, stepMove } from "@/lib/worldbox/player/move";
+import { isNightPhase, nightAmount, phaseAtTime } from "@/lib/worldbox/world/daynight";
+import { mobById, mobOccupiesTile, type PlacedMob } from "@/lib/worldbox/combat/mobs";
+import { PATTERN_DEF, createBehaviorState, isBossMob, locomotionFor, locomotionPose, stepMobBehavior, type BehaviorEvent, type MobBehaviorState, type MobPatternId } from "@/lib/worldbox/combat/mob-behavior";
 import {
   MOB_ATTACK_RANGE, MOB_RESPAWN_MS, MOB_SPRITE, MOB_SPRITE_FALLBACK, attackTarget, knockbackTarget, mobBlockedTiles, mobDistance, mobFootprintTiles,
   mobHpNow, mobKeyOf, mobRespawnDelayMs, parseMobState, visibleMobs, type MobState,
-} from "@/lib/worldbox/combat";
-import { advanceWalkPhase, attackSwingAngle, damp, moveLean, stepBeatIndex, walkBob, walkSquashY } from "@/lib/worldbox/anim";
+} from "@/lib/worldbox/combat/combat";
+import { advanceWalkPhase, attackSwingAngle, damp, moveLean, stepBeatIndex, walkBob, walkSquashY } from "@/lib/worldbox/media/anim";
 import {
   HITSTOP_HIT_MS, HITSTOP_HURT_MS, HITSTOP_KILL_MS, WHIFF_ALPHA_SCALE, burstPaletteFor, createFxSystem, createHitstop,
   createShake, fxLifeRatio, hitstopActiveAt, phaseKind, popProgress, popScale, shakeOffsetAt,
   slashAlpha, spawnAmbient, spawnBurst, spawnMobFx, startHitstop, startShake, stepFx, swingProgress, weatherAmbientKind, weatherBlendAt,
   type FxBurstKind, type FxShake, type FxSystem, type HitstopState,
-} from "@/lib/worldbox/fx";
-import type { SkillFxEffect } from "@/lib/worldbox/fx";
-import { skillFxProgress, skillFxStage, spawnSkillFx, thunderBoltPoints } from "@/lib/worldbox/fx";
+} from "@/lib/worldbox/media/fx";
+import type { SkillFxEffect } from "@/lib/worldbox/media/fx";
+import { skillFxProgress, skillFxStage, spawnSkillFx, thunderBoltPoints } from "@/lib/worldbox/media/fx";
 import {
   activeSkillFor, masteryRankOf, roleById, skillCooldownLeft, SKILLS,
   SCOUT_STAMINA_MULT,
-} from "@/lib/worldbox/roles";
-import { clockOffsetEstimate, type PresenceEntry } from "@/lib/worldbox/presence";
+} from "@/lib/worldbox/player/roles";
+import { clockOffsetEstimate, type PresenceEntry } from "@/lib/worldbox/player/presence";
 import { createPollGuard, type PollGuard } from "@/lib/poll-guard";
-import { isWsHealthy, presencePollDue } from "@/lib/worldbox/realtime-poll";
-import { notifyEconomyApplied } from "@/lib/worldbox/economy-push";
-import { notifyGuildBoardChanged, notifyGuildRequestsChanged } from "@/lib/worldbox/guild-board-push";
-import { notifyGuildShopChanged } from "@/lib/worldbox/guild-shop-push";
-import { GUILD_PLOT_ANCHORS } from "@/lib/worldbox/guild-shop";
+import { isWsHealthy, presencePollDue } from "@/lib/worldbox/core/realtime-poll";
+import { notifyEconomyApplied } from "@/lib/worldbox/economy/economy-push";
+import { notifyGuildBoardChanged, notifyGuildRequestsChanged } from "@/lib/worldbox/social/guild-board-push";
+import { notifyGuildShopChanged } from "@/lib/worldbox/economy/guild-shop-push";
+import { GUILD_PLOT_ANCHORS } from "@/lib/worldbox/economy/guild-shop";
 import {
   STAMINA_MAX, canDash, createStamina, createTapTracker, isStickDash, registerKeyTap, rescueStamina,
   staminaGaugeVisible, stepStamina, type StaminaState, type StaminaUse, type TapTracker,
-} from "@/lib/worldbox/stamina";
-import { createRemoteTrack, stepRemoteTrack, updateRemoteTrack, type RemoteTrack } from "@/lib/worldbox/remote";
-import type { NationView, NationsResponse } from "@/lib/worldbox/nations";
+} from "@/lib/worldbox/player/stamina";
+import { createRemoteTrack, stepRemoteTrack, updateRemoteTrack, type RemoteTrack } from "@/lib/worldbox/core/remote";
+import type { NationView, NationsResponse } from "@/lib/worldbox/social/nations";
 import {
   L_PLAZA, L_SAND, L_VOID,
   LOBBY_ENTRY, LOBBY_FLOOR_FALLBACK, LOBBY_FLOOR_SPRITE, LOBBY_H, LOBBY_STAIRS_DOWN, LOBBY_STAIRS_UP,
   LOBBY_DOWN_LANDING, LOBBY_UP_LANDING, LOBBY_W, LOBBY_WARP_PAD,
   buildLobby, lobbyTileAt, stationArcadeNear, stationGenreNear, stationNear, RACETRACK, type LobbyData, type LobbyObject, type LobbyStation,
-} from "@/lib/worldbox/lobby";
+} from "@/lib/worldbox/world/lobby";
 import {
   COAT_COLORS, RACE_DURATION_MS, generateRaceCore, horseTrackPose, scheduleAt, type RaceCore,
-} from "@/lib/worldbox/racing";
+} from "@/lib/worldbox/activity/racing";
 import {
   LOBBY2_H, LOBBY2_W, LOBBY3_H, LOBBY3_W,
   buildLobby2, buildLobby3, floorWarpAt, lobby2TileAt, lobby3TileAt, type LobbyFloorSpace,
-} from "@/lib/worldbox/lobby-floors";
-import { genreById, type ShopGenreId } from "@/lib/worldbox/shops";
-import { TENT_MAX_TIER, TENT_TIERS, buildTent, tentEntryFor, tentExitFor, tentTileAt } from "@/lib/worldbox/tent";
+} from "@/lib/worldbox/world/lobby-floors";
+import { genreById, type ShopGenreId } from "@/lib/worldbox/economy/shops";
+import { TENT_MAX_TIER, TENT_TIERS, buildTent, tentEntryFor, tentExitFor, tentTileAt } from "@/lib/worldbox/world/tent";
 import {
   buildCaveLayer, buildDungeonFloor, buildRuins, dungeonHpScale, lightRadiusTiles, makeInstanceSpace, parseInstanceSpace,
   placedLightRadiusTiles,
   type CaveLayer, type DungeonFloorData, type RuinsMap,
-} from "@/lib/worldbox/instances";
-import { EVENT_DUNGEON_ENTRANCE } from "@/lib/worldbox/events";
-import { SEASON_NAMES, seasonDaysLeft, seasonOf } from "@/lib/worldbox/seasons";
-import { biomeAt, structureById, structuresForChunk, type PlacedStructure } from "@/lib/worldbox/maplogic";
-import { nearestEntrances, type CompassTarget } from "@/lib/worldbox/compass";
+} from "@/lib/worldbox/world/instances";
+import { EVENT_DUNGEON_ENTRANCE } from "@/lib/worldbox/core/events";
+import { SEASON_NAMES, seasonDaysLeft, seasonOf } from "@/lib/worldbox/world/seasons";
+import { biomeAt, structureById, structuresForChunk, type PlacedStructure } from "@/lib/worldbox/world/maplogic";
+import { nearestEntrances, type CompassTarget } from "@/lib/worldbox/activity/compass";
 import {
   objectRespawned, objectsForChunk, specialObjectById, surfaceObjectAt, surfaceSolidTilesInRect,
-} from "@/lib/worldbox/objects";
-import { fishingSpotAt } from "@/lib/worldbox/fishing";
-import { parseBoardPosts, type BoardPost } from "@/lib/worldbox/board";
-import { parseSave, serializeSave, type SaveSpace } from "@/lib/worldbox/save";
-import { chooseInitialSave } from "@/lib/worldbox/save-source";
+} from "@/lib/worldbox/world/objects";
+import { fishingSpotAt } from "@/lib/worldbox/activity/fishing";
+import { parseBoardPosts, type BoardPost } from "@/lib/worldbox/social/board";
+import { parseSave, serializeSave, type SaveSpace } from "@/lib/worldbox/core/save";
+import { chooseInitialSave } from "@/lib/worldbox/core/save-source";
 import {
   actionForTile, blockHpFraction, cropStage, floorSpeedMultiplier, isFloorItem, isFlowerPotItem, isGateItem, isOverrideActive, isSeatItem, isShelfItem, isSignItem, isWellItem, parseTileOverride, placedBlockSolid, placedStationKinds, terrainHpFraction, tileKey, tileView,
   type TileActionKind, type TileOverridesMap,
-} from "@/lib/worldbox/tiles";
-import { CROPS, ITEMS, itemById } from "@/lib/worldbox/items";
-import { HP_MAX, HUNGER_MAX, countItem, maxHpFor, toolDurabilityFraction, type AdventureRoleId, type ItemSlot, type PlayerProfile, type SlotRef } from "@/lib/worldbox/profile";
-import { hazardDamageFor, pvpSpaceAllowed, PVP_ATTACK_MAX_DISTANCE } from "@/lib/worldbox/vitals";
-import { isStallItem } from "@/lib/worldbox/stalls";
+} from "@/lib/worldbox/world/tiles";
+import { CROPS, ITEMS, itemById } from "@/lib/worldbox/economy/items";
+import { HP_MAX, HUNGER_MAX, countItem, maxHpFor, toolDurabilityFraction, type AdventureRoleId, type ItemSlot, type PlayerProfile, type SlotRef } from "@/lib/worldbox/player/profile";
+import { hazardDamageFor, pvpSpaceAllowed, PVP_ATTACK_MAX_DISTANCE } from "@/lib/worldbox/player/vitals";
+import { isStallItem } from "@/lib/worldbox/economy/stalls";
 import {
   containerCapacity, isContainerItem, type ContainerSlotRef,
-} from "@/lib/worldbox/containers";
-import { isMachineItem } from "@/lib/worldbox/machines";
-import { DUNGEON_TILE_SRC, FARM_SPRITE_SRC, LOBBY_SPRITE_SRC, loadDungeonTiles, loadFarmSprites, loadLobbySprites, loadMobSprites, loadTextures } from "@/lib/worldbox/textures";
-import { preloadImages, transitionAlpha, transitionDone, transitionSwapDue, SPRITE_PRELOAD_TIMEOUT_MS, TRANSITION_OVERLAY_RGB, type TransitionKind } from "@/lib/worldbox/transition";
-import { isStickTouch, stickBase, stickVector } from "@/lib/worldbox/stick";
-import { wbHudMetrics, wbLayoutMode } from "@/lib/worldbox/layout";
+} from "@/lib/worldbox/economy/containers";
+import { isMachineItem } from "@/lib/worldbox/economy/machines";
+import { DUNGEON_TILE_SRC, FARM_SPRITE_SRC, LOBBY_SPRITE_SRC, loadDungeonTiles, loadFarmSprites, loadLobbySprites, loadMobSprites, loadTextures } from "@/lib/worldbox/world/textures";
+import { preloadImages, transitionAlpha, transitionDone, transitionSwapDue, SPRITE_PRELOAD_TIMEOUT_MS, TRANSITION_OVERLAY_RGB, type TransitionKind } from "@/lib/worldbox/world/transition";
+import { isStickTouch, stickBase, stickVector } from "@/lib/worldbox/player/stick";
+import { wbHudMetrics, wbLayoutMode } from "@/lib/worldbox/world/layout";
 import {
   AFFORDANCE_RING_RGB, DENIED_RING_RGB, deniedFeedback, isWithinAffordanceRange,
   nudgeBobPx, nudgeRingAlpha, stickKnobRadius,
-} from "@/lib/worldbox/affordance";
+} from "@/lib/worldbox/player/affordance";
 import {
   bgmSceneFor, footstepMaterialFor, loadWbSoundSettings, playPianoNotes, playWbSe, playWbStep, saveWbSoundSettings, seForFxBurst, setWbBgmScene,
   setWbBgmTension, stopWbBgm, tensionFor, unlockWbAudio, type WbSoundSettings,
-} from "@/lib/worldbox/sound";
+} from "@/lib/worldbox/media/sound";
 import { useGamesNav } from "../GamesShell";
 import WorldBoxCasinoPanel from "./WorldBoxCasinoPanel";
 import WorldBoxRacingPanel from "./WorldBoxRacingPanel";
@@ -776,7 +776,7 @@ export default function WorldBoxClient() {
   const [statusText, setStatusText] = useState("読み込み中…");
   const [othersCount, setOthersCount] = useState(0);
   const [showMap, setShowMap] = useState(true);
-  // スマホ向けレイアウト分岐（lib/worldbox/layout が正）。初期値は wide で
+  // スマホ向けレイアウト分岐（lib/worldbox/world/layout が正）。初期値は wide で
   // PC 表示を既定にし、マウント後に実寸へ追随する。
   const [viewport, setViewport] = useState({ w: 1280, h: 800 });
   useEffect(() => {
@@ -1101,7 +1101,7 @@ export default function WorldBoxClient() {
   const [boardLoggedIn, setBoardLoggedIn] = useState(false);
   const [boardText, setBoardText] = useState("");
   const [boardMsg, setBoardMsg] = useState("");
-  // 音響（BGM/SE）: 設定は lib/worldbox/sound が localStorage に持つ。
+  // 音響（BGM/SE）: 設定は lib/worldbox/media/sound が localStorage に持つ。
   // AudioContext は最初のユーザー操作でだけ作れるため、解錠は pointerdown/keydown で行う。
   const [soundSettings, setSoundSettings] = useState<WbSoundSettings>({ bgm: true, se: true });
   // BGM 緊張レイヤー: 描画ループが 500ms ごとに更新し、1秒ごとの場面判定が読む。
@@ -2779,7 +2779,7 @@ export default function WorldBoxClient() {
       return indoorData().blocked;
     };
     const keys = new Set<string>();
-    // 固定式スティック: 基点は左下の固定位置（lib/worldbox/stick）。
+    // 固定式スティック: 基点は左下の固定位置（lib/worldbox/player/stick）。
     // 基点を持ち歩くのは「スティックが起動したか」と倒し量だけ。
     const joy = { active: false, pointerId: -1, dx: 0, dy: 0 };
     const others = new Map<string, OtherRender>();
@@ -2829,7 +2829,7 @@ export default function WorldBoxClient() {
     let playerSwimming = false;
     /** 入水/出水時の波紋（中心・発生時刻ミリ秒）。 */
     const splashes: { x: number; y: number; at: number }[] = [];
-    // ---- 演出（パーティクル/揺れ/ポップ/スイング）。計算は lib/worldbox/fx.ts ----
+    // ---- 演出（パーティクル/揺れ/ポップ/スイング）。計算は lib/worldbox/media/fx.ts ----
     const reducedMotion =
       typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const fxSys: FxSystem = createFxSystem((Date.now() % 2147483646) + 1);

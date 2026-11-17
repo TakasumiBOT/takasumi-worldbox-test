@@ -41,23 +41,23 @@ export async function rpc() { return null; }
 export async function tableInsert() { return null; }
 export async function tableUpdate() { return null; }
 `);
-const bridgeUrl = dataUrl(transpile("worldbox/economy-bridge.ts"));
+const bridgeUrl = dataUrl(transpile("worldbox/economy/economy-bridge.ts"));
 const bridgeOnlineUrl = dataUrl(
-  transpile("worldbox/economy-bridge-online.ts")
-    .replaceAll('"../bot-api"', JSON.stringify(botApiStubUrl))
+  transpile("worldbox/economy/economy-bridge-online.ts")
+    .replaceAll('"../../bot-api"', JSON.stringify(botApiStubUrl))
     .replaceAll('"./economy-bridge"', JSON.stringify(bridgeUrl)),
 );
-const rngUrl = dataUrl(transpile("worldbox/rng.ts"));
-const horsesUrl = dataUrl(transpile("worldbox/racing/horses.ts"));
+const rngUrl = dataUrl(transpile("worldbox/core/rng.ts"));
+const horsesUrl = dataUrl(transpile("worldbox/activity/racing/horses.ts"));
 const racingUrl = dataUrl(
-  transpile("worldbox/racing.ts")
-    .replaceAll('"./rng"', JSON.stringify(rngUrl))
+  transpile("worldbox/activity/racing.ts")
+    .replaceAll('"../core/rng"', JSON.stringify(rngUrl))
     .replaceAll('"./racing/horses"', JSON.stringify(horsesUrl)),
 );
 const onlineUrl = dataUrl(
-  transpile("worldbox/racing-online.ts")
-    .replaceAll('"../bot-api"', JSON.stringify(botApiStubUrl))
-    .replaceAll('"./economy-bridge-online"', JSON.stringify(bridgeOnlineUrl))
+  transpile("worldbox/activity/racing-online.ts")
+    .replaceAll('"../../bot-api"', JSON.stringify(botApiStubUrl))
+    .replaceAll('"../economy/economy-bridge-online"', JSON.stringify(bridgeOnlineUrl))
     .replaceAll('"./racing"', JSON.stringify(racingUrl)),
 );
 const online = await import(onlineUrl);

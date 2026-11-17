@@ -50,7 +50,7 @@ async function loadBundle(files, exportNames) {
 }
 
 const R = await loadBundle(
-  ["worldbox/fx.ts", "worldbox/items.ts", "worldbox/profile.ts", "worldbox/roles.ts"],
+  ["worldbox/media/fx.ts", "worldbox/economy/items.ts", "worldbox/player/profile.ts", "worldbox/player/roles.ts"],
   [
     "ADVENTURE_ROLES", "SKILLS", "MASTERY_THRESHOLDS", "rankForXp", "masteryRankOf",
     "addMasteryXp", "activeSkillFor", "skillCooldownLeft", "maxHpFor", "partyGateSatisfied",
@@ -186,7 +186,7 @@ test("role ids validated", () => {
 });
 
 const C = await loadBundle(
-  ["worldbox/rng.ts", "worldbox/mapgen.ts", "worldbox/mobs.ts", "worldbox/combat.ts"],
+  ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/combat/mobs.ts", "worldbox/combat/combat.ts"],
   ["parseMobStates"],
 );
 

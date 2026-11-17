@@ -1,22 +1,22 @@
 import { NextResponse } from "next/server";
 import { getRequestSession, publicOrigin, sessionOwnerKey } from "@/lib/auth";
-import { worldTileSource } from "@/lib/worldbox/mapgen";
+import { worldTileSource } from "@/lib/worldbox/world/mapgen";
 import {
   applyFound, applyJoin, applyLeave, buildNationsResponse, fastTravelDestination, nationViews,
   type MyGuildView, type NationActionResult, type NationsState,
-} from "@/lib/worldbox/nations";
-import { isNationsEnabled, loadNationsState, storeNationsState } from "@/lib/worldbox/nations-online";
-import { loadMyLobbyStation } from "@/lib/worldbox/station-online";
-import { parseSave, serializeSave } from "@/lib/worldbox/save";
-import { loadWorldBoxSave, storeWorldBoxSave } from "@/lib/worldbox/save-online";
-import { putPresence } from "@/lib/worldbox/presence-online";
-import { annotateMyGuilds, getUserGuilds, roleInGuild, type UserGuildsResult } from "@/lib/worldbox/guilds";
+} from "@/lib/worldbox/social/nations";
+import { isNationsEnabled, loadNationsState, storeNationsState } from "@/lib/worldbox/social/nations-online";
+import { loadMyLobbyStation } from "@/lib/worldbox/world/station-online";
+import { parseSave, serializeSave } from "@/lib/worldbox/core/save";
+import { loadWorldBoxSave, storeWorldBoxSave } from "@/lib/worldbox/core/save-online";
+import { putPresence } from "@/lib/worldbox/player/presence-online";
+import { annotateMyGuilds, getUserGuilds, roleInGuild, type UserGuildsResult } from "@/lib/worldbox/social/guilds";
 import {
   isNationHiddenFrom, isPrivateNation, memberKeysOf, resolveMemberRole,
-} from "@/lib/worldbox/nation-settings";
-import { loadNationSettings, loadNationSettingsMap } from "@/lib/worldbox/nation-settings-online";
-import { warMarksByNation } from "@/lib/worldbox/war";
-import { isWarsEnabled, loadWarState } from "@/lib/worldbox/war-online";
+} from "@/lib/worldbox/social/nation-settings";
+import { loadNationSettings, loadNationSettingsMap } from "@/lib/worldbox/social/nation-settings-online";
+import { warMarksByNation } from "@/lib/worldbox/combat/war";
+import { isWarsEnabled, loadWarState } from "@/lib/worldbox/combat/war-online";
 
 export const runtime = "nodejs";
 

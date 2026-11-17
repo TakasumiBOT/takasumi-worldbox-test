@@ -50,7 +50,7 @@ async function loadBundle(files, exportNames) {
 }
 
 const T = await loadBundle(
-  ["worldbox/chat.ts", "worldbox/presence.ts"],
+  ["worldbox/social/chat.ts", "worldbox/player/presence.ts"],
   [
     "sanitizeChatText", "parseChatMessage", "pruneChatMessages", "visibleChatMessages",
     "CHAT_PROXIMITY_RANGE", "CHAT_PROXIMITY_TTL_MS", "CHAT_GLOBAL_TTL_MS",

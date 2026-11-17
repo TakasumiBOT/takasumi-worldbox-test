@@ -5,10 +5,10 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
-import { parseChatMessage, parseUnionChatSettings } from "../lib/worldbox/chat.ts";
+import { parseChatMessage, parseUnionChatSettings } from "../lib/worldbox/social/chat.ts";
 import {
   parseDiscordDirectory, resolveLinkedChannelId,
-} from "../lib/worldbox/discord-directory.ts";
+} from "../lib/worldbox/social/discord-directory.ts";
 
 const CID = "222222222222222222";
 const GLOBAL_CID = "444444444444444444";
