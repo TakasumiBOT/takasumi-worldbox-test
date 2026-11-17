@@ -217,11 +217,6 @@ test("ギルドボードの配線: ロビー配置・チップ・パネル・API
   const bridge = fs.readFileSync(path.join(libDir, "worldbox/economy/economy-bridge.ts"), "utf8");
   assert.match(bridge, /"guild_request_reward"/);
   assert.match(bridge, /"guild_request_refund"/);
-  const botWorker = fs.readFileSync(
-    path.join(rootDir, "../core/general/circulation/worldbox_economy.py"), "utf8",
-  );
-  assert.match(botWorker, /"guild_request_reward"/);
-  assert.match(botWorker, /"guild_request_refund"/);
 });
 
 // ---------- API（冪等性: 並行リクエストでも預かり・報酬・返金は各1件だけ） ----------

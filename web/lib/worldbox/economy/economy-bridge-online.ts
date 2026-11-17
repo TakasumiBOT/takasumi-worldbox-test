@@ -173,8 +173,7 @@ export async function readUserBalance(discordId: string): Promise<number | null>
 // ---------------------------------------------------------------------------
 // 直接適用（bot-api 経由でその場でコインを動かす）
 //
-// ワーカー（core/general/circulation/worldbox_economy.py）と同型の
-// 冪等手順を Web 側でも踏む:
+// 旧 Python ワーカー（本家側）と同型の冪等手順を Web 側でも踏む:
 //   1. 適用台帳（worldbox_economy_applied）を確認する。applied / failed
 //      が残っていれば再適用せず結果だけをオプ記録へ書き直す。
 //      applying のままなら成否が曖昧なので触らずキュー側に委ねる

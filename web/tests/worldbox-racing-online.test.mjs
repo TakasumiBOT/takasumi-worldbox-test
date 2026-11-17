@@ -144,16 +144,12 @@ test("精算: レース終了前は手を付けない", async () => {
   assert.equal(bets[0].settle, "open");
 });
 
-test("経済配線: gamble 理由 horse_racing が TS で通り、Python 側と集合が一致する", () => {
+test("経済配線: gamble 理由 horse_racing が TS で通る", () => {
   const op = bridge.buildEconomyOp(
     { kind: "gamble", userKey: OWNER, discordId: "123456789012345678", amount: 500, reason: "horse_racing", payout: 1750, prepaid: true },
     "race-settle-testbet1",
     Date.now(),
   );
   assert.ok(op, "horse_racing gamble op builds");
-  const py = fs.readFileSync(path.join(repoDir, "core/general/circulation/worldbox_economy.py"), "utf8");
-  const m = py.match(/GAMBLE_REASONS = frozenset\(\{([^}]+)\}\)/);
-  assert.ok(m, "python GAMBLE_REASONS found");
-  const pySet = new Set([...m[1].matchAll(/"([^"]+)"/g)].map((x) => x[1]));
-  assert.deepEqual(pySet, new Set(bridge.GAMBLE_REASONS));
+  assert.ok(new Set(bridge.GAMBLE_REASONS).has("horse_racing"));
 });

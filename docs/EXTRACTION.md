@@ -13,8 +13,7 @@ WORLD BOX の種ファイル（`web/lib/worldbox`、`web/app/games/worldbox`、`
 - 画像: `public/img/worldbox/`（439ファイル）＋ `public/img/nomal.png`（アバター代替）＋ `public/img/jinrou.png`（テクスチャ参照）
 - `realtime/`（botkv.js / relay-core.js / watch-core.js）と `realtime-server.js`（Vercel では未使用、参考同梱）
 - テスト: 本家 `web/tests/worldbox-*.test.mjs`（85ファイル）
-- Python 側: `core/support/worldbox/`、`core/general/circulation/worldbox_*.py`（参照用コピー。本家と同じ相対配置にしてあるので、TS↔Python の整合を検証するテストが無修正で通る）
-- リポジトリ全体の形も本家のモノレポ（`web/` + `core/`）を写した。Vercel では Root Directory に `web` を指定する。
+- リポジトリ全体の形は当初、本家のモノレポ（`web/` + `core/`）を写した。Vercel では Root Directory に `web` を指定する。`core/` の Python 参照コピーは独立化後に削除した（下記「Python 残存の削除」）。
 - `docs/world-box-shared.md` は本家の共有ノートのスナップショット。以後の決定は本家側が正。
 
 ## 新規に書いたもの（移行のための最小差分）
@@ -42,12 +41,16 @@ WORLD BOX の種ファイル（`web/lib/worldbox`、`web/app/games/worldbox`、`
 - `web/lib/db.ts`: `@neondatabase/serverless` の Pool によるアクセス層（トランザクション可）。SQL 実行は `SqlExecutor` インターフェース越しで、テスト差し替え可能。
 - `web/lib/botapi-server.ts`: bot-api 契約のサーバー実装。`api/app.py` の許可リスト・検証順・エラー意味論を移植。許可テーブルは4つのみ（`bump_rta_settings` 等の AGO 残存物は除外）。経済 RPC 4本は SQL 関数を作らず、トランザクション + `SELECT ... FOR UPDATE` で SQL 定義と同じ意味論を実装（pay はプール→国庫の順で内訳返し、add_loss は 70/30（端数は国庫）、transfer は原子的で未登録の受取人を `p_new_user_balance` で作成）。
 - `web/app/botapi/v1/query/route.ts`・`web/app/botapi/v1/rpc/route.ts`: 上記の薄いルート。`BOT_API_BASE_URL=https://<自ドメイン>/botapi` にすると既存クライアントがそのまま自前 DB へつながる。
-- 経済オプのスイープ: 旧 Python ワーカー（`core/general/circulation/worldbox_economy.py`）の回収役を `sweepEconomyOps()` として `web/lib/worldbox/economy/economy-bridge-online.ts` に移植（claim 失効90秒、台帳プロトコル、apply_uncertain、終端の間引き）。適用は既存の直接適用関数を再利用し、二重実装は作っていない。入口は `web/app/api/worldbox/internal/economy-sweep`（`CRON_SECRET` の Bearer 必須、未設定は fail-closed）で、`web/vercel.json` に毎分 cron を登録。
+- 経済オプのスイープ: 旧 Python ワーカー（本家側）の回収役を `sweepEconomyOps()` として `web/lib/worldbox/economy/economy-bridge-online.ts` に移植（claim 失効90秒、台帳プロトコル、apply_uncertain、終端の間引き）。適用は既存の直接適用関数を再利用し、二重実装は作っていない。入口は `web/app/api/worldbox/internal/economy-sweep`（`CRON_SECRET` の Bearer 必須、未設定は fail-closed）で、`web/vercel.json` に毎分 cron を登録。
 - ハードコード除去: `lib/site.ts` の `SITE_URL` は `NEXT_PUBLIC_SITE_URL` env（＋ `resolveSiteUrl` でリクエスト origin フォールバック）。ユニオン招待 URL は `window.location.origin` から組み立てる。`lib/worldbox/core/ops-online.ts` の管理者 ID は `WORLDBOX_ADMIN_IDS` env のみ（AGO 管理者 ID の埋め込みフォールバック削除）。
 - テスト: `web/tests/botapi-server.test.mjs`（14件、インメモリ fake DB）: 認証の fail-closed、許可リスト拒否、pay_house の内訳、add_loss の 70/30、transfer の原子性・新規受取人・失敗時 P0001、大きな整数の生リテラル往復。
 - Phase 1 の劣化（意図的）: チャット outbox は配送されずに溜まる、Discord ディレクトリは空、ユニオン掲示板の Discord 中継と `!wbstate` は対象外。詳細は README 参照。
 
 検証（独立化時）: `npm test` 944件中939件パス（失敗は従来どおり設計上の3件のみ、新規14件は全パス）。`npm run build` 成功（`/botapi/v1/query`・`/botapi/v1/rpc`・`/api/worldbox/internal/economy-sweep` の生成を確認）。VM 内に Postgres が無いため schema とルートの実 DB 疎通は未実施 — Neon の接続文字列が用意できたら `setup:db` → 実デプロイで確認する。
+
+## Python 残存の削除（2026-11-17）
+
+抽出時に参照用コピーとして持ち込んだ `core/`（Python 8ファイル: `core/support/worldbox/` と `core/general/circulation/worldbox_*.py`）は、このコピーでは実行されず、経済ワーカーも TS スイープに置き換わったため削除した。TS↔Python の整合を検証していたテスト3件（racing-online / requests / teleporter）は、TS 側だけの検証に置き換えた。リポジトリは実質 `web/` のみになった。
 
 ## 本家との振る舞いの差分
 
