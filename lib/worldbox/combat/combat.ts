@@ -22,7 +22,7 @@ export function mobRespawnDelayMs(key: string): number {
 }
 
 /**
- * モブの素材スプライト（実体は web/public/img/worldbox/mobs/）。
+ * モブの素材スプライト（実体は public/img/worldbox/mobs/）。
  * 基本セットは確定素材セット td16 由来（16×16）で、描き直した種から
  * 32×32 の新スプライトに順次置換している。
  * ここに無い種は MOB_SPRITE_FALLBACK に明示したものだけが図形フォールバックで描かれる。

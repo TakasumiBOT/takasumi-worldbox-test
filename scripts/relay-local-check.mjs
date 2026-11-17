@@ -3,7 +3,7 @@
 // アップグレードだけを肩代わりし、トークン検証以降の配線（hub）が本番と
 // 同じであることを確かめる。bot-api は無効（kvCfg: null）で回すので、
 // 検証範囲は中継そのもの（snap / up / bye / ピアノ音 / 401）になる。
-// 使い方: cd web && node scripts/relay-local-check.mjs
+// 使い方: node scripts/relay-local-check.mjs（リポジトリルートで実行）
 import http from "node:http";
 import { createRequire } from "node:module";
 
