@@ -12,11 +12,11 @@ import { withUserLock } from "./user-lock";
 export const WORLDBOX_OPS_NAMESPACE = "worldbox_ops";
 export const WORLDBOX_JOURNAL_NAMESPACE = "worldbox_tile_journal";
 
-/** 運営操作ができる Discord ユーザー ID（環境変数があればそちらを優先）。 */
+/** 運営操作ができる Discord ユーザー ID。独立環境では AGO 側の管理者 ID を埋め込まず、WORLDBOX_ADMIN_IDS（カンマ区切り）環境変数だけで決める。未設定なら空集合（ops は誰にも開かない）。 */
 export function worldboxAdminIds(): Set<string> {
   const env = process.env.WORLDBOX_ADMIN_IDS;
   if (env) return new Set(env.split(",").map((s) => s.trim()).filter(Boolean));
-  return new Set(["1320705325686587408"]);
+  return new Set();
 }
 
 export async function loadFrozen(): Promise<boolean> {

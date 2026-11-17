@@ -4,7 +4,29 @@
 // パラメータ（permissions 等）を推測で変えず、ここ1か所だけに置く。
 
 /** サイトの公開オリジン（metadataBase・canonical・sitemap 等の唯一の正）。 */
-export const SITE_URL = "https://agobot.app";
+// このインスタンスの公開 URL。優先順位: NEXT_PUBLIC_SITE_URL 環境変数 →
+// リクエストのオリジン → 空文字（相対 URL で足りる箇所だけが使う）。
+// 独立環境では AGO の agobot.app を既定値にしない。
+export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? "").replace(/\/+$/, "");
+
+/** サーバー側で現在のリクエストからサイトのオリジンを解決する。 */
+export function resolveSiteUrl(request?: Request): string {
+  if (SITE_URL) return SITE_URL;
+  if (request) {
+    const forwardedHost = request.headers.get("x-forwarded-host");
+    const host = forwardedHost ?? request.headers.get("host");
+    if (host) {
+      const proto = request.headers.get("x-forwarded-proto") ?? "https";
+      return `${proto}://${host}`;
+    }
+    try {
+      return new URL(request.url).origin;
+    } catch {
+      // fallthrough
+    }
+  }
+  return "";
+}
 
 export const BOT_INVITE_URL =
   "https://discord.com/oauth2/authorize?client_id=1476636487784337428&permissions=4544817123422033&integration_type=0&scope=bot%20applications.commands";
