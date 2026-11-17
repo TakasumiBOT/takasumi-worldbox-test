@@ -434,6 +434,23 @@ type OtherRender = {
   phase: number;
 };
 
+/** 店舗看板（会社の店舗・受付）の表示データ。サーバー（company/sign ルート）が正。 */
+type CompanySignView = {
+  companyId: string;
+  name: string;
+  description: string;
+  memberCount: number;
+  isMember: boolean;
+  isOwner: boolean;
+  products: {
+    id: string;
+    name: string;
+    description: string;
+    price: number;
+    creatorName: string;
+  }[];
+};
+
 /** 移動キー（ダッシュの2度押し判定の対象）。 */
 const MOVE_KEYS = new Set(["w", "a", "s", "d", "arrowup", "arrowdown", "arrowleft", "arrowright"]);
 
@@ -1576,6 +1593,23 @@ export default function WorldBoxClient() {
   >(undefined);
   const [stallPriceText, setStallPriceText] = useState("100");
   const [stallCountText, setStallCountText] = useState("1");
+  /** 会社パネルを特定の会社の受付から開くときのアンカー（看板・本社マーカーから）。 */
+  const [companyAnchor, setCompanyAnchor] = useState<string | null>(null);
+  /** 現在の空間にある会社本社のマーカー（サーバーが正。描画とタップ判定は ref で読む）。 */
+  const companyHqsRef = useRef<{ id: string; name: string; x: number; y: number }[]>([]);
+  /** 店舗看板のポップアップ（登録済みの看板をタップしたとき）。 */
+  const [signShop, setSignShop] = useState<{ x: number; y: number; sign: CompanySignView } | null>(
+    null,
+  );
+  const [signShopBusy, setSignShopBusy] = useState(false);
+  const [signShopMsg, setSignShopMsg] = useState("");
+  const [signRevealed, setSignRevealed] = useState<{ name: string; content: string } | null>(null);
+  /** 自分の看板の店舗登録状態（看板編集ポップアップ用。undefined は取得中）。 */
+  const [signReg, setSignReg] = useState<{ companyId: string; name: string } | null | undefined>(
+    undefined,
+  );
+  /** 自分が所属する会社 ID（看板を自社店舗として登録できるかの判定用）。 */
+  const [signViewerCompanyId, setSignViewerCompanyId] = useState<string | null>(null);
   const [tileMsg, setTileMsg] = useState("");
   /** 別のタブに同じアカウントで引き継がれた（このタブは無効化された）か。 */
   const [tabTaken, setTabTaken] = useState(false);
@@ -1598,6 +1632,102 @@ export default function WorldBoxClient() {
     window.addEventListener("keydown", onEsc);
     return () => window.removeEventListener("keydown", onEsc);
   }, []);
+  // 会社本社のマーカー: 空間が変わるたび（と1分ごと）に、その空間の
+  // 本社一覧を取り直す。失敗したらマーカーを出さないだけ。
+  useEffect(() => {
+    let alive = true;
+    const load = async () => {
+      try {
+        const res = await fetch(`/api/worldbox/company?hqs=${encodeURIComponent(spaceUi)}`, {
+          headers: { Accept: "application/json" },
+        });
+        const json = (await res.json().catch(() => ({}))) as {
+          hqs?: { id: string; name: string; x: number; y: number }[];
+        };
+        if (alive) companyHqsRef.current = Array.isArray(json.hqs) ? json.hqs : [];
+      } catch {
+        if (alive) companyHqsRef.current = [];
+      }
+    };
+    void load();
+    const timer = window.setInterval(() => void load(), 60_000);
+    return () => {
+      alive = false;
+      window.clearInterval(timer);
+    };
+  }, [spaceUi]);
+  /** 店舗看板の商品購入（会社ルートの product_buy と同じ。内容は購入時だけ開示）。 */
+  const buySignProduct = async (productId: string) => {
+    if (!signShop || signShopBusy) return;
+    setSignShopBusy(true);
+    setSignShopMsg("");
+    try {
+      const res = await fetch("/api/worldbox/company", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ action: "product_buy", productId }),
+      });
+      const json = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        content?: string;
+        name?: string;
+      };
+      if (!res.ok) {
+        setSignShopMsg(
+          json.error === "not_enough_coins"
+            ? "お金が足りません"
+            : json.error === "guest_not_allowed"
+              ? "ゲストは購入できません"
+              : "購入できませんでした",
+        );
+        return;
+      }
+      if (typeof json.content === "string") {
+        setSignRevealed({ name: String(json.name ?? "商品"), content: json.content });
+      }
+      setSignShop((cur) =>
+        cur
+          ? {
+              ...cur,
+              sign: { ...cur.sign, products: cur.sign.products.filter((p) => p.id !== productId) },
+            }
+          : cur,
+      );
+    } catch {
+      setSignShopMsg("通信に失敗しました");
+    } finally {
+      setSignShopBusy(false);
+    }
+  };
+  /** 自分の看板の店舗登録・解除（会社ルートが所有と所属を検証する）。 */
+  const postSignRegistration = async (action: "sign_register" | "sign_unregister") => {
+    if (!signEdit) return;
+    try {
+      const res = await fetch("/api/worldbox/company", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ action, x: signEdit.x, y: signEdit.y }),
+      });
+      if (!res.ok) {
+        setTileMsg("看板の店舗登録ができませんでした");
+        return;
+      }
+      if (action === "sign_register") {
+        setTileMsg("看板を会社の店舗・受付として登録しました");
+        // 登録先の会社名を取り直す
+        const view = await fetch(`/api/worldbox/company/sign?x=${signEdit.x}&y=${signEdit.y}`, {
+          headers: { Accept: "application/json" },
+        });
+        const data = (await view.json().catch(() => ({}))) as { sign?: CompanySignView | null };
+        setSignReg(data.sign ? { companyId: data.sign.companyId, name: data.sign.name } : null);
+      } else {
+        setSignReg(null);
+        setTileMsg("看板の店舗登録を解除しました");
+      }
+    } catch {
+      setTileMsg("通信に失敗しました");
+    }
+  };
   const tilesRef = useRef<TileOverridesMap>({});
   const tilesVersionRef = useRef(0);
   /** 演出イベントの受け渡し（行為の成功/失敗→描画ループでパーティクル/揺れ/ポップに変換）。
@@ -3888,7 +4018,33 @@ export default function WorldBoxClient() {
       }
       if (view.block && isSignItem(view.block.itemId)) {
         // 看板: 自分のものはタップでテキスト編集。他人の看板は文字を読むだけ（描画に出ている）
-        if (view.block.mine) {
+        // 会社の店舗・受付として登録された看板は、タップで店舗（出品と会社情報）を開く。
+        const mine = view.block.mine;
+        const sx = t.x;
+        const sy = t.y;
+        setSignReg(undefined);
+        void (async () => {
+          try {
+            const res = await fetch(`/api/worldbox/company/sign?x=${sx}&y=${sy}`, {
+              headers: { Accept: "application/json" },
+            });
+            const data = (await res.json().catch(() => ({}))) as {
+              sign?: CompanySignView | null;
+              viewerCompanyId?: string | null;
+            };
+            setSignViewerCompanyId(data.viewerCompanyId ?? null);
+            setSignReg(data.sign ? { companyId: data.sign.companyId, name: data.sign.name } : null);
+            if (data.sign && !mine) {
+              setSignShopMsg("");
+              setSignRevealed(null);
+              setSignShop({ x: sx, y: sy, sign: data.sign });
+            }
+          } catch {
+            setSignReg(null);
+            setSignViewerCompanyId(null);
+          }
+        })();
+        if (mine) {
           const ovHere = tilesRef.current[tileKey(t.x, t.y)];
           setSignEdit({ x: t.x, y: t.y, text: ovHere?.signText ?? "" });
         }
@@ -3955,6 +4111,15 @@ export default function WorldBoxClient() {
           };
           playWbSe("swing");
           void postTileActionRef.current(ovHere?.deco ? "remove_flower" : "plant_flower", t.x, t.y);
+          return true;
+        }
+      }
+      // 会社本社のタイル（素手タップ）: その会社の受付を会社パネルで開く
+      if (!selItem) {
+        const hqHit = companyHqsRef.current.find((h) => h.x === t.x && h.y === t.y);
+        if (hqHit) {
+          setCompanyAnchor(hqHit.id);
+          setShowCompany(true);
           return true;
         }
       }
@@ -5566,6 +5731,37 @@ export default function WorldBoxClient() {
         }
       }
 
+      // 会社本社のマーカー: 本社タイルに札（会社名＋本社）を出す。
+      // タップすると受付が開く（タイルタップ側で companyHqsRef と照合）。
+      for (const hq of companyHqsRef.current) {
+        const gx =
+          space === "world"
+            ? Math.round(toScreenX(hq.x + 0.5))
+            : Math.round(lobbyOx + (hq.x + 0.5) * TILE);
+        const gy =
+          space === "world" ? Math.round(toScreenY(hq.y)) : Math.round(lobbyOy + hq.y * TILE);
+        if (gx < -TILE * 3 || gy < -TILE * 2 || gx > cw + TILE * 3 || gy > ch + TILE * 2) continue;
+        ctx.fillStyle = "#ffb340";
+        ctx.strokeStyle = "rgba(255,255,255,0.9)";
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(gx, gy - 11);
+        ctx.lineTo(gx + 5, gy - 4);
+        ctx.lineTo(gx, gy + 3);
+        ctx.lineTo(gx - 5, gy - 4);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.font = "600 11px sans-serif";
+        ctx.textAlign = "center";
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = "rgba(10,16,10,0.65)";
+        const label = `${hq.name} 本社`;
+        ctx.strokeText(label, gx, gy - 15);
+        ctx.fillStyle = "#ffffff";
+        ctx.fillText(label, gx, gy - 15);
+      }
+
       // ---- アフォーダンス（B2）: 近くの「使えるもの」に脈動する輪を出す ----
       // 対象は施設・出入口・宝箱/扉。鉱脈は斥候/採掘者の既存の脈動があるので対象外。
       // 初回だけ誘導バウンス（強めの脈動＋上下の揺れ）。reducedMotion では静止した輪だけ。
@@ -6474,7 +6670,10 @@ export default function WorldBoxClient() {
       id: "company",
       label: showCompany ? "会社を閉じる" : "会社",
       show: true,
-      run: () => setShowCompany((v) => !v),
+      run: () => {
+        setCompanyAnchor(null);
+        setShowCompany((v) => !v);
+      },
     },
     {
       id: "mapview",
@@ -7858,6 +8057,113 @@ export default function WorldBoxClient() {
                 書く
               </button>
             </div>
+            {signReg !== undefined && (
+              <div style={{ marginTop: 10 }}>
+                {signReg ? (
+                  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                    <span style={{ fontSize: 13, flex: 1 }}>
+                      会社の店舗・受付として登録済み（{signReg.name}）
+                    </span>
+                    <button
+                      type="button"
+                      style={btn}
+                      onClick={() => void postSignRegistration("sign_unregister")}
+                    >
+                      登録を解除
+                    </button>
+                  </div>
+                ) : signViewerCompanyId ? (
+                  <button
+                    type="button"
+                    style={btn}
+                    onClick={() => void postSignRegistration("sign_register")}
+                  >
+                    会社の店舗・受付として登録
+                  </button>
+                ) : (
+                  <p style={{ fontSize: 12, opacity: 0.75, margin: 0 }}>
+                    会社に所属すると、この看板を自社の店舗・受付として登録できます。
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+        {signShop && (
+          <div style={panelOverlay} className="wb-panel">
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <strong>{signShop.sign.name}（店舗）</strong>
+              <span style={{ flex: 1 }} />
+              <button type="button" style={btn} onClick={() => setSignShop(null)}>
+                閉じる
+              </button>
+            </div>
+            <p style={{ margin: "6px 0", opacity: 0.9 }}>{signShop.sign.description}</p>
+            <p style={{ margin: "4px 0", opacity: 0.85, fontSize: 13 }}>
+              従業員 {signShop.sign.memberCount}人
+              {signShop.sign.isMember ? " ・ あなたの会社です" : ""}
+            </p>
+            {signShopMsg && <p role="status">{signShopMsg}</p>}
+            {signRevealed && (
+              <div
+                style={{
+                  border: "1px solid rgba(255,255,255,0.3)",
+                  borderRadius: 10,
+                  padding: 10,
+                  margin: "8px 0",
+                }}
+              >
+                <div style={{ fontWeight: 700 }}>購入した商品「{signRevealed.name}」の内容</div>
+                <p style={{ whiteSpace: "pre-wrap", margin: "6px 0 0" }}>{signRevealed.content}</p>
+              </div>
+            )}
+            <div style={{ marginTop: 8 }}>
+              {signShop.sign.products.length === 0 && (
+                <p style={{ opacity: 0.8 }}>出品中の商品はありません。</p>
+              )}
+              {signShop.sign.products.map((p) => (
+                <div
+                  key={p.id}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    padding: "6px 0",
+                    borderTop: "1px solid rgba(255,255,255,0.12)",
+                  }}
+                >
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div>
+                      {p.name} <span style={{ opacity: 0.75 }}>{p.price.toLocaleString()}円</span>
+                    </div>
+                    <div style={{ opacity: 0.75, fontSize: 12 }}>
+                      {p.description}（出品: {p.creatorName || "社員"}）
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    style={btn}
+                    disabled={signShopBusy}
+                    onClick={() => void buySignProduct(p.id)}
+                  >
+                    購入
+                  </button>
+                </div>
+              ))}
+            </div>
+            <div style={{ marginTop: 10 }}>
+              <button
+                type="button"
+                style={btn}
+                onClick={() => {
+                  setCompanyAnchor(signShop.sign.companyId);
+                  setSignShop(null);
+                  setShowCompany(true);
+                }}
+              >
+                受付を開く（会社情報・入社はこちら）
+              </button>
+            </div>
           </div>
         )}
         {seedPicker && invProfile && (
@@ -8039,7 +8345,15 @@ export default function WorldBoxClient() {
             onClose={() => setShowEconomy(false)}
           />
         )}
-        {showCompany && <WorldBoxCompanyPanel onClose={() => setShowCompany(false)} />}
+        {showCompany && (
+          <WorldBoxCompanyPanel
+            anchorCompanyId={companyAnchor}
+            onClose={() => {
+              setShowCompany(false);
+              setCompanyAnchor(null);
+            }}
+          />
+        )}
         {telescopeOpen && (
           <div style={{ position: "absolute", inset: 0, pointerEvents: "none", zIndex: 6 }}>
             <div

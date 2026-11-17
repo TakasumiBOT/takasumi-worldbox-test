@@ -24,6 +24,20 @@
 // 勤務という明示的な行為の報酬だけを会社へ帰属させる設計とする
 // （ROADMAP-MODERN.md Phase 4）。無所属者の収入には一切触らない。
 // ユニオン・ギルド・国家とは独立のシステムとして併存する（G2 確定）。
+//
+// Phase 4（空間化）: 会社は本社（HQ）の位置を持ち、社員は本社の近くで
+// 出社（勤務中状態）し、勤務行為の報酬が会社資産へ入る。看板
+// （sign_board）を自社の店舗・受付として登録でき、来訪者はその看板
+// から自社の出品を買える。経済パラメータ（税率・時給・上限）は
+// Phase 3 から一切変えていない。変えたのは「触る面」だけ:
+// - 時給の Cron 自動支給はそのまま（G3 は (a) 案: 出社は支給条件に
+//   しない）。勤務報酬は出来高として別に立つ（v3 の二層構造）。
+// - 勤務1回の報酬は時給 ÷ 12、クールダウン5分（v3 の職業の最短
+//   クールダウン）。1時間みっちり働いて時給1時間分が上限になる。
+// - 勤務報酬は会社内部だけの動き（国庫→会社の発行）なので、給料の
+//   払い出しと違い経済ブリッジのオプは使わず台帳と履歴だけで完結
+//   する。法人税の課税利益には他の入金と同じく数えられる（v3 の
+//   /work 稼ぎが会社収益であることと整合）。
 
 /** 会社名の長さ（v3: 4〜20文字）。 */
 export const COMPANY_NAME_MIN = 4;
@@ -83,6 +97,14 @@ export const COMPANY_TAX_WINDOW_MS = 3 * 3_600_000;
 export const COMPANY_HISTORY_LIMIT = 200;
 /** 資本金追加の履歴理由。法人税の利益計算から除外される唯一の入金。 */
 export const COMPANY_CAPITAL_REASON = "会社の資本金の追加";
+/** 本社エリアの半径（タイル、チェビシェフ距離）。出社と勤務はこの範囲内だけ。 */
+export const COMPANY_HQ_RADIUS = 3;
+/** 勤務1回の報酬 = 時給 ÷ この値（1時間に最大で時給1時間分）。 */
+export const COMPANY_WORK_REWARD_DIVISOR = 12;
+/** 勤務のクールダウン（v3 の職業クールダウン 5〜60分の最短に合わせる）。 */
+export const COMPANY_WORK_COOLDOWN_MS = 5 * 60_000;
+/** 勤務中状態の寿命。これを過ぎた出社は自動で切れたものとして扱う。 */
+export const COMPANY_DUTY_TTL_MS = 24 * 3_600_000;
 
 /**
  * 法人税の累進ブラケット（v3: CompanyBenefitTaxBrackets）。
@@ -116,6 +138,33 @@ export interface CompanyStats {
   totalTax: number;
 }
 
+/** 本社（HQ）の位置。空間 ID とタイル座標（Phase 4 の空間化）。 */
+export interface CompanyHq {
+  space: string;
+  x: number;
+  y: number;
+}
+
+/** 社員の勤務中状態（出社中かどうか。会社ごとに1つ、社員キーで引く）。 */
+export interface CompanyDuty {
+  companyId: string;
+  /** 出社した時刻。 */
+  since: number;
+  /** 最後に勤務行為をした時刻（クールダウン判定用。未勤務は 0）。 */
+  lastWorkAt: number;
+}
+
+/**
+ * 店舗看板の登録（ワールドの看板タイル → 会社）。
+ * ownerId は設置者のプレゼンス ID（タイル上書きの block.ownerId と同じ
+ * 不透明 ID）。看板が掘り返された／設置者が変わった場合は読み取り時に
+ * 照合して登録を落とす。
+ */
+export interface CompanySign {
+  companyId: string;
+  ownerId: string;
+}
+
 export interface Company {
   id: string;
   name: string;
@@ -137,6 +186,8 @@ export interface Company {
   lastSalaryKey: string;
   /** 法人税徴収済みの JST 3時間ウィンドウキー（冪等化用）。 */
   lastTaxKey: string;
+  /** 本社の位置（未登録は null）。オーナーが自分の現在位置で登録する。 */
+  hq: CompanyHq | null;
 }
 
 export interface CompanyHistoryEntry {
@@ -364,6 +415,7 @@ export function foundCompany(
     lastBonusAt: {},
     lastSalaryKey: "",
     lastTaxKey: "",
+    hq: null,
   };
   const history: CompanyHistoryEntry[] = [];
   let step = applyLedger(base, input.capital, COMPANY_CAPITAL_REASON, owner.discordId, now);
@@ -570,6 +622,57 @@ export function planProductSale(
   return { company: next, history };
 }
 
+// ---- Phase 4: 本社・出社・勤務（空間化） ----
+
+/** 勤務1回の報酬（時給 ÷ 12、最低1）。会社の取り分は全額が会社資産。 */
+export function workRewardFor(company: Company): number {
+  return Math.max(1, Math.floor(company.salary / COMPANY_WORK_REWARD_DIVISOR));
+}
+
+/** 位置が本社エリア内か（同じ空間でチェビシェフ距離が半径以内）。 */
+export function isNearHq(hq: CompanyHq | null, space: string, x: number, y: number): boolean {
+  if (!hq || hq.space !== space) return false;
+  return Math.max(Math.abs(x - hq.x), Math.abs(y - hq.y)) <= COMPANY_HQ_RADIUS;
+}
+
+/** 勤務中状態がまだ生きているか（寿命内かつ会社が一致）。 */
+export function isDutyActive(
+  duty: CompanyDuty | null,
+  companyId: string,
+  now: number,
+): duty is CompanyDuty {
+  if (!duty || duty.companyId !== companyId) return false;
+  return now - duty.since < COMPANY_DUTY_TTL_MS;
+}
+
+export type WorkError = "cooldown";
+
+/**
+ * 勤務行為1回分の計画。報酬は会社資産へ入金され（個人残高は増えない）、
+ * 履歴に「勤務報酬（名前）」として残る。クールダウン中は error。
+ * 出社状態と本社への近さの検証は呼び出し側（ルート）が済ませている前提。
+ */
+export function planWork(
+  company: Company,
+  member: CompanyMember,
+  duty: CompanyDuty,
+  now: number,
+):
+  | { company: Company; entry: CompanyHistoryEntry; duty: CompanyDuty; reward: number }
+  | { error: WorkError; nextWorkAt: number } {
+  if (duty.lastWorkAt > 0 && now - duty.lastWorkAt < COMPANY_WORK_COOLDOWN_MS) {
+    return { error: "cooldown", nextWorkAt: duty.lastWorkAt + COMPANY_WORK_COOLDOWN_MS };
+  }
+  const reward = workRewardFor(company);
+  const step = applyLedger(company, reward, `勤務報酬（${member.name}）`, member.discordId, now);
+  return {
+    company: step.company,
+    entry: step.entry,
+    duty: { ...duty, lastWorkAt: now },
+    reward,
+  };
+}
+
 // ---- JST の時間キー（Cron の冪等化と時間帯判定） ----
 
 const JST_OFFSET_MS = 9 * 3_600_000;
@@ -677,7 +780,41 @@ export function parseCompany(raw: unknown): Company | null {
     lastBonusAt,
     lastSalaryKey: typeof data.lastSalaryKey === "string" ? data.lastSalaryKey : "",
     lastTaxKey: typeof data.lastTaxKey === "string" ? data.lastTaxKey : "",
+    hq: parseCompanyHq(data.hq),
   };
+}
+
+/** 本社位置のパース。空間 ID は短い文字列、座標は整数のときだけ通す。 */
+export function parseCompanyHq(raw: unknown): CompanyHq | null {
+  const data = asRecord(raw);
+  if (!data) return null;
+  if (typeof data.space !== "string" || data.space.length === 0 || data.space.length > 32) {
+    return null;
+  }
+  const x = asInt(data.x, Number.NaN);
+  const y = asInt(data.y, Number.NaN);
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+  if (Math.abs(x) > 1_000_000 || Math.abs(y) > 1_000_000) return null;
+  return { space: data.space, x, y };
+}
+
+export function parseCompanyDuty(raw: unknown): CompanyDuty | null {
+  const data = asRecord(raw);
+  if (!data) return null;
+  if (!isCompanyId(data.companyId)) return null;
+  return {
+    companyId: data.companyId,
+    since: asInt(data.since),
+    lastWorkAt: asInt(data.lastWorkAt),
+  };
+}
+
+export function parseCompanySign(raw: unknown): CompanySign | null {
+  const data = asRecord(raw);
+  if (!data) return null;
+  if (!isCompanyId(data.companyId)) return null;
+  if (typeof data.ownerId !== "string" || data.ownerId.length === 0) return null;
+  return { companyId: data.companyId, ownerId: data.ownerId };
 }
 
 export function parseCompanyProduct(raw: unknown): CompanyProduct | null {

@@ -5,6 +5,9 @@
 //   キー = "invite:<コード>"       → CompanyInvite（使い切り・1時間）
 //   キー = "product:<商品ID>"      → CompanyProduct 本体
 //   キー = "history:<会社ID>"      → CompanyHistoryEntry[]（新しい順）
+//   キー = "duty:<ownerKey>"       → CompanyDuty（Phase 4: 勤務中状態）
+//   キー = "sign:<x>,<y>"          → 店舗看板の登録（Phase 4: ワールドの
+//                                    看板タイル → 会社 ID と設置者 ID）
 // 個人残高との金の出入りは経済ブリッジのオプ経由だけ:
 //   個人 → 会社（資本金・商品購入）: spend オプ（国庫へ払い込み）
 //   会社 → 個人（給料・ボーナス・解散返還）: earn オプ（国庫から払い出し）
@@ -12,7 +15,10 @@
 // submitEconomyOp の入口で guest_not_allowed として終端するため、
 // 会社経由でもゲストへ金が渡ることはない（所属自体も Discord 必須）。
 import { isBotApiConfigured, kvDelete, kvGet, kvList, kvSet } from "../../bot-api";
+import { parseSave } from "../core/save";
+import { loadWorldBoxSave } from "../core/save-online";
 import { buildEconomyOp, type EconomyOp } from "../economy/economy-bridge";
+import { loadMyPresence } from "../player/presence-online";
 import {
   submitEconomyOp,
   waitForOpDone,
@@ -26,6 +32,8 @@ import {
   isSalaryHour,
   isTaxHour,
   parseCompany,
+  parseCompanyDuty,
+  parseCompanySign,
   parseCompanyHistory,
   parseCompanyInvite,
   parseCompanyProduct,
@@ -36,6 +44,8 @@ import {
   taxableProfit,
   COMPANY_TAX_WINDOW_MS,
   type Company,
+  type CompanyDuty,
+  type CompanySign,
   type CompanyHistoryEntry,
   type CompanyInvite,
   type CompanyProduct,
@@ -54,6 +64,12 @@ function productKey(productId: string): string {
 }
 function historyKey(companyId: string): string {
   return `history:${companyId}`;
+}
+function dutyKey(ownerKey: string): string {
+  return `duty:${ownerKey}`;
+}
+function signKey(x: number, y: number): string {
+  return `sign:${x},${y}`;
 }
 
 async function kvGetString(namespace: string, key: string): Promise<string | null> {
@@ -96,16 +112,23 @@ export async function deleteCompanyAll(company: Company): Promise<void> {
     await kvDelete(WORLDBOX_COMPANY_NAMESPACE, historyKey(company.id));
     for (const m of company.members) {
       await kvDelete(WORLDBOX_COMPANY_NAMESPACE, memberKey(m.ownerKey));
+      await kvDelete(WORLDBOX_COMPANY_NAMESPACE, dutyKey(m.ownerKey));
     }
     for (const productId of company.productIds) {
       await kvDelete(WORLDBOX_COMPANY_NAMESPACE, productKey(productId));
     }
     const all = await kvList(WORLDBOX_COMPANY_NAMESPACE);
     for (const [key, raw] of all) {
-      if (!key.startsWith("invite:")) continue;
-      const invite = parseCompanyInvite(raw);
-      if (invite && invite.companyId === company.id) {
-        await kvDelete(WORLDBOX_COMPANY_NAMESPACE, key);
+      if (key.startsWith("invite:")) {
+        const invite = parseCompanyInvite(raw);
+        if (invite && invite.companyId === company.id) {
+          await kvDelete(WORLDBOX_COMPANY_NAMESPACE, key);
+        }
+      } else if (key.startsWith("sign:")) {
+        const sign = parseCompanySign(raw);
+        if (sign && sign.companyId === company.id) {
+          await kvDelete(WORLDBOX_COMPANY_NAMESPACE, key);
+        }
       }
     }
   } catch {
@@ -324,6 +347,91 @@ export async function payOutToUser(
   const waited = await waitForOpDone(ownerKey, op.id);
   if (!waited) return { state: "pending", op: submitted.op };
   return { state: waited.status === "done" ? "done" : waited.status, op: waited };
+}
+
+// ---- Phase 4: 本社・勤務・店舗看板の保存と位置 ----
+
+/** 本人の現在位置（空間＋タイル座標）。プレゼンス（鮮度内）→ セーブの順。 */
+export async function loadActorPosition(
+  ownerKey: string,
+): Promise<{ space: string; tx: number; ty: number } | null> {
+  const presence = await loadMyPresence(ownerKey);
+  if (presence) {
+    return { space: presence.space, tx: Math.floor(presence.x), ty: Math.floor(presence.y) };
+  }
+  const saved = parseSave(await loadWorldBoxSave(ownerKey));
+  if (saved) return { space: saved.space, tx: Math.floor(saved.x), ty: Math.floor(saved.y) };
+  return null;
+}
+
+export async function loadDuty(ownerKey: string): Promise<CompanyDuty | null> {
+  if (!isBotApiConfigured()) return null;
+  try {
+    return parseCompanyDuty(await kvGetString(WORLDBOX_COMPANY_NAMESPACE, dutyKey(ownerKey)));
+  } catch {
+    return null;
+  }
+}
+
+export async function storeDuty(ownerKey: string, duty: CompanyDuty): Promise<boolean> {
+  if (!isBotApiConfigured()) return false;
+  try {
+    await kvSet(WORLDBOX_COMPANY_NAMESPACE, dutyKey(ownerKey), JSON.stringify(duty));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function deleteDuty(ownerKey: string): Promise<void> {
+  if (!isBotApiConfigured()) return;
+  try {
+    await kvDelete(WORLDBOX_COMPANY_NAMESPACE, dutyKey(ownerKey));
+  } catch {
+    /* ベストエフォート */
+  }
+}
+
+export async function loadSignCompany(x: number, y: number): Promise<CompanySign | null> {
+  if (!isBotApiConfigured()) return null;
+  try {
+    return parseCompanySign(await kvGetString(WORLDBOX_COMPANY_NAMESPACE, signKey(x, y)));
+  } catch {
+    return null;
+  }
+}
+
+export async function storeSignCompany(x: number, y: number, sign: CompanySign): Promise<boolean> {
+  if (!isBotApiConfigured()) return false;
+  try {
+    await kvSet(WORLDBOX_COMPANY_NAMESPACE, signKey(x, y), JSON.stringify(sign));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function deleteSignCompany(x: number, y: number): Promise<void> {
+  if (!isBotApiConfigured()) return;
+  try {
+    await kvDelete(WORLDBOX_COMPANY_NAMESPACE, signKey(x, y));
+  } catch {
+    /* ベストエフォート */
+  }
+}
+
+/** 指定した空間に本社を置く会社の一覧（ワールド表示のマーカー用）。 */
+export async function loadHqList(
+  space: string,
+): Promise<{ id: string; name: string; x: number; y: number }[]> {
+  const companies = await loadAllCompanies();
+  const out: { id: string; name: string; x: number; y: number }[] = [];
+  for (const company of companies) {
+    if (company.hq && company.hq.space === space) {
+      out.push({ id: company.id, name: company.name, x: company.hq.x, y: company.hq.y });
+    }
+  }
+  return out;
 }
 
 // ---- Cron（給料・法人税・失効掃除） ----
