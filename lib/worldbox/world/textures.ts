@@ -71,6 +71,7 @@ export const LOBBY_SPRITE_SRC: Record<string, string> = {
   bank_counter: "/img/worldbox/lobby/bank_counter.png",
   vault: "/img/worldbox/lobby/vault.png",
   atm: "/img/worldbox/lobby/atm.png",
+  stock_board: "/img/worldbox/lobby/stock_board.png",
   slot_machine: "/img/worldbox/lobby/slot_machine.png",
   slot7_machine: "/img/worldbox/lobby/slot7_machine.png",
   roulette_table: "/img/worldbox/lobby/roulette_table.png",

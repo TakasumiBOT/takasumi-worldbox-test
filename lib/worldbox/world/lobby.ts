@@ -185,7 +185,8 @@ export type LobbyStation =
   | "race"
   | "sell"
   | "telescope"
-  | "piano";
+  | "piano"
+  | "stock";
 
 export type LobbyObject = {
   sprite: string;
@@ -274,6 +275,8 @@ put("vending", 32, 32);
 row("bank_counter", 33, 34, 17, { station: "bank" });
 put("vault", 35, 17, { station: "bank" });
 put("atm", 35, 18, { station: "bank" });
+put("stock_board", 32, 17, { station: "stock" }); // 取引所の電光掲示板（銀行カウンターの西隣）
+put("atm", 32, 18, { station: "stock" }); // 取引所の売買端末
 
 // --- ショップ翼（左）: カウンター2列＋店員レーン、什器の間仕切りで小部屋状に ---
 // 店ごとに品目ジャンルが違う（左上から 道具屋・建築屋・家具屋・食料屋・種素材屋）。

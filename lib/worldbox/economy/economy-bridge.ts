@@ -74,6 +74,10 @@ export const EARN_REASONS: ReadonlySet<string> = new Set([
   "company_salary",
   "company_bonus",
   "company_dissolve",
+  // 株式（Takasumi 版）: 売却は売却税10%控除後の額、配当は日次 Cron の
+  // 計算額。国庫から払い出す（売却税分は国庫に残る）。
+  "stock_sell",
+  "stock_dividend",
 ]);
 
 /** gamble の理由ホワイトリスト（Bot 側でも同じ集合で検証する）。 */
