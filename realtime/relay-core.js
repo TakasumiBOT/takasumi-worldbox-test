@@ -45,8 +45,10 @@ function boundsForSpace(space) {
     return { minX: 0, maxX: size, minY: 0, maxY: size };
   }
   return {
-    minX: -WORLD_COORD_LIMIT, maxX: WORLD_COORD_LIMIT,
-    minY: -WORLD_COORD_LIMIT, maxY: WORLD_COORD_LIMIT,
+    minX: -WORLD_COORD_LIMIT,
+    maxX: WORLD_COORD_LIMIT,
+    minY: -WORLD_COORD_LIMIT,
+    maxY: WORLD_COORD_LIMIT,
   };
 }
 
@@ -67,7 +69,8 @@ function sanitizeHeartbeat(raw) {
   if (typeof raw.y !== "number" || !Number.isFinite(raw.y)) return null;
   const space = sanitizeSpace(raw.space);
   const b = boundsForSpace(space);
-  const vel = (n) => (typeof n === "number" && Number.isFinite(n) ? clampNum(n, -MAX_VELOCITY, MAX_VELOCITY) : 0);
+  const vel = (n) =>
+    typeof n === "number" && Number.isFinite(n) ? clampNum(n, -MAX_VELOCITY, MAX_VELOCITY) : 0;
   return {
     x: clampNum(raw.x, b.minX, b.maxX),
     y: clampNum(raw.y, b.minY, b.maxY),
@@ -78,7 +81,10 @@ function sanitizeHeartbeat(raw) {
     // B6 の役職・ランク・パーティも REST と同じ規則で通す（ネームプレートと
     // ダンジョンのパーティ分離が WS 経由でも効くようにする）。
     role: typeof raw.role === "string" && ROLE_IDS.includes(raw.role) ? raw.role : "free",
-    rank: typeof raw.rank === "number" && Number.isFinite(raw.rank) ? Math.max(1, Math.min(5, Math.floor(raw.rank))) : 1,
+    rank:
+      typeof raw.rank === "number" && Number.isFinite(raw.rank)
+        ? Math.max(1, Math.min(5, Math.floor(raw.rank)))
+        : 1,
     party: typeof raw.party === "string" ? raw.party.slice(0, 48) : "",
     // 座り（sit）も presence.ts と同じ規則で通す（落とすと他者に座り姿勢が伝わらず、bot_kv 集約書き込みでも欠落する）。
     ...(raw.sit === true ? { sit: true } : {}),
@@ -106,12 +112,18 @@ const WARP_FALLBACK_SOURCE_REACH_TILES = 5;
 const SAME_SPACE_WARPS = [
   {
     space: "lobby",
-    sources: [{ x: 17, y: 29 }, { x: 18, y: 29 }],
+    sources: [
+      { x: 17, y: 29 },
+      { x: 18, y: 29 },
+    ],
     landing: { x: 17.5, y: 60.5 },
   },
   {
     space: "lobby",
-    sources: [{ x: 17, y: 62 }, { x: 18, y: 62 }],
+    sources: [
+      { x: 17, y: 62 },
+      { x: 18, y: 62 },
+    ],
     landing: { x: 17.5, y: 27.5 },
   },
 ];
@@ -125,9 +137,11 @@ function isRegisteredWarpJump(baseline, next, reachTiles) {
   if (baseline.space !== next.space) return false;
   for (const warp of SAME_SPACE_WARPS) {
     if (warp.space !== next.space) continue;
-    if (Math.hypot(next.x - warp.landing.x, next.y - warp.landing.y) > WARP_LANDING_TOLERANCE_TILES) continue;
+    if (Math.hypot(next.x - warp.landing.x, next.y - warp.landing.y) > WARP_LANDING_TOLERANCE_TILES)
+      continue;
     for (const src of warp.sources) {
-      if (Math.hypot(baseline.x - (src.x + 0.5), baseline.y - (src.y + 0.5)) <= reachTiles) return true;
+      if (Math.hypot(baseline.x - (src.x + 0.5), baseline.y - (src.y + 0.5)) <= reachTiles)
+        return true;
     }
   }
   return false;
@@ -186,7 +200,12 @@ function createRoom() {
  * evict=true は「同じ pid の旧世代の接続を閉じるべき」という指示。
  */
 function admitTab(room, pid, tab, tabAt) {
-  if (typeof tab !== "string" || tab.length === 0 || typeof tabAt !== "number" || !Number.isFinite(tabAt)) {
+  if (
+    typeof tab !== "string" ||
+    tab.length === 0 ||
+    typeof tabAt !== "number" ||
+    !Number.isFinite(tabAt)
+  ) {
     return { verdict: "accept", evict: false };
   }
   const cur = room.gens.get(pid);
@@ -220,9 +239,10 @@ function acceptHeartbeat(room, id, name, raw, now, externalBaseline = null, avat
   if (!hb) return null;
   const prev = findRoomEntry(room, id);
   const baseline = prev ?? externalBaseline;
-  const check = baseline && typeof baseline.ts === "number"
-    ? checkMovementContinuity(baseline, hb, now)
-    : checkSaveFallbackContinuity(baseline, hb);
+  const check =
+    baseline && typeof baseline.ts === "number"
+      ? checkMovementContinuity(baseline, hb, now)
+      : checkSaveFallbackContinuity(baseline, hb);
   if (!check.ok) {
     return { rejected: true, x: baseline.x, y: baseline.y, space: baseline.space };
   }
@@ -235,7 +255,13 @@ function acceptHeartbeat(room, id, name, raw, now, externalBaseline = null, avat
     table = new Map();
     room.spaces.set(hb.space, table);
   }
-  const entry = { id, name: String(name ?? "").slice(0, NAME_MAX), ...hb, ...(avatarUrl ? { avatar: avatarUrl } : {}), ts: now };
+  const entry = {
+    id,
+    name: String(name ?? "").slice(0, NAME_MAX),
+    ...hb,
+    ...(avatarUrl ? { avatar: avatarUrl } : {}),
+    ts: now,
+  };
   table.set(id, entry);
   return entry;
 }
@@ -314,7 +340,13 @@ function verifyToken(token, secret, now) {
     // 所有者キー（Phase 2 の集約書き込み用）。旧トークンには無いため任意。
     ok: typeof payload.ok === "string" && payload.ok.length > 0 ? payload.ok : null,
     // 本人のユーザーアイコン URL（アバター描画用、presence.ts の sanitizeAvatarUrl と同じ規則）。
-    av: typeof payload.av === "string" && payload.av.length <= 256 && payload.av.startsWith("https://") && !/[\s"'<>\\]/.test(payload.av) ? payload.av : null,
+    av:
+      typeof payload.av === "string" &&
+      payload.av.length <= 256 &&
+      payload.av.startsWith("https://") &&
+      !/[\s"'<>\\]/.test(payload.av)
+        ? payload.av
+        : null,
   };
 }
 

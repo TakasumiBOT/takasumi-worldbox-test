@@ -60,8 +60,20 @@ const cat = await loadBundle(
   ["ITEMS", "ITEM_ICON_IDS", "itemById", "isShopExcluded", "itemsForGenre", "genreOfItem"],
 );
 const cp = await loadBundle(
-  ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/world/maplogic.ts", "worldbox/activity/compass.ts"],
-  ["MAP_SEED", "CHUNK_SIZE", "structuresForChunk", "nearestEntrance", "nearestEntrances", "COMPASS_MAX_TILES"],
+  [
+    "worldbox/core/rng.ts",
+    "worldbox/world/mapgen.ts",
+    "worldbox/world/maplogic.ts",
+    "worldbox/activity/compass.ts",
+  ],
+  [
+    "MAP_SEED",
+    "CHUNK_SIZE",
+    "structuresForChunk",
+    "nearestEntrance",
+    "nearestEntrances",
+    "COMPASS_MAX_TILES",
+  ],
 );
 
 test("compass: カタログ（価格10,000・道具・販売対象・アイコン）", () => {
@@ -97,8 +109,10 @@ function bruteForce(x, y, radiusChunks) {
         const tx = st.x + 0.5;
         const ty = st.y + 0.5;
         const dist = Math.hypot(tx - x, ty - y);
-        if (st.structureId === "cave_entrance" && (!cave || dist < cave.dist)) cave = { x: tx, y: ty, dist };
-        if (st.structureId === "dungeon_entrance" && (!dungeon || dist < dungeon.dist)) dungeon = { x: tx, y: ty, dist };
+        if (st.structureId === "cave_entrance" && (!cave || dist < cave.dist))
+          cave = { x: tx, y: ty, dist };
+        if (st.structureId === "dungeon_entrance" && (!dungeon || dist < dungeon.dist))
+          dungeon = { x: tx, y: ty, dist };
       }
     }
   }
@@ -107,8 +121,14 @@ function bruteForce(x, y, radiusChunks) {
 
 test("compass: 最寄り探索がブルートフォースと一致する", () => {
   const points = [
-    [0.5, 0.5], [100.5, 100.5], [-500.5, 300.5], [1234.5, -987.5],
-    [50.5, -2200.5], [-3000.5, -3000.5], [777.5, 555.5], [-64.5, 2048.5],
+    [0.5, 0.5],
+    [100.5, 100.5],
+    [-500.5, 300.5],
+    [1234.5, -987.5],
+    [50.5, -2200.5],
+    [-3000.5, -3000.5],
+    [777.5, 555.5],
+    [-64.5, 2048.5],
   ];
   for (const [x, y] of points) {
     const near = cp.nearestEntrances(cp.MAP_SEED, x, y);
@@ -118,11 +138,17 @@ test("compass: 最寄り探索がブルートフォースと一致する", () =>
       assert.ok(near[kind], `リング探索で ${kind} が見つからない (${x},${y})`);
       assert.equal(near[kind].x, bf[kind].x, `${kind} の x が一致しない (${x},${y})`);
       assert.equal(near[kind].y, bf[kind].y, `${kind} の y が一致しない (${x},${y})`);
-      assert.ok(Math.abs(near[kind].dist - bf[kind].dist) < 1e-9, `${kind} の距離が一致しない (${x},${y})`);
+      assert.ok(
+        Math.abs(near[kind].dist - bf[kind].dist) < 1e-9,
+        `${kind} の距離が一致しない (${x},${y})`,
+      );
       assert.equal(near[kind].kind, kind);
       // 方位角は対象への atan2 と一致する
       const ang = Math.atan2(near[kind].y - y, near[kind].x - x);
-      assert.ok(Math.abs(near[kind].angle - ang) < 1e-9, `${kind} の方位角が一致しない (${x},${y})`);
+      assert.ok(
+        Math.abs(near[kind].angle - ang) < 1e-9,
+        `${kind} の方位角が一致しない (${x},${y})`,
+      );
     }
   }
 });
@@ -141,7 +167,10 @@ test("compass: 決定性と探索上限", () => {
 });
 
 test("compass: クライアント配線（所持時のみ・ワールドのみ HUD が出る）", () => {
-  const client = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"), "utf8");
+  const client = fs.readFileSync(
+    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    "utf8",
+  );
   // 純粋ロジックを読み、最寄り探索を呼ぶ
   assert.match(client, /from "@\/lib\/worldbox\/activity\/compass"/);
   assert.match(client, /nearestEntrances\(MAP_SEED, player\.x, player\.y\)/);

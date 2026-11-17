@@ -1,5 +1,11 @@
 import { NextResponse } from "next/server";
-import { SESSION_COOKIE, getRequestSession, publicOrigin, resolveOAuthNext, sessionCookieOptions } from "@/lib/auth";
+import {
+  SESSION_COOKIE,
+  getRequestSession,
+  publicOrigin,
+  resolveOAuthNext,
+  sessionCookieOptions,
+} from "@/lib/auth";
 import { deleteWebSession } from "@/lib/dashboard";
 
 export const runtime = "nodejs";

@@ -3,15 +3,38 @@ import { getRequestSession, publicOrigin, sessionOwnerKey } from "@/lib/auth";
 import { playerAttack } from "@/lib/worldbox/combat/arena";
 import { buildEconomyOp, type EconomyOp } from "@/lib/worldbox/economy/economy-bridge";
 import {
-  deleteEconomyOp, enqueueEconomyOpOnce, findEconomyOp, isEconomyEnabled, loadMyEconomyOps,
-  readUserBalance, submitEconomyOp, waitForOpsDone,
+  deleteEconomyOp,
+  enqueueEconomyOpOnce,
+  findEconomyOp,
+  isEconomyEnabled,
+  loadMyEconomyOps,
+  readUserBalance,
+  submitEconomyOp,
+  waitForOpsDone,
 } from "@/lib/worldbox/economy/economy-bridge-online";
 import { loadProfile } from "@/lib/worldbox/player/profile-online";
 import {
-  PVP_FEE, PVP_MAX_LOG, PVP_PRIZE, createDuel, publicPvpView, pvpFeeRefundOpId, pvpPrizeOpId, pvpStep, tryMatch,
-  type PvpDuel, type PvpMove, type PvpPlayer, type PvpQueueEntry,
+  PVP_FEE,
+  PVP_MAX_LOG,
+  PVP_PRIZE,
+  createDuel,
+  publicPvpView,
+  pvpFeeRefundOpId,
+  pvpPrizeOpId,
+  pvpStep,
+  tryMatch,
+  type PvpDuel,
+  type PvpMove,
+  type PvpPlayer,
+  type PvpQueueEntry,
 } from "@/lib/worldbox/combat/pvp";
-import { clearPvpDuel, loadMyPvpDuel, loadPvpQueue, savePvpDuel, savePvpQueue } from "@/lib/worldbox/combat/pvp-online";
+import {
+  clearPvpDuel,
+  loadMyPvpDuel,
+  loadPvpQueue,
+  savePvpDuel,
+  savePvpQueue,
+} from "@/lib/worldbox/combat/pvp-online";
 import { loadMyLobbyStation } from "@/lib/worldbox/world/station-online";
 import { advanceTournamentMatch } from "@/lib/worldbox/combat/tournament-online";
 import { withUserLock } from "@/lib/worldbox/core/user-lock";
@@ -46,13 +69,17 @@ function pvpSession(request: Request) {
   return { session, status: 200 as const };
 }
 
-async function enqueue(userKey: string, discordId: string, input: {
-  kind: "spend" | "earn";
-  amount: number;
-  reason: string;
-  /** 決定的 ID（指定時は冪等登録: 同 ID が既にあれば作り直さない）。 */
-  id?: string;
-}): Promise<EconomyOp | null> {
+async function enqueue(
+  userKey: string,
+  discordId: string,
+  input: {
+    kind: "spend" | "earn";
+    amount: number;
+    reason: string;
+    /** 決定的 ID（指定時は冪等登録: 同 ID が既にあれば作り直さない）。 */
+    id?: string;
+  },
+): Promise<EconomyOp | null> {
   const op = buildEconomyOp(
     { kind: input.kind, userKey, discordId, amount: input.amount, reason: input.reason },
     input.id ?? crypto.randomUUID(),
@@ -160,7 +187,9 @@ async function loadFeeStates(duel: PvpDuel): Promise<FeeOp[]> {
 /** 参加費の返金オプを決定的 ID で1件積む（再実行しても二重返金にならない）。 */
 async function refundFee(duel: PvpDuel, player: PvpPlayer): Promise<void> {
   await enqueue(player.ownerKey, player.discordId, {
-    kind: "earn", amount: PVP_FEE, reason: "arena_pvp_fee_refund",
+    kind: "earn",
+    amount: PVP_FEE,
+    reason: "arena_pvp_fee_refund",
     id: pvpFeeRefundOpId(duel.code, player.discordId),
   });
 }
@@ -217,7 +246,15 @@ async function handlePost(request: Request, session: AuthedSession) {
     const mine = await effectiveBalanceOf(ownerKey, discordId);
     if (mine === null || mine < PVP_FEE) return errorResponse("insufficient_balance", 409);
     const profile = await loadProfile(ownerKey);
-    queue = [...queue, { ownerKey, discordId, attack: playerAttack(profile.items, profile.enhance), queuedAt: Date.now() }];
+    queue = [
+      ...queue,
+      {
+        ownerKey,
+        discordId,
+        attack: playerAttack(profile.items, profile.enhance),
+        queuedAt: Date.now(),
+      },
+    ];
     // 先頭2人で組める限り組む。片方が払えなくなっていたら待ちから外す。
     for (;;) {
       const matched = tryMatch(queue, Date.now());
@@ -225,7 +262,12 @@ async function handlePost(request: Request, session: AuthedSession) {
       const [a, b] = matched.pair;
       const affordA = await effectiveBalanceOf(a.ownerKey, a.discordId);
       const affordB = await effectiveBalanceOf(b.ownerKey, b.discordId);
-      const drop = affordA !== null && affordA < PVP_FEE ? a : affordB !== null && affordB < PVP_FEE ? b : null;
+      const drop =
+        affordA !== null && affordA < PVP_FEE
+          ? a
+          : affordB !== null && affordB < PVP_FEE
+            ? b
+            : null;
       if (drop) {
         queue = queue.filter((e) => e.discordId !== drop.discordId);
         continue;
@@ -279,7 +321,8 @@ async function handlePost(request: Request, session: AuthedSession) {
         await clearPvpDuel(duel);
         return errorResponse("payment_failed", 409);
       }
-      if (feeStates.some((op) => op?.status !== "done")) return errorResponse("payment_pending", 409);
+      if (feeStates.some((op) => op?.status !== "done"))
+        return errorResponse("payment_pending", 409);
       duel = { ...duel, state: "fighting" };
     }
     const loser = duel.players[0].discordId === discordId ? 0 : 1;
@@ -311,7 +354,8 @@ async function handlePost(request: Request, session: AuthedSession) {
         await clearPvpDuel(duel);
         return errorResponse("payment_failed", 409);
       }
-      if (feeStates.some((op) => op?.status !== "done")) return errorResponse("payment_pending", 409);
+      if (feeStates.some((op) => op?.status !== "done"))
+        return errorResponse("payment_pending", 409);
       duel = { ...duel, state: "fighting" };
     }
     const mover = (duel.players[0].discordId === discordId ? 0 : 1) as 0 | 1;
@@ -349,7 +393,10 @@ async function handlePost(request: Request, session: AuthedSession) {
 async function awardPrize(duel: PvpDuel, winner: 0 | 1): Promise<void> {
   const p = duel.players[winner];
   await enqueue(p.ownerKey, p.discordId, {
-    kind: "earn", amount: PVP_PRIZE, reason: "arena_pvp_prize", id: pvpPrizeOpId(duel.code),
+    kind: "earn",
+    amount: PVP_PRIZE,
+    reason: "arena_pvp_prize",
+    id: pvpPrizeOpId(duel.code),
   });
 }
 
@@ -365,7 +412,9 @@ async function finishDuel(duel: PvpDuel, winner: 0 | 1): Promise<void> {
   }
   try {
     await advanceTournamentMatch(
-      duel.tournament.tournamentId, duel.tournament.matchId, duel.players[winner].discordId,
+      duel.tournament.tournamentId,
+      duel.tournament.matchId,
+      duel.players[winner].discordId,
     );
   } catch {
     // 大会側の進行失敗は決闘の決着を壊さない

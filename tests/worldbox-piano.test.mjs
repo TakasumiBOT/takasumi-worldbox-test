@@ -95,7 +95,10 @@ test("ピアノ: クライアントは打鍵を送り、届いた音をロビー
   assert.match(client, /msg\.t === "note" && Array\.isArray\(msg\.notes\)/);
   assert.match(client, /if \(space === "lobby"\) playPianoNotes\(msg\.notes\);/);
   assert.match(client, /stationUi === "piano"/);
-  assert.match(client, /<WorldBoxPianoPanel onClose=\{\(\) => setPianoOpen\(false\)\} onPlay=\{playPianoNote\} \/>/);
+  assert.match(
+    client,
+    /<WorldBoxPianoPanel onClose=\{\(\) => setPianoOpen\(false\)\} onPlay=\{playPianoNote\} \/>/,
+  );
 });
 
 test("ピアノ: playPianoNotes はスロットル無しで音ごとに鳴らす", () => {

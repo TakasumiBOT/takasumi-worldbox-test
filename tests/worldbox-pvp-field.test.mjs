@@ -47,8 +47,14 @@ function loadBundle(files, names) {
 const v = loadBundle(
   ["worldbox/economy/items.ts", "worldbox/player/profile.ts", "worldbox/player/vitals.ts"],
   [
-    "parseProfile", "serializeProfile", "applyPvpDamage", "applyMobDamage",
-    "pvpSpaceAllowed", "PVP_ATTACK_MAX_DISTANCE", "MOB_DAMAGE_COOLDOWN_MS", "HP_MAX",
+    "parseProfile",
+    "serializeProfile",
+    "applyPvpDamage",
+    "applyMobDamage",
+    "pvpSpaceAllowed",
+    "PVP_ATTACK_MAX_DISTANCE",
+    "MOB_DAMAGE_COOLDOWN_MS",
+    "HP_MAX",
   ],
 );
 
@@ -139,10 +145,15 @@ test("pvp: lastDeath（死亡通知）がプロフィールを往復する", () 
   assert.deepEqual(back.lastDeath, { at: T0, dropped: { wood: 2 } });
   // 既定は null、壊れた値は null に落ちる
   assert.equal(fresh().lastDeath, null);
-  assert.equal(v.parseProfile(JSON.stringify({ lastDeath: { at: 0, dropped: {} } })).lastDeath, null);
+  assert.equal(
+    v.parseProfile(JSON.stringify({ lastDeath: { at: 0, dropped: {} } })).lastDeath,
+    null,
+  );
   assert.equal(v.parseProfile(JSON.stringify({ lastDeath: "x" })).lastDeath, null);
   // 定義の無いアイテムは dropped から落ちる
-  const mixed = v.parseProfile(JSON.stringify({ lastDeath: { at: T0, dropped: { wood: 1, no_such_item: 3 } } }));
+  const mixed = v.parseProfile(
+    JSON.stringify({ lastDeath: { at: T0, dropped: { wood: 1, no_such_item: 3 } } }),
+  );
   assert.deepEqual(mixed.lastDeath, { at: T0, dropped: { wood: 1 } });
 });
 
@@ -184,7 +195,10 @@ test("pvp: sync が死亡通知を対で配送して消す", () => {
 });
 
 test("pvp: クライアントが他プレイヤーのタップを攻撃として配線している", () => {
-  const client = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"), "utf8");
+  const client = fs.readFileSync(
+    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    "utf8",
+  );
   assert.match(client, /action: "pvp"/);
   assert.match(client, /attackPlayer/);
   assert.match(client, /pvpSpaceAllowed\(space\)/);
@@ -192,10 +206,16 @@ test("pvp: クライアントが他プレイヤーのタップを攻撃として
 });
 
 test("pvp: クライアントのタップ振り分けは距離で分ける（範囲内=攻撃、範囲外=カード）", () => {
-  const client = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"), "utf8");
+  const client = fs.readFileSync(
+    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    "utf8",
+  );
   // 判定はサーバーの検証と同じユークリッド 2.5 タイル、両者の補間表示位置で測る
   assert.match(client, /PVP_ATTACK_MAX_DISTANCE/);
-  assert.match(client, /Math\.hypot\(other\.track\.rx - player\.x, other\.track\.ry - player\.y\) <= PVP_ATTACK_MAX_DISTANCE/);
+  assert.match(
+    client,
+    /Math\.hypot\(other\.track\.rx - player\.x, other\.track\.ry - player\.y\) <= PVP_ATTACK_MAX_DISTANCE/,
+  );
   // 攻撃は PvP 可能空間かつ近接範囲内のときだけ
   assert.match(client, /pvpSpaceAllowed\(space\) && inMeleeRange/);
   // 範囲外・PvP 不可空間は従来どおりプレイヤーカード（パーティ招待の導線）

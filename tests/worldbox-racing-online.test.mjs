@@ -68,10 +68,19 @@ const OWNER = "discord:123456789012345678";
 
 function seedSpendOp(opId, status) {
   const store = globalThis.__wbRacingStore;
-  store.set(`worldbox_economy ${opId}`, JSON.stringify({
-    id: opId, kind: "spend", userKey: OWNER, discordId: "123456789012345678",
-    amount: 500, reason: "horse_racing_bet", status, createdAt: 1,
-  }));
+  store.set(
+    `worldbox_economy ${opId}`,
+    JSON.stringify({
+      id: opId,
+      kind: "spend",
+      userKey: OWNER,
+      discordId: "123456789012345678",
+      amount: 500,
+      reason: "horse_racing_bet",
+      status,
+      createdAt: 1,
+    }),
+  );
 }
 
 test("人気集計: 馬ごとの単勝/複勝の票数を数える", () => {
@@ -92,14 +101,27 @@ test("精算: 的中は gamble 登録コールバックが1回呼ばれ、払戻
   seedSpendOp("race-bet-b1", "done");
   const calls = [];
   const bet = {
-    betId: "b1", postMs: post, horseId: winner, type: "win", amount: 500,
-    oddsWin: 3.5, oddsPlace: 1.5, spendOpId: "race-bet-b1",
-    settle: "open", payout: null, createdAt: 1,
+    betId: "b1",
+    postMs: post,
+    horseId: winner,
+    type: "win",
+    amount: 500,
+    oddsWin: 3.5,
+    oddsPlace: 1.5,
+    spendOpId: "race-bet-b1",
+    settle: "open",
+    payout: null,
+    createdAt: 1,
   };
-  const { bets, changed } = await online.settleMyBets(OWNER, [bet], post + racing.RACE_DURATION_MS + 1, async (b, payout) => {
-    calls.push([b.betId, payout]);
-    return true;
-  });
+  const { bets, changed } = await online.settleMyBets(
+    OWNER,
+    [bet],
+    post + racing.RACE_DURATION_MS + 1,
+    async (b, payout) => {
+      calls.push([b.betId, payout]);
+      return true;
+    },
+  );
   assert.equal(changed, true);
   assert.deepEqual(calls, [["b1", 1750]]);
   assert.equal(bets[0].settle, "settled");
@@ -114,15 +136,27 @@ test("精算: ハズレはオプなしで settled、先払い failed は void、
   seedSpendOp("race-bet-b3", "failed");
   seedSpendOp("race-bet-b4", "pending");
   const mk = (betId, horseId) => ({
-    betId, postMs: post, horseId, type: "win", amount: 100,
-    oddsWin: 2.0, oddsPlace: 1.2, spendOpId: `race-bet-${betId}`,
-    settle: "open", payout: null, createdAt: 1,
+    betId,
+    postMs: post,
+    horseId,
+    type: "win",
+    amount: 100,
+    oddsWin: 2.0,
+    oddsPlace: 1.2,
+    spendOpId: `race-bet-${betId}`,
+    settle: "open",
+    payout: null,
+    createdAt: 1,
   });
   let calls = 0;
   const { bets } = await online.settleMyBets(
-    OWNER, [mk("b2", loser), mk("b3", loser), mk("b4", loser)],
+    OWNER,
+    [mk("b2", loser), mk("b3", loser), mk("b4", loser)],
     post + racing.RACE_DURATION_MS + 1,
-    async () => { calls++; return true; },
+    async () => {
+      calls++;
+      return true;
+    },
   );
   assert.equal(calls, 0);
   assert.equal(bets[0].settle, "settled");
@@ -135,9 +169,17 @@ test("精算: レース終了前は手を付けない", async () => {
   const post = 1_800_000_000_000;
   seedSpendOp("race-bet-b5", "done");
   const bet = {
-    betId: "b5", postMs: post, horseId: 1, type: "win", amount: 100,
-    oddsWin: 2.0, oddsPlace: 1.2, spendOpId: "race-bet-b5",
-    settle: "open", payout: null, createdAt: 1,
+    betId: "b5",
+    postMs: post,
+    horseId: 1,
+    type: "win",
+    amount: 100,
+    oddsWin: 2.0,
+    oddsPlace: 1.2,
+    spendOpId: "race-bet-b5",
+    settle: "open",
+    payout: null,
+    createdAt: 1,
   };
   const { bets, changed } = await online.settleMyBets(OWNER, [bet], post + 1000, async () => true);
   assert.equal(changed, false);
@@ -146,7 +188,15 @@ test("精算: レース終了前は手を付けない", async () => {
 
 test("経済配線: gamble 理由 horse_racing が TS で通る", () => {
   const op = bridge.buildEconomyOp(
-    { kind: "gamble", userKey: OWNER, discordId: "123456789012345678", amount: 500, reason: "horse_racing", payout: 1750, prepaid: true },
+    {
+      kind: "gamble",
+      userKey: OWNER,
+      discordId: "123456789012345678",
+      amount: 500,
+      reason: "horse_racing",
+      payout: 1750,
+      prepaid: true,
+    },
     "race-settle-testbet1",
     Date.now(),
   );

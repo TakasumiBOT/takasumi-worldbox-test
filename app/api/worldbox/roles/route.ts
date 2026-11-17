@@ -6,8 +6,12 @@ import { addItem, type PlayerProfile } from "@/lib/worldbox/player/profile";
 import { playerAttack } from "@/lib/worldbox/combat/arena";
 import { mobById, type PlacedMob } from "@/lib/worldbox/combat/mobs";
 import {
-  applyMobAttack, mobKeyOf, resolveMobPosition, visibleMobs,
-  MOB_REPORT_LEASH, type MobState,
+  applyMobAttack,
+  mobKeyOf,
+  resolveMobPosition,
+  visibleMobs,
+  MOB_REPORT_LEASH,
+  type MobState,
 } from "@/lib/worldbox/combat/combat";
 import { isMobsEnabled, loadMobState, storeMobState } from "@/lib/worldbox/combat/mobs-online";
 import { listPresence, listPresenceWithOwners } from "@/lib/worldbox/player/presence-online";
@@ -16,8 +20,16 @@ import { parseSave } from "@/lib/worldbox/core/save";
 import { loadWorldBoxSave } from "@/lib/worldbox/core/save-online";
 import { loadMyLobbyStation } from "@/lib/worldbox/world/station-online";
 import {
-  activeSkillFor, addMasteryXp, applyRoleChange, isAdventureRoleId, masteryRankOf,
-  roleById, ROLE_CHANGE_REASON, skillCooldownLeft, SKILLS, type SkillId,
+  activeSkillFor,
+  addMasteryXp,
+  applyRoleChange,
+  isAdventureRoleId,
+  masteryRankOf,
+  roleById,
+  ROLE_CHANGE_REASON,
+  skillCooldownLeft,
+  SKILLS,
+  type SkillId,
 } from "@/lib/worldbox/player/roles";
 import { isNationsEnabled, loadNationsState } from "@/lib/worldbox/social/nations-online";
 import { porterInRange, porterTileError } from "@/lib/worldbox/world/warp";
@@ -26,15 +38,25 @@ import { isOverrideActive } from "@/lib/worldbox/world/tiles";
 import { loadTileOverride } from "@/lib/worldbox/world/tiles-online";
 import { buildEconomyOp } from "@/lib/worldbox/economy/economy-bridge";
 import {
-  isEconomyEnabled, readUserBalance, submitEconomyOp, waitForOpDone,
+  isEconomyEnabled,
+  readUserBalance,
+  submitEconomyOp,
+  waitForOpDone,
 } from "@/lib/worldbox/economy/economy-bridge-online";
 import { withUserLock } from "@/lib/worldbox/core/user-lock";
 import { maxHpFor } from "@/lib/worldbox/player/profile";
 import {
-  buildCaveLayer, buildDungeonFloor, dungeonHpScale, makeInstanceSpace, parseInstanceSpace,
+  buildCaveLayer,
+  buildDungeonFloor,
+  dungeonHpScale,
+  makeInstanceSpace,
+  parseInstanceSpace,
 } from "@/lib/worldbox/world/instances";
 import {
-  loadDungeonSession, loadRuinsPersonal, storeDungeonSession, storeRuinsPersonal,
+  loadDungeonSession,
+  loadRuinsPersonal,
+  storeDungeonSession,
+  storeRuinsPersonal,
 } from "@/lib/worldbox/world/instances-online";
 import { partyKeyOf } from "@/lib/worldbox/social/party";
 import { loadPartyOf } from "@/lib/worldbox/social/party-online";
@@ -65,7 +87,11 @@ function err(error: string, status = 409) {
   return NextResponse.json({ error }, { status, headers: NO_STORE });
 }
 
-async function actorPos(ownerKey: string, space: string, reported: { x: number; y: number } | null) {
+async function actorPos(
+  ownerKey: string,
+  space: string,
+  reported: { x: number; y: number } | null,
+) {
   const selfId = presenceIdFor(ownerKey);
   const entries = await listPresence();
   const now = Date.now();
@@ -78,7 +104,13 @@ async function actorPos(ownerKey: string, space: string, reported: { x: number; 
 }
 
 /** その空間のモブ配置（地表/洞窟/遺跡召喚/ダンジョン）を返す。 */
-async function mobsInSpace(ownerKey: string, space: string, cx: number, cy: number, radius: number): Promise<PlacedMob[]> {
+async function mobsInSpace(
+  ownerKey: string,
+  space: string,
+  cx: number,
+  cy: number,
+  radius: number,
+): Promise<PlacedMob[]> {
   const inst = parseInstanceSpace(space);
   if (inst?.kind === "dungeon") {
     const floor = buildDungeonFloor(MAP_SEED, inst.entranceX, inst.entranceY, inst.layer);
@@ -91,7 +123,13 @@ async function mobsInSpace(ownerKey: string, space: string, cx: number, cy: numb
   if (inst?.kind === "ruins") {
     const personal = await loadRuinsPersonal(space, ownerKey, weekKeyOf(Date.now()));
     return personal.summons
-      .map((sm) => ({ mobId: sm.mobId, x: sm.x, y: sm.y, biome: "plains" as const, size: mobById(sm.mobId)?.size ?? 1 }))
+      .map((sm) => ({
+        mobId: sm.mobId,
+        x: sm.x,
+        y: sm.y,
+        biome: "plains" as const,
+        size: mobById(sm.mobId)?.size ?? 1,
+      }))
       .filter((m) => Math.hypot(m.x + 0.5 - cx, m.y + 0.5 - cy) <= radius + m.size);
   }
   const x0 = Math.floor(cx - radius - 4);
@@ -100,7 +138,9 @@ async function mobsInSpace(ownerKey: string, space: string, cx: number, cy: numb
   const y1 = Math.ceil(cy + radius + 4);
   return visibleMobs(MAP_SEED, x0, y0, x1, y1, false)
     .concat(visibleMobs(MAP_SEED, x0, y0, x1, y1, true))
-    .filter((m, i, arr) => arr.findIndex((o) => o.mobId === m.mobId && o.x === m.x && o.y === m.y) === i)
+    .filter(
+      (m, i, arr) => arr.findIndex((o) => o.mobId === m.mobId && o.x === m.x && o.y === m.y) === i,
+    )
     .filter((m) => Math.hypot(m.x + 0.5 - cx, m.y + 0.5 - cy) <= radius + m.size);
 }
 
@@ -114,7 +154,11 @@ async function keyFor(ownerKey: string, space: string, placed: PlacedMob): Promi
 }
 
 /** ダンジョンではモブ HP がパーティ人数で倍率される（mobs ルートと同じ式）。 */
-async function effectiveDef(ownerKey: string, space: string, def: NonNullable<ReturnType<typeof mobById>>) {
+async function effectiveDef(
+  ownerKey: string,
+  space: string,
+  def: NonNullable<ReturnType<typeof mobById>>,
+) {
   const inst = parseInstanceSpace(space);
   if (inst?.kind !== "dungeon") return def;
   const party = await loadPartyOf(ownerKey);
@@ -138,7 +182,9 @@ export async function GET(request: Request) {
   if (profile.role === "medic" && Number.isFinite(x) && Number.isFinite(y)) {
     const all = await listDeaths(Date.now());
     deaths = all
-      .filter((d) => d.space === space && d.ownerKey !== ownerKey && Math.hypot(d.x - x, d.y - y) <= 6)
+      .filter(
+        (d) => d.space === space && d.ownerKey !== ownerKey && Math.hypot(d.x - x, d.y - y) <= 6,
+      )
       .map((d) => ({ name: d.name, x: d.x, y: d.y, at: d.at }));
   }
   // テレポーターの発動技はポーター設置（activeSkillFor は戦闘技として返さない）
@@ -148,7 +194,9 @@ export async function GET(request: Request) {
       role: profile.role,
       rank: masteryRankOf(profile, profile.role),
       mastery: profile.mastery,
-      skill: skill ? { ...skill, cooldownLeftMs: skillCooldownLeft(profile, skill.id, Date.now()) } : null,
+      skill: skill
+        ? { ...skill, cooldownLeftMs: skillCooldownLeft(profile, skill.id, Date.now()) }
+        : null,
       deaths,
     },
     { headers: NO_STORE },
@@ -167,8 +215,14 @@ export async function POST(request: Request) {
     return err("invalid_request", 400);
   }
   const fields = (body ?? {}) as {
-    action?: unknown; role?: unknown; skill?: unknown;
-    tx?: unknown; ty?: unknown; space?: unknown; px?: unknown; py?: unknown;
+    action?: unknown;
+    role?: unknown;
+    skill?: unknown;
+    tx?: unknown;
+    ty?: unknown;
+    space?: unknown;
+    px?: unknown;
+    py?: unknown;
     mobs?: unknown;
   };
   const ownerKey = sessionOwnerKey(session);
@@ -218,7 +272,8 @@ export async function POST(request: Request) {
       // の無担保交付」の是正: 役職だけ変わって課金されない状態を
       // 作らない）。pending のままなら従来どおり返し、クライアントの
       // ポーリングに引き継ぐ。
-      const settled = submitted.state === "pending" ? await waitForOpDone(ownerKey, op.id) : submitted.op;
+      const settled =
+        submitted.state === "pending" ? await waitForOpDone(ownerKey, op.id) : submitted.op;
       if (settled && settled.status === "failed") {
         await storeProfile(ownerKey, current);
         return err("economy_failed", 409);
@@ -229,7 +284,10 @@ export async function POST(request: Request) {
 
   const space = typeof fields.space === "string" ? fields.space : "world";
   const reported =
-    typeof fields.px === "number" && typeof fields.py === "number" && Number.isFinite(fields.px) && Number.isFinite(fields.py)
+    typeof fields.px === "number" &&
+    typeof fields.py === "number" &&
+    Number.isFinite(fields.px) &&
+    Number.isFinite(fields.py)
       ? { x: fields.px, y: fields.py }
       : null;
   const pos = await actorPos(ownerKey, space, reported);
@@ -246,12 +304,19 @@ export async function POST(request: Request) {
       const medic = await loadProfile(ownerKey);
       if (!medic) return { error: err("roles_unavailable", 503) } as const;
       if (medic.role !== "medic") return { error: err("not_medic", 409) } as const;
-      if (medic.reviveMark && medic.reviveMark.space === space && now - medic.reviveMark.at < 30 * 60 * 1000) {
+      if (
+        medic.reviveMark &&
+        medic.reviveMark.space === space &&
+        now - medic.reviveMark.at < 30 * 60 * 1000
+      ) {
         return { error: err("revive_used", 409) } as const;
       }
       const deaths = await listDeaths(now);
       const target = deaths.find(
-        (d) => d.space === space && d.ownerKey !== ownerKey && Math.hypot(d.x - pos.x, d.y - pos.y) <= 2.5,
+        (d) =>
+          d.space === space &&
+          d.ownerKey !== ownerKey &&
+          Math.hypot(d.x - pos.x, d.y - pos.y) <= 2.5,
       );
       if (!target) return { error: err("no_fallen", 409) } as const;
       const medicNext = addMasteryXp(
@@ -259,7 +324,8 @@ export async function POST(request: Request) {
         "medic",
         10,
       ).profile;
-      if (!(await storeProfile(ownerKey, medicNext))) return { error: err("store_failed", 503) } as const;
+      if (!(await storeProfile(ownerKey, medicNext)))
+        return { error: err("store_failed", 503) } as const;
       return { target, medicNext, prevMark: medic.reviveMark } as const;
     });
     if ("error" in claimed) return claimed.error;
@@ -288,7 +354,8 @@ export async function POST(request: Request) {
         const ds = await loadDungeonSession(floor1, partyKeyOf(targetParty, target.ownerKey));
         if (ds && ds.dead.includes(target.ownerKey)) {
           await storeDungeonSession(floor1, {
-            ...ds, dead: ds.dead.filter((m) => m !== target.ownerKey),
+            ...ds,
+            dead: ds.dead.filter((m) => m !== target.ownerKey),
           }).catch(() => false);
         }
       }
@@ -302,7 +369,8 @@ export async function POST(request: Request) {
         const medic = await loadProfile(ownerKey);
         if (!medic) return;
         const xp = Math.max(0, (medic.mastery.medic?.xp ?? 0) - 10);
-        const markIsMine = medic.reviveMark && medic.reviveMark.space === space && medic.reviveMark.at === now;
+        const markIsMine =
+          medic.reviveMark && medic.reviveMark.space === space && medic.reviveMark.at === now;
         await storeProfile(ownerKey, {
           ...medic,
           ...(markIsMine ? { reviveMark: prevMark } : {}),
@@ -311,7 +379,10 @@ export async function POST(request: Request) {
       }).catch(() => undefined);
       return err("no_fallen", 409);
     }
-    return NextResponse.json({ ok: true, profile: medicNext, revivedName: target.name }, { headers: NO_STORE });
+    return NextResponse.json(
+      { ok: true, profile: medicNext, revivedName: target.name },
+      { headers: NO_STORE },
+    );
   }
 
   if (fields.action === "skill") {
@@ -333,7 +404,8 @@ export async function POST(request: Request) {
       const active = activeSkillFor(profile);
       const isTaunt = skillId === "taunt" && profile.role === "guard";
       const isPorter = skillId === "porter" && profile.role === "teleporter";
-      if (!isTaunt && !isPorter && (!active || active.id !== skillId)) return err("skill_locked", 409);
+      if (!isTaunt && !isPorter && (!active || active.id !== skillId))
+        return err("skill_locked", 409);
       if (isTaunt && rank < SKILLS.taunt.minRank) return err("skill_locked", 409);
       if (isPorter && rank < SKILLS.porter.minRank) return err("skill_locked", 409);
       if (skillCooldownLeft(profile, skillId, now) > 0) return err("cooldown", 409);
@@ -348,14 +420,27 @@ export async function POST(request: Request) {
       const reportedByKey = new Map<string, { x: number; y: number }>();
       if (Array.isArray(fields.mobs)) {
         for (const entry of fields.mobs.slice(0, 32)) {
-          const e = (entry ?? {}) as { mobId?: unknown; x?: unknown; y?: unknown; mx?: unknown; my?: unknown };
+          const e = (entry ?? {}) as {
+            mobId?: unknown;
+            x?: unknown;
+            y?: unknown;
+            mx?: unknown;
+            my?: unknown;
+          };
           if (typeof e.mobId !== "string" || !mobById(e.mobId)) continue;
-          if (typeof e.x !== "number" || typeof e.y !== "number" || typeof e.mx !== "number" || typeof e.my !== "number") continue;
-          if (![e.x, e.y, e.mx, e.my].every((v) => Number.isFinite(v) && Math.abs(v) <= 1_000_000)) continue;
-          reportedByKey.set(
-            mobKeyOf({ mobId: e.mobId, x: Math.floor(e.x), y: Math.floor(e.y) }),
-            { x: e.mx, y: e.my },
-          );
+          if (
+            typeof e.x !== "number" ||
+            typeof e.y !== "number" ||
+            typeof e.mx !== "number" ||
+            typeof e.my !== "number"
+          )
+            continue;
+          if (![e.x, e.y, e.mx, e.my].every((v) => Number.isFinite(v) && Math.abs(v) <= 1_000_000))
+            continue;
+          reportedByKey.set(mobKeyOf({ mobId: e.mobId, x: Math.floor(e.x), y: Math.floor(e.y) }), {
+            x: e.mx,
+            y: e.my,
+          });
         }
       }
       /** 対象解決に使う実位置の中心（申告がリーシュ内なら申告、なければアンカー）。 */
@@ -404,7 +489,16 @@ export async function POST(request: Request) {
         next = addMasteryXp(next, "teleporter", 2).profile;
         if (!(await storeProfile(ownerKey, next))) return err("store_failed", 503);
         return NextResponse.json(
-          { ok: true, skill: skillId, fx: skill.fx, cx: gx + 0.5, cy: gy + 0.5, profile: next, results: [], porter },
+          {
+            ok: true,
+            skill: skillId,
+            fx: skill.fx,
+            cx: gx + 0.5,
+            cy: gy + 0.5,
+            profile: next,
+            results: [],
+            porter,
+          },
           { headers: NO_STORE },
         );
       }
@@ -420,8 +514,12 @@ export async function POST(request: Request) {
         next = addMasteryXp(next, "medic", 2).profile;
         if (!(await storeProfile(ownerKey, next))) return err("store_failed", 503);
         const allyKeys = owners
-          .filter((o) => o.ownerKey !== ownerKey && o.entry.space === space &&
-            Math.hypot(o.entry.x - pos.x, o.entry.y - pos.y) <= skill.radius)
+          .filter(
+            (o) =>
+              o.ownerKey !== ownerKey &&
+              o.entry.space === space &&
+              Math.hypot(o.entry.x - pos.x, o.entry.y - pos.y) <= skill.radius,
+          )
           .map((o) => o.ownerKey);
         return { healZone: { profile: next, allyKeys, power: skill.power } };
       }
@@ -430,14 +528,25 @@ export async function POST(request: Request) {
       let cx = pos.x;
       let cy = pos.y;
       let targets: PlacedMob[] = [];
-      const baseAttack = playerAttack(profile.items, profile.enhance) * (profile.role === "blade" ? 1.25 : 1);
+      const baseAttack =
+        playerAttack(profile.items, profile.enhance) * (profile.role === "blade" ? 1.25 : 1);
       if (skillId === "sweep" || skillId === "whirlwind") {
-        targets = await mobsInSpace(ownerKey, space, pos.x, pos.y, skill.radius + 2 + MOB_REPORT_LEASH);
+        targets = await mobsInSpace(
+          ownerKey,
+          space,
+          pos.x,
+          pos.y,
+          skill.radius + 2 + MOB_REPORT_LEASH,
+        );
         targets = targets.filter((m) => {
           const c = effCenter(m);
           return Math.hypot(c.x - pos.x, c.y - pos.y) <= skill.radius + m.size * 0.5;
         });
-      } else if (skillId === "ice_lance" || skillId === "thunder_strike" || skillId === "fireball") {
+      } else if (
+        skillId === "ice_lance" ||
+        skillId === "thunder_strike" ||
+        skillId === "fireball"
+      ) {
         const range = skillId === "ice_lance" ? 4.5 : 5.5;
         if (Math.hypot(tx - pos.x, ty - pos.y) > range + 1.5) return err("too_far", 409);
         const near = await mobsInSpace(ownerKey, space, tx, ty, 3 + MOB_REPORT_LEASH);
@@ -454,7 +563,13 @@ export async function POST(request: Request) {
         cy = pc.y;
         targets = [primary];
         if (skillId === "fireball") {
-          const splash = await mobsInSpace(ownerKey, space, cx, cy, skill.radius + 1.5 + MOB_REPORT_LEASH);
+          const splash = await mobsInSpace(
+            ownerKey,
+            space,
+            cx,
+            cy,
+            skill.radius + 1.5 + MOB_REPORT_LEASH,
+          );
           for (const m of splash) {
             if (m === primary) continue;
             const c = effCenter(m);
@@ -483,7 +598,10 @@ export async function POST(request: Request) {
         if (instD?.kind === "dungeon") {
           const floorD = buildDungeonFloor(MAP_SEED, instD.entranceX, instD.entranceY, instD.layer);
           dungeonKeyHolder = floorD.keyHolder;
-          targets = targets.filter((m) => !(m.mobId === floorD.boss.mobId && m.x === floorD.boss.x && m.y === floorD.boss.y));
+          targets = targets.filter(
+            (m) =>
+              !(m.mobId === floorD.boss.mobId && m.x === floorD.boss.x && m.y === floorD.boss.y),
+          );
           if (targets.length === 0) return err("no_target", 409);
         }
       }
@@ -498,22 +616,37 @@ export async function POST(request: Request) {
         const state = await loadMobState(key);
         // 凍結中は追加ダメージを受けない（氷の上書き防止ではなく、状態の保護）
         const effDef = await effectiveDef(ownerKey, space, def);
-        const result = applyMobAttack(effDef, state, baseAttack * skill.power, now, Math.random, key);
+        const result = applyMobAttack(
+          effDef,
+          state,
+          baseAttack * skill.power,
+          now,
+          Math.random,
+          key,
+        );
         if ("error" in result) continue;
         let st: MobState = result.state;
         if (skillId === "ice_lance" && !result.dead) st = { ...st, frozenUntil: now + 3000 };
         if (!(await storeMobState(key, st))) return err("store_failed", 503);
         if (result.dead && parseInstanceSpace(space)?.kind === "ruins") {
           const personal = await loadRuinsPersonal(space, ownerKey, weekKeyOf(now));
-          personal.summons = personal.summons.filter((m) => !(m.mobId === placed.mobId && m.x === placed.x && m.y === placed.y));
+          personal.summons = personal.summons.filter(
+            (m) => !(m.mobId === placed.mobId && m.x === placed.x && m.y === placed.y),
+          );
           await storeRuinsPersonal(space, ownerKey, personal);
         }
         results.push({ key, hp: result.hp, dead: result.dead });
         if (result.dead) {
           anyDead = true;
-          for (const [id, n] of Object.entries(result.gained)) gainedAll[id] = (gainedAll[id] ?? 0) + n;
+          for (const [id, n] of Object.entries(result.gained))
+            gainedAll[id] = (gainedAll[id] ?? 0) + n;
           // 番人を技で倒した場合も通常攻撃と同じくダンジョンの鍵を落とす
-          if (dungeonKeyHolder && dungeonKeyHolder.mobId === placed.mobId && dungeonKeyHolder.x === placed.x && dungeonKeyHolder.y === placed.y) {
+          if (
+            dungeonKeyHolder &&
+            dungeonKeyHolder.mobId === placed.mobId &&
+            dungeonKeyHolder.x === placed.x &&
+            dungeonKeyHolder.y === placed.y
+          ) {
             gainedAll.dungeon_key = (gainedAll.dungeon_key ?? 0) + 1;
           }
         }
@@ -526,7 +659,16 @@ export async function POST(request: Request) {
       }
       if (!(await storeProfile(ownerKey, next))) return err("store_failed", 503);
       return NextResponse.json(
-        { ok: true, skill: skillId, fx: skill.fx, cx, cy, results, gained: gainedAll, profile: next },
+        {
+          ok: true,
+          skill: skillId,
+          fx: skill.fx,
+          cx,
+          cy,
+          results,
+          gained: gainedAll,
+          profile: next,
+        },
         { headers: NO_STORE },
       );
     });
@@ -539,7 +681,8 @@ export async function POST(request: Request) {
           const ally = await loadProfile(allyKey);
           if (!ally || ally.hp <= 0) return false;
           return storeProfile(allyKey, {
-            ...ally, hp: Math.min(maxHpFor(ally), ally.hp + zone.power),
+            ...ally,
+            hp: Math.min(maxHpFor(ally), ally.hp + zone.power),
           });
         }).catch(() => false);
         if (healed) healedCount++;

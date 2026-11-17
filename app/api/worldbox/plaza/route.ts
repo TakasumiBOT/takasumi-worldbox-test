@@ -3,7 +3,10 @@ import { getRequestSession, publicOrigin, sessionOwnerKey } from "@/lib/auth";
 import { kvGet, kvSet } from "@/lib/bot-api";
 import { buildEconomyOp } from "@/lib/worldbox/economy/economy-bridge";
 import {
-  enqueueEconomyOp, isEconomyEnabled, loadMyEconomyOps, readUserBalance,
+  enqueueEconomyOp,
+  isEconomyEnabled,
+  loadMyEconomyOps,
+  readUserBalance,
 } from "@/lib/worldbox/economy/economy-bridge-online";
 import { addItem } from "@/lib/worldbox/player/profile";
 import { loadProfile, storeProfile } from "@/lib/worldbox/player/profile-online";
@@ -79,7 +82,13 @@ async function handlePost(request: Request, session: AuthedSession) {
       return errorResponse("insufficient_balance", 409);
     }
     const op = buildEconomyOp(
-      { kind: "spend", userKey: ownerKey, discordId, amount: FOUNTAIN_COST, reason: "fountain_offering" },
+      {
+        kind: "spend",
+        userKey: ownerKey,
+        discordId,
+        amount: FOUNTAIN_COST,
+        reason: "fountain_offering",
+      },
       crypto.randomUUID(),
       Date.now(),
     );
@@ -88,7 +97,10 @@ async function handlePost(request: Request, session: AuthedSession) {
     const buf = new Uint32Array(2);
     crypto.getRandomValues(buf);
     if (buf[0] / 4294967296 < FOUNTAIN_ITEM_CHANCE) {
-      item = FOUNTAIN_ITEMS[Math.floor((buf[1] / 4294967296) * FOUNTAIN_ITEMS.length) % FOUNTAIN_ITEMS.length];
+      item =
+        FOUNTAIN_ITEMS[
+          Math.floor((buf[1] / 4294967296) * FOUNTAIN_ITEMS.length) % FOUNTAIN_ITEMS.length
+        ];
       const profile = await loadProfile(ownerKey);
       await storeProfile(ownerKey, addItem(profile, item, 1));
     }
@@ -110,7 +122,8 @@ async function handlePost(request: Request, session: AuthedSession) {
     await kvSet(REST_NAMESPACE, key, String(now));
     // 休憩は HP 全回復＋毒消去も兼ね、戻り先（ワールド座標）を最後の休憩地点として記録する
     const saved = parseSave(await loadWorldBoxSave(ownerKey));
-    const restPoint = saved?.worldReturn ?? (saved && saved.space === "world" ? { x: saved.x, y: saved.y } : null);
+    const restPoint =
+      saved?.worldReturn ?? (saved && saved.space === "world" ? { x: saved.x, y: saved.y } : null);
     const profile = await loadProfile(ownerKey);
     const rested = applyRest(profile, restPoint, now);
     await storeProfile(ownerKey, rested);

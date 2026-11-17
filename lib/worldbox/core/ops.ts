@@ -90,7 +90,8 @@ export function parseReports(raw: unknown): ReportEntry[] {
   for (const v of data) {
     if (!v || typeof v !== "object" || Array.isArray(v)) continue;
     const e = v as Record<string, unknown>;
-    if (typeof e.id !== "string" || typeof e.reporter !== "string" || typeof e.text !== "string") continue;
+    if (typeof e.id !== "string" || typeof e.reporter !== "string" || typeof e.text !== "string")
+      continue;
     if (typeof e.at !== "number" || !Number.isFinite(e.at)) continue;
     out.push({
       id: e.id,

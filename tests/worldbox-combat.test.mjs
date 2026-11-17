@@ -48,15 +48,44 @@ function bundleModule(files, names) {
 }
 
 const combatUrl = bundleModule(
-  ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/world/maplogic.ts", "worldbox/economy/items.ts", "worldbox/combat/mobs.ts", "worldbox/combat/combat.ts", "worldbox/combat/arena.ts"],
   [
-    "mobById", "MOBS",
-    "mobKeyOf", "parseMobKey", "parseMobState", "parseMobStates", "mobHpNow",
-    "visibleMobs", "mobExistsAt", "mobDistance", "applyMobAttack", "MOB_RESPAWN_MS",
-    "attackTarget", "playerAttack", "resolveMobPosition", "MOB_REPORT_LEASH",
-    "MOB_SPRITE", "MOB_SPRITE_FALLBACK", "validateMobSprites", "mobHasVisual",
-    "mobRespawnDelayMs", "MOB_RESPAWN_JITTER_MS",
-    "MOB_CHUNK_CAP", "MOB_MIN_ANCHOR_DISTANCE", "MOB_SPAWN_EXCLUSION_RADIUS", "isNearWorldSpawn", "WORLD_SPAWN_TILE", "mobsForChunk",
+    "worldbox/core/rng.ts",
+    "worldbox/world/mapgen.ts",
+    "worldbox/world/maplogic.ts",
+    "worldbox/economy/items.ts",
+    "worldbox/combat/mobs.ts",
+    "worldbox/combat/combat.ts",
+    "worldbox/combat/arena.ts",
+  ],
+  [
+    "mobById",
+    "MOBS",
+    "mobKeyOf",
+    "parseMobKey",
+    "parseMobState",
+    "parseMobStates",
+    "mobHpNow",
+    "visibleMobs",
+    "mobExistsAt",
+    "mobDistance",
+    "applyMobAttack",
+    "MOB_RESPAWN_MS",
+    "attackTarget",
+    "playerAttack",
+    "resolveMobPosition",
+    "MOB_REPORT_LEASH",
+    "MOB_SPRITE",
+    "MOB_SPRITE_FALLBACK",
+    "validateMobSprites",
+    "mobHasVisual",
+    "mobRespawnDelayMs",
+    "MOB_RESPAWN_JITTER_MS",
+    "MOB_CHUNK_CAP",
+    "MOB_MIN_ANCHOR_DISTANCE",
+    "MOB_SPAWN_EXCLUSION_RADIUS",
+    "isNearWorldSpawn",
+    "WORLD_SPAWN_TILE",
+    "mobsForChunk",
   ],
 );
 const bundled = await import(combatUrl);
@@ -87,14 +116,20 @@ test("状態パース: 不正値は捨てる、deadUntil は保持する", () =>
   assert.deepEqual(combat.parseMobState({ hp: 0, deadUntil: 123 }), { hp: 0, deadUntil: 123 });
   assert.equal(combat.parseMobState('{"hp":"7"}'), null);
   assert.equal(combat.parseMobState("not json"), null);
-  const states = combat.parseMobStates({ "slime@1,2": { hp: 3 }, "bad": { hp: 1 }, "wolf@5,5": "xx" });
+  const states = combat.parseMobStates({
+    "slime@1,2": { hp: 3 },
+    bad: { hp: 1 },
+    "wolf@5,5": "xx",
+  });
   assert.deepEqual(Object.keys(states), ["slime@1,2"]);
   // 本番形: kvList は Map を返す。Map でも同じく読めなければモブ状態が
   // 常時空になり、倒したモブが復活して見える（幽霊モブ）。
-  const fromMap = combat.parseMobStates(new Map([
-    ["slime@1,2", JSON.stringify({ hp: 3 })],
-    ["cave:0,0:0|wolf@5,5", { hp: 0, deadUntil: 999 }],
-  ]));
+  const fromMap = combat.parseMobStates(
+    new Map([
+      ["slime@1,2", JSON.stringify({ hp: 3 })],
+      ["cave:0,0:0|wolf@5,5", { hp: 0, deadUntil: 999 }],
+    ]),
+  );
   assert.deepEqual(fromMap, {
     "slime@1,2": { hp: 3 },
     "cave:0,0:0|wolf@5,5": { hp: 0, deadUntil: 999 },
@@ -105,8 +140,14 @@ test("HP の現在値: 未保存は満タン、deadUntil 経過で復活", () =>
   const slime = mobs.mobById("slime");
   assert.deepEqual(combat.mobHpNow(slime, null, 1000), { hp: slime.hp, alive: true });
   assert.deepEqual(combat.mobHpNow(slime, { hp: 4 }, 1000), { hp: 4, alive: true });
-  assert.deepEqual(combat.mobHpNow(slime, { hp: 0, deadUntil: 2000 }, 1000), { hp: 0, alive: false });
-  assert.deepEqual(combat.mobHpNow(slime, { hp: 0, deadUntil: 2000 }, 2000), { hp: slime.hp, alive: true });
+  assert.deepEqual(combat.mobHpNow(slime, { hp: 0, deadUntil: 2000 }, 1000), {
+    hp: 0,
+    alive: false,
+  });
+  assert.deepEqual(combat.mobHpNow(slime, { hp: 0, deadUntil: 2000 }, 2000), {
+    hp: slime.hp,
+    alive: true,
+  });
 });
 
 test("攻撃: ダメージで HP が減り、0 で倒れてドロップと再出現時刻が付く", () => {
@@ -137,7 +178,10 @@ test("ダメージ式は闘技場と一致する（素手8 + 最良の剣 tier×
   // 素手8ではスライム(10)を2発、ミスリル剣(24)では1発で倒せる
   const slime = mobs.mobById("slime");
   assert.equal(combat.applyMobAttack(slime, null, arena.playerAttack({}), 0, always).dead, false);
-  assert.equal(combat.applyMobAttack(slime, null, arena.playerAttack({ mithril_sword: 1 }), 0, always).dead, true);
+  assert.equal(
+    combat.applyMobAttack(slime, null, arena.playerAttack({ mithril_sword: 1 }), 0, always).dead,
+    true,
+  );
 });
 
 test("visibleMobs: 決定的で、範囲内だけを返し、夜限定モブは昼に出ない", () => {
@@ -221,8 +265,14 @@ test("API ルート: 実在検証・距離検証・闘技場式ダメージ・�
   assert.ok(route.includes("storeMobState"), "個体状態を保存していない");
   assert.ok(route.includes("addItem"), "ドロップをプロフィールへ入れていない");
   // S4: 攻撃は個体単位ロックで直列化し、復活時刻はサーバーの正を返す
-  assert.ok(route.includes("withUserLock(`mob:${key}`"), "攻撃が個体単位で直列化されていない（S4）");
-  assert.ok(route.includes("deadUntil: result.state.deadUntil"), "攻撃応答にサーバーの deadUntil が無い（S4）");
+  assert.ok(
+    route.includes("withUserLock(`mob:${key}`"),
+    "攻撃が個体単位で直列化されていない（S4）",
+  );
+  assert.ok(
+    route.includes("deadUntil: result.state.deadUntil"),
+    "攻撃応答にサーバーの deadUntil が無い（S4）",
+  );
   // 距離検証はアンカーでなく申告された現在タイル（見た目位置）で測る
   assert.ok(route.includes("resolveMobPosition"), "モブ現在位置の解決を使っていない");
   assert.ok(route.includes("fields.mx"), "モブ現在タイルの申告を受けていない");
@@ -236,7 +286,10 @@ test("API ルート: 実在検証・距離検証・闘技場式ダメージ・�
 });
 
 test("クライアント: モブ描画・タップ攻撃・モーションが配線されている", () => {
-  const client = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"), "utf8");
+  const client = fs.readFileSync(
+    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    "utf8",
+  );
   assert.ok(client.includes("visibleMobs"), "決定的配置を描画に使っていない");
   assert.ok(client.includes("drawMob"), "モブ描画が無い");
   assert.ok(client.includes("handleMobTap"), "タップ攻撃が無い");
@@ -304,8 +357,14 @@ test("再出現: 基本15分＋個体キー決定的な追加遅延0〜10分で�
   const withKey = combat.applyMobAttack(slime, null, 99, 5000, always, k1);
   assert.equal(withKey.state.deadUntil, 5000 + combat.MOB_RESPAWN_MS + d1);
   // mobHpNow は deadUntil だけで判定するので、遅延込みの復活時刻と一貫する
-  assert.deepEqual(combat.mobHpNow(slime, withKey.state, withKey.state.deadUntil - 1), { hp: 0, alive: false });
-  assert.deepEqual(combat.mobHpNow(slime, withKey.state, withKey.state.deadUntil), { hp: slime.hp, alive: true });
+  assert.deepEqual(combat.mobHpNow(slime, withKey.state, withKey.state.deadUntil - 1), {
+    hp: 0,
+    alive: false,
+  });
+  assert.deepEqual(combat.mobHpNow(slime, withKey.state, withKey.state.deadUntil), {
+    hp: slime.hp,
+    alive: true,
+  });
 });
 
 test("沸き抑制: チャンク上限4・最短距離5・スポーン半径6にモブなし", () => {
@@ -322,7 +381,10 @@ test("沸き抑制: チャンク上限4・最短距離5・スポーン半径6に
     for (let cx = 0; cx < 32; cx++) {
       for (const night of [false, true]) {
         const list = combat.mobsForChunk(SEED, cx, cy, night);
-        assert.ok(list.length <= combat.MOB_CHUNK_CAP, `chunk ${cx},${cy} night=${night}: ${list.length}体`);
+        assert.ok(
+          list.length <= combat.MOB_CHUNK_CAP,
+          `chunk ${cx},${cy} night=${night}: ${list.length}体`,
+        );
         for (const m of list) {
           total++;
           assert.ok(!combat.isNearWorldSpawn(m.x, m.y), `スポーン直上に ${m.mobId}@${m.x},${m.y}`);
@@ -330,7 +392,10 @@ test("沸き抑制: チャンク上限4・最短距離5・スポーン半径6に
         for (let i = 0; i < list.length; i++) {
           for (let j = i + 1; j < list.length; j++) {
             const d = Math.max(Math.abs(list[i].x - list[j].x), Math.abs(list[i].y - list[j].y));
-            assert.ok(d >= combat.MOB_MIN_ANCHOR_DISTANCE, `近すぎる: ${list[i].mobId}@${list[i].x},${list[i].y} と ${list[j].mobId}@${list[j].x},${list[j].y} (距離${d})`);
+            assert.ok(
+              d >= combat.MOB_MIN_ANCHOR_DISTANCE,
+              `近すぎる: ${list[i].mobId}@${list[i].x},${list[i].y} と ${list[j].mobId}@${list[j].x},${list[j].y} (距離${d})`,
+            );
           }
         }
       }

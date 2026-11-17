@@ -7,8 +7,18 @@ import { presenceIdFor } from "@/lib/worldbox/player/presence";
 import { parseSave } from "@/lib/worldbox/core/save";
 import { loadWorldBoxSave } from "@/lib/worldbox/core/save-online";
 import {
-  applyDisplayAction, applyDrawWater, applyFlowerAction, applyMineBlock, applyPlaceBlock, applySetSign, applyTileAction, applyToggleGate, isOverrideActive, tileKey,
-  type TileActionResult, type TileOverridesMap,
+  applyDisplayAction,
+  applyDrawWater,
+  applyFlowerAction,
+  applyMineBlock,
+  applyPlaceBlock,
+  applySetSign,
+  applyTileAction,
+  applyToggleGate,
+  isOverrideActive,
+  tileKey,
+  type TileActionResult,
+  type TileOverridesMap,
 } from "@/lib/worldbox/world/tiles";
 import { loadNationsState } from "@/lib/worldbox/social/nations-online";
 import { loadWarState } from "@/lib/worldbox/combat/war-online";
@@ -23,7 +33,10 @@ import { appendTileJournal, loadFrozen } from "@/lib/worldbox/core/ops-online";
 import { loadContainer, storeContainer } from "@/lib/worldbox/economy/containers-online";
 import { withUserLock } from "@/lib/worldbox/core/user-lock";
 import {
-  isTilesEnabled, loadTileOverride, loadTileOverrides, storeTileOverride,
+  isTilesEnabled,
+  loadTileOverride,
+  loadTileOverrides,
+  storeTileOverride,
 } from "@/lib/worldbox/world/tiles-online";
 
 export const runtime = "nodejs";
@@ -48,7 +61,13 @@ const MAX_RECT_SPAN = 128;
 /** 行為できるタイルと本人位置のチェビシェフ距離の上限（保存の遅れを許容）。 */
 const MAX_ACTION_DISTANCE = 2;
 
-const BAD_REQUEST_ERRORS = new Set(["invalid_action", "invalid_request", "invalid_tile", "unknown_seed", "unknown_block"]);
+const BAD_REQUEST_ERRORS = new Set([
+  "invalid_action",
+  "invalid_request",
+  "invalid_tile",
+  "unknown_seed",
+  "unknown_block",
+]);
 
 function errorStatus(error: string): number {
   if (error === "not_owner") return 403;
@@ -88,8 +107,14 @@ export async function GET(request: Request) {
   // 1リクエストの上限面積（各辺 MAX_RECT_SPAN）だけは維持する。
   const x0 = intParam(url.searchParams.get("x0"), 0);
   const y0 = intParam(url.searchParams.get("y0"), 0);
-  const x1 = Math.min(Math.max(intParam(url.searchParams.get("x1"), x0), x0), x0 + MAX_RECT_SPAN - 1);
-  const y1 = Math.min(Math.max(intParam(url.searchParams.get("y1"), y0), y0), y0 + MAX_RECT_SPAN - 1);
+  const x1 = Math.min(
+    Math.max(intParam(url.searchParams.get("x1"), x0), x0),
+    x0 + MAX_RECT_SPAN - 1,
+  );
+  const y1 = Math.min(
+    Math.max(intParam(url.searchParams.get("y1"), y0), y0),
+    y0 + MAX_RECT_SPAN - 1,
+  );
   const all = await loadTileOverrides();
   const now = Date.now();
   const overrides: TileOverridesMap = {};
@@ -130,7 +155,14 @@ export async function POST(request: Request) {
   } catch {
     return NextResponse.json({ error: "invalid_request" }, { status: 400, headers: NO_STORE });
   }
-  const fields = (body ?? {}) as { action?: unknown; x?: unknown; y?: unknown; seedId?: unknown; itemId?: unknown; text?: unknown };
+  const fields = (body ?? {}) as {
+    action?: unknown;
+    x?: unknown;
+    y?: unknown;
+    seedId?: unknown;
+    itemId?: unknown;
+    text?: unknown;
+  };
   const ownerKey = sessionOwnerKey(session);
   // 運用凍結中はタイルの書き換えを止める（荒らし対策）
   if (await loadFrozen()) {
@@ -165,156 +197,201 @@ export async function POST(request: Request) {
   // プロフィール RMW）の二重で直列化する。
   return withUserLock(`tile:${tx},${ty}`, () =>
     withUserLock(ownerKey, async () => {
-        const current = hasCoord ? await loadTileOverride(tx, ty) : null;
-        const profile = await loadProfile(ownerKey);
-        const map = worldTileSource();
-        let result: TileActionResult;
-        /** 掘り出す対象が収納コンテナなら、そのアイテム ID（回収後に状態を消す）。 */
-        let minedContainerItem: string | null = null;
-        /** 掘り出す対象が装置なら true（回収後に状態を消す）。 */
-        let minedMachine = false;
-        if (fields.action === "place_block") {
-          // ユニオンマーク（首都）の保護はルート側の真値で判定する
-          const nationsState = await loadNationsState();
-          const capitals = Object.values(nationsState.nations).map((n) => n.capital);
-          result = applyPlaceBlock(
-            current, profile, map, ownerKey, fields.x, fields.y, fields.itemId, Date.now(),
-            {
-              onCapital: hasCoord && capitals.some((c) => c.x === tx && c.y === ty),
-            },
-          );
-        } else if (fields.action === "mine_block") {
-          // 収納コンテナ（樽・宝箱）は中身が入っている間は回収できない
-          const blockItemId =
-            current && isOverrideActive(current, Date.now()) ? current.block?.itemId : undefined;
-          if (blockItemId && isContainerItem(blockItemId)) {
-            const state = await loadContainer("world", tx, ty, blockItemId);
-            if (state && !containerIsEmpty(state)) {
-              return NextResponse.json({ error: "not_empty" }, { status: 409, headers: NO_STORE });
-            }
-            minedContainerItem = blockItemId;
-          }
-          // 装置（自動収穫機）はバッファに作物が残っている間は回収できない
-          if (blockItemId && isMachineItem(blockItemId)) {
-            const machineState = await loadMachine(tx, ty);
-            if (machineState && machineBufferCount(machineState) > 0) {
-              return NextResponse.json({ error: "not_empty" }, { status: 409, headers: NO_STORE });
-            }
-            minedMachine = true;
-          }
-          // 屋台は出品が残っている間は回収できない（預かり品の消失防止）
-          if (blockItemId && isStallItem(blockItemId)) {
-            const stallState = await loadStall(tx, ty);
-            if (stallState && stallState.count > 0) {
-              return NextResponse.json({ error: "not_empty" }, { status: 409, headers: NO_STORE });
-            }
-          }
-          // 戦争中の他者ブロック破壊: 攻撃側の国民が、防衛側の首都の
-          // WAR_TERRITORY_RADIUS 以内にある防衛側国民のブロックだけ掘れる。
-          // ブロック所有者の国は、所属マップの所有者キーから不透明 ID を
-          // 逆引きして求める（プレゼンスに居ない所有者にも届く）。
-          let warBreakAllowed = false;
-          const activeBlock =
-            current && isOverrideActive(current, Date.now()) ? current.block : undefined;
-          if (activeBlock && activeBlock.ownerId !== presenceIdFor(ownerKey)) {
-            const [warState, nationsState] = await Promise.all([loadWarState(), loadNationsState()]);
-            const members = nationsState.members ?? {};
-            const mine = members[ownerKey];
-            let ownerNationId: string | null = null;
-            for (const [memberKey, m] of Object.entries(members)) {
-              if (presenceIdFor(memberKey) === activeBlock.ownerId) {
-                ownerNationId = m.nationId;
-                break;
-              }
-            }
-            const defender = ownerNationId ? (nationsState.nations ?? {})[ownerNationId] : undefined;
-            // 期限も見る: この経路は expireWars を走らせないため、期限切れで
-            // status が "active" のまま残った戦争でも掘れてしまう。
-            warBreakAllowed = Boolean(
-              mine && defender &&
-              canBreakOthersBlock(warState, mine.nationId, defender.guildId, tx, ty, defender.capital, Date.now()),
-            );
-          }
-          result = applyMineBlock(
-            current, profile, map, ownerKey, fields.x, fields.y, Date.now(),
-            {
-              warBreakAllowed,
-              // 収納コンテナは中身が全員共有の仕様に合わせ、回収も誰でも可
-              // （中身が空のときだけ、は上の not_empty 検証が担保する）
-              containerBreakAllowed: Boolean(blockItemId && isContainerItem(blockItemId)),
-            },
-          );
-        } else if (fields.action === "set_sign") {
-          // 看板テキストの設定（所有者だけ、サーバー検証）
-          result = applySetSign(
-            current, profile, map, ownerKey, fields.x, fields.y, fields.text, Date.now(),
-          );
-        } else if (fields.action === "set_display" || fields.action === "clear_display") {
-          // 棚への展示/回収（所有者だけ、サーバー検証）
-          result = applyDisplayAction(
-            current, profile, map, ownerKey, fields.x, fields.y, fields.action, fields.itemId, Date.now(),
-          );
-        } else if (fields.action === "draw_water") {
-          // 井戸で水を汲む（バケツ→水入りバケツ）
-          result = applyDrawWater(
-            current, profile, map, ownerKey, fields.x, fields.y, Date.now(),
-          );
-        } else if (fields.action === "plant_flower" || fields.action === "remove_flower") {
-          // 植木鉢・プランターへの花の植え付け/取り除き（所有者だけ、サーバー検証）
-          result = applyFlowerAction(
-            current, profile, map, ownerKey, fields.x, fields.y, fields.action, Date.now(),
-          );
-        } else if (fields.action === "toggle_gate") {
-          // 門の開閉（誰でもできる。出入り口のため所有者制限は付けない）
-          result = applyToggleGate(
-            current, profile, map, ownerKey, fields.x, fields.y, Date.now(),
-          );
-        } else {
-          result = applyTileAction(
-            current, profile, map, ownerKey,
-            fields.action, fields.x, fields.y, fields.seedId, Date.now(),
-          );
-        }
-        if (!result.ok) {
-          return NextResponse.json({ error: result.error }, { status: errorStatus(result.error), headers: NO_STORE });
-        }
-        if (!(await storeTileOverride(tx, ty, result.override))) {
-          return NextResponse.json({ error: "tiles_failed" }, { status: 500, headers: NO_STORE });
-        }
-        // 差分ジャーナル（巻き戻し用、ベストエフォート）
-        void appendTileJournal({
-          key: tileKey(tx, ty), prev: current, next: result.override, actor: ownerKey, at: Date.now(),
-        });
-        if (!(await storeProfile(ownerKey, result.profile))) {
-          return NextResponse.json({ error: "tiles_failed" }, { status: 500, headers: NO_STORE });
-        }
-        // 計測（ベストエフォート）: 設置数・収穫数・初回ステップ
-        if (fields.action === "place_block") {
-          void bumpMetric("blocksPlaced", 1, Date.now());
-          void recordFirstStep(ownerKey, "place", Date.now());
-        }
-        if (fields.action === "chop" || fields.action === "mine" || fields.action === "harvest") {
-          void bumpMetric("harvests", 1, Date.now());
-          void recordFirstStep(ownerKey, "gather", Date.now());
-        }
-        // コンテナ/装置の状態は、ブロックが壊れて回収されたときだけ消す
-        // （HP制のヒットではブロックが残るので状態も残す）
-        const blockBroken = fields.action === "mine_block" && !result.override?.block;
-        if (minedContainerItem && blockBroken) await storeContainer("world", tx, ty, null);
-        // 装置を回収したら状態も消す
-        if (minedMachine && blockBroken) await deleteMachine(tx, ty);
-        return NextResponse.json(
+      const current = hasCoord ? await loadTileOverride(tx, ty) : null;
+      const profile = await loadProfile(ownerKey);
+      const map = worldTileSource();
+      let result: TileActionResult;
+      /** 掘り出す対象が収納コンテナなら、そのアイテム ID（回収後に状態を消す）。 */
+      let minedContainerItem: string | null = null;
+      /** 掘り出す対象が装置なら true（回収後に状態を消す）。 */
+      let minedMachine = false;
+      if (fields.action === "place_block") {
+        // ユニオンマーク（首都）の保護はルート側の真値で判定する
+        const nationsState = await loadNationsState();
+        const capitals = Object.values(nationsState.nations).map((n) => n.capital);
+        result = applyPlaceBlock(
+          current,
+          profile,
+          map,
+          ownerKey,
+          fields.x,
+          fields.y,
+          fields.itemId,
+          Date.now(),
           {
-            ok: true,
-            tile: result.view,
-            override: result.override,
-            key: tileKey(tx, ty),
-            profile: result.profile,
-            gained: result.gained,
-            ...(result.broke ? { broke: result.broke } : {}),
+            onCapital: hasCoord && capitals.some((c) => c.x === tx && c.y === ty),
           },
-          { headers: NO_STORE },
         );
+      } else if (fields.action === "mine_block") {
+        // 収納コンテナ（樽・宝箱）は中身が入っている間は回収できない
+        const blockItemId =
+          current && isOverrideActive(current, Date.now()) ? current.block?.itemId : undefined;
+        if (blockItemId && isContainerItem(blockItemId)) {
+          const state = await loadContainer("world", tx, ty, blockItemId);
+          if (state && !containerIsEmpty(state)) {
+            return NextResponse.json({ error: "not_empty" }, { status: 409, headers: NO_STORE });
+          }
+          minedContainerItem = blockItemId;
+        }
+        // 装置（自動収穫機）はバッファに作物が残っている間は回収できない
+        if (blockItemId && isMachineItem(blockItemId)) {
+          const machineState = await loadMachine(tx, ty);
+          if (machineState && machineBufferCount(machineState) > 0) {
+            return NextResponse.json({ error: "not_empty" }, { status: 409, headers: NO_STORE });
+          }
+          minedMachine = true;
+        }
+        // 屋台は出品が残っている間は回収できない（預かり品の消失防止）
+        if (blockItemId && isStallItem(blockItemId)) {
+          const stallState = await loadStall(tx, ty);
+          if (stallState && stallState.count > 0) {
+            return NextResponse.json({ error: "not_empty" }, { status: 409, headers: NO_STORE });
+          }
+        }
+        // 戦争中の他者ブロック破壊: 攻撃側の国民が、防衛側の首都の
+        // WAR_TERRITORY_RADIUS 以内にある防衛側国民のブロックだけ掘れる。
+        // ブロック所有者の国は、所属マップの所有者キーから不透明 ID を
+        // 逆引きして求める（プレゼンスに居ない所有者にも届く）。
+        let warBreakAllowed = false;
+        const activeBlock =
+          current && isOverrideActive(current, Date.now()) ? current.block : undefined;
+        if (activeBlock && activeBlock.ownerId !== presenceIdFor(ownerKey)) {
+          const [warState, nationsState] = await Promise.all([loadWarState(), loadNationsState()]);
+          const members = nationsState.members ?? {};
+          const mine = members[ownerKey];
+          let ownerNationId: string | null = null;
+          for (const [memberKey, m] of Object.entries(members)) {
+            if (presenceIdFor(memberKey) === activeBlock.ownerId) {
+              ownerNationId = m.nationId;
+              break;
+            }
+          }
+          const defender = ownerNationId ? (nationsState.nations ?? {})[ownerNationId] : undefined;
+          // 期限も見る: この経路は expireWars を走らせないため、期限切れで
+          // status が "active" のまま残った戦争でも掘れてしまう。
+          warBreakAllowed = Boolean(
+            mine &&
+            defender &&
+            canBreakOthersBlock(
+              warState,
+              mine.nationId,
+              defender.guildId,
+              tx,
+              ty,
+              defender.capital,
+              Date.now(),
+            ),
+          );
+        }
+        result = applyMineBlock(current, profile, map, ownerKey, fields.x, fields.y, Date.now(), {
+          warBreakAllowed,
+          // 収納コンテナは中身が全員共有の仕様に合わせ、回収も誰でも可
+          // （中身が空のときだけ、は上の not_empty 検証が担保する）
+          containerBreakAllowed: Boolean(blockItemId && isContainerItem(blockItemId)),
+        });
+      } else if (fields.action === "set_sign") {
+        // 看板テキストの設定（所有者だけ、サーバー検証）
+        result = applySetSign(
+          current,
+          profile,
+          map,
+          ownerKey,
+          fields.x,
+          fields.y,
+          fields.text,
+          Date.now(),
+        );
+      } else if (fields.action === "set_display" || fields.action === "clear_display") {
+        // 棚への展示/回収（所有者だけ、サーバー検証）
+        result = applyDisplayAction(
+          current,
+          profile,
+          map,
+          ownerKey,
+          fields.x,
+          fields.y,
+          fields.action,
+          fields.itemId,
+          Date.now(),
+        );
+      } else if (fields.action === "draw_water") {
+        // 井戸で水を汲む（バケツ→水入りバケツ）
+        result = applyDrawWater(current, profile, map, ownerKey, fields.x, fields.y, Date.now());
+      } else if (fields.action === "plant_flower" || fields.action === "remove_flower") {
+        // 植木鉢・プランターへの花の植え付け/取り除き（所有者だけ、サーバー検証）
+        result = applyFlowerAction(
+          current,
+          profile,
+          map,
+          ownerKey,
+          fields.x,
+          fields.y,
+          fields.action,
+          Date.now(),
+        );
+      } else if (fields.action === "toggle_gate") {
+        // 門の開閉（誰でもできる。出入り口のため所有者制限は付けない）
+        result = applyToggleGate(current, profile, map, ownerKey, fields.x, fields.y, Date.now());
+      } else {
+        result = applyTileAction(
+          current,
+          profile,
+          map,
+          ownerKey,
+          fields.action,
+          fields.x,
+          fields.y,
+          fields.seedId,
+          Date.now(),
+        );
+      }
+      if (!result.ok) {
+        return NextResponse.json(
+          { error: result.error },
+          { status: errorStatus(result.error), headers: NO_STORE },
+        );
+      }
+      if (!(await storeTileOverride(tx, ty, result.override))) {
+        return NextResponse.json({ error: "tiles_failed" }, { status: 500, headers: NO_STORE });
+      }
+      // 差分ジャーナル（巻き戻し用、ベストエフォート）
+      void appendTileJournal({
+        key: tileKey(tx, ty),
+        prev: current,
+        next: result.override,
+        actor: ownerKey,
+        at: Date.now(),
+      });
+      if (!(await storeProfile(ownerKey, result.profile))) {
+        return NextResponse.json({ error: "tiles_failed" }, { status: 500, headers: NO_STORE });
+      }
+      // 計測（ベストエフォート）: 設置数・収穫数・初回ステップ
+      if (fields.action === "place_block") {
+        void bumpMetric("blocksPlaced", 1, Date.now());
+        void recordFirstStep(ownerKey, "place", Date.now());
+      }
+      if (fields.action === "chop" || fields.action === "mine" || fields.action === "harvest") {
+        void bumpMetric("harvests", 1, Date.now());
+        void recordFirstStep(ownerKey, "gather", Date.now());
+      }
+      // コンテナ/装置の状態は、ブロックが壊れて回収されたときだけ消す
+      // （HP制のヒットではブロックが残るので状態も残す）
+      const blockBroken = fields.action === "mine_block" && !result.override?.block;
+      if (minedContainerItem && blockBroken) await storeContainer("world", tx, ty, null);
+      // 装置を回収したら状態も消す
+      if (minedMachine && blockBroken) await deleteMachine(tx, ty);
+      return NextResponse.json(
+        {
+          ok: true,
+          tile: result.view,
+          override: result.override,
+          key: tileKey(tx, ty),
+          profile: result.profile,
+          gained: result.gained,
+          ...(result.broke ? { broke: result.broke } : {}),
+        },
+        { headers: NO_STORE },
+      );
     }),
   );
 }

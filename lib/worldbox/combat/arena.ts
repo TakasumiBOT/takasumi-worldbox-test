@@ -37,7 +37,8 @@ export function playerAttack(
     if (count <= 0) continue;
     const m = /^(wooden|stone|iron|mithril)_sword$/.exec(itemId);
     if (!m) continue;
-    const tier = ({ wooden: 1, stone: 2, iron: 3, mithril: 4 }[m[1]] ?? 0) + (enhance?.[itemId] ?? 0);
+    const tier =
+      ({ wooden: 1, stone: 2, iron: 3, mithril: 4 }[m[1]] ?? 0) + (enhance?.[itemId] ?? 0);
     if (tier > bestTier) bestTier = tier;
   }
   return 8 + bestTier * 4;
@@ -75,7 +76,12 @@ function dmg(base: number, rng: () => number): number {
 }
 
 /** 1手進める。決着したら outcome が立つ（セッションは呼び出し側で破棄）。 */
-export function arenaStep(session: ArenaSession, action: ArenaActionKind, attack: number, rng: () => number): ArenaStepResult {
+export function arenaStep(
+  session: ArenaSession,
+  action: ArenaActionKind,
+  attack: number,
+  rng: () => number,
+): ArenaStepResult {
   const tier = arenaTier(session.tierId);
   const enemyAttack = tier?.enemyAttack ?? 6;
   const s: ArenaSession = { ...session, turn: session.turn + 1 };

@@ -25,5 +25,8 @@ test("ダブルタップで食べる: ホットバーにも判定があり、単
 test("ダブルタップで食べる: eat は profile API の action eat を呼び、応答でプロフィールを差し替える", () => {
   assert.match(client, /const eatFromInventory = async \(itemId: string\) =>/);
   assert.match(client, /body: JSON\.stringify\(\{ action: "eat", itemId \}\)/);
-  assert.match(client, /if \(res\.ok && data\.profile\) \{\n        setInvProfile\(data\.profile\);/);
+  assert.match(
+    client,
+    /if \(res\.ok && data\.profile\) \{\n        setInvProfile\(data\.profile\);/,
+  );
 });

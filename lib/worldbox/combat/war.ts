@@ -93,7 +93,11 @@ export function activeWarFor(state: WarState, nationId: string): War | null {
   return null;
 }
 
-export function activeWarBetween(state: WarState, attackerId: string, defenderId: string): War | null {
+export function activeWarBetween(
+  state: WarState,
+  attackerId: string,
+  defenderId: string,
+): War | null {
   for (const war of Object.values(state.wars)) {
     if (war.status !== "active") continue;
     if (war.attackerId === attackerId && war.defenderId === defenderId) return war;
@@ -234,9 +238,19 @@ export function attackMark(
     lastAttackAt: { ...war.lastAttackAt, [attackerPresenceId]: now },
   };
   if (markHp > 0) {
-    return { ok: true, state: { ...state, wars: { ...state.wars, [war.id]: attacked } }, war: attacked, destroyed: false };
+    return {
+      ok: true,
+      state: { ...state, wars: { ...state.wars, [war.id]: attacked } },
+      war: attacked,
+      destroyed: false,
+    };
   }
-  const closed = closeWar({ ...state, wars: { ...state.wars, [war.id]: attacked } }, attacked, "attacker_win", now);
+  const closed = closeWar(
+    { ...state, wars: { ...state.wars, [war.id]: attacked } },
+    attacked,
+    "attacker_win",
+    now,
+  );
   return { ok: true, state: closed, war: closed.wars[war.id], destroyed: true };
 }
 
@@ -263,7 +277,11 @@ export function repairMark(
     markHp: Math.min(war.markMax, war.markHp + WAR_MARK_REPAIR_AMOUNT),
     lastRepairAt: { ...war.lastRepairAt, [defenderPresenceId]: now },
   };
-  return { ok: true, state: { ...state, wars: { ...state.wars, [war.id]: repaired } }, war: repaired };
+  return {
+    ok: true,
+    state: { ...state, wars: { ...state.wars, [war.id]: repaired } },
+    war: repaired,
+  };
 }
 
 /**
@@ -287,7 +305,10 @@ export function canBreakOthersBlock(
   const war = activeWarBetween(state, attackerNationId, defenderNationId);
   if (!war) return false;
   if (now !== undefined && !warLiveAt(war, now)) return false;
-  return Math.max(Math.abs(x - defenderCapital.x), Math.abs(y - defenderCapital.y)) <= WAR_TERRITORY_RADIUS;
+  return (
+    Math.max(Math.abs(x - defenderCapital.x), Math.abs(y - defenderCapital.y)) <=
+    WAR_TERRITORY_RADIUS
+  );
 }
 
 // ---------- 繁栄ランキング ----------
@@ -306,7 +327,10 @@ export type RankingEntry = RankingNation & { rank: number };
 /** 繁栄度順のランキング（同値は建国が早い方を上位に）。順位は1始まり。 */
 export function prosperityRanking(nations: RankingNation[]): RankingEntry[] {
   return [...nations]
-    .sort((a, b) => b.prosperity - a.prosperity || a.createdAt - b.createdAt || a.id.localeCompare(b.id))
+    .sort(
+      (a, b) =>
+        b.prosperity - a.prosperity || a.createdAt - b.createdAt || a.id.localeCompare(b.id),
+    )
     .map((n, i) => ({ ...n, rank: i + 1 }));
 }
 
@@ -342,12 +366,14 @@ function parseWar(raw: unknown): War | null {
   const lastAttackAt: Record<string, number> = {};
   const la = asRecord(v.lastAttackAt);
   if (la) {
-    for (const [k, t] of Object.entries(la)) if (typeof t === "number" && Number.isFinite(t)) lastAttackAt[k] = t;
+    for (const [k, t] of Object.entries(la))
+      if (typeof t === "number" && Number.isFinite(t)) lastAttackAt[k] = t;
   }
   const lastRepairAt: Record<string, number> = {};
   const lr = asRecord(v.lastRepairAt);
   if (lr) {
-    for (const [k, t] of Object.entries(lr)) if (typeof t === "number" && Number.isFinite(t)) lastRepairAt[k] = t;
+    for (const [k, t] of Object.entries(lr))
+      if (typeof t === "number" && Number.isFinite(t)) lastRepairAt[k] = t;
   }
   return {
     id: v.id,

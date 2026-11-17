@@ -4,7 +4,11 @@
 // gamble オプ1件で精算する。精算オプは先払いオプが done になるまで作らない
 // （先払いが失敗したセッションは無効化され、配当もペナルティも発生しない）。
 import type { BjState } from "../../games/blackjack";
-import { cleanCasinoUserState, type CasinoUserState, type DoubleSessionState } from "./casino-games";
+import {
+  cleanCasinoUserState,
+  type CasinoUserState,
+  type DoubleSessionState,
+} from "./casino-games";
 
 export type CasinoSession =
   | {
@@ -58,7 +62,8 @@ export function cleanCasinoSession(raw: unknown): CasinoSession | null {
   if (raw.kind === "slot7") {
     const bet = posInt(raw.bet);
     const total = posInt(raw.total);
-    const remaining = typeof raw.remaining === "number" && raw.remaining >= 0 ? Math.floor(raw.remaining) : null;
+    const remaining =
+      typeof raw.remaining === "number" && raw.remaining >= 0 ? Math.floor(raw.remaining) : null;
     if (!bet || !total || remaining === null || typeof raw.prepayOpId !== "string") return null;
     return {
       kind: "slot7",
@@ -66,10 +71,20 @@ export function cleanCasinoSession(raw: unknown): CasinoSession | null {
       total,
       remaining,
       prepayOpId: raw.prepayOpId,
-      pendingReward: typeof raw.pendingReward === "number" && raw.pendingReward > 0 ? Math.floor(raw.pendingReward) : 0,
-      pendingPenalty: typeof raw.pendingPenalty === "number" && raw.pendingPenalty > 0 ? Math.floor(raw.pendingPenalty) : 0,
-      lastReels: Array.isArray(raw.lastReels) ? raw.lastReels.filter((n): n is number => typeof n === "number") : null,
-      lastEvents: Array.isArray(raw.lastEvents) ? raw.lastEvents.filter((s): s is string => typeof s === "string") : [],
+      pendingReward:
+        typeof raw.pendingReward === "number" && raw.pendingReward > 0
+          ? Math.floor(raw.pendingReward)
+          : 0,
+      pendingPenalty:
+        typeof raw.pendingPenalty === "number" && raw.pendingPenalty > 0
+          ? Math.floor(raw.pendingPenalty)
+          : 0,
+      lastReels: Array.isArray(raw.lastReels)
+        ? raw.lastReels.filter((n): n is number => typeof n === "number")
+        : null,
+      lastEvents: Array.isArray(raw.lastEvents)
+        ? raw.lastEvents.filter((s): s is string => typeof s === "string")
+        : [],
       createdAt,
     };
   }
@@ -82,7 +97,10 @@ export function cleanCasinoSession(raw: unknown): CasinoSession | null {
       streak: typeof raw.streak === "number" && raw.streak >= 0 ? Math.floor(raw.streak) : 0,
     };
     return {
-      kind: "double", ...session, prepayOpId: raw.prepayOpId, createdAt,
+      kind: "double",
+      ...session,
+      prepayOpId: raw.prepayOpId,
+      createdAt,
       ...(raw.busted === true ? { busted: true } : {}),
     };
   }

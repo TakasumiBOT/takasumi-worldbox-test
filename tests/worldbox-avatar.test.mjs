@@ -40,7 +40,10 @@ test("sanitizeHeartbeat: クライアント申告の avatar は通さない", ()
 
 test("sanitizeAvatarUrl: https の素直な URL だけ通す", () => {
   assert.equal(presence.sanitizeAvatarUrl(AV), AV);
-  assert.equal(presence.sanitizeAvatarUrl("https://lh3.googleusercontent.com/a/abc"), "https://lh3.googleusercontent.com/a/abc");
+  assert.equal(
+    presence.sanitizeAvatarUrl("https://lh3.googleusercontent.com/a/abc"),
+    "https://lh3.googleusercontent.com/a/abc",
+  );
   assert.equal(presence.sanitizeAvatarUrl("http://cdn.discordapp.com/avatars/1/a.png"), null);
   assert.equal(presence.sanitizeAvatarUrl("javascript:alert(1)"), null);
   assert.equal(presence.sanitizeAvatarUrl("https://example.com/a b.png"), null);
@@ -51,15 +54,44 @@ test("sanitizeAvatarUrl: https の素直な URL だけ通す", () => {
 });
 
 test("parsePresenceEntry: 保存済み avatar を復元し、不正値は落とす", () => {
-  const stored = JSON.stringify({ name: "n", x: 1, y: 2, vx: 0, vy: 0, face: 1, space: "world", avatar: AV, ts: NOW });
+  const stored = JSON.stringify({
+    name: "n",
+    x: 1,
+    y: 2,
+    vx: 0,
+    vy: 0,
+    face: 1,
+    space: "world",
+    avatar: AV,
+    ts: NOW,
+  });
   const e = presence.parsePresenceEntry("p1", stored);
   assert.ok(e);
   assert.equal(e.avatar, AV);
-  const bad = JSON.stringify({ name: "n", x: 1, y: 2, vx: 0, vy: 0, face: 1, space: "world", avatar: "http://evil.example/x.png", ts: NOW });
+  const bad = JSON.stringify({
+    name: "n",
+    x: 1,
+    y: 2,
+    vx: 0,
+    vy: 0,
+    face: 1,
+    space: "world",
+    avatar: "http://evil.example/x.png",
+    ts: NOW,
+  });
   const e2 = presence.parsePresenceEntry("p1", bad);
   assert.ok(e2);
   assert.equal("avatar" in e2, false);
-  const none = JSON.stringify({ name: "n", x: 1, y: 2, vx: 0, vy: 0, face: 1, space: "world", ts: NOW });
+  const none = JSON.stringify({
+    name: "n",
+    x: 1,
+    y: 2,
+    vx: 0,
+    vy: 0,
+    face: 1,
+    space: "world",
+    ts: NOW,
+  });
   const e3 = presence.parsePresenceEntry("p1", none);
   assert.ok(e3);
   assert.equal("avatar" in e3, false);
@@ -73,13 +105,25 @@ test("verifyToken: av クレームを検証して返す（旧トークン・不�
   assert.equal(ok.av, AV);
   const legacy = core.verifyToken(tokenWith({ pid: "p1", name: "n", ok: "k" }), SECRET, NOW);
   assert.equal(legacy.av, null);
-  const bad = core.verifyToken(tokenWith({ pid: "p1", name: "n", ok: "k", av: "http://evil.example/x" }), SECRET, NOW);
+  const bad = core.verifyToken(
+    tokenWith({ pid: "p1", name: "n", ok: "k", av: "http://evil.example/x" }),
+    SECRET,
+    NOW,
+  );
   assert.equal(bad.av, null);
 });
 
 test("acceptHeartbeat + snapshot + presenceKvValue: avatar がエントリと集約書き込みに載る", () => {
   const room = core.createRoom();
-  const entry = core.acceptHeartbeat(room, "p1", "n", { x: 5, y: 5, space: "world" }, NOW, null, AV);
+  const entry = core.acceptHeartbeat(
+    room,
+    "p1",
+    "n",
+    { x: 5, y: 5, space: "world" },
+    NOW,
+    null,
+    AV,
+  );
   assert.equal(entry.avatar, AV);
   const snap = core.snapshot(room, "world", "someone-else", NOW);
   assert.equal(snap.length, 1);
@@ -88,7 +132,15 @@ test("acceptHeartbeat + snapshot + presenceKvValue: avatar がエントリと集
   assert.equal(kv.avatar, AV);
   // avatar 無しでは載らない
   const room2 = core.createRoom();
-  const plain = core.acceptHeartbeat(room2, "p2", "m", { x: 5, y: 5, space: "world" }, NOW, null, null);
+  const plain = core.acceptHeartbeat(
+    room2,
+    "p2",
+    "m",
+    { x: 5, y: 5, space: "world" },
+    NOW,
+    null,
+    null,
+  );
   assert.equal("avatar" in plain, false);
   assert.equal("avatar" in JSON.parse(core.presenceKvValue(plain)), false);
 });
@@ -102,10 +154,16 @@ test("配線: ルート/トークン/ラッパー/クライアント", () => {
   const wrapper = fs.readFileSync(path.join(rootDir, "realtime-server.js"), "utf8");
   assert.match(wrapper, /avatar: auth\.av \?\? null/);
   assert.match(wrapper, /info\.baseline, info\.avatar\)/);
-  const client = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"), "utf8");
+  const client = fs.readFileSync(
+    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    "utf8",
+  );
   assert.match(client, /iconFor\(o\.track\.entry\.avatar\)/);
   assert.match(client, /iconFor\(myIconUrl\)/);
   assert.match(client, /fetch\("\/api\/auth\/me"\)/);
   // NPC の描画はアイコン無し（従来キャラのまま）
-  assert.match(client, /draw: \(\) => drawAvatar\(ctx, Math\.round\(lobbyOx \+ \(n\.x \+ 0\.5\) \* TILE\), Math\.round\(lobbyOy \+ \(n\.y \+ 1\) \* TILE\), 1, 0, 0, null\)/);
+  assert.match(
+    client,
+    /draw: \(\) => drawAvatar\(ctx, Math\.round\(lobbyOx \+ \(n\.x \+ 0\.5\) \* TILE\), Math\.round\(lobbyOy \+ \(n\.y \+ 1\) \* TILE\), 1, 0, 0, null\)/,
+  );
 });

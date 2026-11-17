@@ -12,9 +12,19 @@ import { buildEconomyOp } from "../economy/economy-bridge";
 import { enqueueEconomyOpOnce, findEconomyOp } from "../economy/economy-bridge-online";
 import { loadProfile } from "../player/profile-online";
 import {
-  advanceMatch, closeEntry, readyMatches, timeoutWinner, tournamentFeeOpId, tournamentPrizeOpId,
-  tournamentRefundOpId, TOURNAMENT_FEE, TOURNAMENT_MAX_ENTRANTS, TOURNAMENT_PRIZE_REASON,
-  TOURNAMENT_REFUND_REASON, parseTournament, type Tournament,
+  advanceMatch,
+  closeEntry,
+  readyMatches,
+  timeoutWinner,
+  tournamentFeeOpId,
+  tournamentPrizeOpId,
+  tournamentRefundOpId,
+  TOURNAMENT_FEE,
+  TOURNAMENT_MAX_ENTRANTS,
+  TOURNAMENT_PRIZE_REASON,
+  TOURNAMENT_REFUND_REASON,
+  parseTournament,
+  type Tournament,
 } from "./tournament";
 import { createTournamentDuel } from "./pvp";
 import { loadMyPvpDuel, loadPvpDuel, savePvpDuel } from "./pvp-online";
@@ -80,7 +90,9 @@ export async function startReadyMatchesInner(t: Tournament): Promise<Tournament>
     const duel = createTournamentDuel(
       { ownerKey: `discord:${m.a}`, discordId: m.a!, attack: await attackOf(m.a!), queuedAt: now },
       { ownerKey: `discord:${m.b}`, discordId: m.b!, attack: await attackOf(m.b!), queuedAt: now },
-      now, out.id, m.id,
+      now,
+      out.id,
+      m.id,
     );
     await savePvpDuel(duel);
     out = {
@@ -132,8 +144,11 @@ export async function payChampionPrizeInner(t: Tournament): Promise<Tournament> 
   const paidCount = t.entrants.filter((id) => statuses.get(id) === "done").length;
   const op = buildEconomyOp(
     {
-      kind: "earn", userKey: `discord:${t.champion}`, discordId: t.champion,
-      amount: paidCount * TOURNAMENT_FEE, reason: TOURNAMENT_PRIZE_REASON,
+      kind: "earn",
+      userKey: `discord:${t.champion}`,
+      discordId: t.champion,
+      amount: paidCount * TOURNAMENT_FEE,
+      reason: TOURNAMENT_PRIZE_REASON,
     },
     tournamentPrizeOpId(t.id),
     Date.now(),
@@ -165,8 +180,11 @@ export async function payRefundsInner(t: Tournament): Promise<Tournament> {
     }
     const op = buildEconomyOp(
       {
-        kind: "earn", userKey: `discord:${discordId}`, discordId,
-        amount: TOURNAMENT_FEE, reason: TOURNAMENT_REFUND_REASON,
+        kind: "earn",
+        userKey: `discord:${discordId}`,
+        discordId,
+        amount: TOURNAMENT_FEE,
+        reason: TOURNAMENT_REFUND_REASON,
       },
       tournamentRefundOpId(t.id, discordId),
       Date.now(),
@@ -221,7 +239,9 @@ export async function loadCurrentTournament(now: number): Promise<Tournament | n
  * 決闘が消える前に進めるため、呼び出しは clearPvpDuel より先に行うこと。
  */
 export async function advanceTournamentMatch(
-  tournamentId: string, matchId: string, winnerDiscordId: string,
+  tournamentId: string,
+  matchId: string,
+  winnerDiscordId: string,
 ): Promise<void> {
   await withUserLock("tournament", async () => {
     const t = await loadTournament();

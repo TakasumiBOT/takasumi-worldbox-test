@@ -44,12 +44,26 @@ function loadBundle(files, names) {
 }
 
 const rq = loadBundle(
-  ["worldbox/economy/items.ts", "worldbox/player/profile.ts", "worldbox/player/vitals.ts", "worldbox/economy/economy.ts", "worldbox/social/requests.ts"],
   [
-    "itemById", "parseProfile", "countItem",
-    "emptyRequestsState", "postRequest", "fulfillRequest", "cancelRequest",
-    "requestsForGuild", "parseRequestsState", "serializeRequestsState",
-    "MAX_OPEN_PER_GUILD", "MAX_OPEN_PER_POSTER",
+    "worldbox/economy/items.ts",
+    "worldbox/player/profile.ts",
+    "worldbox/player/vitals.ts",
+    "worldbox/economy/economy.ts",
+    "worldbox/social/requests.ts",
+  ],
+  [
+    "itemById",
+    "parseProfile",
+    "countItem",
+    "emptyRequestsState",
+    "postRequest",
+    "fulfillRequest",
+    "cancelRequest",
+    "requestsForGuild",
+    "parseRequestsState",
+    "serializeRequestsState",
+    "MAX_OPEN_PER_GUILD",
+    "MAX_OPEN_PER_POSTER",
   ],
 );
 
@@ -58,17 +72,21 @@ const MEMBER = "discord:222";
 const GUILD = "guild-1";
 
 function post(state, over = {}, balance = 1000) {
-  return rq.postRequest(state, {
-    id: "req-00000001",
-    guildId: GUILD,
-    posterKey: POSTER,
-    posterName: "投稿者",
-    itemId: "wood",
-    count: 3,
-    reward: 150,
-    now: 1000,
-    ...over,
-  }, balance);
+  return rq.postRequest(
+    state,
+    {
+      id: "req-00000001",
+      guildId: GUILD,
+      posterKey: POSTER,
+      posterName: "投稿者",
+      itemId: "wood",
+      count: 3,
+      reward: 150,
+      now: 1000,
+      ...over,
+    },
+    balance,
+  );
 }
 
 test("投稿: 依頼が載り、報酬は spend（guild_request_escrow）で預かる", () => {
@@ -109,10 +127,7 @@ test("投稿の上限: 1人5件・ユニオン20件", () => {
     assert.equal(r.ok, true);
     s2 = r.state;
   }
-  assert.equal(
-    post(s2, { id: "req-x999999", posterKey: "discord:9999" }).error,
-    "too_many_guild",
-  );
+  assert.equal(post(s2, { id: "req-x999999", posterKey: "discord:9999" }).error, "too_many_guild");
 });
 
 test("納品: アイテムが投稿者へ動き、報酬は earn（guild_request_reward）、依頼は消える", () => {
@@ -167,16 +182,38 @@ test("保存形式: 直列化→復元で往復し、壊れた要素と旧版は
   const posted = post(rq.emptyRequestsState());
   const restored = rq.parseRequestsState(rq.serializeRequestsState(posted.state));
   assert.equal(rq.requestsForGuild(restored, GUILD).length, 1);
-  const broken = rq.parseRequestsState(JSON.stringify({
-    v: 1,
-    requests: {
-      a: { id: "req-00000001", guildId: GUILD, posterKey: POSTER, posterName: "x", itemId: "wood", count: 1, reward: 10, createdAt: 1 },
-      b: { id: "bad", guildId: GUILD },
-      c: { id: "req-00000002", guildId: GUILD, posterKey: POSTER, posterName: "x", itemId: "ghost_item", count: 1, reward: 10, createdAt: 1 },
-    },
-  }));
+  const broken = rq.parseRequestsState(
+    JSON.stringify({
+      v: 1,
+      requests: {
+        a: {
+          id: "req-00000001",
+          guildId: GUILD,
+          posterKey: POSTER,
+          posterName: "x",
+          itemId: "wood",
+          count: 1,
+          reward: 10,
+          createdAt: 1,
+        },
+        b: { id: "bad", guildId: GUILD },
+        c: {
+          id: "req-00000002",
+          guildId: GUILD,
+          posterKey: POSTER,
+          posterName: "x",
+          itemId: "ghost_item",
+          count: 1,
+          reward: 10,
+          createdAt: 1,
+        },
+      },
+    }),
+  );
   assert.deepEqual(Object.keys(broken.requests), ["req-00000001"]);
-  assert.deepEqual(rq.parseRequestsState(JSON.stringify({ v: 99, requests: {} })), { requests: {} });
+  assert.deepEqual(rq.parseRequestsState(JSON.stringify({ v: 99, requests: {} })), {
+    requests: {},
+  });
   assert.deepEqual(rq.parseRequestsState("not json"), { requests: {} });
   assert.deepEqual(rq.parseRequestsState(null), { requests: {} });
 });
@@ -190,7 +227,8 @@ test("ギルドボードの配線: ロビー配置・チップ・パネル・API
   assert.ok(fs.existsSync(path.join(rootDir, "public/img/worldbox/lobby/guild_board.png")));
 
   const client = fs.readFileSync(
-    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"), "utf8",
+    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    "utf8",
   );
   assert.match(client, /guild: "ギルドボード"/);
   assert.match(client, /stationUi === "guild"/);
@@ -199,15 +237,14 @@ test("ギルドボードの配線: ロビー配置・チップ・パネル・API
   assert.doesNotMatch(client, /action: "found"|action: "join"|action: "leave"/);
 
   const panel = fs.readFileSync(
-    path.join(rootDir, "app/games/worldbox/WorldBoxGuildBoardPanel.tsx"), "utf8",
+    path.join(rootDir, "app/games/worldbox/WorldBoxGuildBoardPanel.tsx"),
+    "utf8",
   );
   assert.match(panel, /\/api\/worldbox\/requests/);
   assert.match(panel, /依頼/);
   assert.match(panel, /役職/);
 
-  const route = fs.readFileSync(
-    path.join(rootDir, "app/api/worldbox/requests/route.ts"), "utf8",
-  );
+  const route = fs.readFileSync(path.join(rootDir, "app/api/worldbox/requests/route.ts"), "utf8");
   for (const action of ["post", "fulfill", "cancel"]) {
     assert.match(route, new RegExp(`case "${action}"`));
   }
@@ -270,16 +307,29 @@ export async function rpc(name, params) {
 }
 `);
 const apiSubdomainUrl = dataUrl(transpile("subdomain.ts"));
-const apiHeadersStubUrl = dataUrl("export async function cookies() { throw new Error('tests do not use cookies()'); }");
+const apiHeadersStubUrl = dataUrl(
+  "export async function cookies() { throw new Error('tests do not use cookies()'); }",
+);
 const apiAuthUrl = dataUrl(
-  transpile("auth.ts").replaceAll('"./subdomain"', JSON.stringify(apiSubdomainUrl)).replaceAll('"next/headers"', JSON.stringify(apiHeadersStubUrl)),
+  transpile("auth.ts")
+    .replaceAll('"./subdomain"', JSON.stringify(apiSubdomainUrl))
+    .replaceAll('"next/headers"', JSON.stringify(apiHeadersStubUrl)),
 );
 const apiAuth = await import(apiAuthUrl);
 const apiRngUrl = dataUrl(transpile("worldbox/core/rng.ts"));
-const apiMapgenUrl = dataUrl(transpile("worldbox/world/mapgen.ts").replaceAll('"../core/rng"', JSON.stringify(apiRngUrl)));
-const apiLobbyUrl = dataUrl(transpile("worldbox/world/lobby.ts").replaceAll('"./mapgen"', JSON.stringify(apiMapgenUrl)));
+const apiMapgenUrl = dataUrl(
+  transpile("worldbox/world/mapgen.ts").replaceAll('"../core/rng"', JSON.stringify(apiRngUrl)),
+);
+const apiLobbyUrl = dataUrl(
+  transpile("worldbox/world/lobby.ts").replaceAll('"./mapgen"', JSON.stringify(apiMapgenUrl)),
+);
 const apiItemsUrl = dataUrl(transpile("worldbox/economy/items.ts"));
-const apiProfileUrl = dataUrl(transpile("worldbox/player/profile.ts").replaceAll('"../economy/items"', JSON.stringify(apiItemsUrl)));
+const apiProfileUrl = dataUrl(
+  transpile("worldbox/player/profile.ts").replaceAll(
+    '"../economy/items"',
+    JSON.stringify(apiItemsUrl),
+  ),
+);
 const apiBridgeUrl = dataUrl(transpile("worldbox/economy/economy-bridge.ts"));
 const apiBridgeOnlineUrl = dataUrl(
   transpile("worldbox/economy/economy-bridge-online.ts")
@@ -309,7 +359,10 @@ const apiSaveUrl = dataUrl(
     .replaceAll('"../world/mapgen"', JSON.stringify(apiMapgenUrl)),
 );
 const apiSaveOnlineUrl = dataUrl(
-  transpile("worldbox/core/save-online.ts").replaceAll('"../../bot-api"', JSON.stringify(apiBotStubUrl)),
+  transpile("worldbox/core/save-online.ts").replaceAll(
+    '"../../bot-api"',
+    JSON.stringify(apiBotStubUrl),
+  ),
 );
 const apiProfileOnlineUrl = dataUrl(
   transpile("worldbox/player/profile-online.ts")
@@ -363,14 +416,17 @@ const apiRequestsRoute = await import(
       .replaceAll('"next/server"', JSON.stringify(apiNextServerStubUrl))
       .replaceAll('"@/lib/auth"', JSON.stringify(apiAuthUrl))
       .replaceAll('"@/lib/worldbox/economy/economy-bridge"', JSON.stringify(apiBridgeUrl))
-      .replaceAll('"@/lib/worldbox/economy/economy-bridge-online"', JSON.stringify(apiBridgeOnlineUrl))
+      .replaceAll(
+        '"@/lib/worldbox/economy/economy-bridge-online"',
+        JSON.stringify(apiBridgeOnlineUrl),
+      )
       .replaceAll('"@/lib/worldbox/social/nations-online"', JSON.stringify(apiNationsStubUrl))
       .replaceAll('"@/lib/worldbox/player/profile-online"', JSON.stringify(apiProfileOnlineUrl))
       .replaceAll('"@/lib/worldbox/social/requests"', JSON.stringify(apiRequestsUrl))
       .replaceAll('"@/lib/worldbox/social/requests-online"', JSON.stringify(apiRequestsOnlineUrl))
       .replaceAll('"@/lib/worldbox/world/station-online"', JSON.stringify(apiStationOnlineUrl))
       .replaceAll('"@/lib/worldbox/core/user-lock"', JSON.stringify(apiUserLockUrl)),
-  ),
+  )
 );
 
 process.env.DISCORD_SESSION_SECRET = "wb-requests-test-secret";
@@ -378,7 +434,8 @@ const API_GUILD = "123456789012345678";
 const API_POSTER = "711111111111111111";
 const API_MEMBER1 = "722222222222222222";
 const API_MEMBER2 = "733333333333333333";
-const apiCookie = (id, name) => `ago_session=${encodeURIComponent(apiAuth.createSession({ id, username: name }))}`;
+const apiCookie = (id, name) =>
+  `ago_session=${encodeURIComponent(apiAuth.createSession({ id, username: name }))}`;
 const API_URL = "http://localhost/api/worldbox/requests";
 function apiReq(cookie, body) {
   return new Request(API_URL, {
@@ -395,9 +452,16 @@ function apiFindOps(pred) {
   return out;
 }
 function apiSeedProfile(id, items) {
-  globalThis.__wbReqStore.set(`worldbox_profiles discord:${id}`, JSON.stringify({
-    coins: 100, hunger: 100, items, stealActorAt: 0, stealTargetAt: 0,
-  }));
+  globalThis.__wbReqStore.set(
+    `worldbox_profiles discord:${id}`,
+    JSON.stringify({
+      coins: 100,
+      hunger: 100,
+      items,
+      stealActorAt: 0,
+      stealTargetAt: 0,
+    }),
+  );
 }
 function apiProfileItems(id) {
   const raw = globalThis.__wbReqStore.get(`worldbox_profiles discord:${id}`);
@@ -411,8 +475,12 @@ function apiReset() {
   globalThis.__wbReqNations.set({
     nations: {
       [API_GUILD]: {
-        guildId: API_GUILD, name: "テスト国", color: "#e5484d",
-        kingKey: `discord:${API_POSTER}`, capital: { x: 0, y: 0 }, createdAt: 1,
+        guildId: API_GUILD,
+        name: "テスト国",
+        color: "#e5484d",
+        kingKey: `discord:${API_POSTER}`,
+        capital: { x: 0, y: 0 },
+        createdAt: 1,
       },
     },
     members: {
@@ -425,9 +493,19 @@ function apiReset() {
   apiSeedProfile(API_MEMBER1, { wood: 5 });
   apiSeedProfile(API_MEMBER2, { wood: 5 });
   for (const id of [API_POSTER, API_MEMBER1, API_MEMBER2]) {
-    store.set(`worldbox_presence discord:${id}`, JSON.stringify({
-      name: "req-user", x: 24.5, y: 16.5, vx: 0, vy: 0, face: 1, space: "lobby", ts: Date.now(),
-    }));
+    store.set(
+      `worldbox_presence discord:${id}`,
+      JSON.stringify({
+        name: "req-user",
+        x: 24.5,
+        y: 16.5,
+        vx: 0,
+        vy: 0,
+        face: 1,
+        space: "lobby",
+        ts: Date.now(),
+      }),
+    );
   }
 }
 // Bot ワーカーが escrow オプを処理した状態を再現する（本番では投稿の
@@ -442,7 +520,9 @@ function apiSetEscrowStatus(id, status) {
   assert.fail("escrow op not found");
 }
 async function apiPost(cookie) {
-  const res = await apiRequestsRoute.POST(apiReq(cookie, { action: "post", itemId: "wood", count: 2, reward: 100 }));
+  const res = await apiRequestsRoute.POST(
+    apiReq(cookie, { action: "post", itemId: "wood", count: 2, reward: 100 }),
+  );
   assert.equal(res.status, 200);
   return (await res.json()).request.id;
 }
@@ -461,8 +541,12 @@ test("API(requests): 納品が並行しても報酬 earn は1件だけ（二重�
   const id = await apiPost(apiCookie(API_POSTER, "poster"));
   apiSetEscrowStatus(id, "done");
   const results = await Promise.all([
-    apiRequestsRoute.POST(apiReq(apiCookie(API_MEMBER1, "m1"), { action: "fulfill", requestId: id })),
-    apiRequestsRoute.POST(apiReq(apiCookie(API_MEMBER2, "m2"), { action: "fulfill", requestId: id })),
+    apiRequestsRoute.POST(
+      apiReq(apiCookie(API_MEMBER1, "m1"), { action: "fulfill", requestId: id }),
+    ),
+    apiRequestsRoute.POST(
+      apiReq(apiCookie(API_MEMBER2, "m2"), { action: "fulfill", requestId: id }),
+    ),
   ]);
   assert.equal(results.filter((r) => r.status === 200).length, 1);
   assert.equal(results.filter((r) => r.status === 409).length, 1);
@@ -477,13 +561,15 @@ test("API(requests): 納品と取消が競合しても払われるのは報酬�
   const id = await apiPost(apiCookie(API_POSTER, "poster"));
   apiSetEscrowStatus(id, "done");
   const results = await Promise.all([
-    apiRequestsRoute.POST(apiReq(apiCookie(API_POSTER, "poster"), { action: "cancel", requestId: id })),
-    apiRequestsRoute.POST(apiReq(apiCookie(API_MEMBER1, "m1"), { action: "fulfill", requestId: id })),
+    apiRequestsRoute.POST(
+      apiReq(apiCookie(API_POSTER, "poster"), { action: "cancel", requestId: id }),
+    ),
+    apiRequestsRoute.POST(
+      apiReq(apiCookie(API_MEMBER1, "m1"), { action: "fulfill", requestId: id }),
+    ),
   ]);
   assert.equal(results.filter((r) => r.status === 200).length, 1);
-  const payouts = apiFindOps(
-    (o) => o.id === `reward-${id}` || o.id === `refund-${id}`,
-  );
+  const payouts = apiFindOps((o) => o.id === `reward-${id}` || o.id === `refund-${id}`);
   assert.equal(payouts.length, 1, "報酬と返金が両方払われることはない");
 });
 
@@ -494,7 +580,9 @@ test("API(requests): escrow は投稿と同時に確定し、納品・取消が�
   const escrow = apiFindOps((o) => o.id === `escrow-${id}`);
   assert.equal(escrow.length, 1);
   assert.equal(escrow[0].status, "done");
-  const f = await apiRequestsRoute.POST(apiReq(apiCookie(API_MEMBER1, "m1"), { action: "fulfill", requestId: id }));
+  const f = await apiRequestsRoute.POST(
+    apiReq(apiCookie(API_MEMBER1, "m1"), { action: "fulfill", requestId: id }),
+  );
   assert.equal(f.status, 200);
   const reward = apiFindOps((o) => o.id === `reward-${id}`);
   assert.equal(reward.length, 1);
@@ -507,10 +595,14 @@ test("API(requests): escrow が failed の依頼は納品不可、取消は返�
   apiReset();
   const id = await apiPost(apiCookie(API_POSTER, "poster"));
   apiSetEscrowStatus(id, "failed"); // 投稿後に残高を抜いて預かれなかった状態
-  const f = await apiRequestsRoute.POST(apiReq(apiCookie(API_MEMBER1, "m1"), { action: "fulfill", requestId: id }));
+  const f = await apiRequestsRoute.POST(
+    apiReq(apiCookie(API_MEMBER1, "m1"), { action: "fulfill", requestId: id }),
+  );
   assert.equal(f.status, 409);
   assert.equal((await f.json()).error, "escrow_failed");
-  const c = await apiRequestsRoute.POST(apiReq(apiCookie(API_POSTER, "poster"), { action: "cancel", requestId: id }));
+  const c = await apiRequestsRoute.POST(
+    apiReq(apiCookie(API_POSTER, "poster"), { action: "cancel", requestId: id }),
+  );
   assert.equal(c.status, 200);
   // 預かっていないので返金オプは積まれない（無担保の払い戻し防止）
   assert.equal(apiFindOps((o) => o.id === `refund-${id}`).length, 0);
@@ -521,10 +613,19 @@ test("API(requests): escrow が failed の依頼は納品不可、取消は返�
 function apiArmFlip(pred, status, error = "pay_house_failed") {
   return new Promise((resolve) => {
     let timer;
-    const timeout = setTimeout(() => { clearInterval(timer); resolve(false); }, 5000);
+    const timeout = setTimeout(() => {
+      clearInterval(timer);
+      resolve(false);
+    }, 5000);
     timer = setInterval(() => {
       for (const [k, v] of globalThis.__wbReqStore) {
-        if (k.startsWith("worldbox_economy ") && v && typeof v === "object" && v.status === "pending" && pred(v)) {
+        if (
+          k.startsWith("worldbox_economy ") &&
+          v &&
+          typeof v === "object" &&
+          v.status === "pending" &&
+          pred(v)
+        ) {
           globalThis.__wbReqStore.set(k, { ...v, status, error });
           clearInterval(timer);
           clearTimeout(timeout);
@@ -546,7 +647,9 @@ test("API(requests): 納品の報酬決済が failed なら納品自体を巻き
   const id = await apiPost(apiCookie(API_POSTER, "poster"));
   apiSetEscrowStatus(id, "done");
   const flipped = apiArmFlip((o) => o.id === `reward-${id}`, "failed", "pay_house_failed");
-  const res = await apiRequestsRoute.POST(apiReq(apiCookie(API_MEMBER1, "m1"), { action: "fulfill", requestId: id }));
+  const res = await apiRequestsRoute.POST(
+    apiReq(apiCookie(API_MEMBER1, "m1"), { action: "fulfill", requestId: id }),
+  );
   assert.equal(await flipped, true, "ワーカーが報酬オプを failed にした");
   assert.equal(res.status, 409);
   const data = await res.json();
@@ -564,7 +667,9 @@ test("API(requests): 取消の返金決済が failed なら取消自体を巻き
   const id = await apiPost(apiCookie(API_POSTER, "poster"));
   apiSetEscrowStatus(id, "done");
   const flipped = apiArmFlip((o) => o.id === `refund-${id}`, "failed", "credit_failed");
-  const res = await apiRequestsRoute.POST(apiReq(apiCookie(API_POSTER, "poster"), { action: "cancel", requestId: id }));
+  const res = await apiRequestsRoute.POST(
+    apiReq(apiCookie(API_POSTER, "poster"), { action: "cancel", requestId: id }),
+  );
   assert.equal(await flipped, true, "ワーカーが返金オプを failed にした");
   assert.equal(res.status, 409);
   const data = await res.json();

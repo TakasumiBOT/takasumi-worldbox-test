@@ -108,7 +108,8 @@ export function parseMachineState(raw: unknown): MachineState | null {
     ownerId: v.ownerId,
     program: parseProgram(v.program),
     buffer,
-    lastEvalAt: typeof v.lastEvalAt === "number" && Number.isFinite(v.lastEvalAt) ? v.lastEvalAt : 0,
+    lastEvalAt:
+      typeof v.lastEvalAt === "number" && Number.isFinite(v.lastEvalAt) ? v.lastEvalAt : 0,
     updatedAt: typeof v.updatedAt === "number" && Number.isFinite(v.updatedAt) ? v.updatedAt : 0,
   };
 }
@@ -136,7 +137,12 @@ export function evaluateMachine(
   neighbors: ReadonlyMap<string, TileOverride>,
   now: number,
 ): MachineEvalResult {
-  const unchanged: MachineEvalResult = { state, changed: new Map(), harvested: 0, evaluated: false };
+  const unchanged: MachineEvalResult = {
+    state,
+    changed: new Map(),
+    harvested: 0,
+    evaluated: false,
+  };
   if (!state.program.enabled) return unchanged;
   if (now - state.lastEvalAt < state.program.intervalSec * 1000) return unchanged;
   const buffer = { ...state.buffer };

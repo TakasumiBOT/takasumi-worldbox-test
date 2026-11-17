@@ -66,7 +66,10 @@ test("arcade: 26タイトルと registry がちょうど一致する（欠け・
     assert.equal(typeof gm.title, "string");
     assert.ok(gm.title.length > 0, `${id} のタイトルが空`);
     assert.ok(Number.isInteger(gm.minPlayers) && gm.minPlayers >= 2, `${id} の minPlayers`);
-    assert.ok(Number.isInteger(gm.maxPlayers) && gm.maxPlayers >= gm.minPlayers, `${id} の maxPlayers`);
+    assert.ok(
+      Number.isInteger(gm.maxPlayers) && gm.maxPlayers >= gm.minPlayers,
+      `${id} の maxPlayers`,
+    );
   }
 });
 
@@ -82,11 +85,15 @@ test("arcade: 区分の規則（faceoff=2人固定、party=多人数、realtime=
     }
   }
   assert.deepEqual(
-    arcade.ARCADE_GAMES.filter((e) => e.category === "realtime").map((e) => e.id).sort(),
+    arcade.ARCADE_GAMES.filter((e) => e.category === "realtime")
+      .map((e) => e.id)
+      .sort(),
     ["calcrace", "speed", "stopbattle", "typerace"],
   );
   assert.deepEqual(
-    arcade.ARCADE_GAMES.filter((e) => e.category === "faceoff").map((e) => e.id).sort(),
+    arcade.ARCADE_GAMES.filter((e) => e.category === "faceoff")
+      .map((e) => e.id)
+      .sort(),
     ["battleship", "connect4", "reversi", "territory"],
   );
   assert.equal(arcade.ARCADE_GAMES.filter((e) => e.category === "party").length, 18);
@@ -94,8 +101,14 @@ test("arcade: 区分の規則（faceoff=2人固定、party=多人数、realtime=
 
 test("arcade: 区分内の order は 1 からの連番で重複なし", () => {
   for (const category of ["faceoff", "party", "realtime"]) {
-    const orders = arcade.ARCADE_GAMES.filter((e) => e.category === category).map((e) => e.order).sort((a, b) => a - b);
-    assert.deepEqual(orders, orders.map((_, i) => i + 1), `${category} の order が連番でない`);
+    const orders = arcade.ARCADE_GAMES.filter((e) => e.category === category)
+      .map((e) => e.order)
+      .sort((a, b) => a - b);
+    assert.deepEqual(
+      orders,
+      orders.map((_, i) => i + 1),
+      `${category} の order が連番でない`,
+    );
   }
 });
 
@@ -108,16 +121,23 @@ test("arcade: スプライト名は arcade_<id> で一意（素材は L3 で作�
   }
   // arcade.ts は人数・タイトルを重複して持たない（registry 側が正）
   const src = fs.readFileSync(path.join(libDir, "worldbox/activity/arcade.ts"), "utf8");
-  assert.ok(!src.includes("minPlayers") && !src.includes("maxPlayers"), "人数を arcade.ts に重複させている");
+  assert.ok(
+    !src.includes("minPlayers") && !src.includes("maxPlayers"),
+    "人数を arcade.ts に重複させている",
+  );
   assert.ok(!src.includes("title:"), "タイトルを arcade.ts に重複させている");
 });
 
 test("arcade: 第1弾（L3）は対面3＋パーティ3で、全て registry にある", () => {
   assert.equal(arcade.ARCADE_FIRST_WAVE.length, 6);
   assert.equal(new Set(arcade.ARCADE_FIRST_WAVE).size, 6);
-  for (const id of arcade.ARCADE_FIRST_WAVE) assert.ok(modules.has(id), `第1弾に registry 外の id: ${id}`);
-  for (const id of ["reversi", "connect4", "battleship"]) assert.ok(arcade.ARCADE_FIRST_WAVE.includes(id), `第1弾に対面の ${id} が無い`);
-  const partyWave = arcade.ARCADE_FIRST_WAVE.filter((id) => arcade.arcadeById(id).category === "party");
+  for (const id of arcade.ARCADE_FIRST_WAVE)
+    assert.ok(modules.has(id), `第1弾に registry 外の id: ${id}`);
+  for (const id of ["reversi", "connect4", "battleship"])
+    assert.ok(arcade.ARCADE_FIRST_WAVE.includes(id), `第1弾に対面の ${id} が無い`);
+  const partyWave = arcade.ARCADE_FIRST_WAVE.filter(
+    (id) => arcade.arcadeById(id).category === "party",
+  );
   assert.equal(partyWave.length, 3);
 });
 
@@ -128,7 +148,13 @@ test("arcade: 参照ヘルパー（未知 id は undefined、区分別は order 
   assert.equal(arcade.arcadeById("chess"), undefined);
   assert.equal(arcade.arcadeById(""), undefined);
   assert.equal(arcade.arcadeById(42), undefined);
-  assert.deepEqual(arcade.arcadeByCategory("faceoff").map((e) => e.id), ["reversi", "connect4", "battleship", "territory"]);
-  assert.deepEqual(arcade.arcadeByCategory("realtime").map((e) => e.id), ["speed", "typerace", "calcrace", "stopbattle"]);
+  assert.deepEqual(
+    arcade.arcadeByCategory("faceoff").map((e) => e.id),
+    ["reversi", "connect4", "battleship", "territory"],
+  );
+  assert.deepEqual(
+    arcade.arcadeByCategory("realtime").map((e) => e.id),
+    ["speed", "typerace", "calcrace", "stopbattle"],
+  );
   assert.equal(arcade.arcadeByCategory("party").length, 18);
 });

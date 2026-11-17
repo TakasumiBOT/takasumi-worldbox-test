@@ -40,9 +40,16 @@ const E5 = "555555555555555555";
 
 function tournament(entrants, status = "entry") {
   return {
-    id: `t-${NOW}`, status, createdAt: NOW, entryEndsAt: NOW + T.TOURNAMENT_ENTRY_MS,
-    entrants: [...entrants], matches: [], champion: null,
-    prizePaid: false, refundPaid: false, closedAt: null,
+    id: `t-${NOW}`,
+    status,
+    createdAt: NOW,
+    entryEndsAt: NOW + T.TOURNAMENT_ENTRY_MS,
+    entrants: [...entrants],
+    matches: [],
+    champion: null,
+    prizePaid: false,
+    refundPaid: false,
+    closedAt: null,
   };
 }
 
@@ -85,7 +92,16 @@ test("tournament: 5人は8枠表で不戦勝が3件、総試合7", () => {
 });
 
 test("tournament: 8人は不戦勝なし、総試合7・3回戦", () => {
-  const matches = T.buildBracket([A, B, C, D, E5, "666666666666666666", "777777777777777777", "888888888888888888"]);
+  const matches = T.buildBracket([
+    A,
+    B,
+    C,
+    D,
+    E5,
+    "666666666666666666",
+    "777777777777777777",
+    "888888888888888888",
+  ]);
   assert.equal(matches.length, 7);
   assert.equal(matches.filter((m) => m.state === "done").length, 0);
   assert.equal(matches.filter((m) => m.round === 2).length, 1);
@@ -120,17 +136,33 @@ test("tournament: 対戦者でない勝者・決着済みの試合は弾く", ()
 });
 
 test("tournament: 決闘がまだの試合だけが ready", () => {
-  const t = { ...tournament([A, B, C, D]), status: "running", matches: T.buildBracket([A, B, C, D]) };
-  assert.deepEqual(T.readyMatches(t).map((m) => m.id), ["m0-0", "m0-1"]);
+  const t = {
+    ...tournament([A, B, C, D]),
+    status: "running",
+    matches: T.buildBracket([A, B, C, D]),
+  };
+  assert.deepEqual(
+    T.readyMatches(t).map((m) => m.id),
+    ["m0-0", "m0-1"],
+  );
   const withDuel = {
     ...t,
-    matches: t.matches.map((m) => (m.id === "m0-0" ? { ...m, duelId: "pvp-x", state: "dueling" } : m)),
+    matches: t.matches.map((m) =>
+      m.id === "m0-0" ? { ...m, duelId: "pvp-x", state: "dueling" } : m,
+    ),
   };
-  assert.deepEqual(T.readyMatches(withDuel).map((m) => m.id), ["m0-1"]);
+  assert.deepEqual(
+    T.readyMatches(withDuel).map((m) => m.id),
+    ["m0-1"],
+  );
 });
 
 test("tournament: 期限切れの試合はシード上位が進出する", () => {
-  const t = { ...tournament([A, B, C, D]), status: "running", matches: T.buildBracket([A, B, C, D]) };
+  const t = {
+    ...tournament([A, B, C, D]),
+    status: "running",
+    matches: T.buildBracket([A, B, C, D]),
+  };
   const m = t.matches.find((x) => x.id === "m0-1");
   assert.equal(T.timeoutWinner(t, m), B);
 });
@@ -191,7 +223,11 @@ test("tournament: 保存→復元の往復で形が残り、壊れた値は落�
 // ---------- クライアント表示 ----------
 
 test("tournament: 表示に他者の Discord ID は出ない", () => {
-  const t = { ...tournament([A, B, C, D]), status: "running", matches: T.buildBracket([A, B, C, D]) };
+  const t = {
+    ...tournament([A, B, C, D]),
+    status: "running",
+    matches: T.buildBracket([A, B, C, D]),
+  };
   const view = T.publicTournamentView(t, A);
   assert.equal(view.status, "running");
   assert.equal(view.entrantCount, 4);
@@ -234,14 +270,23 @@ test("tournament: 大会の対戦は fighting から始まり、参加費・賞�
 
 test("tournament: earn ホワイトリストに大会の理由がある", () => {
   for (const reason of [
-    "arena_tournament_prize", "arena_tournament_refund",
-    "casino_tournament_prize", "casino_tournament_refund",
+    "arena_tournament_prize",
+    "arena_tournament_refund",
+    "casino_tournament_prize",
+    "casino_tournament_refund",
   ]) {
     assert.ok(E.EARN_REASONS.has(reason), reason);
   }
   const op = E.buildEconomyOp(
-    { kind: "earn", userKey: `discord:${A}`, discordId: A, amount: 1600, reason: "arena_tournament_prize" },
-    `t-prize-t-${NOW}`, NOW,
+    {
+      kind: "earn",
+      userKey: `discord:${A}`,
+      discordId: A,
+      amount: 1600,
+      reason: "arena_tournament_prize",
+    },
+    `t-prize-t-${NOW}`,
+    NOW,
   );
   assert.ok(op);
   assert.equal(op.id, `t-prize-t-${NOW}`);

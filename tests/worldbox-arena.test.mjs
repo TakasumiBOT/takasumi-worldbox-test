@@ -25,12 +25,21 @@ function dataUrl(js) {
 const arenaUrl = dataUrl(transpile("worldbox/combat/arena.ts"));
 const arena = await import(arenaUrl);
 const rngUrl = dataUrl(transpile("worldbox/core/rng.ts"));
-const mapgenUrl = dataUrl(transpile("worldbox/world/mapgen.ts").replaceAll('"../core/rng"', JSON.stringify(rngUrl)));
-const lobbyUrl = dataUrl(transpile("worldbox/world/lobby.ts").replaceAll('"./mapgen"', JSON.stringify(mapgenUrl)));
+const mapgenUrl = dataUrl(
+  transpile("worldbox/world/mapgen.ts").replaceAll('"../core/rng"', JSON.stringify(rngUrl)),
+);
+const lobbyUrl = dataUrl(
+  transpile("worldbox/world/lobby.ts").replaceAll('"./mapgen"', JSON.stringify(mapgenUrl)),
+);
 const lobby = await import(lobbyUrl);
 const economyUrl = dataUrl(transpile("worldbox/economy/economy-bridge.ts"));
 const itemsUrl = dataUrl(transpile("worldbox/economy/items.ts"));
-const profileUrl = dataUrl(transpile("worldbox/player/profile.ts").replaceAll('"../economy/items"', JSON.stringify(itemsUrl)));
+const profileUrl = dataUrl(
+  transpile("worldbox/player/profile.ts").replaceAll(
+    '"../economy/items"',
+    JSON.stringify(itemsUrl),
+  ),
+);
 
 const ME = "611111111111111111";
 const MY_KEY = `discord:${ME}`;
@@ -57,9 +66,19 @@ test("arena: 階級は参加費より賞金が大きく、倍率は 3 倍未満"
 
 function baseSession(over = {}) {
   return {
-    kind: "arena", state: "fighting", tierId: "slime", fee: 50, prize: 120,
-    feeOpId: "op", playerHp: 100, enemyHp: 40, guarding: false, turn: 0,
-    startedAt: 1, log: [], ...over,
+    kind: "arena",
+    state: "fighting",
+    tierId: "slime",
+    fee: 50,
+    prize: 120,
+    feeOpId: "op",
+    playerHp: 100,
+    enemyHp: 40,
+    guarding: false,
+    turn: 0,
+    startedAt: 1,
+    log: [],
+    ...over,
   };
 }
 
@@ -149,9 +168,13 @@ export async function rpc(name, params) {
 }
 `);
 const subdomainUrl = dataUrl(transpile("subdomain.ts"));
-const headersStubUrl = dataUrl("export async function cookies() { throw new Error('tests do not use cookies()'); }");
+const headersStubUrl = dataUrl(
+  "export async function cookies() { throw new Error('tests do not use cookies()'); }",
+);
 const authUrl = dataUrl(
-  transpile("auth.ts").replaceAll('"./subdomain"', JSON.stringify(subdomainUrl)).replaceAll('"next/headers"', JSON.stringify(headersStubUrl)),
+  transpile("auth.ts")
+    .replaceAll('"./subdomain"', JSON.stringify(subdomainUrl))
+    .replaceAll('"next/headers"', JSON.stringify(headersStubUrl)),
 );
 const auth = await import(authUrl);
 const economyOnlineUrl = dataUrl(
@@ -182,7 +205,10 @@ const saveUrl = dataUrl(
     .replaceAll('"../world/mapgen"', JSON.stringify(mapgenUrl)),
 );
 const saveOnlineUrl = dataUrl(
-  transpile("worldbox/core/save-online.ts").replaceAll('"../../bot-api"', JSON.stringify(botApiStubUrl)),
+  transpile("worldbox/core/save-online.ts").replaceAll(
+    '"../../bot-api"',
+    JSON.stringify(botApiStubUrl),
+  ),
 );
 const profileOnlineUrl = dataUrl(
   transpile("worldbox/player/profile-online.ts")
@@ -226,11 +252,14 @@ const arenaRoute = await import(
       .replaceAll('"@/lib/worldbox/combat/arena"', JSON.stringify(arenaUrl))
       .replaceAll('"@/lib/worldbox/combat/arena-online"', JSON.stringify(arenaOnlineUrl))
       .replaceAll('"@/lib/worldbox/economy/economy-bridge"', JSON.stringify(economyUrl))
-      .replaceAll('"@/lib/worldbox/economy/economy-bridge-online"', JSON.stringify(economyOnlineUrl))
+      .replaceAll(
+        '"@/lib/worldbox/economy/economy-bridge-online"',
+        JSON.stringify(economyOnlineUrl),
+      )
       .replaceAll('"@/lib/worldbox/player/profile-online"', JSON.stringify(profileOnlineUrl))
       .replaceAll('"@/lib/worldbox/world/station-online"', JSON.stringify(stationOnlineUrl))
       .replaceAll('"@/lib/worldbox/core/user-lock"', JSON.stringify(userLockUrl)),
-  ),
+  )
 );
 const vitalsUrl = dataUrl(
   transpile("worldbox/player/vitals.ts")
@@ -244,7 +273,10 @@ const plazaRoute = await import(
       .replaceAll('"@/lib/auth"', JSON.stringify(authUrl))
       .replaceAll('"@/lib/bot-api"', JSON.stringify(botApiStubUrl))
       .replaceAll('"@/lib/worldbox/economy/economy-bridge"', JSON.stringify(economyUrl))
-      .replaceAll('"@/lib/worldbox/economy/economy-bridge-online"', JSON.stringify(economyOnlineUrl))
+      .replaceAll(
+        '"@/lib/worldbox/economy/economy-bridge-online"',
+        JSON.stringify(economyOnlineUrl),
+      )
       .replaceAll('"@/lib/worldbox/player/profile"', JSON.stringify(profileUrl))
       .replaceAll('"@/lib/worldbox/player/profile-online"', JSON.stringify(profileOnlineUrl))
       .replaceAll('"@/lib/worldbox/world/station-online"', JSON.stringify(stationOnlineUrl))
@@ -252,7 +284,7 @@ const plazaRoute = await import(
       .replaceAll('"@/lib/worldbox/core/save-online"', JSON.stringify(saveOnlineUrl))
       .replaceAll('"@/lib/worldbox/player/vitals"', JSON.stringify(vitalsUrl))
       .replaceAll('"@/lib/worldbox/core/user-lock"', JSON.stringify(userLockUrl)),
-  ),
+  )
 );
 
 process.env.DISCORD_SESSION_SECRET = "arena-test-secret";
@@ -275,9 +307,19 @@ const cookie = sessionCookie(ME, "arena-user");
 const store = globalThis.__wbArenaStore;
 
 function setPresence(x, y) {
-  store.set(`worldbox_presence ${MY_KEY}`, JSON.stringify({
-    name: "arena-user", x, y, vx: 0, vy: 0, face: 1, space: "lobby", ts: Date.now(),
-  }));
+  store.set(
+    `worldbox_presence ${MY_KEY}`,
+    JSON.stringify({
+      name: "arena-user",
+      x,
+      y,
+      vx: 0,
+      vy: 0,
+      face: 1,
+      space: "lobby",
+      ts: Date.now(),
+    }),
+  );
 }
 function findOps(pred) {
   const out = [];
@@ -287,7 +329,9 @@ function findOps(pred) {
   return out;
 }
 function markOpsDone(kind, reason) {
-  for (const op of findOps((o) => o.kind === kind && o.reason === reason && o.status === "pending")) {
+  for (const op of findOps(
+    (o) => o.kind === kind && o.reason === reason && o.status === "pending",
+  )) {
     op.status = "done";
   }
 }
@@ -300,7 +344,9 @@ test("API(arena): 未ログイン 401、場所が違えば 409", async () => {
   reset();
   assert.equal((await arenaRoute.GET(apiRequest(URL_A, "GET", null))).status, 401);
   setPresence(28, 28); // 広場の真ん中
-  const res = await arenaRoute.POST(apiRequest(URL_A, "POST", cookie, { action: "start", tier: "slime" }));
+  const res = await arenaRoute.POST(
+    apiRequest(URL_A, "POST", cookie, { action: "start", tier: "slime" }),
+  );
   assert.equal(res.status, 409);
   assert.equal((await res.json()).error, "not_at_arena");
 });
@@ -308,7 +354,9 @@ test("API(arena): 未ログイン 401、場所が違えば 409", async () => {
 test("API(arena): 開始で参加費 spend が即時適用され、勝利で賞金 earn", async () => {
   reset();
   setPresence(29, 12);
-  const start = await arenaRoute.POST(apiRequest(URL_A, "POST", cookie, { action: "start", tier: "slime" }));
+  const start = await arenaRoute.POST(
+    apiRequest(URL_A, "POST", cookie, { action: "start", tier: "slime" }),
+  );
   assert.equal(start.status, 200);
   const fees = findOps((o) => o.kind === "spend" && o.reason === "arena_entry");
   assert.equal(fees.length, 1);
@@ -319,7 +367,9 @@ test("API(arena): 開始で参加費 spend が即時適用され、勝利で賞�
   // スライム HP40: 攻撃力 8（素手）では数手かかる。決着まで回す
   let outcome = null;
   for (let i = 0; i < 40 && !outcome; i++) {
-    const res = await arenaRoute.POST(apiRequest(URL_A, "POST", cookie, { action: "act", move: "attack" }));
+    const res = await arenaRoute.POST(
+      apiRequest(URL_A, "POST", cookie, { action: "act", move: "attack" }),
+    );
     assert.equal(res.status, 200);
     const data = await res.json();
     outcome = data.outcome ?? null;
@@ -342,13 +392,17 @@ test("API(arena): 残高不足は開始できない、二重開始は 409", asyn
   reset();
   globalThis.__wbArenaUsers.set(ME, 10);
   setPresence(29, 12);
-  const poor = await arenaRoute.POST(apiRequest(URL_A, "POST", cookie, { action: "start", tier: "slime" }));
+  const poor = await arenaRoute.POST(
+    apiRequest(URL_A, "POST", cookie, { action: "start", tier: "slime" }),
+  );
   assert.equal(poor.status, 409);
   assert.equal((await poor.json()).error, "insufficient_balance");
 
   globalThis.__wbArenaUsers.set(ME, 100000);
   await arenaRoute.POST(apiRequest(URL_A, "POST", cookie, { action: "start", tier: "slime" }));
-  const dup = await arenaRoute.POST(apiRequest(URL_A, "POST", cookie, { action: "start", tier: "slime" }));
+  const dup = await arenaRoute.POST(
+    apiRequest(URL_A, "POST", cookie, { action: "start", tier: "slime" }),
+  );
   assert.equal(dup.status, 409);
   assert.equal((await dup.json()).error, "session_active");
 });
@@ -393,7 +447,9 @@ test("API(arena): 開始リクエストが並行しても参加費オプは1件�
 test("API(arena): 勝利手の並行リクエストでも賞金オプは決定的 ID で1件だけ（二重賞金の回帰防止）", async () => {
   reset();
   setPresence(29, 12);
-  const start = await arenaRoute.POST(apiRequest(URL_A, "POST", cookie, { action: "start", tier: "slime" }));
+  const start = await arenaRoute.POST(
+    apiRequest(URL_A, "POST", cookie, { action: "start", tier: "slime" }),
+  );
   assert.equal(start.status, 200);
   markOpsDone("spend", "arena_entry");
   const feeOpId = findOps((o) => o.reason === "arena_entry")[0].id;
@@ -437,7 +493,10 @@ test("API(plaza): 噴水の並行リクエストでも spend は1件だけ（残
 });
 
 test("client: 闘技場パネルとチップ配線がある", () => {
-  const client = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"), "utf8");
+  const client = fs.readFileSync(
+    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    "utf8",
+  );
   assert.match(client, /WorldBoxArenaPanel/);
   assert.match(client, /plazaAction/);
   assert.match(client, /stationUi === "arena"/);

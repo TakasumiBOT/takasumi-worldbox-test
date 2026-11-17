@@ -7,9 +7,7 @@
 // 同士は一定の間隔を空けるが、所属が建築などの行動を制限することはない。
 // 状態遷移（建国・参加・離脱・解散）はここに集約し、API ルートは保存・認証・
 // Discord 検証だけを担う。地形は lib/worldbox/world/mapgen の決定的マップを参照する。
-import {
-  WORLD_COORD_LIMIT, isSolidMapTile, mapTileAt, type TopDownMap,
-} from "../world/mapgen";
+import { WORLD_COORD_LIMIT, isSolidMapTile, mapTileAt, type TopDownMap } from "../world/mapgen";
 import { findFreeNear } from "../player/move";
 import { presenceIdFor } from "../player/presence";
 
@@ -50,8 +48,16 @@ export type NationsState = {
 
 /** 国カラーの固定パレット。空きが多い色から自動で割り当てる。 */
 export const NATION_PALETTE = [
-  "#e5484d", "#f76b15", "#ffb224", "#46a758", "#12a594",
-  "#0091ff", "#6e56cf", "#d6409f", "#8d6e63", "#697177",
+  "#e5484d",
+  "#f76b15",
+  "#ffb224",
+  "#46a758",
+  "#12a594",
+  "#0091ff",
+  "#6e56cf",
+  "#d6409f",
+  "#8d6e63",
+  "#697177",
 ] as const;
 
 export function emptyNationsState(): NationsState {
@@ -150,7 +156,8 @@ export function applyFound(
   map: TopDownMap,
   now: number,
 ): NationActionResult {
-  if (typeof guild?.id !== "string" || !/^\d+$/.test(guild.id)) return { ok: false, error: "invalid_request" };
+  if (typeof guild?.id !== "string" || !/^\d+$/.test(guild.id))
+    return { ok: false, error: "invalid_request" };
   if (state.nations[guild.id]) return { ok: false, error: "nation_exists" };
   if (state.members[ownerKey]) return { ok: false, error: "already_in_nation" };
   const capital = findCapitalTile(map, Object.values(state.nations));
@@ -179,7 +186,8 @@ export function applyJoin(
   role: NationRole,
 ): NationActionResult {
   if (state.members[ownerKey]) return { ok: false, error: "already_in_nation" };
-  if (typeof guildId !== "string" || !state.nations[guildId]) return { ok: false, error: "nation_not_found" };
+  if (typeof guildId !== "string" || !state.nations[guildId])
+    return { ok: false, error: "nation_not_found" };
   const next: NationsState = {
     nations: state.nations,
     members: { ...state.members, [ownerKey]: { nationId: guildId, role } },
@@ -236,7 +244,9 @@ export function fastTravelDestination(
   if (!mine) return { ok: false, error: "not_in_nation" };
   const nation = state.nations[mine.nationId];
   if (!nation) return { ok: false, error: "not_in_nation" };
-  const free = findFreeNear(map, nation.capital.x + 0.5, nation.capital.y + 0.5, undefined, { swim: true });
+  const free = findFreeNear(map, nation.capital.x + 0.5, nation.capital.y + 0.5, undefined, {
+    swim: true,
+  });
   return { ok: true, nationId: nation.guildId, x: free.x, y: free.y };
 }
 
@@ -274,7 +284,8 @@ function parseNation(raw: unknown): Nation | null {
   const cap = v.capital as Record<string, unknown> | null;
   if (typeof v.guildId !== "string" || !/^\d+$/.test(v.guildId)) return null;
   if (typeof v.name !== "string" || v.name.length === 0) return null;
-  if (typeof v.color !== "string" || !(NATION_PALETTE as readonly string[]).includes(v.color)) return null;
+  if (typeof v.color !== "string" || !(NATION_PALETTE as readonly string[]).includes(v.color))
+    return null;
   if (typeof v.kingKey !== "string" || v.kingKey.length === 0) return null;
   if (!cap || typeof cap.x !== "number" || typeof cap.y !== "number") return null;
   if (!Number.isFinite(cap.x) || !Number.isFinite(cap.y)) return null;
@@ -282,7 +293,14 @@ function parseNation(raw: unknown): Nation | null {
   const y = Math.floor(cap.y);
   if (Math.abs(x) > WORLD_COORD_LIMIT || Math.abs(y) > WORLD_COORD_LIMIT) return null;
   if (typeof v.createdAt !== "number" || !Number.isFinite(v.createdAt)) return null;
-  return { guildId: v.guildId, name: v.name, color: v.color, kingKey: v.kingKey, capital: { x, y }, createdAt: v.createdAt };
+  return {
+    guildId: v.guildId,
+    name: v.name,
+    color: v.color,
+    kingKey: v.kingKey,
+    capital: { x, y },
+    createdAt: v.createdAt,
+  };
 }
 
 /**
@@ -375,7 +393,9 @@ export function nationViews(state: NationsState): NationView[] {
     }));
 }
 
-export function playerNationMap(state: NationsState): Record<string, { nationId: string; color: string }> {
+export function playerNationMap(
+  state: NationsState,
+): Record<string, { nationId: string; color: string }> {
   const out: Record<string, { nationId: string; color: string }> = {};
   for (const [ownerKey, m] of Object.entries(state.members)) {
     const nation = state.nations[m.nationId];

@@ -78,16 +78,29 @@ export function parseRuinsPersonal(raw: unknown, week: string): RuinsPersonalSta
     const boolMap = (m: unknown): Record<string, boolean> => {
       const out: Record<string, boolean> = {};
       if (m && typeof m === "object") {
-        for (const [k, val] of Object.entries(m as Record<string, unknown>)) if (val === true) out[k] = true;
+        for (const [k, val] of Object.entries(m as Record<string, unknown>))
+          if (val === true) out[k] = true;
       }
       return out;
     };
     const summons = Array.isArray(v.summons)
-      ? v.summons.filter((s): s is { mobId: string; x: number; y: number } =>
-          !!s && typeof s === "object" && typeof (s as { mobId?: unknown }).mobId === "string" &&
-          typeof (s as { x?: unknown }).x === "number" && typeof (s as { y?: unknown }).y === "number")
+      ? v.summons.filter(
+          (s): s is { mobId: string; x: number; y: number } =>
+            !!s &&
+            typeof s === "object" &&
+            typeof (s as { mobId?: unknown }).mobId === "string" &&
+            typeof (s as { x?: unknown }).x === "number" &&
+            typeof (s as { y?: unknown }).y === "number",
+        )
       : [];
-    return { week, chests: boolMap(v.chests), traps: boolMap(v.traps), doors: boolMap(v.doors), summons, completed };
+    return {
+      week,
+      chests: boolMap(v.chests),
+      traps: boolMap(v.traps),
+      doors: boolMap(v.doors),
+      summons,
+      completed,
+    };
   } catch {
     return base;
   }
@@ -97,16 +110,27 @@ function ruinsKey(space: string, ownerKey: string): string {
   return `${space}#${ownerKey}`;
 }
 
-export async function loadRuinsPersonal(space: string, ownerKey: string, week: string): Promise<RuinsPersonalState> {
+export async function loadRuinsPersonal(
+  space: string,
+  ownerKey: string,
+  week: string,
+): Promise<RuinsPersonalState> {
   if (!isBotApiConfigured()) return emptyRuinsPersonal(week);
   try {
-    return parseRuinsPersonal(await kvGet(WORLDBOX_INSTANCES_NAMESPACE, ruinsKey(space, ownerKey)), week);
+    return parseRuinsPersonal(
+      await kvGet(WORLDBOX_INSTANCES_NAMESPACE, ruinsKey(space, ownerKey)),
+      week,
+    );
   } catch {
     return emptyRuinsPersonal(week);
   }
 }
 
-export async function storeRuinsPersonal(space: string, ownerKey: string, state: RuinsPersonalState): Promise<boolean> {
+export async function storeRuinsPersonal(
+  space: string,
+  ownerKey: string,
+  state: RuinsPersonalState,
+): Promise<boolean> {
   if (!isBotApiConfigured()) return false;
   try {
     await kvSet(WORLDBOX_INSTANCES_NAMESPACE, ruinsKey(space, ownerKey), JSON.stringify(state));
@@ -166,7 +190,11 @@ function parseDungeonSession(raw: unknown, partyKey: string): DungeonSession | n
     }
   }
   const floorBossDead: Record<string, boolean> = {};
-  if (data.floorBossDead && typeof data.floorBossDead === "object" && !Array.isArray(data.floorBossDead)) {
+  if (
+    data.floorBossDead &&
+    typeof data.floorBossDead === "object" &&
+    !Array.isArray(data.floorBossDead)
+  ) {
     for (const [k, v] of Object.entries(data.floorBossDead as Record<string, unknown>)) {
       if (v === true) floorBossDead[k] = true;
     }
@@ -192,7 +220,10 @@ function parseDungeonSession(raw: unknown, partyKey: string): DungeonSession | n
   };
 }
 
-export async function loadDungeonSession(spaceFloor1: string, partyKey: string): Promise<DungeonSession | null> {
+export async function loadDungeonSession(
+  spaceFloor1: string,
+  partyKey: string,
+): Promise<DungeonSession | null> {
   if (!isBotApiConfigured()) return null;
   try {
     const raw = await kvGet(WORLDBOX_INSTANCES_NAMESPACE, dungeonSessionKey(spaceFloor1, partyKey));
@@ -202,10 +233,17 @@ export async function loadDungeonSession(spaceFloor1: string, partyKey: string):
   }
 }
 
-export async function storeDungeonSession(spaceFloor1: string, session: DungeonSession): Promise<boolean> {
+export async function storeDungeonSession(
+  spaceFloor1: string,
+  session: DungeonSession,
+): Promise<boolean> {
   if (!isBotApiConfigured()) return false;
   try {
-    await kvSet(WORLDBOX_INSTANCES_NAMESPACE, dungeonSessionKey(spaceFloor1, session.partyKey), JSON.stringify(session));
+    await kvSet(
+      WORLDBOX_INSTANCES_NAMESPACE,
+      dungeonSessionKey(spaceFloor1, session.partyKey),
+      JSON.stringify(session),
+    );
     return true;
   } catch {
     return false;
@@ -216,7 +254,9 @@ export async function deleteDungeonSession(spaceFloor1: string, partyKey: string
   if (!isBotApiConfigured()) return;
   try {
     await kvDelete(WORLDBOX_INSTANCES_NAMESPACE, dungeonSessionKey(spaceFloor1, partyKey));
-  } catch { /* ベストエフォート */ }
+  } catch {
+    /* ベストエフォート */
+  }
 }
 
 /** 全員が離脱・死亡したらインスタンスは閉じる。 */
@@ -243,7 +283,9 @@ export async function storeDungeonClearWeek(ownerKey: string, week: string): Pro
   if (!isBotApiConfigured()) return;
   try {
     await kvSet(WORLDBOX_INSTANCES_NAMESPACE, `dungeonclear:${ownerKey}`, JSON.stringify({ week }));
-  } catch { /* ベストエフォート */ }
+  } catch {
+    /* ベストエフォート */
+  }
 }
 
 /** ダンジョンの熟練ゲート（F2 以降=ランク2+が1人、ボス層=ランク3+が1人）。 */

@@ -18,7 +18,10 @@ export function isSpawnableTile(id: number): boolean {
  * ランダムなスポーン地点（タイル中心座標）を返す。rand は [0, 1) の乱数源
  * （サーバーでは Math.random、テストでは決定的な源を渡す）。
  */
-export function pickRandomSpawn(rand: () => number, seed: number = MAP_SEED): { x: number; y: number } {
+export function pickRandomSpawn(
+  rand: () => number,
+  seed: number = MAP_SEED,
+): { x: number; y: number } {
   const span = SPAWN_RADIUS * 2 + 1;
   for (let i = 0; i < SPAWN_TRIES; i++) {
     const tx = Math.floor(rand() * span) - SPAWN_RADIUS;

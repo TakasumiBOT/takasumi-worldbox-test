@@ -16,7 +16,9 @@ export function GET(request: Request) {
   const clientId = process.env.GOOGLE_CLIENT_ID;
   const redirectUri = process.env.GOOGLE_REDIRECT_URI;
   if (!clientId || !redirectUri || !isGoogleConfigured()) {
-    return NextResponse.redirect(new URL("/login?error=google_not_configured", publicOrigin(request)));
+    return NextResponse.redirect(
+      new URL("/login?error=google_not_configured", publicOrigin(request)),
+    );
   }
 
   // 別ホスト（専用サブドメイン等）から始まった場合は正規ホストへ寄せる（Discord と同じ理由）。

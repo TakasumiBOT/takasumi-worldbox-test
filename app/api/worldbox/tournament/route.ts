@@ -2,16 +2,26 @@ import { NextResponse } from "next/server";
 import { getRequestSession, publicOrigin, sessionOwnerKey } from "@/lib/auth";
 import { buildEconomyOp, type EconomyOp } from "@/lib/worldbox/economy/economy-bridge";
 import {
-  enqueueEconomyOpOnce, isEconomyEnabled, loadMyEconomyOps, readUserBalance,
+  enqueueEconomyOpOnce,
+  isEconomyEnabled,
+  loadMyEconomyOps,
+  readUserBalance,
 } from "@/lib/worldbox/economy/economy-bridge-online";
 import { loadMyPvpDuel } from "@/lib/worldbox/combat/pvp-online";
 import { loadMyLobbyStation } from "@/lib/worldbox/world/station-online";
 import {
-  closeEntryInner, loadCurrentTournament, saveTournament,
+  closeEntryInner,
+  loadCurrentTournament,
+  saveTournament,
 } from "@/lib/worldbox/combat/tournament-online";
 import {
-  TOURNAMENT_ENTRY_MS, TOURNAMENT_FEE, TOURNAMENT_MAX_ENTRANTS,
-  publicTournamentView, tournamentFeeOpId, tournamentId, type Tournament,
+  TOURNAMENT_ENTRY_MS,
+  TOURNAMENT_FEE,
+  TOURNAMENT_MAX_ENTRANTS,
+  publicTournamentView,
+  tournamentFeeOpId,
+  tournamentId,
+  type Tournament,
 } from "@/lib/worldbox/combat/tournament";
 import { withUserLock } from "@/lib/worldbox/core/user-lock";
 
@@ -92,9 +102,19 @@ export async function POST(request: Request) {
 
 type AuthedSession = NonNullable<ReturnType<typeof tournamentSession>["session"]>;
 
-async function enqueueFee(ownerKey: string, discordId: string, id: string): Promise<EconomyOp | null> {
+async function enqueueFee(
+  ownerKey: string,
+  discordId: string,
+  id: string,
+): Promise<EconomyOp | null> {
   const op = buildEconomyOp(
-    { kind: "spend", userKey: ownerKey, discordId, amount: TOURNAMENT_FEE, reason: "arena_tournament_entry" },
+    {
+      kind: "spend",
+      userKey: ownerKey,
+      discordId,
+      amount: TOURNAMENT_FEE,
+      reason: "arena_tournament_entry",
+    },
     id,
     Date.now(),
   );
@@ -125,17 +145,24 @@ async function handlePost(request: Request, session: AuthedSession) {
   let t = await loadCurrentTournament(now);
   if (t && t.status !== "entry") return errorResponse("tournament_closed", 409);
   if (t && t.entrants.includes(discordId)) return stateResponse(ownerKey, discordId, t);
-  if (t && t.entrants.length >= TOURNAMENT_MAX_ENTRANTS) return errorResponse("tournament_full", 409);
+  if (t && t.entrants.length >= TOURNAMENT_MAX_ENTRANTS)
+    return errorResponse("tournament_full", 409);
 
   const mine = await effectiveBalanceOf(ownerKey, discordId);
   if (mine === null || mine < TOURNAMENT_FEE) return errorResponse("insufficient_balance", 409);
 
   if (!t) {
     t = {
-      id: tournamentId(now), status: "entry", createdAt: now,
+      id: tournamentId(now),
+      status: "entry",
+      createdAt: now,
       entryEndsAt: now + TOURNAMENT_ENTRY_MS,
-      entrants: [], matches: [], champion: null,
-      prizePaid: false, refundPaid: false, closedAt: null,
+      entrants: [],
+      matches: [],
+      champion: null,
+      prizePaid: false,
+      refundPaid: false,
+      closedAt: null,
     };
   }
   const fee = await enqueueFee(ownerKey, discordId, tournamentFeeOpId(t.id, discordId));

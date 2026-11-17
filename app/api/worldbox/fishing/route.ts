@@ -2,7 +2,12 @@ import { NextResponse } from "next/server";
 import { getRequestSession, publicOrigin, sessionOwnerKey } from "@/lib/auth";
 import { MAP_SEED, WORLD_COORD_LIMIT } from "@/lib/worldbox/world/mapgen";
 import { fishingNonce, fishingReady, fishingSpotAt } from "@/lib/worldbox/activity/fishing";
-import { isFishingEnabled, loadAllCaughtAt, loadCaughtAt, storeCaughtAt } from "@/lib/worldbox/activity/fishing-online";
+import {
+  isFishingEnabled,
+  loadAllCaughtAt,
+  loadCaughtAt,
+  storeCaughtAt,
+} from "@/lib/worldbox/activity/fishing-online";
 import { lootForObjectAt } from "@/lib/worldbox/world/objects";
 import { listPresence } from "@/lib/worldbox/player/presence-online";
 import { presenceIdFor } from "@/lib/worldbox/player/presence";
@@ -44,8 +49,10 @@ export async function GET(request: Request) {
   });
   if (nums.some((n) => !Number.isFinite(n))) return err("invalid_rect", 400);
   const [x0, y0, x1, y1] = nums;
-  if (Math.abs(x0) > WORLD_COORD_LIMIT || Math.abs(y0) > WORLD_COORD_LIMIT) return err("invalid_rect", 400);
-  if (x1 < x0 || y1 < y0 || x1 - x0 > MAX_RECT_SPAN || y1 - y0 > MAX_RECT_SPAN) return err("invalid_rect", 400);
+  if (Math.abs(x0) > WORLD_COORD_LIMIT || Math.abs(y0) > WORLD_COORD_LIMIT)
+    return err("invalid_rect", 400);
+  if (x1 < x0 || y1 < y0 || x1 - x0 > MAX_RECT_SPAN || y1 - y0 > MAX_RECT_SPAN)
+    return err("invalid_rect", 400);
   const all = await loadAllCaughtAt();
   const caught: Record<string, number> = {};
   for (const [key, at] of Object.entries(all)) {
@@ -77,7 +84,12 @@ export async function POST(request: Request) {
   const fields = (body ?? {}) as { x?: unknown; y?: unknown };
   const x = typeof fields.x === "number" ? Math.floor(fields.x) : NaN;
   const y = typeof fields.y === "number" ? Math.floor(fields.y) : NaN;
-  if (!Number.isFinite(x) || !Number.isFinite(y) || Math.abs(x) > WORLD_COORD_LIMIT || Math.abs(y) > WORLD_COORD_LIMIT) {
+  if (
+    !Number.isFinite(x) ||
+    !Number.isFinite(y) ||
+    Math.abs(x) > WORLD_COORD_LIMIT ||
+    Math.abs(y) > WORLD_COORD_LIMIT
+  ) {
     return err("invalid_coord", 400);
   }
   const ownerKey = sessionOwnerKey(session);
@@ -90,14 +102,19 @@ export async function POST(request: Request) {
     const selfId = presenceIdFor(ownerKey);
     const now = Date.now();
     const entries = await listPresence();
-    const entry = entries.find((e) => e.id === selfId && e.space === "world" && now - e.ts <= 15_000);
+    const entry = entries.find(
+      (e) => e.id === selfId && e.space === "world" && now - e.ts <= 15_000,
+    );
     let pos: { x: number; y: number } | null = entry ? { x: entry.x, y: entry.y } : null;
     if (!pos) {
       const saved = parseSave(await loadWorldBoxSave(ownerKey));
       if (saved && saved.space === "world") pos = { x: saved.x, y: saved.y };
     }
     if (!pos) return err("position_unknown", 409);
-    if (Math.max(Math.abs(Math.floor(pos.x) - x), Math.abs(Math.floor(pos.y) - y)) > MAX_ACTION_DISTANCE) {
+    if (
+      Math.max(Math.abs(Math.floor(pos.x) - x), Math.abs(Math.floor(pos.y) - y)) >
+      MAX_ACTION_DISTANCE
+    ) {
       return err("too_far", 409);
     }
     const caughtAt = await loadCaughtAt(x, y);
@@ -110,6 +127,9 @@ export async function POST(request: Request) {
     }
     if (!(await storeProfile(ownerKey, next))) return err("store_failed", 503);
     await storeCaughtAt(x, y, now);
-    return NextResponse.json({ ok: true, gained: loot.gained, profile: next }, { headers: NO_STORE });
+    return NextResponse.json(
+      { ok: true, gained: loot.gained, profile: next },
+      { headers: NO_STORE },
+    );
   });
 }

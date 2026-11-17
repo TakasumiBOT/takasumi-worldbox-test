@@ -11,8 +11,23 @@
 // profile-online.ts / API ルート側が担い、ここは検証とインベントリ
 // 操作だけを行う。経済の状態遷移は economy.ts。
 /** 冒険役職 ID（プロフィールが所有する。規則は roles.ts）。 */
-export type AdventureRoleId = "free" | "blade" | "guard" | "scout" | "miner" | "medic" | "teleporter";
-export const ADVENTURE_ROLE_IDS: readonly AdventureRoleId[] = ["free", "blade", "guard", "scout", "miner", "medic", "teleporter"];
+export type AdventureRoleId =
+  | "free"
+  | "blade"
+  | "guard"
+  | "scout"
+  | "miner"
+  | "medic"
+  | "teleporter";
+export const ADVENTURE_ROLE_IDS: readonly AdventureRoleId[] = [
+  "free",
+  "blade",
+  "guard",
+  "scout",
+  "miner",
+  "medic",
+  "teleporter",
+];
 /** 守護の最大 HP ボーナス。 */
 export const GUARD_HP_BONUS = 20;
 /** 薬師の回復アイテム倍率。 */
@@ -206,7 +221,11 @@ function slotTotal(slots: readonly ItemSlot[], itemId: string): number {
  * 集計（総数）から枠へ注ぐ（移行用）。枠に入りきらない分は集計側に
  * 「あふれ分」として残るため、総数は変わらない（ロスレス）。
  */
-function pourIntoSlots(totals: Record<string, number>, hotbar: ItemSlot[], storage: ItemSlot[]): void {
+function pourIntoSlots(
+  totals: Record<string, number>,
+  hotbar: ItemSlot[],
+  storage: ItemSlot[],
+): void {
   const all = [...hotbar, ...storage];
   for (const id of Object.keys(totals)) {
     let remaining = totals[id] - (slotTotal(hotbar, id) + slotTotal(storage, id));
@@ -263,17 +282,54 @@ export function parseProfile(raw: unknown): PlayerProfile {
     try {
       data = JSON.parse(raw) as Record<string, unknown>;
     } catch {
-      return { ...DEFAULT_PROFILE, items: {}, hotbar: emptySlots(HOTBAR_SLOTS), storage: emptySlots(STORAGE_SLOTS), status: [], mastery: {}, skillAt: {} };
+      return {
+        ...DEFAULT_PROFILE,
+        items: {},
+        hotbar: emptySlots(HOTBAR_SLOTS),
+        storage: emptySlots(STORAGE_SLOTS),
+        status: [],
+        mastery: {},
+        skillAt: {},
+      };
     }
   } else if (raw && typeof raw === "object") {
     data = raw as Record<string, unknown>;
   }
   if (!data) {
-    return { ...DEFAULT_PROFILE, items: {}, hotbar: emptySlots(HOTBAR_SLOTS), storage: emptySlots(STORAGE_SLOTS), status: [], mastery: {}, skillAt: {} };
+    return {
+      ...DEFAULT_PROFILE,
+      items: {},
+      hotbar: emptySlots(HOTBAR_SLOTS),
+      storage: emptySlots(STORAGE_SLOTS),
+      status: [],
+      mastery: {},
+      skillAt: {},
+    };
   }
   const inv = invOf({
-    coins: 0, hunger: 0, hp: HP_MAX, status: [], vitalAt: 0, respawn: null, restPoint: null, lastDamageAt: 0, deaths: 0, stealActorAt: 0, stealTargetAt: 0,
-    role: "free", rolePicked: false, mastery: {}, skillAt: {}, tauntUntil: 0, reviveMark: null, pendingTeleport: null, lastDeath: null, tentTier: 0, enhance: {}, toolHp: {}, spawnProtectedUntil: 0,
+    coins: 0,
+    hunger: 0,
+    hp: HP_MAX,
+    status: [],
+    vitalAt: 0,
+    respawn: null,
+    restPoint: null,
+    lastDamageAt: 0,
+    deaths: 0,
+    stealActorAt: 0,
+    stealTargetAt: 0,
+    role: "free",
+    rolePicked: false,
+    mastery: {},
+    skillAt: {},
+    tauntUntil: 0,
+    reviveMark: null,
+    pendingTeleport: null,
+    lastDeath: null,
+    tentTier: 0,
+    enhance: {},
+    toolHp: {},
+    spawnProtectedUntil: 0,
     items: data.items as Record<string, number>,
     hotbar: data.hotbar as ItemSlot[],
     storage: data.storage as ItemSlot[],
@@ -337,14 +393,16 @@ function parseSkillAt(raw: unknown): Record<string, number> {
 function parseReviveMark(raw: unknown): { space: string; at: number } | null {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
   const v = raw as { space?: unknown; at?: unknown };
-  if (typeof v.space !== "string" || typeof v.at !== "number" || !Number.isFinite(v.at)) return null;
+  if (typeof v.space !== "string" || typeof v.at !== "number" || !Number.isFinite(v.at))
+    return null;
   return { space: v.space.slice(0, 64), at: Math.floor(v.at) };
 }
 
 function parsePendingTeleport(raw: unknown): { space: string; x: number; y: number } | null {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
   const v = raw as { space?: unknown; x?: unknown; y?: unknown };
-  if (typeof v.space !== "string" || typeof v.x !== "number" || typeof v.y !== "number") return null;
+  if (typeof v.space !== "string" || typeof v.x !== "number" || typeof v.y !== "number")
+    return null;
   if (!Number.isFinite(v.x) || !Number.isFinite(v.y)) return null;
   return { space: v.space.slice(0, 64), x: v.x, y: v.y };
 }
@@ -462,7 +520,9 @@ export function serializeProfile(profile: PlayerProfile): string {
     status: parseStatus(profile.status),
     vitalAt: clampInt(profile.vitalAt, 0, Number.MAX_SAFE_INTEGER, 0),
     // 前回精算位置は3点そろったときだけ書く（欠けた状態を保存しない）
-    ...(typeof profile.vitalX === "number" && typeof profile.vitalY === "number" && typeof profile.vitalSpace === "string"
+    ...(typeof profile.vitalX === "number" &&
+    typeof profile.vitalY === "number" &&
+    typeof profile.vitalSpace === "string"
       ? {
           vitalX: parseVitalCoord(profile.vitalX),
           vitalY: parseVitalCoord(profile.vitalY),
@@ -479,7 +539,8 @@ export function serializeProfile(profile: PlayerProfile): string {
     stealActorAt: clampInt(profile.stealActorAt, 0, Number.MAX_SAFE_INTEGER, 0),
     stealTargetAt: clampInt(profile.stealTargetAt, 0, Number.MAX_SAFE_INTEGER, 0),
     role: isAdventureRoleId(profile.role) ? profile.role : "free",
-    rolePicked: profile.rolePicked === true || (isAdventureRoleId(profile.role) && profile.role !== "free"),
+    rolePicked:
+      profile.rolePicked === true || (isAdventureRoleId(profile.role) && profile.role !== "free"),
     mastery: parseMastery(profile.mastery),
     skillAt: parseSkillAt(profile.skillAt),
     tauntUntil: clampInt(profile.tauntUntil, 0, Number.MAX_SAFE_INTEGER, 0),
@@ -526,7 +587,11 @@ export function addItem(profile: PlayerProfile, itemId: string, count: number): 
     // 足りない分はあるだけ減らす（旧 addItem の負数挙動）
     const inv = invOf(profile);
     const total = countItem(profile, itemId);
-    const next = { ...inv, hotbar: inv.hotbar.map((s) => (s && s.id === itemId ? null : s)), storage: inv.storage.map((s) => (s && s.id === itemId ? null : s)) };
+    const next = {
+      ...inv,
+      hotbar: inv.hotbar.map((s) => (s && s.id === itemId ? null : s)),
+      storage: inv.storage.map((s) => (s && s.id === itemId ? null : s)),
+    };
     const items = { ...next.items };
     if (total + count > 0) items[itemId] = total + count;
     else delete items[itemId];
@@ -611,7 +676,8 @@ export function bestToolItem(profile: PlayerProfile, kind: ToolKind): ItemDef | 
     const eff = (def.tier ?? 0) + (profile.enhance?.[def.id] ?? 0);
     if (
       eff > bestEff ||
-      (eff === bestEff && best !== null &&
+      (eff === bestEff &&
+        best !== null &&
         ((def.tier ?? 0) > (best.tier ?? 0) ||
           ((def.tier ?? 0) === (best.tier ?? 0) && (def.durability ?? 0) > (best.durability ?? 0))))
     ) {

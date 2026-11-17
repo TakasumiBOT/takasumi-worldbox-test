@@ -50,11 +50,31 @@ async function loadBundle(files, exportNames) {
 }
 
 const T = await loadBundle(
-  ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/world/lobby.ts", "worldbox/economy/items.ts", "worldbox/combat/mobs.ts", "worldbox/world/objects.ts", "worldbox/world/instances.ts", "worldbox/social/party.ts"],
   [
-    "buildDungeonFloor", "dungeonHpScale", "dungeonBossForEntrance", "dungeonFloorBossFor", "DUNGEON_FLOORS",
-    "createParty", "joinParty", "leaveParty", "addInvite", "inviteFor", "parseParty", "partyKeyOf",
-    "MAX_PARTY_MEMBERS", "PARTY_INVITE_TTL_MS",
+    "worldbox/core/rng.ts",
+    "worldbox/world/mapgen.ts",
+    "worldbox/world/lobby.ts",
+    "worldbox/economy/items.ts",
+    "worldbox/combat/mobs.ts",
+    "worldbox/world/objects.ts",
+    "worldbox/world/instances.ts",
+    "worldbox/social/party.ts",
+  ],
+  [
+    "buildDungeonFloor",
+    "dungeonHpScale",
+    "dungeonBossForEntrance",
+    "dungeonFloorBossFor",
+    "DUNGEON_FLOORS",
+    "createParty",
+    "joinParty",
+    "leaveParty",
+    "addInvite",
+    "inviteFor",
+    "parseParty",
+    "partyKeyOf",
+    "MAX_PARTY_MEMBERS",
+    "PARTY_INVITE_TTL_MS",
   ],
 );
 
@@ -126,8 +146,16 @@ test("dungeon: every floor has boss, key holder, portal, stairs rules", () => {
   for (let layer = 0; layer < T.DUNGEON_FLOORS; layer++) {
     const f = T.buildDungeonFloor(777, 3, 4, layer);
     assert.equal(f.floor, layer + 1);
-    assert.ok(f.mobs.some((m) => m.mobId === f.boss.mobId && m.x === f.boss.x && m.y === f.boss.y), `floor ${layer + 1} boss placed`);
-    assert.ok(f.mobs.some((m) => m.mobId === f.keyHolder.mobId && m.x === f.keyHolder.x && m.y === f.keyHolder.y), `floor ${layer + 1} key holder placed`);
+    assert.ok(
+      f.mobs.some((m) => m.mobId === f.boss.mobId && m.x === f.boss.x && m.y === f.boss.y),
+      `floor ${layer + 1} boss placed`,
+    );
+    assert.ok(
+      f.mobs.some(
+        (m) => m.mobId === f.keyHolder.mobId && m.x === f.keyHolder.x && m.y === f.keyHolder.y,
+      ),
+      `floor ${layer + 1} key holder placed`,
+    );
     assert.notDeepEqual({ x: f.boss.x, y: f.boss.y }, { x: f.keyHolder.x, y: f.keyHolder.y });
     assert.ok(f.portal.x >= 0 && f.portal.y >= 0);
     if (layer < T.DUNGEON_FLOORS - 1) assert.ok(f.stairsDown, `floor ${layer + 1} stairs`);

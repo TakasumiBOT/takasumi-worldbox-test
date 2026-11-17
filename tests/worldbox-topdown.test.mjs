@@ -57,27 +57,75 @@ async function loadBundle(files, exportNames) {
 
 const wb = await loadBundle(
   [
-    "worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/player/move.ts", "worldbox/player/presence.ts",
-    "worldbox/world/lobby.ts", "worldbox/core/save.ts", "worldbox/core/save-source.ts", "worldbox/world/daynight.ts",
+    "worldbox/core/rng.ts",
+    "worldbox/world/mapgen.ts",
+    "worldbox/player/move.ts",
+    "worldbox/player/presence.ts",
+    "worldbox/world/lobby.ts",
+    "worldbox/core/save.ts",
+    "worldbox/core/save-source.ts",
+    "worldbox/world/daynight.ts",
     "worldbox/world/spawn.ts",
   ],
   [
-    "MAP_SEED", "T_GRASS", "T_WATER", "T_SAND", "T_TREE", "T_ROCK", "T_DIRT",
-    "T_SNOW", "T_SNOW_TREE", "snowBoundaryAt", "SNOW_BASE_Y", "WORLD_COORD_LIMIT",
-    "tileAt", "worldTileSource", "tilesSource", "generateChunk", "CHUNK_SIZE",
-    "rectBounds", "worldBounds", "isSolidMapTile", "mapTileAt",
-    "WALK_SPEED", "PLAYER_RADIUS", "stepMove", "canStandAt", "findFreeNear", "circleHitsSolid",
-    "PRESENCE_FRESH_MS", "PRESENCE_MAX_PLAYERS", "sanitizeHeartbeat", "parsePresenceEntry",
-    "isFreshPresence", "selectVisiblePlayers", "predictPosition", "presenceIdFor",
-    "SAVE_VERSION", "serializeSave", "parseSave", "chooseInitialSave", "phaseAtTime",
-    "SPAWN_RADIUS", "pickRandomSpawn", "isSpawnableTile",
+    "MAP_SEED",
+    "T_GRASS",
+    "T_WATER",
+    "T_SAND",
+    "T_TREE",
+    "T_ROCK",
+    "T_DIRT",
+    "T_SNOW",
+    "T_SNOW_TREE",
+    "snowBoundaryAt",
+    "SNOW_BASE_Y",
+    "WORLD_COORD_LIMIT",
+    "tileAt",
+    "worldTileSource",
+    "tilesSource",
+    "generateChunk",
+    "CHUNK_SIZE",
+    "rectBounds",
+    "worldBounds",
+    "isSolidMapTile",
+    "mapTileAt",
+    "WALK_SPEED",
+    "PLAYER_RADIUS",
+    "stepMove",
+    "canStandAt",
+    "findFreeNear",
+    "circleHitsSolid",
+    "PRESENCE_FRESH_MS",
+    "PRESENCE_MAX_PLAYERS",
+    "sanitizeHeartbeat",
+    "parsePresenceEntry",
+    "isFreshPresence",
+    "selectVisiblePlayers",
+    "predictPosition",
+    "presenceIdFor",
+    "SAVE_VERSION",
+    "serializeSave",
+    "parseSave",
+    "chooseInitialSave",
+    "phaseAtTime",
+    "SPAWN_RADIUS",
+    "pickRandomSpawn",
+    "isSpawnableTile",
   ],
 );
 
 // ---------- マップ生成 ----------
 
 test("mapgen: tileAt は決定的（同座標=同タイル、旧境界外・負座標でも）", () => {
-  for (const [x, y] of [[0, 0], [512, 512], [1023, 1023], [1024, 1024], [5000, -3000], [-2000, 777], [-1, -1]]) {
+  for (const [x, y] of [
+    [0, 0],
+    [512, 512],
+    [1023, 1023],
+    [1024, 1024],
+    [5000, -3000],
+    [-2000, 777],
+    [-1, -1],
+  ]) {
     assert.equal(wb.tileAt(x, y), wb.tileAt(x, y), `(${x}, ${y})`);
     assert.equal(wb.tileAt(x, y), wb.tileAt(x, y, wb.MAP_SEED));
     const id = wb.tileAt(x, y);
@@ -87,14 +135,22 @@ test("mapgen: tileAt は決定的（同座標=同タイル、旧境界外・負�
   let differs = false;
   for (let y = 0; y < 64 && !differs; y++) {
     for (let x = 0; x < 64; x++) {
-      if (wb.tileAt(x, y, 42) !== wb.tileAt(x, y)) { differs = true; break; }
+      if (wb.tileAt(x, y, 42) !== wb.tileAt(x, y)) {
+        differs = true;
+        break;
+      }
     }
   }
   assert.ok(differs, "別シードで地形が変わらない");
 });
 
 test("mapgen: チャンク生成は tileAt の寄せ集めと一致し、決定的", () => {
-  for (const [cx, cy] of [[0, 0], [16, 16], [-3, 7], [40, -12]]) {
+  for (const [cx, cy] of [
+    [0, 0],
+    [16, 16],
+    [-3, 7],
+    [40, -12],
+  ]) {
     const a = wb.generateChunk(cx, cy);
     const b = wb.generateChunk(cx, cy, wb.MAP_SEED);
     assert.deepEqual([...a.tiles], [...b.tiles]);
@@ -131,7 +187,10 @@ test("mapgen: 生成時間の回帰ガード（tileAt が参照ループ比で�
     acc += s;
   }
   assert.ok(acc > 0);
-  assert.ok(genBest < refBest * 40, `生成が遅すぎる ${genBest.toFixed(0)}ms（参照 ${refBest.toFixed(0)}ms）`);
+  assert.ok(
+    genBest < refBest * 40,
+    `生成が遅すぎる ${genBest.toFixed(0)}ms（参照 ${refBest.toFixed(0)}ms）`,
+  );
 });
 
 test("mapgen: タイル分布（原点付近 1024×1024 で旧マップと概ね同じ）", () => {
@@ -148,18 +207,31 @@ test("mapgen: タイル分布（原点付近 1024×1024 で旧マップと概ね
     assert.ok(id >= wb.T_GRASS && id <= wb.T_SNOW_TREE, `未知のタイル ${id}`);
   }
   assert.ok(share(wb.T_GRASS) > 0.3, `草が少なすぎる ${(share(wb.T_GRASS) * 100).toFixed(1)}%`);
-  for (const [id, name] of [[wb.T_WATER, "水"], [wb.T_SAND, "砂"], [wb.T_TREE, "森"], [wb.T_DIRT, "土"]]) {
+  for (const [id, name] of [
+    [wb.T_WATER, "水"],
+    [wb.T_SAND, "砂"],
+    [wb.T_TREE, "森"],
+    [wb.T_DIRT, "土"],
+  ]) {
     assert.ok(share(id) > 0.01, `${name}がほぼ無い ${(share(id) * 100).toFixed(2)}%`);
   }
   assert.ok(share(wb.T_WATER) < 0.3, `水が多すぎる ${(share(wb.T_WATER) * 100).toFixed(1)}%`);
   assert.ok(share(wb.T_ROCK) > 0.0005, "岩が無い");
   // 雪原（北の帯）: 雪と雪の木が一定量ある
   assert.ok(share(wb.T_SNOW) > 0.08, `雪が少なすぎる ${(share(wb.T_SNOW) * 100).toFixed(1)}%`);
-  assert.ok(share(wb.T_SNOW_TREE) > 0.01, `雪の木がほぼ無い ${(share(wb.T_SNOW_TREE) * 100).toFixed(2)}%`);
+  assert.ok(
+    share(wb.T_SNOW_TREE) > 0.01,
+    `雪の木がほぼ無い ${(share(wb.T_SNOW_TREE) * 100).toFixed(2)}%`,
+  );
   // 草が最大シェア
   const maxOther = Math.max(
-    share(wb.T_WATER), share(wb.T_SAND), share(wb.T_TREE), share(wb.T_ROCK), share(wb.T_DIRT),
-    share(wb.T_SNOW), share(wb.T_SNOW_TREE),
+    share(wb.T_WATER),
+    share(wb.T_SAND),
+    share(wb.T_TREE),
+    share(wb.T_ROCK),
+    share(wb.T_DIRT),
+    share(wb.T_SNOW),
+    share(wb.T_SNOW_TREE),
   );
   assert.ok(share(wb.T_GRASS) > maxOther);
 });
@@ -196,7 +268,10 @@ test("mapgen: 川は全列を横切る", () => {
   for (let x = 0; x < 1024; x++) {
     let hasWater = false;
     for (let y = 0; y < 1024; y++) {
-      if (wb.tileAt(x, y) === wb.T_WATER) { hasWater = true; break; }
+      if (wb.tileAt(x, y) === wb.T_WATER) {
+        hasWater = true;
+        break;
+      }
     }
     assert.ok(hasWater, `列 ${x} に水が無い（川が途切れている）`);
   }
@@ -293,10 +368,16 @@ test("move: findFreeNear は固体の中から立てる場所へ救済する", (
 
 test("presence: ハートビート検証（補正と却下）", () => {
   const bounds = wb.rectBounds(128, 128);
-  const ok = wb.sanitizeHeartbeat({ name: "  ago  ", x: 10, y: 20, vx: 3, vy: -3, face: -1 }, bounds);
+  const ok = wb.sanitizeHeartbeat(
+    { name: "  ago  ", x: 10, y: 20, vx: 3, vy: -3, face: -1 },
+    bounds,
+  );
   assert.equal(ok.name, "ago");
   assert.equal(ok.face, -1);
-  const clamped = wb.sanitizeHeartbeat({ name: "x".repeat(40), x: 9999, y: -5, vx: 999, vy: 0 }, bounds);
+  const clamped = wb.sanitizeHeartbeat(
+    { name: "x".repeat(40), x: 9999, y: -5, vx: 999, vy: 0 },
+    bounds,
+  );
   assert.equal(clamped.x, 128);
   assert.equal(clamped.y, 0);
   assert.equal(clamped.vx, 16);
@@ -311,7 +392,10 @@ test("presence: ハートビート検証（補正と却下）", () => {
 
 test("presence: parse と鮮度・自己除外・上限", () => {
   const now = 1_700_000_000_000;
-  const e = wb.parsePresenceEntry("abcd1234", JSON.stringify({ name: "n", x: 1, y: 2, vx: 0, vy: 0, face: 1, ts: now }));
+  const e = wb.parsePresenceEntry(
+    "abcd1234",
+    JSON.stringify({ name: "n", x: 1, y: 2, vx: 0, vy: 0, face: 1, ts: now }),
+  );
   assert.equal(e.id, "abcd1234");
   assert.equal(wb.isFreshPresence(e, now), true);
   assert.equal(wb.isFreshPresence({ ...e, ts: now - wb.PRESENCE_FRESH_MS - 1 }, now), false);
@@ -320,7 +404,16 @@ test("presence: parse と鮮度・自己除外・上限", () => {
 
   const entries = [];
   for (let i = 0; i < 40; i++) {
-    entries.push({ id: `id${i}`, name: `p${i}`, x: 1, y: 1, vx: 0, vy: 0, face: 1, ts: now - i * 100 });
+    entries.push({
+      id: `id${i}`,
+      name: `p${i}`,
+      x: 1,
+      y: 1,
+      vx: 0,
+      vy: 0,
+      face: 1,
+      ts: now - i * 100,
+    });
   }
   entries.push({ id: "stale", name: "old", x: 1, y: 1, vx: 0, vy: 0, face: 1, ts: now - 60_000 });
   const visible = wb.selectVisiblePlayers(entries, "id0", now);
@@ -356,15 +449,22 @@ test("save v6: 往復とクランプ、旧バージョンは破棄される", ()
   const json = wb.serializeSave({ space: "world", x: 10.5, y: 20.25, worldReturn: null });
   assert.deepEqual(wb.parseSave(json), { space: "world", x: 10.5, y: 20.25, worldReturn: null });
   // ワールドは境界が無いので負座標・遠方もそのまま保持する（上限だけ丸める）
-  const kept = wb.parseSave(wb.serializeSave({ space: "world", x: -3, y: 99999, worldReturn: null }));
+  const kept = wb.parseSave(
+    wb.serializeSave({ space: "world", x: -3, y: 99999, worldReturn: null }),
+  );
   assert.deepEqual(kept, { space: "world", x: -3, y: 99999, worldReturn: null });
-  const clamped = wb.parseSave(wb.serializeSave({ space: "world", x: -2_000_000, y: 2_000_000, worldReturn: null }));
+  const clamped = wb.parseSave(
+    wb.serializeSave({ space: "world", x: -2_000_000, y: 2_000_000, worldReturn: null }),
+  );
   assert.equal(clamped.x, -wb.WORLD_COORD_LIMIT);
   assert.equal(clamped.y, wb.WORLD_COORD_LIMIT);
   // v5（空間を持たない）以前のセーブは読み込まない
   assert.equal(wb.parseSave(JSON.stringify({ version: 5, x: 64.5, y: 64.5 })), null);
   assert.equal(wb.parseSave(JSON.stringify({ version: 4, x: 64.5, y: 64.5 })), null);
-  assert.equal(wb.parseSave(JSON.stringify({ version: 3, slots: [], player: { x: 1, y: 2 }, hp: 10 })), null);
+  assert.equal(
+    wb.parseSave(JSON.stringify({ version: 3, slots: [], player: { x: 1, y: 2 }, hp: 10 })),
+    null,
+  );
   assert.equal(wb.parseSave(JSON.stringify({ version: 2, player: { x: 1, y: 2 } })), null);
   assert.equal(wb.parseSave(JSON.stringify({ version: 6, space: "world", x: "10", y: 5 })), null);
   assert.equal(wb.parseSave("{壊れた"), null);
@@ -373,12 +473,20 @@ test("save v6: 往復とクランプ、旧バージョンは破棄される", ()
 
 test("save-source: オンライン優先・ローカル移行・新規", () => {
   const pos = { x: 5, y: 6 };
-  assert.deepEqual(wb.chooseInitialSave(pos, { x: 1, y: 1 }, true), { state: pos, source: "online", pushLocalToOnline: false });
+  assert.deepEqual(wb.chooseInitialSave(pos, { x: 1, y: 1 }, true), {
+    state: pos,
+    source: "online",
+    pushLocalToOnline: false,
+  });
   const localOnly = wb.chooseInitialSave(null, pos, true);
   assert.equal(localOnly.source, "local");
   assert.equal(localOnly.pushLocalToOnline, true);
   assert.equal(wb.chooseInitialSave(null, pos, false).pushLocalToOnline, false);
-  assert.deepEqual(wb.chooseInitialSave(null, null, false), { state: null, source: "new", pushLocalToOnline: false });
+  assert.deepEqual(wb.chooseInitialSave(null, null, false), {
+    state: null,
+    source: "new",
+    pushLocalToOnline: false,
+  });
 });
 
 test("共有時計: 位相は unix 時刻だけで決まり、周期で繰り返す", () => {
@@ -402,14 +510,22 @@ export async function kvList(ns) {
 }
 `);
 const subdomainUrl = dataUrl(transpile("subdomain.ts"));
-const headersStubUrl = dataUrl("export async function cookies() { throw new Error('tests do not use cookies()'); }");
+const headersStubUrl = dataUrl(
+  "export async function cookies() { throw new Error('tests do not use cookies()'); }",
+);
 const authUrl = dataUrl(
-  transpile("auth.ts").replaceAll('"./subdomain"', JSON.stringify(subdomainUrl)).replaceAll('"next/headers"', JSON.stringify(headersStubUrl)),
+  transpile("auth.ts")
+    .replaceAll('"./subdomain"', JSON.stringify(subdomainUrl))
+    .replaceAll('"next/headers"', JSON.stringify(headersStubUrl)),
 );
 const auth = await import(authUrl);
 const rngUrl = dataUrl(transpile("worldbox/core/rng.ts"));
-const mapgenUrl = dataUrl(transpile("worldbox/world/mapgen.ts").replaceAll('"../core/rng"', JSON.stringify(rngUrl)));
-const lobbyUrl = dataUrl(transpile("worldbox/world/lobby.ts").replaceAll('"./mapgen"', JSON.stringify(mapgenUrl)));
+const mapgenUrl = dataUrl(
+  transpile("worldbox/world/mapgen.ts").replaceAll('"../core/rng"', JSON.stringify(rngUrl)),
+);
+const lobbyUrl = dataUrl(
+  transpile("worldbox/world/lobby.ts").replaceAll('"./mapgen"', JSON.stringify(mapgenUrl)),
+);
 const tentUrl = dataUrl(
   transpile("worldbox/world/tent.ts")
     .replaceAll('"./mapgen"', JSON.stringify(mapgenUrl))
@@ -420,7 +536,12 @@ const floorsUrl = dataUrl(
     .replaceAll('"./mapgen"', JSON.stringify(mapgenUrl))
     .replaceAll('"./lobby"', JSON.stringify(lobbyUrl)),
 );
-const presenceUrl = dataUrl(transpile("worldbox/player/presence.ts").replaceAll('"../world/mapgen"', JSON.stringify(mapgenUrl)));
+const presenceUrl = dataUrl(
+  transpile("worldbox/player/presence.ts").replaceAll(
+    '"../world/mapgen"',
+    JSON.stringify(mapgenUrl),
+  ),
+);
 const presenceOnlineUrl = dataUrl(
   transpile("worldbox/player/presence-online.ts")
     .replaceAll('"../../bot-api"', JSON.stringify(botApiStubUrl))
@@ -433,7 +554,10 @@ const saveUrl = dataUrl(
     .replaceAll('"../world/mapgen"', JSON.stringify(mapgenUrl)),
 );
 const saveOnlineUrl = dataUrl(
-  transpile("worldbox/core/save-online.ts").replaceAll('"../../bot-api"', JSON.stringify(botApiStubUrl)),
+  transpile("worldbox/core/save-online.ts").replaceAll(
+    '"../../bot-api"',
+    JSON.stringify(botApiStubUrl),
+  ),
 );
 const nextServerStubUrl = dataUrl(`
 export class NextResponse {
@@ -466,7 +590,7 @@ const presenceRoute = await import(
       .replaceAll('"@/lib/worldbox/core/save"', JSON.stringify(saveUrl))
       .replaceAll('"@/lib/worldbox/core/save-online"', JSON.stringify(saveOnlineUrl))
       .replaceAll('"@/lib/worldbox/core/metrics-online"', JSON.stringify(metricsOnlineStubUrl)),
-  ),
+  )
 );
 
 process.env.DISCORD_SESSION_SECRET = ["worldbox", "topdown", "test", "secret"].join("-");
@@ -492,13 +616,19 @@ test("API(presence): ゲストは読めるが書けない・消せない", async
   assert.deepEqual((await res.json()).players, []);
   assert.equal((await presenceRoute.PUT(presenceRequest("PUT", null, { x: 1, y: 1 }))).status, 401);
   assert.equal((await presenceRoute.DELETE(presenceRequest("DELETE", null))).status, 401);
-  assert.equal((await presenceRoute.PUT(presenceRequest("PUT", "ago_session=forged.value", { x: 1, y: 1 }))).status, 401);
+  assert.equal(
+    (await presenceRoute.PUT(presenceRequest("PUT", "ago_session=forged.value", { x: 1, y: 1 })))
+      .status,
+    401,
+  );
 });
 
 test("API(presence): ハートビート往復、名前はセッション由来、自分は一覧に出ない", async () => {
   const cookieA = sessionCookie("111111111111111111", "ago-a");
   const cookieB = sessionCookie("222222222222222222", "ago-b");
-  const put = await presenceRoute.PUT(presenceRequest("PUT", cookieA, { name: "偽名", x: 64.5, y: 64.5, vx: 2, vy: 0, face: -1 }));
+  const put = await presenceRoute.PUT(
+    presenceRequest("PUT", cookieA, { name: "偽名", x: 64.5, y: 64.5, vx: 2, vy: 0, face: -1 }),
+  );
   assert.equal(put.status, 200);
   const seenByB = await (await presenceRoute.GET(presenceRequest("GET", cookieB))).json();
   assert.equal(seenByB.players.length, 1);
@@ -513,8 +643,18 @@ test("API(presence): ハートビート往復、名前はセッション由来�
 
 test("API(presence): 不正な body は 400、他オリジンは 403", async () => {
   const cookie = sessionCookie("333333333333333333", "ago-c");
-  assert.equal((await presenceRoute.PUT(presenceRequest("PUT", cookie, { x: "abc", y: 1 }))).status, 400);
-  assert.equal((await presenceRoute.PUT(presenceRequest("PUT", cookie, { x: 1, y: 1 }, { origin: "http://evil.example" }))).status, 403);
+  assert.equal(
+    (await presenceRoute.PUT(presenceRequest("PUT", cookie, { x: "abc", y: 1 }))).status,
+    400,
+  );
+  assert.equal(
+    (
+      await presenceRoute.PUT(
+        presenceRequest("PUT", cookie, { x: 1, y: 1 }, { origin: "http://evil.example" }),
+      )
+    ).status,
+    403,
+  );
 });
 
 test("API(presence): 古いハートビートは一覧から落ち、DELETE で即座に消える", async () => {
@@ -533,7 +673,11 @@ test("API(presence): 古いハートビートは一覧から落ち、DELETE で�
     }
   }
   seen = await (await presenceRoute.GET(presenceRequest("GET", cookieB))).json();
-  assert.equal(seen.players.filter((p) => p.name === "ago-d").length, 0, "古いエントリが見えている");
+  assert.equal(
+    seen.players.filter((p) => p.name === "ago-d").length,
+    0,
+    "古いエントリが見えている",
+  );
   // DELETE の即時反映
   await presenceRoute.PUT(presenceRequest("PUT", cookieA, { x: 10, y: 10, vx: 0, vy: 0, face: 1 }));
   assert.equal((await presenceRoute.DELETE(presenceRequest("DELETE", cookieA))).status, 200);
@@ -544,7 +688,10 @@ test("API(presence): 古いハートビートは一覧から落ち、DELETE で�
 // ---------- クライアント配線 ----------
 
 test("クライアント: 見下ろし＋プレゼンス配線があり、横スクロール層は残っていない", () => {
-  const client = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"), "utf8");
+  const client = fs.readFileSync(
+    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    "utf8",
+  );
   assert.ok(client.includes("mapgen"), "mapgen を使っていない");
   assert.ok(client.includes("/api/worldbox/presence"), "プレゼンス API を使っていない");
   assert.ok(client.includes("minimap") || client.includes("ミニマップ"), "ミニマップが無い");
@@ -555,7 +702,10 @@ test("クライアント: 見下ろし＋プレゼンス配線があり、横ス
     assert.ok(!client.includes(dead), `旧層が残っている: ${dead}`);
   }
   const catalog = fs.readFileSync(path.join(libDir, "games-catalog.ts"), "utf8");
-  const entry = catalog.slice(catalog.indexOf('slug: "worldbox"'), catalog.indexOf('slug: "worldbox"') + 500);
+  const entry = catalog.slice(
+    catalog.indexOf('slug: "worldbox"'),
+    catalog.indexOf('slug: "worldbox"') + 500,
+  );
   assert.ok(entry.includes("見下ろし"), "カタログが見下ろし表記でない");
   assert.ok(!entry.includes("横スクロール"), "カタログに旧表記が残っている");
   assert.ok(entry.includes("同時接続"), "カタログに同時接続の表記が無い");
@@ -564,7 +714,10 @@ test("クライアント: 見下ろし＋プレゼンス配線があり、横ス
 });
 
 test("クライアント: 地面タイルはダンジョン流用 PNG（grass/dirt/tree/rock）を使う", () => {
-  const client = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"), "utf8");
+  const client = fs.readFileSync(
+    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    "utf8",
+  );
   assert.ok(client.includes("loadDungeonTiles"), "ダンジョンタイルを読み込んでいない");
   assert.ok(client.includes("imageSmoothingEnabled = false"), "ピクセルアートの補間を切っていない");
   assert.ok(!client.includes("textures.leaves"), "木タイルに旧キャノピー合成が残っている");
@@ -575,14 +728,21 @@ test("クライアント: 地面タイルはダンジョン流用 PNG（grass/di
     assert.ok(fs.existsSync(file), `流用タイルが無い: ${name}.png`);
     const buf = fs.readFileSync(file);
     // PNG 署名 + IHDR の幅・高さ（16〜23バイト目、ビッグエンディアン）
-    assert.deepEqual([...buf.subarray(0, 8)], [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a], `${name}.png が PNG でない`);
+    assert.deepEqual(
+      [...buf.subarray(0, 8)],
+      [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a],
+      `${name}.png が PNG でない`,
+    );
     assert.equal(buf.readUInt32BE(16), 64, `${name}.png の幅が 64 でない`);
     assert.equal(buf.readUInt32BE(20), 64, `${name}.png の高さが 64 でない`);
   }
 });
 
 test("クライアント: 雪タイルもダンジョン流用 PNG（snow/snow-tree）を使う", () => {
-  const client = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"), "utf8");
+  const client = fs.readFileSync(
+    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    "utf8",
+  );
   assert.ok(client.includes("paintLocalTerrain"), "周辺マップの地形描画を使っていない");
   assert.ok(client.includes("T_SNOW"), "雪タイルを描画していない");
   const textures = fs.readFileSync(path.join(libDir, "worldbox/world/textures.ts"), "utf8");
@@ -591,7 +751,11 @@ test("クライアント: 雪タイルもダンジョン流用 PNG（snow/snow-t
     const file = path.join(rootDir, "public/img/worldbox", `${name}.png`);
     assert.ok(fs.existsSync(file), `流用タイルが無い: ${name}.png`);
     const buf = fs.readFileSync(file);
-    assert.deepEqual([...buf.subarray(0, 8)], [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a], `${name}.png が PNG でない`);
+    assert.deepEqual(
+      [...buf.subarray(0, 8)],
+      [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a],
+      `${name}.png が PNG でない`,
+    );
     assert.equal(buf.readUInt32BE(16), 64, `${name}.png の幅が 64 でない`);
     assert.equal(buf.readUInt32BE(20), 64, `${name}.png の高さが 64 でない`);
   }
@@ -607,8 +771,14 @@ test("spawn: 初期スポーンは ±2000 以内の歩行可能な陸タイル�
     const ty = Math.floor(p.y);
     assert.equal(p.x, tx + 0.5);
     assert.equal(p.y, ty + 0.5);
-    assert.ok(Math.abs(tx) <= wb.SPAWN_RADIUS && Math.abs(ty) <= wb.SPAWN_RADIUS, `範囲外 (${tx}, ${ty})`);
-    assert.ok(wb.isSpawnableTile(wb.tileAt(tx, ty)), `スポーン不可タイル ${wb.tileAt(tx, ty)} at (${tx}, ${ty})`);
+    assert.ok(
+      Math.abs(tx) <= wb.SPAWN_RADIUS && Math.abs(ty) <= wb.SPAWN_RADIUS,
+      `範囲外 (${tx}, ${ty})`,
+    );
+    assert.ok(
+      wb.isSpawnableTile(wb.tileAt(tx, ty)),
+      `スポーン不可タイル ${wb.tileAt(tx, ty)} at (${tx}, ${ty})`,
+    );
   }
   // 同じ乱数系列なら同じ結果（サーバー側で再現可能）
   assert.deepEqual(wb.pickRandomSpawn(lcg(42)), wb.pickRandomSpawn(lcg(42)));

@@ -1,11 +1,17 @@
 import { NextResponse } from "next/server";
 import { getRequestSession, publicOrigin, sessionOwnerKey } from "@/lib/auth";
 import {
-  TAX_RATE_MAX, isPrivateNation, memberKeysOf, normalizeTaxRate, resolveMemberRole,
+  TAX_RATE_MAX,
+  isPrivateNation,
+  memberKeysOf,
+  normalizeTaxRate,
+  resolveMemberRole,
   type NationSettings,
 } from "@/lib/worldbox/social/nation-settings";
 import {
-  isNationSettingsEnabled, loadNationSettings, updateNationSettings,
+  isNationSettingsEnabled,
+  loadNationSettings,
+  updateNationSettings,
 } from "@/lib/worldbox/social/nation-settings-online";
 import { loadNationsState } from "@/lib/worldbox/social/nations-online";
 import type { NationsState } from "@/lib/worldbox/social/nations";
@@ -37,14 +43,22 @@ function sameOrigin(request: Request) {
 }
 
 /** 所有者キーから表示名を作る: プレゼンスに居ればその名前、無ければ #末尾4桁。 */
-function displayName(ownerKey: string, presenceNames: Map<string, string>): { name: string; tag: string } {
+function displayName(
+  ownerKey: string,
+  presenceNames: Map<string, string>,
+): { name: string; tag: string } {
   const discordId = ownerKey.startsWith("discord:") ? ownerKey.slice("discord:".length) : ownerKey;
   const tag = `#${discordId.slice(-4)}`;
   const name = presenceNames.get(presenceIdFor(ownerKey));
   return { name: name || tag, tag };
 }
 
-async function buildView(state: NationsState, guildId: string, settings: NationSettings, selfKey: string) {
+async function buildView(
+  state: NationsState,
+  guildId: string,
+  settings: NationSettings,
+  selfKey: string,
+) {
   const nation = state.nations[guildId];
   const memberKeys = memberKeysOf(state, guildId);
   const presenceNames = new Map<string, string>();
@@ -71,7 +85,10 @@ async function buildView(state: NationsState, guildId: string, settings: NationS
     };
   });
   const order = { king: 0, minister: 1, citizen: 2 } as const;
-  members.sort((a, b) => order[a.role] - order[b.role] || a.name.localeCompare(b.name) || a.key.localeCompare(b.key));
+  members.sort(
+    (a, b) =>
+      order[a.role] - order[b.role] || a.name.localeCompare(b.name) || a.key.localeCompare(b.key),
+  );
   const mine = members.find((m) => m.key === selfKey);
   return {
     guildId,
@@ -110,8 +127,11 @@ export async function POST(request: Request) {
     return err("invalid_request", 400);
   }
   const fields = (body ?? {}) as {
-    action?: unknown; taxRate?: unknown; visibility?: unknown;
-    targetKey?: unknown; minister?: unknown;
+    action?: unknown;
+    taxRate?: unknown;
+    visibility?: unknown;
+    targetKey?: unknown;
+    minister?: unknown;
   };
   const ownerKey = sessionOwnerKey(session);
   if ((await loadMyLobbyStation(ownerKey)) !== "guild") return err("not_at_guild_board", 409);

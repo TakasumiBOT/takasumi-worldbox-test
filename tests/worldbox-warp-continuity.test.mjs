@@ -52,13 +52,24 @@ function bundleModule(files, names) {
 
 const url = bundleModule(
   ["worldbox/world/mapgen.ts", "worldbox/player/presence.ts"],
-  ["checkMovementContinuity", "checkSaveFallbackContinuity", "isRegisteredWarpJump", "SAME_SPACE_WARPS", "WARP_LANDING_TOLERANCE_TILES", "WARP_FALLBACK_SOURCE_REACH_TILES"],
+  [
+    "checkMovementContinuity",
+    "checkSaveFallbackContinuity",
+    "isRegisteredWarpJump",
+    "SAME_SPACE_WARPS",
+    "WARP_LANDING_TOLERANCE_TILES",
+    "WARP_FALLBACK_SOURCE_REACH_TILES",
+  ],
 );
 const wb = await import(url);
 
 const rngUrl = dataUrl(transpile("worldbox/core/rng.ts"));
-const mapgenUrl = dataUrl(transpile("worldbox/world/mapgen.ts").replaceAll('"../core/rng"', JSON.stringify(rngUrl)));
-const lobbyUrl = dataUrl(transpile("worldbox/world/lobby.ts").replaceAll('"./mapgen"', JSON.stringify(mapgenUrl)));
+const mapgenUrl = dataUrl(
+  transpile("worldbox/world/mapgen.ts").replaceAll('"../core/rng"', JSON.stringify(rngUrl)),
+);
+const lobbyUrl = dataUrl(
+  transpile("worldbox/world/lobby.ts").replaceAll('"./mapgen"', JSON.stringify(mapgenUrl)),
+);
 const lobby = await import(lobbyUrl);
 
 const NOW = 1_700_000_000_000;
@@ -87,22 +98,48 @@ test("時刻基準: 擬似2F階段の上り/下りが通る（REST ハートビ�
   // 階段を踏む直前の保管位置は元タイルの手前〜タイル上（ハートビート間隔ぶんの遅れを含む）
   for (const lagMs of [0, 500, 2000]) {
     const upBase = { x: 17.5, y: 30.4, space: "lobby", ts: NOW };
-    assert.equal(wb.checkMovementContinuity(upBase, UP_LANDING, NOW + lagMs).ok, true, `up lag=${lagMs}`);
+    assert.equal(
+      wb.checkMovementContinuity(upBase, UP_LANDING, NOW + lagMs).ok,
+      true,
+      `up lag=${lagMs}`,
+    );
     const downBase = { x: 17.5, y: 61.4, space: "lobby", ts: NOW };
-    assert.equal(wb.checkMovementContinuity(downBase, DOWN_LANDING, NOW + lagMs).ok, true, `down lag=${lagMs}`);
+    assert.equal(
+      wb.checkMovementContinuity(downBase, DOWN_LANDING, NOW + lagMs).ok,
+      true,
+      `down lag=${lagMs}`,
+    );
   }
   // 元タイルの真上にいる保管位置からでも通る
-  assert.equal(wb.checkMovementContinuity({ x: 17.2, y: 29.8, space: "lobby", ts: NOW }, UP_LANDING, NOW).ok, true);
-  assert.equal(wb.checkMovementContinuity({ x: 18.6, y: 62.3, space: "lobby", ts: NOW }, DOWN_LANDING, NOW).ok, true);
+  assert.equal(
+    wb.checkMovementContinuity({ x: 17.2, y: 29.8, space: "lobby", ts: NOW }, UP_LANDING, NOW).ok,
+    true,
+  );
+  assert.equal(
+    wb.checkMovementContinuity({ x: 18.6, y: 62.3, space: "lobby", ts: NOW }, DOWN_LANDING, NOW).ok,
+    true,
+  );
 });
 
 test("セーブ基準: 擬似2F階段の上り/下りが通る（プレゼンス無しの経路）", () => {
-  assert.equal(wb.checkSaveFallbackContinuity({ x: 17.5, y: 29.5, space: "lobby" }, UP_LANDING).ok, true);
-  assert.equal(wb.checkSaveFallbackContinuity({ x: 17.5, y: 62.5, space: "lobby" }, DOWN_LANDING).ok, true);
+  assert.equal(
+    wb.checkSaveFallbackContinuity({ x: 17.5, y: 29.5, space: "lobby" }, UP_LANDING).ok,
+    true,
+  );
+  assert.equal(
+    wb.checkSaveFallbackContinuity({ x: 17.5, y: 62.5, space: "lobby" }, DOWN_LANDING).ok,
+    true,
+  );
   // 元タイルの間近（到達範囲 5 以内）のセーブからでも通る
-  assert.equal(wb.checkSaveFallbackContinuity({ x: 17.5, y: 31.5, space: "lobby" }, UP_LANDING).ok, true);
+  assert.equal(
+    wb.checkSaveFallbackContinuity({ x: 17.5, y: 31.5, space: "lobby" }, UP_LANDING).ok,
+    true,
+  );
   // 往復の着地点（反対側の元タイルまで 2 タイル）からのセーブでも通る
-  assert.equal(wb.checkSaveFallbackContinuity({ x: 17.5, y: 27.5, space: "lobby" }, UP_LANDING).ok, true);
+  assert.equal(
+    wb.checkSaveFallbackContinuity({ x: 17.5, y: 27.5, space: "lobby" }, UP_LANDING).ok,
+    true,
+  );
 });
 
 test("時刻基準: 登録されていないジャンプは依然として却下される", () => {
@@ -110,11 +147,29 @@ test("時刻基準: 登録されていないジャンプは依然として却下
   assert.equal(wb.checkMovementContinuity({ ...PLAZA, ts: NOW }, UP_LANDING, NOW).ok, false);
   assert.equal(wb.checkMovementContinuity({ ...PLAZA, ts: NOW }, UP_LANDING, NOW + 500).ok, false);
   // 元タイルの上にいても、着地点でない遠方への跳躍は却下
-  assert.equal(wb.checkMovementContinuity({ x: 17.5, y: 29.5, space: "lobby", ts: NOW }, { x: 100, y: 26, space: "lobby" }, NOW).ok, false);
+  assert.equal(
+    wb.checkMovementContinuity(
+      { x: 17.5, y: 29.5, space: "lobby", ts: NOW },
+      { x: 100, y: 26, space: "lobby" },
+      NOW,
+    ).ok,
+    false,
+  );
   // 着地点の近傍を超えた先（10タイル先）への申告は却下
-  assert.equal(wb.checkMovementContinuity({ x: 17.5, y: 29.5, space: "lobby", ts: NOW }, { x: 17.5, y: 50, space: "lobby" }, NOW + 500).ok, false);
+  assert.equal(
+    wb.checkMovementContinuity(
+      { x: 17.5, y: 29.5, space: "lobby", ts: NOW },
+      { x: 17.5, y: 50, space: "lobby" },
+      NOW + 500,
+    ).ok,
+    false,
+  );
   // ワールドでの無関係な跳躍は従来どおり却下
-  const jumped = wb.checkMovementContinuity({ x: 0, y: 0, space: "world", ts: NOW }, { x: 100, y: 0, space: "world" }, NOW + 1000);
+  const jumped = wb.checkMovementContinuity(
+    { x: 0, y: 0, space: "world", ts: NOW },
+    { x: 100, y: 0, space: "world" },
+    NOW + 1000,
+  );
   assert.equal(jumped.ok, false);
   assert.equal(jumped.reason, "position_jump");
 });
@@ -123,17 +178,39 @@ test("セーブ基準: 登録されていないジャンプは依然として却
   // 広場のセーブ（元タイル中心まで約11.4タイル）は到達範囲 5 の外 → 却下
   assert.equal(wb.checkSaveFallbackContinuity(PLAZA, UP_LANDING).ok, false);
   // 接近途中のセーブ（元タイル中心まで 8.5 タイル）も到達範囲の外 → 却下
-  assert.equal(wb.checkSaveFallbackContinuity({ x: 17.5, y: 38, space: "lobby" }, UP_LANDING).ok, false);
-  assert.equal(wb.checkSaveFallbackContinuity({ x: 17.5, y: 29.5, space: "lobby" }, { x: 100, y: 26, space: "lobby" }).ok, false);
+  assert.equal(
+    wb.checkSaveFallbackContinuity({ x: 17.5, y: 38, space: "lobby" }, UP_LANDING).ok,
+    false,
+  );
+  assert.equal(
+    wb.checkSaveFallbackContinuity(
+      { x: 17.5, y: 29.5, space: "lobby" },
+      { x: 100, y: 26, space: "lobby" },
+    ).ok,
+    false,
+  );
 });
 
 test("isRegisteredWarpJump: 元と着地は同じ対で結ばれる必要がある", () => {
   // 下り元タイル付近から上り着地点へは対にならない（到達範囲 12 でも届かない）
-  assert.equal(wb.isRegisteredWarpJump({ x: 17.5, y: 61.5, space: "lobby" }, UP_LANDING, 12), false);
+  assert.equal(
+    wb.isRegisteredWarpJump({ x: 17.5, y: 61.5, space: "lobby" }, UP_LANDING, 12),
+    false,
+  );
   // 上り元タイル付近から下り着地点へも対にならない
-  assert.equal(wb.isRegisteredWarpJump({ x: 17.5, y: 29.5, space: "lobby" }, DOWN_LANDING, 0), false);
+  assert.equal(
+    wb.isRegisteredWarpJump({ x: 17.5, y: 29.5, space: "lobby" }, DOWN_LANDING, 0),
+    false,
+  );
   // 空間が違えば対にならない
-  assert.equal(wb.isRegisteredWarpJump({ x: 17.5, y: 29.5, space: "world" }, { x: 17.5, y: 60.5, space: "world" }, 12), false);
+  assert.equal(
+    wb.isRegisteredWarpJump(
+      { x: 17.5, y: 29.5, space: "world" },
+      { x: 17.5, y: 60.5, space: "world" },
+      12,
+    ),
+    false,
+  );
 });
 
 test("WS 中継: 階段の上りが部屋基準でも外部セーブ基準でも通る", () => {
@@ -146,11 +223,25 @@ test("WS 中継: 階段の上りが部屋基準でも外部セーブ基準でも
   assert.equal(res.y, 60.5);
   // 部屋に前回が無く、外部基準がセーブ（ts 無し）の場合
   const room2 = relay.createRoom();
-  const res2 = relay.acceptHeartbeat(room2, "p2", "n", hb(17.5, 27.5), NOW, { x: 17.5, y: 62.5, space: "lobby" });
+  const res2 = relay.acceptHeartbeat(room2, "p2", "n", hb(17.5, 27.5), NOW, {
+    x: 17.5,
+    y: 62.5,
+    space: "lobby",
+  });
   assert.ok(res2 && !res2.rejected, "下りの申告が中継（セーブ基準）で却下された");
   // 中継の判定関数も TS と同じ規則
-  assert.equal(relay.checkMovementContinuity({ x: 17.5, y: 30.4, space: "lobby", ts: NOW }, UP_LANDING, NOW + 500).ok, true);
-  assert.equal(relay.checkSaveFallbackContinuity({ x: 17.5, y: 29.5, space: "lobby" }, UP_LANDING).ok, true);
+  assert.equal(
+    relay.checkMovementContinuity(
+      { x: 17.5, y: 30.4, space: "lobby", ts: NOW },
+      UP_LANDING,
+      NOW + 500,
+    ).ok,
+    true,
+  );
+  assert.equal(
+    relay.checkSaveFallbackContinuity({ x: 17.5, y: 29.5, space: "lobby" }, UP_LANDING).ok,
+    true,
+  );
 });
 
 test("WS 中継: 登録されていないジャンプは依然として却下される", () => {
@@ -161,12 +252,18 @@ test("WS 中継: 登録されていないジャンプは依然として却下さ
   assert.equal(res?.rejected, true);
   assert.equal(res.x, PLAZA.x);
   assert.equal(res.y, PLAZA.y);
-  assert.equal(relay.checkMovementContinuity({ ...PLAZA, ts: NOW }, UP_LANDING, NOW + 500).ok, false);
+  assert.equal(
+    relay.checkMovementContinuity({ ...PLAZA, ts: NOW }, UP_LANDING, NOW + 500).ok,
+    false,
+  );
   assert.equal(relay.checkSaveFallbackContinuity(PLAZA, UP_LANDING).ok, false);
 });
 
 test("遺跡の転移罠: サーバーがプレゼンス/セーブを転移先へそろえる配線がある", () => {
   const route = fs.readFileSync(path.join(rootDir, "app/api/worldbox/instances/route.ts"), "utf8");
   assert.ok(route.includes("putPresence"), "転移時にプレゼンスをそろえていない");
-  assert.ok(route.includes("serializeSave({ space, x: teleport.x"), "転移時にセーブをそろえていない");
+  assert.ok(
+    route.includes("serializeSave({ space, x: teleport.x"),
+    "転移時にセーブをそろえていない",
+  );
 });

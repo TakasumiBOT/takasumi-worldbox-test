@@ -93,24 +93,49 @@ const TIER_SIZE_LABEL: Record<string, string> = {
 };
 
 const wrap: React.CSSProperties = {
-  position: "absolute", left: "50%", top: "50%", transform: "translate(-50%, -50%)",
-  width: "min(430px, calc(100% - 20px))", maxHeight: "calc(100% - 24px)", overflowY: "auto",
-  boxSizing: "border-box", padding: 16, borderRadius: 14,
-  background: "rgba(12,14,22,0.94)", color: "#fff", zIndex: 6,
+  position: "absolute",
+  left: "50%",
+  top: "50%",
+  transform: "translate(-50%, -50%)",
+  width: "min(430px, calc(100% - 20px))",
+  maxHeight: "calc(100% - 24px)",
+  overflowY: "auto",
+  boxSizing: "border-box",
+  padding: 16,
+  borderRadius: 14,
+  background: "rgba(12,14,22,0.94)",
+  color: "#fff",
+  zIndex: 6,
   boxShadow: "0 10px 32px rgba(0,0,0,0.5)",
 };
 const btn: React.CSSProperties = {
-  minHeight: 40, padding: "6px 14px", borderRadius: 9, border: "1px solid rgba(255,255,255,0.25)",
-  background: "rgba(255,255,255,0.1)", color: "#fff", fontSize: 14, cursor: "pointer",
+  minHeight: 40,
+  padding: "6px 14px",
+  borderRadius: 9,
+  border: "1px solid rgba(255,255,255,0.25)",
+  background: "rgba(255,255,255,0.1)",
+  color: "#fff",
+  fontSize: 14,
+  cursor: "pointer",
 };
 const barOuter: React.CSSProperties = {
-  height: 12, borderRadius: 6, background: "rgba(255,255,255,0.15)", overflow: "hidden",
+  height: 12,
+  borderRadius: 6,
+  background: "rgba(255,255,255,0.15)",
+  overflow: "hidden",
 };
 
 function HpBar({ value, max, color }: { value: number; max: number; color: string }) {
   return (
     <div style={barOuter}>
-      <div style={{ height: "100%", width: `${Math.max(0, Math.min(100, (value / max) * 100))}%`, background: color, transition: "width 0.25s" }} />
+      <div
+        style={{
+          height: "100%",
+          width: `${Math.max(0, Math.min(100, (value / max) * 100))}%`,
+          background: color,
+          transition: "width 0.25s",
+        }}
+      />
     </div>
   );
 }
@@ -145,8 +170,14 @@ export default function WorldBoxArenaPanel({ onClose }: { onClose: () => void })
     if (ticket === null) return;
     try {
       const res = await fetch("/api/worldbox/arena", { headers: { Accept: "application/json" } });
-      if (res.status === 401 || res.status === 403) { if (aliveRef.current) setLoad("guest"); return; }
-      if (!res.ok) { if (aliveRef.current) setLoad("unavailable"); return; }
+      if (res.status === 401 || res.status === 403) {
+        if (aliveRef.current) setLoad("guest");
+        return;
+      }
+      if (!res.ok) {
+        if (aliveRef.current) setLoad("unavailable");
+        return;
+      }
       const data = (await res.json()) as ArenaState;
       if (!aliveRef.current || !arenaGuardRef.current.isCurrent(ticket)) return;
       setState(data);
@@ -178,7 +209,9 @@ export default function WorldBoxArenaPanel({ onClose }: { onClose: () => void })
     const ticket = tournamentGuardRef.current.begin();
     if (ticket === null) return;
     try {
-      const res = await fetch("/api/worldbox/tournament", { headers: { Accept: "application/json" } });
+      const res = await fetch("/api/worldbox/tournament", {
+        headers: { Accept: "application/json" },
+      });
       if (!res.ok) return;
       const data = (await res.json()) as TournamentState;
       if (!aliveRef.current || !tournamentGuardRef.current.isCurrent(ticket)) return;
@@ -195,10 +228,22 @@ export default function WorldBoxArenaPanel({ onClose }: { onClose: () => void })
     void refresh();
     void refreshPvp();
     void refreshTournament();
-    const timer = window.setInterval(() => { void refresh(); void refreshPvp(); void refreshTournament(); }, 3000);
+    const timer = window.setInterval(() => {
+      void refresh();
+      void refreshPvp();
+      void refreshTournament();
+    }, 3000);
     // 経済オプ確定の push でも即時更新する（3秒ポーリングは fallback）
-    const off = onEconomyApplied(() => { void refresh(); void refreshPvp(); void refreshTournament(); });
-    return () => { aliveRef.current = false; window.clearInterval(timer); off(); };
+    const off = onEconomyApplied(() => {
+      void refresh();
+      void refreshPvp();
+      void refreshTournament();
+    });
+    return () => {
+      aliveRef.current = false;
+      window.clearInterval(timer);
+      off();
+    };
   }, [refresh, refreshPvp, refreshTournament]);
 
   const post = async (payload: Record<string, unknown>) => {
@@ -209,7 +254,10 @@ export default function WorldBoxArenaPanel({ onClose }: { onClose: () => void })
         headers: { "Content-Type": "application/json", Accept: "application/json" },
         body: JSON.stringify(payload),
       });
-      const data = (await res.json().catch(() => ({}))) as ArenaState & { error?: string; outcome?: "win" | "lose" };
+      const data = (await res.json().catch(() => ({}))) as ArenaState & {
+        error?: string;
+        outcome?: "win" | "lose";
+      };
       if (!res.ok) {
         setMsg(ERROR_LABEL[data.error ?? ""] ?? "受け付けられませんでした");
         if (data.error === "payment_pending") void refresh();
@@ -233,7 +281,10 @@ export default function WorldBoxArenaPanel({ onClose }: { onClose: () => void })
         headers: { "Content-Type": "application/json", Accept: "application/json" },
         body: JSON.stringify(payload),
       });
-      const data = (await res.json().catch(() => ({}))) as PvpState & { error?: string; outcome?: "win" | "lose" };
+      const data = (await res.json().catch(() => ({}))) as PvpState & {
+        error?: string;
+        outcome?: "win" | "lose";
+      };
       if (!res.ok) {
         setPvpMsg(ERROR_LABEL[data.error ?? ""] ?? "受け付けられませんでした");
         if (data.error === "payment_pending") void refreshPvp();
@@ -277,14 +328,25 @@ export default function WorldBoxArenaPanel({ onClose }: { onClose: () => void })
     <div style={wrap} role="dialog" aria-label="闘技場" className="wb-panel">
       <div
         style={{
-          display: "flex", justifyContent: "space-between", alignItems: "center",
-          position: "sticky", top: -16, zIndex: 3,
-          margin: "-16px -16px 10px", padding: "16px 16px 8px",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          position: "sticky",
+          top: -16,
+          zIndex: 3,
+          margin: "-16px -16px 10px",
+          padding: "16px 16px 8px",
           background: "rgba(12,14,22,0.98)",
         }}
       >
         <strong style={{ fontSize: 16 }}>闘技場</strong>
-        <button type="button" style={{ ...btn, minHeight: 32, padding: "2px 10px" }} onClick={onClose}>閉じる</button>
+        <button
+          type="button"
+          style={{ ...btn, minHeight: 32, padding: "2px 10px" }}
+          onClick={onClose}
+        >
+          閉じる
+        </button>
       </div>
 
       {load === "loading" && <p style={{ margin: 0, fontSize: 13 }}>読み込み中…</p>}
@@ -303,8 +365,13 @@ export default function WorldBoxArenaPanel({ onClose }: { onClose: () => void })
                 {outcome === "win" ? "勝利" : "敗北"}
               </p>
               <button
-                type="button" style={btn} disabled={busy}
-                onClick={() => { setOutcome(null); void refresh(); }}
+                type="button"
+                style={btn}
+                disabled={busy}
+                onClick={() => {
+                  setOutcome(null);
+                  void refresh();
+                }}
               >
                 次へ
               </button>
@@ -317,8 +384,16 @@ export default function WorldBoxArenaPanel({ onClose }: { onClose: () => void })
                 const sizeLabel = TIER_SIZE_LABEL[t.id];
                 return (
                   <button
-                    key={t.id} type="button" disabled={busy}
-                    style={{ ...btn, display: "flex", justifyContent: "space-between", alignItems: "center", textAlign: "left" }}
+                    key={t.id}
+                    type="button"
+                    disabled={busy}
+                    style={{
+                      ...btn,
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      textAlign: "left",
+                    }}
                     onClick={() => void post({ action: "start", tier: t.id })}
                   >
                     <span>{sizeLabel ? `${t.name}（${sizeLabel}）` : t.name}</span>
@@ -331,7 +406,9 @@ export default function WorldBoxArenaPanel({ onClose }: { onClose: () => void })
 
           {!outcome && session && (
             <div>
-              <p style={{ margin: "0 0 4px", fontSize: 13 }}>{session.tierName}（{session.turn} 手目）</p>
+              <p style={{ margin: "0 0 4px", fontSize: 13 }}>
+                {session.tierName}（{session.turn} 手目）
+              </p>
               <HpBar value={session.enemyHp} max={session.enemyHpMax} color="#e5534b" />
               <p style={{ margin: "8px 0 4px", fontSize: 13 }}>自分 HP {session.playerHp}</p>
               <HpBar value={session.playerHp} max={session.playerHpMax} color="#3fb950" />
@@ -339,16 +416,40 @@ export default function WorldBoxArenaPanel({ onClose }: { onClose: () => void })
                 <p style={{ margin: "10px 0 0", fontSize: 13 }}>参加費を処理中…</p>
               ) : (
                 <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-                  <button type="button" style={{ ...btn, flex: 1 }} disabled={busy} onClick={() => void post({ action: "act", move: "attack" })}>たたかう</button>
-                  <button type="button" style={{ ...btn, flex: 1 }} disabled={busy} onClick={() => void post({ action: "act", move: "heavy" })}>強攻撃</button>
-                  <button type="button" style={{ ...btn, flex: 1 }} disabled={busy} onClick={() => void post({ action: "act", move: "guard" })}>まもる</button>
+                  <button
+                    type="button"
+                    style={{ ...btn, flex: 1 }}
+                    disabled={busy}
+                    onClick={() => void post({ action: "act", move: "attack" })}
+                  >
+                    たたかう
+                  </button>
+                  <button
+                    type="button"
+                    style={{ ...btn, flex: 1 }}
+                    disabled={busy}
+                    onClick={() => void post({ action: "act", move: "heavy" })}
+                  >
+                    強攻撃
+                  </button>
+                  <button
+                    type="button"
+                    style={{ ...btn, flex: 1 }}
+                    disabled={busy}
+                    onClick={() => void post({ action: "act", move: "guard" })}
+                  >
+                    まもる
+                  </button>
                 </div>
               )}
               <div style={{ display: "grid", gap: 2, marginTop: 12, fontSize: 12, opacity: 0.85 }}>
-                {session.log.map((line, i) => <span key={i}>{line}</span>)}
+                {session.log.map((line, i) => (
+                  <span key={i}>{line}</span>
+                ))}
               </div>
               <button
-                type="button" disabled={busy}
+                type="button"
+                disabled={busy}
                 style={{ ...btn, minHeight: 32, padding: "2px 10px", marginTop: 12 }}
                 onClick={() => void post({ action: "forfeit" })}
               >
@@ -358,7 +459,13 @@ export default function WorldBoxArenaPanel({ onClose }: { onClose: () => void })
           )}
 
           {!outcome && !session && pvp && (
-            <div style={{ marginTop: 16, borderTop: "1px solid rgba(255,255,255,0.15)", paddingTop: 12 }}>
+            <div
+              style={{
+                marginTop: 16,
+                borderTop: "1px solid rgba(255,255,255,0.15)",
+                paddingTop: 12,
+              }}
+            >
               <p style={{ margin: "0 0 8px", fontSize: 14, fontWeight: 700 }}>対人戦</p>
               {pvpOutcome && (
                 <div style={{ marginBottom: 12, textAlign: "center" }}>
@@ -366,8 +473,13 @@ export default function WorldBoxArenaPanel({ onClose }: { onClose: () => void })
                     {pvpOutcome === "win" ? "勝利" : "敗北"}
                   </p>
                   <button
-                    type="button" style={btn} disabled={busy}
-                    onClick={() => { setPvpOutcome(null); void refreshPvp(); }}
+                    type="button"
+                    style={btn}
+                    disabled={busy}
+                    onClick={() => {
+                      setPvpOutcome(null);
+                      void refreshPvp();
+                    }}
                   >
                     次へ
                   </button>
@@ -375,8 +487,16 @@ export default function WorldBoxArenaPanel({ onClose }: { onClose: () => void })
               )}
               {!pvpOutcome && !pvp.duel && !pvp.queued && (
                 <button
-                  type="button" disabled={busy}
-                  style={{ ...btn, display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", textAlign: "left" }}
+                  type="button"
+                  disabled={busy}
+                  style={{
+                    ...btn,
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    width: "100%",
+                    textAlign: "left",
+                  }}
                   onClick={() => void postPvp({ action: "queue" })}
                 >
                   <span>対戦相手を探す</span>
@@ -388,7 +508,14 @@ export default function WorldBoxArenaPanel({ onClose }: { onClose: () => void })
                   <p style={{ margin: "0 0 8px", fontSize: 13 }}>
                     相手を待っています{pvp.queuePosition ? `（${pvp.queuePosition} 番目）` : ""}
                   </p>
-                  <button type="button" style={{ ...btn, minHeight: 32, padding: "2px 10px" }} disabled={busy} onClick={() => void postPvp({ action: "leave" })}>やめる</button>
+                  <button
+                    type="button"
+                    style={{ ...btn, minHeight: 32, padding: "2px 10px" }}
+                    disabled={busy}
+                    onClick={() => void postPvp({ action: "leave" })}
+                  >
+                    やめる
+                  </button>
                 </div>
               )}
               {!pvpOutcome && pvp.duel && (
@@ -402,20 +529,47 @@ export default function WorldBoxArenaPanel({ onClose }: { onClose: () => void })
                   ) : (
                     <>
                       <p style={{ margin: "10px 0 0", fontSize: 13 }}>
-                        {pvp.duel.yourTurn ? "あなたの番です" : "相手の番です"}（{pvp.duel.turnNo} 手目）
+                        {pvp.duel.yourTurn ? "あなたの番です" : "相手の番です"}（{pvp.duel.turnNo}{" "}
+                        手目）
                       </p>
                       <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-                        <button type="button" style={{ ...btn, flex: 1 }} disabled={busy || !pvp.duel.yourTurn} onClick={() => void postPvp({ action: "act", move: "attack" })}>たたかう</button>
-                        <button type="button" style={{ ...btn, flex: 1 }} disabled={busy || !pvp.duel.yourTurn} onClick={() => void postPvp({ action: "act", move: "heavy" })}>強攻撃</button>
-                        <button type="button" style={{ ...btn, flex: 1 }} disabled={busy || !pvp.duel.yourTurn} onClick={() => void postPvp({ action: "act", move: "guard" })}>まもる</button>
+                        <button
+                          type="button"
+                          style={{ ...btn, flex: 1 }}
+                          disabled={busy || !pvp.duel.yourTurn}
+                          onClick={() => void postPvp({ action: "act", move: "attack" })}
+                        >
+                          たたかう
+                        </button>
+                        <button
+                          type="button"
+                          style={{ ...btn, flex: 1 }}
+                          disabled={busy || !pvp.duel.yourTurn}
+                          onClick={() => void postPvp({ action: "act", move: "heavy" })}
+                        >
+                          強攻撃
+                        </button>
+                        <button
+                          type="button"
+                          style={{ ...btn, flex: 1 }}
+                          disabled={busy || !pvp.duel.yourTurn}
+                          onClick={() => void postPvp({ action: "act", move: "guard" })}
+                        >
+                          まもる
+                        </button>
                       </div>
                     </>
                   )}
-                  <div style={{ display: "grid", gap: 2, marginTop: 12, fontSize: 12, opacity: 0.85 }}>
-                    {pvp.duel.log.map((line, i) => <span key={i}>{line}</span>)}
+                  <div
+                    style={{ display: "grid", gap: 2, marginTop: 12, fontSize: 12, opacity: 0.85 }}
+                  >
+                    {pvp.duel.log.map((line, i) => (
+                      <span key={i}>{line}</span>
+                    ))}
                   </div>
                   <button
-                    type="button" disabled={busy}
+                    type="button"
+                    disabled={busy}
                     style={{ ...btn, minHeight: 32, padding: "2px 10px", marginTop: 12 }}
                     onClick={() => void postPvp({ action: "forfeit" })}
                   >
@@ -423,17 +577,35 @@ export default function WorldBoxArenaPanel({ onClose }: { onClose: () => void })
                   </button>
                 </div>
               )}
-              {pvpMsg && <p role="status" style={{ margin: "10px 0 0", fontSize: 13 }}>{pvpMsg}</p>}
+              {pvpMsg && (
+                <p role="status" style={{ margin: "10px 0 0", fontSize: 13 }}>
+                  {pvpMsg}
+                </p>
+              )}
             </div>
           )}
 
           {!outcome && !session && tournament && (
-            <div style={{ marginTop: 16, borderTop: "1px solid rgba(255,255,255,0.15)", paddingTop: 12 }}>
+            <div
+              style={{
+                marginTop: 16,
+                borderTop: "1px solid rgba(255,255,255,0.15)",
+                paddingTop: 12,
+              }}
+            >
               <p style={{ margin: "0 0 8px", fontSize: 14, fontWeight: 700 }}>大会</p>
               {tournament.status === "none" && (
                 <button
-                  type="button" disabled={busy}
-                  style={{ ...btn, display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", textAlign: "left" }}
+                  type="button"
+                  disabled={busy}
+                  style={{
+                    ...btn,
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    width: "100%",
+                    textAlign: "left",
+                  }}
                   onClick={() => void postTournament({ action: "enter" })}
                 >
                   <span>大会に参加する</span>
@@ -443,14 +615,23 @@ export default function WorldBoxArenaPanel({ onClose }: { onClose: () => void })
               {tournament.status === "entry" && (
                 <div>
                   <p style={{ margin: "0 0 8px", fontSize: 13 }}>
-                    募集中（{tournament.entrantCount}/{tournament.maxEntrants}人）・賞金総額 {tournament.prizePool}
+                    募集中（{tournament.entrantCount}/{tournament.maxEntrants}人）・賞金総額{" "}
+                    {tournament.prizePool}
                   </p>
                   {tournament.entered ? (
                     <p style={{ margin: 0, fontSize: 13 }}>参加済みです</p>
                   ) : (
                     <button
-                      type="button" disabled={busy}
-                      style={{ ...btn, display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", textAlign: "left" }}
+                      type="button"
+                      disabled={busy}
+                      style={{
+                        ...btn,
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        width: "100%",
+                        textAlign: "left",
+                      }}
                       onClick={() => void postTournament({ action: "enter" })}
                     >
                       <span>参加する</span>
@@ -462,14 +643,17 @@ export default function WorldBoxArenaPanel({ onClose }: { onClose: () => void })
               {tournament.status === "running" && (
                 <div>
                   <p style={{ margin: "0 0 8px", fontSize: 13 }}>
-                    開催中（{tournament.decidedMatches}/{tournament.totalMatches}試合決着）・賞金総額 {tournament.prizePool}
+                    開催中（{tournament.decidedMatches}/{tournament.totalMatches}
+                    試合決着）・賞金総額 {tournament.prizePool}
                   </p>
                   {tournament.entered && tournament.myMatch && (
                     <p style={{ margin: 0, fontSize: 13 }}>
                       {tournamentRoundLabel(tournament.myMatch.round, tournament.totalMatches)}
                       {tournament.myMatch.state === "pending" && " — 対戦相手を待っています"}
-                      {tournament.myMatch.state === "dueling" && " — 決闘中です。対人戦で戦ってください"}
-                      {tournament.myMatch.state === "done" && (tournament.myMatch.won ? " — 勝利" : " — 敗退")}
+                      {tournament.myMatch.state === "dueling" &&
+                        " — 決闘中です。対人戦で戦ってください"}
+                      {tournament.myMatch.state === "done" &&
+                        (tournament.myMatch.won ? " — 勝利" : " — 敗退")}
                     </p>
                   )}
                 </div>
@@ -483,11 +667,19 @@ export default function WorldBoxArenaPanel({ onClose }: { onClose: () => void })
                       : "不成立 — 参加費を返金します"}
                 </p>
               )}
-              {tournamentMsg && <p role="status" style={{ margin: "10px 0 0", fontSize: 13 }}>{tournamentMsg}</p>}
+              {tournamentMsg && (
+                <p role="status" style={{ margin: "10px 0 0", fontSize: 13 }}>
+                  {tournamentMsg}
+                </p>
+              )}
             </div>
           )}
 
-          {msg && <p role="status" style={{ margin: "10px 0 0", fontSize: 13 }}>{msg}</p>}
+          {msg && (
+            <p role="status" style={{ margin: "10px 0 0", fontSize: 13 }}>
+              {msg}
+            </p>
+          )}
         </>
       )}
     </div>

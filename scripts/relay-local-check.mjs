@@ -40,7 +40,9 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 function connect(pid, name, tok = token(pid, name)) {
   return new Promise((resolve, reject) => {
-    const ws = new WebSocket(`ws://127.0.0.1:${port}/api/worldbox/realtime?t=${encodeURIComponent(tok)}`);
+    const ws = new WebSocket(
+      `ws://127.0.0.1:${port}/api/worldbox/realtime?t=${encodeURIComponent(tok)}`,
+    );
     const inbox = [];
     const waiters = [];
     ws.on("message", (data) => {
@@ -66,7 +68,11 @@ function connect(pid, name, tok = token(pid, name)) {
           new Promise((res, rej) => {
             const found = inbox.find(pred);
             if (found) return res(found);
-            const w = { pred, resolve: res, timer: setTimeout(() => rej(new Error(`timeout: ${label}`)), timeoutMs) };
+            const w = {
+              pred,
+              resolve: res,
+              timer: setTimeout(() => rej(new Error(`timeout: ${label}`)), timeoutMs),
+            };
             waiters.push(w);
           }),
         send: async (obj) => {
@@ -104,7 +110,10 @@ try {
   const b = await connect("u2", "Bob");
   await b.send({ t: "hb", x: 11, y: 10, vx: 0, vy: 0, face: 1, space: "world" });
   const snapB = await b.waitFor((m) => m.t === "snap", "B snap");
-  check("B snap contains A", snapB.players.some((p) => p.id === "u1"));
+  check(
+    "B snap contains A",
+    snapB.players.some((p) => p.id === "u1"),
+  );
   const upForA = await a.waitFor((m) => m.t === "up" && m.p && m.p.id === "u2", "A sees B up");
   check("A receives B presence up", upForA.p.space === "world");
 
@@ -120,7 +129,10 @@ try {
   // 6) A のピアノ音がロビーの B に届く
   await a.send({ t: "note", notes: [0, 4, 7] });
   const note = await b.waitFor((m) => m.t === "note", "B hears piano");
-  check("piano note relayed in lobby", note.id === "u1" && JSON.stringify(note.notes) === "[0,4,7]");
+  check(
+    "piano note relayed in lobby",
+    note.id === "u1" && JSON.stringify(note.notes) === "[0,4,7]",
+  );
 
   // 7) B 切断 → A に bye
   b.ws.close();

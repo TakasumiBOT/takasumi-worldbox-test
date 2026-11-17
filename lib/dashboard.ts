@@ -2,7 +2,15 @@
 // アクセストークンは bot_kv の web_sessions 名前空間（Pi上のDB）だけに置き、クライアントへ出さない。
 import crypto from "node:crypto";
 import type { SessionInfo } from "./auth";
-import { isBotApiConfigured, kvDelete, kvGet, kvList, kvSet, tableSelect, tableUpsert } from "./bot-api";
+import {
+  isBotApiConfigured,
+  kvDelete,
+  kvGet,
+  kvList,
+  kvSet,
+  tableSelect,
+  tableUpsert,
+} from "./bot-api";
 import {
   manageableGuilds,
   mergeGuildSettings,
@@ -101,7 +109,8 @@ export async function fetchDiscordGuilds(accessToken: string): Promise<OAuthGuil
     try {
       const body = (await res.json()) as { code?: unknown; message?: unknown };
       if (typeof body?.message === "string") detail = ` ${body.message}`;
-      if (typeof body?.code === "number" || typeof body?.code === "string") detail += ` (code: ${body.code})`;
+      if (typeof body?.code === "number" || typeof body?.code === "string")
+        detail += ` (code: ${body.code})`;
     } catch {
       // エラー本文が JSON でなければステータスだけを残す
     }
@@ -129,7 +138,9 @@ export async function fetchDiscordGuilds(accessToken: string): Promise<OAuthGuil
   if (dropped > 0) {
     // 形式の想定違いで全件落ちると「管理できるサーバーがありません」になる。
     // 件数だけは必ず残し、黙って落とさない。
-    console.error(`[Dashboard] Discord ギルド一覧の ${data.length} 件中 ${dropped} 件を形式不一致で除外しました`);
+    console.error(
+      `[Dashboard] Discord ギルド一覧の ${data.length} 件中 ${dropped} 件を形式不一致で除外しました`,
+    );
   }
   return guilds;
 }
@@ -222,7 +233,11 @@ export async function loadGuildStructure(guildId: string): Promise<GuildStructur
   const entry = raw as Record<string, unknown>;
   const channels = stringList(entry.channels)
     .filter((c) => typeof c.id === "string" && typeof c.name === "string")
-    .map((c) => ({ id: c.id as string, name: c.name as string, type: typeof c.type === "number" ? c.type : 0 }));
+    .map((c) => ({
+      id: c.id as string,
+      name: c.name as string,
+      type: typeof c.type === "number" ? c.type : 0,
+    }));
   const roles = stringList(entry.roles)
     .filter((r) => typeof r.id === "string" && typeof r.name === "string")
     .map((r) => ({ id: r.id as string, name: r.name as string }));
@@ -262,7 +277,10 @@ export async function loadBumpRtaSettings(guildId: string): Promise<BumpRtaSetti
   };
 }
 
-export async function saveBumpRtaSettings(guildId: string, settings: BumpRtaSettings): Promise<void> {
+export async function saveBumpRtaSettings(
+  guildId: string,
+  settings: BumpRtaSettings,
+): Promise<void> {
   await tableUpsert(
     BUMP_RTA_TABLE,
     {

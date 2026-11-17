@@ -35,7 +35,14 @@ export type MoveResult = {
 export type BlockedTiles = ReadonlySet<string>;
 
 /** 円（中心 cx, cy・半径 r）が固体タイルに触れているか。 */
-export function circleHitsSolid(map: TopDownMap, cx: number, cy: number, r: number, blocked?: BlockedTiles, opts?: MoveOptions): boolean {
+export function circleHitsSolid(
+  map: TopDownMap,
+  cx: number,
+  cy: number,
+  r: number,
+  blocked?: BlockedTiles,
+  opts?: MoveOptions,
+): boolean {
   const swim = opts?.swim === true;
   const x0 = Math.floor(cx - r);
   const x1 = Math.floor(cx + r);
@@ -85,12 +92,24 @@ export function stepMove(
 }
 
 /** その地点に立てるか（固体にめり込んでいないか）。 */
-export function canStandAt(map: TopDownMap, x: number, y: number, blocked?: BlockedTiles, opts?: MoveOptions): boolean {
+export function canStandAt(
+  map: TopDownMap,
+  x: number,
+  y: number,
+  blocked?: BlockedTiles,
+  opts?: MoveOptions,
+): boolean {
   return !circleHitsSolid(map, x, y, PLAYER_RADIUS, blocked, opts);
 }
 
 /** 固体に埋まっていたら、近くの立てる場所を探す（ロード時の救済）。 */
-export function findFreeNear(map: TopDownMap, x: number, y: number, blocked?: BlockedTiles, opts?: MoveOptions): { x: number; y: number } {
+export function findFreeNear(
+  map: TopDownMap,
+  x: number,
+  y: number,
+  blocked?: BlockedTiles,
+  opts?: MoveOptions,
+): { x: number; y: number } {
   if (canStandAt(map, x, y, blocked, opts)) return { x, y };
   for (let ring = 1; ring <= 8; ring++) {
     for (let dy = -ring; dy <= ring; dy++) {

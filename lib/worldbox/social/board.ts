@@ -20,14 +20,20 @@ export type BoardPost = {
 /** 投稿本文を検証・整形する。空・長すぎ・文字列でなければ null。 */
 export function sanitizeBoardText(raw: unknown): string | null {
   if (typeof raw !== "string") return null;
-  const text = raw.replace(/[\u0000-\u001f\u007f]/g, " ").trim().replace(/\s+/g, " ");
+  const text = raw
+    .replace(/[\u0000-\u001f\u007f]/g, " ")
+    .trim()
+    .replace(/\s+/g, " ");
   if (text.length === 0 || text.length > BOARD_TEXT_MAX) return null;
   return text;
 }
 
 function sanitizeBoardName(raw: unknown): string {
   if (typeof raw !== "string") return "";
-  return raw.replace(/[\u0000-\u001f\u007f]/g, " ").trim().slice(0, BOARD_NAME_MAX);
+  return raw
+    .replace(/[\u0000-\u001f\u007f]/g, " ")
+    .trim()
+    .slice(0, BOARD_NAME_MAX);
 }
 
 /** 1件の投稿として解釈できれば整形して返す。できなければ null。 */

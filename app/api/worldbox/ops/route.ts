@@ -3,7 +3,12 @@ import { getRequestSession, publicOrigin, sessionOwnerKey } from "@/lib/auth";
 import { dayKeyOf } from "@/lib/worldbox/core/metrics";
 import { stateAtTime } from "@/lib/worldbox/core/ops";
 import {
-  appendReport, loadFrozen, loadReports, loadTileJournal, storeFrozen, worldboxAdminIds,
+  appendReport,
+  loadFrozen,
+  loadReports,
+  loadTileJournal,
+  storeFrozen,
+  worldboxAdminIds,
 } from "@/lib/worldbox/core/ops-online";
 import { isTilesEnabled, storeTileOverride } from "@/lib/worldbox/world/tiles-online";
 import { parseTileKey } from "@/lib/worldbox/world/tiles";
@@ -40,7 +45,10 @@ export async function GET(request: Request) {
     return NextResponse.json({ frozen }, { headers: NO_STORE });
   }
   const reports = await loadReports();
-  return NextResponse.json({ frozen, reports: reports.slice(-30).reverse() }, { headers: NO_STORE });
+  return NextResponse.json(
+    { frozen, reports: reports.slice(-30).reverse() },
+    { headers: NO_STORE },
+  );
 }
 
 export async function POST(request: Request) {
@@ -54,7 +62,12 @@ export async function POST(request: Request) {
     return err("invalid_request", 400);
   }
   const fields = (body ?? {}) as {
-    action?: unknown; text?: unknown; x?: unknown; y?: unknown; on?: unknown; toAt?: unknown;
+    action?: unknown;
+    text?: unknown;
+    x?: unknown;
+    y?: unknown;
+    on?: unknown;
+    toAt?: unknown;
   };
   const ownerKey = sessionOwnerKey(session);
 

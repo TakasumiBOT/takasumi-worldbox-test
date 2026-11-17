@@ -51,7 +51,12 @@ async function loadBundle(files, exportNames) {
 }
 
 const wb = await loadBundle(
-  ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/world/lobby.ts", "worldbox/world/lobby-floors.ts"],
+  [
+    "worldbox/core/rng.ts",
+    "worldbox/world/mapgen.ts",
+    "worldbox/world/lobby.ts",
+    "worldbox/world/lobby-floors.ts",
+  ],
   ["buildLobby", "stationNear", "buildLobby3", "LOBBY3_ENTRY"],
 );
 
@@ -88,7 +93,10 @@ test("望遠鏡: スプライト登録と実ファイル", () => {
 });
 
 test("望遠鏡: クライアントは開いている間だけ視点へ入力を回す", () => {
-  const client = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"), "utf8");
+  const client = fs.readFileSync(
+    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    "utf8",
+  );
   assert.match(client, /telescopeOpenRef\.current/);
   assert.match(client, /telescopeCam/);
   assert.match(client, /stationUi === "telescope"/);

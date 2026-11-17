@@ -1,1 +1,5 @@
-{"$schema":"https://openapi.vercel.sh/vercel.json","crons":[{"path":"/api/worldbox/internal/economy-sweep","schedule":"* * * * *"}],"framework":"nextjs"}
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "crons": [{ "path": "/api/worldbox/internal/economy-sweep", "schedule": "* * * * *" }],
+  "framework": "nextjs"
+}

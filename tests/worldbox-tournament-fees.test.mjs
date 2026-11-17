@@ -76,8 +76,10 @@ const tournamentUrl = dataUrl(transpile("worldbox/combat/tournament.ts"));
 const pvpUrl = dataUrl(transpile("worldbox/combat/pvp.ts"));
 const itemsUrl = dataUrl(transpile("worldbox/economy/items.ts"));
 const profileUrl = dataUrl(
-  transpile("worldbox/player/profile.ts")
-    .replaceAll('"../economy/items"', JSON.stringify(itemsUrl)),
+  transpile("worldbox/player/profile.ts").replaceAll(
+    '"../economy/items"',
+    JSON.stringify(itemsUrl),
+  ),
 );
 const profileOnlineUrl = dataUrl(
   transpile("worldbox/player/profile-online.ts")
@@ -148,16 +150,29 @@ function storedOp(id) {
 
 function arenaTournament(entrants, extra = {}) {
   return {
-    id: "t-1000", status: "entry", createdAt: 1000, entryEndsAt: 2000,
-    entrants: [...entrants], matches: [], champion: null,
-    prizePaid: false, refundPaid: false, closedAt: null, ...extra,
+    id: "t-1000",
+    status: "entry",
+    createdAt: 1000,
+    entryEndsAt: 2000,
+    entrants: [...entrants],
+    matches: [],
+    champion: null,
+    prizePaid: false,
+    refundPaid: false,
+    closedAt: null,
+    ...extra,
   };
 }
 
 function seedArenaFee(discordId, status) {
   return seedOp({
-    kind: "spend", discordId, amount: T.TOURNAMENT_FEE, reason: "arena_tournament_entry",
-    status, id: T.tournamentFeeOpId("t-1000", discordId), at: 1500,
+    kind: "spend",
+    discordId,
+    amount: T.TOURNAMENT_FEE,
+    reason: "arena_tournament_entry",
+    status,
+    id: T.tournamentFeeOpId("t-1000", discordId),
+    at: 1500,
   });
 }
 
@@ -182,7 +197,11 @@ test("fees(arena): 返金は参加費 done の参加者だけ、pending の間�
   const first = await TOnline.payRefundsInner(t);
   assert.equal(first.refundPaid, false, "pending が残る間は返金を完了扱いにしない");
   assert.ok(storedOp(T.tournamentRefundOpId("t-1000", A)), "done の参加者へは返金が積まれる");
-  assert.equal(storedOp(T.tournamentRefundOpId("t-1000", B)), null, "pending の参加者へはまだ積まない");
+  assert.equal(
+    storedOp(T.tournamentRefundOpId("t-1000", B)),
+    null,
+    "pending の参加者へはまだ積まない",
+  );
   // ワーカーが適用して done になったら、次回の進行で返金が完了する
   feeB.status = "done";
   const second = await TOnline.payRefundsInner(first);
@@ -229,17 +248,30 @@ test("fees(arena): 参加費が未確定の間は優勝賞金を払わない", a
 
 function casinoTournament(entrants, extra = {}) {
   return {
-    id: "ct-1000", status: "entry", createdAt: 1000, entryEndsAt: 2000,
-    playEndsAt: 2000 + C.CASINO_TOURNAMENT_PLAY_MS, playStartedAt: null,
-    entrants: [...entrants], scores: {},
-    prizesPaid: false, refundPaid: false, closedAt: null, ...extra,
+    id: "ct-1000",
+    status: "entry",
+    createdAt: 1000,
+    entryEndsAt: 2000,
+    playEndsAt: 2000 + C.CASINO_TOURNAMENT_PLAY_MS,
+    playStartedAt: null,
+    entrants: [...entrants],
+    scores: {},
+    prizesPaid: false,
+    refundPaid: false,
+    closedAt: null,
+    ...extra,
   };
 }
 
 function seedCasinoFee(discordId, status) {
   return seedOp({
-    kind: "spend", discordId, amount: C.CASINO_TOURNAMENT_FEE, reason: "casino_tournament_entry",
-    status, id: C.casinoTournamentFeeOpId("ct-1000", discordId), at: 1500,
+    kind: "spend",
+    discordId,
+    amount: C.CASINO_TOURNAMENT_FEE,
+    reason: "casino_tournament_entry",
+    status,
+    id: C.casinoTournamentFeeOpId("ct-1000", discordId),
+    at: 1500,
   });
 }
 
@@ -252,7 +284,11 @@ test("fees(casino): 締め切り時に参加費 failed の参加者を外し、�
   assert.deepEqual(out.entrants, [A]);
   assert.equal(out.refundPaid, true);
   assert.ok(storedOp(C.casinoTournamentRefundOpId("ct-1000", A)), "done の参加者へ返金が積まれる");
-  assert.equal(storedOp(C.casinoTournamentRefundOpId("ct-1000", B)), null, "failed の参加者へは返金しない");
+  assert.equal(
+    storedOp(C.casinoTournamentRefundOpId("ct-1000", B)),
+    null,
+    "failed の参加者へは返金しない",
+  );
 });
 
 test("fees(casino): スコアは gamble オプの確定後にだけ加わり、二重に数えない", async () => {
@@ -260,16 +296,33 @@ test("fees(casino): スコアは gamble オプの確定後にだけ加わり、�
   const NOW = Date.now();
   const t = casinoTournament([A, B], {
     status: "running",
-    createdAt: NOW - 10_000, entryEndsAt: NOW - 5_000,
-    playStartedAt: NOW - 5_000, playEndsAt: NOW + C.CASINO_TOURNAMENT_PLAY_MS,
+    createdAt: NOW - 10_000,
+    entryEndsAt: NOW - 5_000,
+    playStartedAt: NOW - 5_000,
+    playEndsAt: NOW + C.CASINO_TOURNAMENT_PLAY_MS,
   });
   store.set("worldbox_casino_tournament current", JSON.stringify(t));
   const base = { kind: "gamble", discordId: A, amount: 100, reason: "casino_slot" };
   const done = seedOp({ ...base, payout: 300, status: "done", id: "g-done-0001", at: NOW - 4_000 });
-  const pending = seedOp({ ...base, payout: 500, status: "pending", id: "g-pend-0001", at: NOW - 4_000 });
+  const pending = seedOp({
+    ...base,
+    payout: 500,
+    status: "pending",
+    id: "g-pend-0001",
+    at: NOW - 4_000,
+  });
   seedOp({ ...base, payout: 900, status: "failed", id: "g-fail-0001", at: NOW - 4_000 });
   seedOp({ ...base, payout: 700, status: "done", id: "g-early-001", at: NOW - 6_000 }); // 対局開始前
-  seedOp({ kind: "gamble", discordId: D, amount: 100, reason: "casino_slot", payout: 800, status: "done", id: "g-other-001", at: NOW - 4_000 }); // 非参加者
+  seedOp({
+    kind: "gamble",
+    discordId: D,
+    amount: 100,
+    reason: "casino_slot",
+    payout: 800,
+    status: "done",
+    id: "g-other-001",
+    at: NOW - 4_000,
+  }); // 非参加者
 
   const mine = [done, pending];
   await COnline.reconcileCasinoTournamentScores(`discord:${A}`, A, mine);
@@ -292,8 +345,11 @@ test("fees(casino): 対局終了の最終精算で遅れて確定したオプも
   resetStore();
   // 対局中: A は確定済みプレイ1件を記録済み、B の参加費は締め切り後に failed が判明
   const t = casinoTournament([A, B], {
-    status: "running", createdAt: 1000, entryEndsAt: 2000,
-    playStartedAt: 2000, playEndsAt: 9000,
+    status: "running",
+    createdAt: 1000,
+    entryEndsAt: 2000,
+    playStartedAt: 2000,
+    playEndsAt: 9000,
     scores: { [A]: { bet: 100, payout: 300 } },
   });
   store.set("worldbox_casino_tournament current", JSON.stringify(t));
@@ -301,12 +357,24 @@ test("fees(casino): 対局終了の最終精算で遅れて確定したオプも
   seedCasinoFee(A, "done");
   seedCasinoFee(B, "failed");
   seedOp({
-    kind: "gamble", discordId: A, amount: 100, reason: "casino_slot", payout: 300,
-    status: "done", id: "g-early-001", at: 3000,
+    kind: "gamble",
+    discordId: A,
+    amount: 100,
+    reason: "casino_slot",
+    payout: 300,
+    status: "done",
+    id: "g-early-001",
+    at: 3000,
   });
   seedOp({
-    kind: "gamble", discordId: A, amount: 100, reason: "casino_slot", payout: 200,
-    status: "done", id: "g-late-0001", at: 8000,
+    kind: "gamble",
+    discordId: A,
+    amount: 100,
+    reason: "casino_slot",
+    payout: 200,
+    status: "done",
+    id: "g-late-0001",
+    at: 8000,
   });
   const out = await COnline.advanceCasinoTournamentInner(t, 9500);
   assert.equal(out.status, "done");

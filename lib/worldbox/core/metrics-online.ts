@@ -5,8 +5,12 @@
 // （Web は単一プロセス前提、他の状態と同じ）。
 import { isBotApiConfigured, kvGet, kvSet } from "../../bot-api";
 import {
-  dayKeyOf, emptyDayMetrics, parseDayMetrics, parseUserFirstSteps,
-  type DayMetrics, type UserFirstSteps,
+  dayKeyOf,
+  emptyDayMetrics,
+  parseDayMetrics,
+  parseUserFirstSteps,
+  type DayMetrics,
+  type UserFirstSteps,
 } from "./metrics";
 import { withUserLock } from "./user-lock";
 
@@ -51,7 +55,13 @@ export async function recordPresenceMetric(
 }
 
 export async function bumpMetric(
-  field: "blocksPlaced" | "harvests" | "chatsNear" | "chatsGlobal" | "chatsUnion" | "guildShopVolume",
+  field:
+    | "blocksPlaced"
+    | "harvests"
+    | "chatsNear"
+    | "chatsGlobal"
+    | "chatsUnion"
+    | "guildShopVolume",
   by: number,
   now: number,
 ): Promise<void> {

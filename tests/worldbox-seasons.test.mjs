@@ -91,10 +91,7 @@ test("biomes: cave layers and ruins belt are registered", () => {
   assert.equal(M.biomeForInstanceSpace(42), null);
 });
 
-const I = await loadBundle(
-  ["worldbox/economy/items.ts"],
-  ["CROPS", "cropById"],
-);
+const I = await loadBundle(["worldbox/economy/items.ts"], ["CROPS", "cropById"]);
 
 test("crops: every crop has a preferred season", () => {
   for (const crop of I.CROPS) {

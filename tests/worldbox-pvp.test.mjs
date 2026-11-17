@@ -31,9 +31,24 @@ function dataUrl(js) {
 const P = await import(dataUrl(transpile("worldbox/combat/pvp.ts")));
 
 const NOW = 1_700_000_000_000;
-const A = { ownerKey: "discord:111111111111111111", discordId: "111111111111111111", attack: 12, queuedAt: NOW };
-const B = { ownerKey: "discord:222222222222222222", discordId: "222222222222222222", attack: 16, queuedAt: NOW };
-const C = { ownerKey: "discord:333333333333333333", discordId: "333333333333333333", attack: 8, queuedAt: NOW };
+const A = {
+  ownerKey: "discord:111111111111111111",
+  discordId: "111111111111111111",
+  attack: 12,
+  queuedAt: NOW,
+};
+const B = {
+  ownerKey: "discord:222222222222222222",
+  discordId: "222222222222222222",
+  attack: 16,
+  queuedAt: NOW,
+};
+const C = {
+  ownerKey: "discord:333333333333333333",
+  discordId: "333333333333333333",
+  attack: 8,
+  queuedAt: NOW,
+};
 
 function duel() {
   return P.createDuel(A, B, NOW);
@@ -84,7 +99,10 @@ test("pvp: 決闘は決定的 ID と両者の参加費オプ ID を持つ", () =
 
 test("pvp: 賞金オプ ID は1試合で1つに決まる", () => {
   const d = duel();
-  assert.equal(P.pvpPrizeOpId(d.code), P.pvpPrizeOpId(P.pvpDuelCode(A.discordId, B.discordId, NOW)));
+  assert.equal(
+    P.pvpPrizeOpId(d.code),
+    P.pvpPrizeOpId(P.pvpDuelCode(A.discordId, B.discordId, NOW)),
+  );
 });
 
 test("pvp: 参加費の返金オプ ID は1試合・1人で1つに決まる（B3）", () => {
@@ -94,7 +112,10 @@ test("pvp: 参加費の返金オプ ID は1試合・1人で1つに決まる（B3
   assert.notEqual(refundA, refundB);
   assert.notEqual(refundA, d.feeOpIds[0]);
   assert.notEqual(refundA, P.pvpPrizeOpId(d.code));
-  assert.equal(refundA, P.pvpFeeRefundOpId(P.pvpDuelCode(A.discordId, B.discordId, NOW), A.discordId));
+  assert.equal(
+    refundA,
+    P.pvpFeeRefundOpId(P.pvpDuelCode(A.discordId, B.discordId, NOW), A.discordId),
+  );
   // 経済オプ ID の形（8〜64文字の英数・ハイフン）に収まる
   for (const id of [refundA, refundB]) {
     assert.match(id, /^[A-Za-z0-9-]{8,64}$/);

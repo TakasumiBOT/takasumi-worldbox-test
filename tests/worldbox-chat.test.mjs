@@ -52,15 +52,29 @@ async function loadBundle(files, exportNames) {
 const T = await loadBundle(
   ["worldbox/social/chat.ts", "worldbox/player/presence.ts"],
   [
-    "sanitizeChatText", "parseChatMessage", "pruneChatMessages", "visibleChatMessages",
-    "CHAT_PROXIMITY_RANGE", "CHAT_PROXIMITY_TTL_MS", "CHAT_GLOBAL_TTL_MS",
-    "thinPresenceNear", "PRESENCE_NEAR_RADIUS", "PRESENCE_MAX_PLAYERS",
+    "sanitizeChatText",
+    "parseChatMessage",
+    "pruneChatMessages",
+    "visibleChatMessages",
+    "CHAT_PROXIMITY_RANGE",
+    "CHAT_PROXIMITY_TTL_MS",
+    "CHAT_GLOBAL_TTL_MS",
+    "thinPresenceNear",
+    "PRESENCE_NEAR_RADIUS",
+    "PRESENCE_MAX_PLAYERS",
   ],
 );
 
 const msg = (over = {}) => ({
-  id: "m1", channel: "proximity", name: "a", text: "hi", at: 10_000,
-  x: 0, y: 0, space: "world", ...over,
+  id: "m1",
+  channel: "proximity",
+  name: "a",
+  text: "hi",
+  at: 10_000,
+  x: 0,
+  y: 0,
+  space: "world",
+  ...over,
 });
 
 test("chat: sanitize rejects empty/long/control text", () => {
@@ -85,7 +99,9 @@ test("chat: prune drops expired per-channel TTL and caps count", () => {
   assert.equal(pruned.length, 0);
   const fresh = T.pruneChatMessages([msg({ at: now - 1000 })], "proximity", now);
   assert.equal(fresh.length, 1);
-  const many = Array.from({ length: 60 }, (_, i) => msg({ id: `m${i}`, at: 5000 + i, channel: "global" }));
+  const many = Array.from({ length: 60 }, (_, i) =>
+    msg({ id: `m${i}`, at: 5000 + i, channel: "global" }),
+  );
   assert.equal(T.pruneChatMessages(many, "global", 5000 + T.CHAT_GLOBAL_TTL_MS - 1).length, 50);
 });
 
@@ -95,21 +111,49 @@ test("chat: proximity visibility is range+space limited", () => {
   const far = msg({ id: "f", x: T.CHAT_PROXIMITY_RANGE + 1, y: 0, at: 9000 });
   const otherSpace = msg({ id: "s", x: 0, y: 0, space: "lobby", at: 9000 });
   const seen = T.visibleChatMessages([near, far, otherSpace], viewer, "proximity", 10_000);
-  assert.deepEqual(seen.map((m) => m.id), ["n"]);
+  assert.deepEqual(
+    seen.map((m) => m.id),
+    ["n"],
+  );
 });
 
 test("chat: global stays within space, union within guild", () => {
   const g = msg({ id: "g", channel: "global", space: "lobby", at: 9000 });
-  const seenG = T.visibleChatMessages([g], { x: 0, y: 0, space: "world", guildId: null }, "global", 10_000);
+  const seenG = T.visibleChatMessages(
+    [g],
+    { x: 0, y: 0, space: "world", guildId: null },
+    "global",
+    10_000,
+  );
   assert.equal(seenG.length, 0);
   const u = msg({ id: "u", channel: "union", guildId: "g1", at: 9000 });
-  assert.equal(T.visibleChatMessages([u], { x: 0, y: 0, space: "world", guildId: "g2" }, "union", 10_000).length, 0);
-  assert.equal(T.visibleChatMessages([u], { x: 0, y: 0, space: "world", guildId: "g1" }, "union", 10_000).length, 1);
-  assert.equal(T.visibleChatMessages([u], { x: 0, y: 0, space: "world", guildId: null }, "union", 10_000).length, 0);
+  assert.equal(
+    T.visibleChatMessages([u], { x: 0, y: 0, space: "world", guildId: "g2" }, "union", 10_000)
+      .length,
+    0,
+  );
+  assert.equal(
+    T.visibleChatMessages([u], { x: 0, y: 0, space: "world", guildId: "g1" }, "union", 10_000)
+      .length,
+    1,
+  );
+  assert.equal(
+    T.visibleChatMessages([u], { x: 0, y: 0, space: "world", guildId: null }, "union", 10_000)
+      .length,
+    0,
+  );
 });
 
 const entry = (id, x, y, ts = 1000) => ({
-  id, name: id, x, y, vx: 0, vy: 0, face: 1, space: "world", ts,
+  id,
+  name: id,
+  x,
+  y,
+  vx: 0,
+  vy: 0,
+  face: 1,
+  space: "world",
+  ts,
 });
 
 test("presence: thinning keeps only near players, nearest first", () => {
@@ -118,7 +162,10 @@ test("presence: thinning keeps only near players, nearest first", () => {
   const edge = entry("edge", T.PRESENCE_NEAR_RADIUS, 0, 800);
   const far = entry("far", T.PRESENCE_NEAR_RADIUS + 1, 0, 9999);
   const out = T.thinPresenceNear([far, edge, near], self);
-  assert.deepEqual(out.map((e) => e.id), ["near", "edge"]);
+  assert.deepEqual(
+    out.map((e) => e.id),
+    ["near", "edge"],
+  );
 });
 
 test("presence: thinning without self falls back to capped list", () => {

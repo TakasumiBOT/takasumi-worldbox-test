@@ -34,5 +34,6 @@ npm run dev     # 開発サーバー（.env.local に同じ環境変数を置く
 WS 中継のローカル確認について: `upgradeWebSocket()` は Vercel 上（または `vc dev`）でしか動かないため、上記スクリプトは素の ws サーバーでアップグレードだけを肩代わりし、トークン検証以降のハブ配線が本番と同一であることを確かめるもの。アップグレード自体の最終確認は Vercel へデプロイしてからになる。
 
 既知のテスト失敗（3件、いずれも移行の設計どおり）:
+
 - `worldbox-arcade.test.mjs` の2件: 筐体の中身26タイトルと本家の `[id]` 振り分けが無いため。
 - `worldbox-shell.test.mjs` の「配線」1件: 本家 Pi のデプロイスクリプト（`deploy/deploy-web.sh`）の存在を前提にするため。Vercel 版には無関係。

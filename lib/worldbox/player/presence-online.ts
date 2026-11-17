@@ -4,8 +4,13 @@
 // 読取側は鮮度でふるう（古いキーは読取時に無視され、次回 PUT で上書きされる）。
 import { isBotApiConfigured, kvDelete, kvGet, kvList, kvSet } from "../../bot-api";
 import {
-  PRESENCE_FRESH_MS, isFreshPresence, parsePresenceEntry, presenceIdFor, tabVerdict,
-  type Heartbeat, type PresenceEntry,
+  PRESENCE_FRESH_MS,
+  isFreshPresence,
+  parsePresenceEntry,
+  presenceIdFor,
+  tabVerdict,
+  type Heartbeat,
+  type PresenceEntry,
 } from "./presence";
 
 export const WORLDBOX_PRESENCE_NAMESPACE = "worldbox_presence";
@@ -15,7 +20,11 @@ export function isPresenceEnabled(): boolean {
 }
 
 /** 自分のハートビートを保存する。成功したら true。 */
-export async function putPresence(ownerKey: string, heartbeat: Heartbeat, ts: number): Promise<boolean> {
+export async function putPresence(
+  ownerKey: string,
+  heartbeat: Heartbeat,
+  ts: number,
+): Promise<boolean> {
   if (!isBotApiConfigured()) return false;
   try {
     await kvSet(WORLDBOX_PRESENCE_NAMESPACE, ownerKey, JSON.stringify({ ...heartbeat, ts }));
@@ -127,7 +136,9 @@ export async function listPresence(): Promise<PresenceEntry[]> {
 }
 
 /** 所有者キーつきで新鮮なプレゼンスを列挙する（味方への効果の解決用）。 */
-export async function listPresenceWithOwners(): Promise<{ ownerKey: string; entry: PresenceEntry }[]> {
+export async function listPresenceWithOwners(): Promise<
+  { ownerKey: string; entry: PresenceEntry }[]
+> {
   if (!isBotApiConfigured()) return [];
   try {
     const rows = await kvList(WORLDBOX_PRESENCE_NAMESPACE);

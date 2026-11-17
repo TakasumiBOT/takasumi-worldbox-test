@@ -52,10 +52,20 @@ function bundleModule(files, names) {
   return dataUrl(`${code}\nexport { ${names.join(", ")} };`);
 }
 
-const combat = await import(bundleModule(
-  ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/world/maplogic.ts", "worldbox/economy/items.ts", "worldbox/combat/mobs.ts", "worldbox/combat/combat.ts", "worldbox/combat/arena.ts"],
-  ["mobById", "MOBS", "mobDistance", "resolveMobPosition", "MOB_ATTACK_MAX_DISTANCE"],
-));
+const combat = await import(
+  bundleModule(
+    [
+      "worldbox/core/rng.ts",
+      "worldbox/world/mapgen.ts",
+      "worldbox/world/maplogic.ts",
+      "worldbox/economy/items.ts",
+      "worldbox/combat/mobs.ts",
+      "worldbox/combat/combat.ts",
+      "worldbox/combat/arena.ts",
+    ],
+    ["mobById", "MOBS", "mobDistance", "resolveMobPosition", "MOB_ATTACK_MAX_DISTANCE"],
+  )
+);
 
 test("接触ダメージ: 追跡してきたモブは申告位置で距離検証され、アンカー基準では too_far", () => {
   // vitals ルートの damage 検証と同じ合成（申告→実位置→占有範囲までの距離）
@@ -67,7 +77,7 @@ test("接触ダメージ: 追跡してきたモブは申告位置で距離検証
   const eff = combat.resolveMobPosition(anchor, { x: 108, y: 103 });
   assert.ok(combat.mobDistance(player.x, player.y, eff) <= combat.MOB_ATTACK_MAX_DISTANCE);
   // リーシュ外の申告は採用されず、アンカー検証へ落ちる（チート申告の無効化）
-  const forged = combat.resolveMobPosition(anchor, { x: 108, y: 103, });
+  const forged = combat.resolveMobPosition(anchor, { x: 108, y: 103 });
   assert.equal(forged.x, 108);
   const outside = combat.resolveMobPosition(anchor, { x: 150, y: 150 });
   assert.equal(outside.x, 100);
@@ -75,7 +85,18 @@ test("接触ダメージ: 追跡してきたモブは申告位置で距離検証
 });
 
 test("中立モブ: 監査対象の10種は全て neutral かつ attack > 0（サーバーの受け付け条件と一致）", () => {
-  const neutralIds = ["cave_bat", "treant", "bear", "boar", "bee", "crab", "fox", "mushroom", "goat", "octopus"];
+  const neutralIds = [
+    "cave_bat",
+    "treant",
+    "bear",
+    "boar",
+    "bee",
+    "crab",
+    "fox",
+    "mushroom",
+    "goat",
+    "octopus",
+  ];
   for (const id of neutralIds) {
     const def = combat.mobById(id);
     assert.ok(def, `${id} の定義が無い`);
@@ -84,7 +105,8 @@ test("中立モブ: 監査対象の10種は全て neutral かつ attack > 0（�
   }
   // neutral 全種が attack > 0（provoked 中に送った接触をサーバーが弾かない）
   for (const def of combat.MOBS) {
-    if (def.temperament === "neutral") assert.ok(def.attack > 0, `${def.id} は neutral なのに attack が 0`);
+    if (def.temperament === "neutral")
+      assert.ok(def.attack > 0, `${def.id} は neutral なのに attack が 0`);
   }
 });
 
@@ -100,13 +122,16 @@ test("watch: instanceKeyScope はキー形式ごとに宛先を解決する", ()
   assert.deepEqual(watch.instanceKeyScope("cave:10,20:0"), { space: "cave:10,20:0" });
   assert.deepEqual(watch.instanceKeyScope("ruins:-9999,-9999:0"), { space: "ruins:-9999,-9999:0" });
   // 遺跡の個人状態は本人だけ
-  assert.deepEqual(
-    watch.instanceKeyScope("ruins:10,20:0#discord:123"),
-    { pid: watch.presenceIdFor("discord:123") },
-  );
+  assert.deepEqual(watch.instanceKeyScope("ruins:10,20:0#discord:123"), {
+    pid: watch.presenceIdFor("discord:123"),
+  });
   // ダンジョンのセッションは入口でまとめる（partyKey を pid と誤読しない）
-  assert.deepEqual(watch.instanceKeyScope("dungeon:10,20:0#party-abc"), { spacePrefix: "dungeon:10,20:" });
-  assert.deepEqual(watch.instanceKeyScope("dungeon:10,20:0#solo:discord:123"), { spacePrefix: "dungeon:10,20:" });
+  assert.deepEqual(watch.instanceKeyScope("dungeon:10,20:0#party-abc"), {
+    spacePrefix: "dungeon:10,20:",
+  });
+  assert.deepEqual(watch.instanceKeyScope("dungeon:10,20:0#solo:discord:123"), {
+    spacePrefix: "dungeon:10,20:",
+  });
   // 週次クリア記録と未知キーは対象外
   assert.equal(watch.instanceKeyScope("dungeonclear:discord:123"), null);
   assert.equal(watch.instanceKeyScope("something:else"), null);
@@ -120,9 +145,15 @@ test("配線: vitals の接触ダメージが申告位置（mx/my）で距離検
 });
 
 test("配線: クライアントが接触時に現在タイルを送り、中立 provoked でも発火する", () => {
-  const client = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"), "utf8");
+  const client = fs.readFileSync(
+    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    "utf8",
+  );
   assert.ok(client.includes("{ mx, my }"), "接触ダメージに現在タイルを添えていない");
-  assert.ok(client.includes('def.temperament === "neutral" && provoked'), "中立 provoked の送信条件が無い");
+  assert.ok(
+    client.includes('def.temperament === "neutral" && provoked'),
+    "中立 provoked の送信条件が無い",
+  );
   assert.ok(client.includes("provokedUntil"), "provoked 判定が無い");
 });
 
@@ -147,11 +178,20 @@ test("配線: 中継が instances を poke し、クライアントが取り直�
   const server = fs.readFileSync(path.join(rootDir, "realtime-server.js"), "utf8");
   assert.ok(server.includes('kind === "instances"'), "中継に instances の配信分岐が無い");
   assert.ok(server.includes("instanceKeyScope"), "宛先解決を使っていない");
-  const client = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"), "utf8");
-  assert.ok(client.includes('msg.kind === "instances"'), "クライアントに instances poke の適用が無い");
+  const client = fs.readFileSync(
+    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    "utf8",
+  );
+  assert.ok(
+    client.includes('msg.kind === "instances"'),
+    "クライアントに instances poke の適用が無い",
+  );
   // パーティ取得がダンジョン要約（?space=）を取りに行き、階段ゲートへ反映する
   assert.ok(client.includes("party?space="), "パーティ取得が ?space= を付けていない");
-  assert.ok(client.includes("floorBossDead: data.dungeon.floorBossDead"), "ダンジョン要約の反映が無い");
+  assert.ok(
+    client.includes("floorBossDead: data.dungeon.floorBossDead"),
+    "ダンジョン要約の反映が無い",
+  );
   // インスタンス行為の失敗時にも状態を取り直す（成功時と合わせて2経路）
   const refetches = client.split("void refreshCaveState(space);").length - 1;
   assert.ok(refetches >= 2, "洞窟状態の再取得が成功時にしか無い");

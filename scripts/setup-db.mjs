@@ -24,9 +24,7 @@ const pool = new Pool({ connectionString: databaseUrl });
 try {
   // schema.sql 全体を1回のクエリで流す（内部に begin/commit を含む）
   await pool.query(sql);
-  const check = await pool.query(
-    "select pool, treasury from economy_pool_state where id = 1",
-  );
+  const check = await pool.query("select pool, treasury from economy_pool_state where id = 1");
   const row = check.rows[0];
   console.log(
     `schema applied: ${schemaPath}\n` +

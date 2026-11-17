@@ -81,7 +81,12 @@ export async function POST(request: Request) {
     ownerKey,
     {
       name: session.username?.trim() || "プレイヤー",
-      x: dest.x, y: dest.y, vx: 0, vy: 0, face: 1, space: "world",
+      x: dest.x,
+      y: dest.y,
+      vx: 0,
+      vy: 0,
+      face: 1,
+      space: "world",
     },
     Date.now(),
   );

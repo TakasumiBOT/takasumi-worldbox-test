@@ -21,7 +21,10 @@ export async function POST(request: Request) {
   const clientId = process.env.DISCORD_CLIENT_ID;
   const clientSecret = process.env.DISCORD_CLIENT_SECRET;
   if (!clientId || !clientSecret) {
-    return NextResponse.json({ error: "activity_not_configured" }, { status: 503, headers: NO_STORE });
+    return NextResponse.json(
+      { error: "activity_not_configured" },
+      { status: 503, headers: NO_STORE },
+    );
   }
 
   let body: unknown;
@@ -35,17 +38,28 @@ export async function POST(request: Request) {
   }
   const { code, codeVerifier } = body as Record<string, unknown>;
   if (
-    typeof code !== "string" || code.length < 1 || code.length > 4096 ||
-    typeof codeVerifier !== "string" || !PKCE_VERIFIER.test(codeVerifier)
+    typeof code !== "string" ||
+    code.length < 1 ||
+    code.length > 4096 ||
+    typeof codeVerifier !== "string" ||
+    !PKCE_VERIFIER.test(codeVerifier)
   ) {
     return NextResponse.json({ error: "invalid_request" }, { status: 400, headers: NO_STORE });
   }
 
   try {
-    const { accessToken, user } = await exchangeDiscordActivityCode({ clientId, clientSecret, code, codeVerifier });
+    const { accessToken, user } = await exchangeDiscordActivityCode({
+      clientId,
+      clientSecret,
+      code,
+      codeVerifier,
+    });
     const identity = buildDiscordIdentity(user);
     if (!identity) {
-      return NextResponse.json({ error: "authorization_failed" }, { status: 401, headers: NO_STORE });
+      return NextResponse.json(
+        { error: "authorization_failed" },
+        { status: 401, headers: NO_STORE },
+      );
     }
     // 通常ログイン（OAuth コールバック）と同じ形でセッションを張る。
     const sessionUser = {
@@ -63,6 +77,9 @@ export async function POST(request: Request) {
     );
     return response;
   } catch {
-    return NextResponse.json({ error: "authorization_unavailable" }, { status: 502, headers: NO_STORE });
+    return NextResponse.json(
+      { error: "authorization_unavailable" },
+      { status: 502, headers: NO_STORE },
+    );
   }
 }

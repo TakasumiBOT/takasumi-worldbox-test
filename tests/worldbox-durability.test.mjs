@@ -48,19 +48,50 @@ function bundleModule(files, names) {
 const invUrl = bundleModule(
   ["worldbox/economy/items.ts", "worldbox/player/profile.ts"],
   [
-    "ITEMS", "itemById", "parseProfile", "serializeProfile", "countItem",
-    "bestToolItem", "toolHpOf", "toolDurabilityFraction", "wearTool", "parseToolHp",
+    "ITEMS",
+    "itemById",
+    "parseProfile",
+    "serializeProfile",
+    "countItem",
+    "bestToolItem",
+    "toolHpOf",
+    "toolDurabilityFraction",
+    "wearTool",
+    "parseToolHp",
   ],
 );
 const inv = await import(invUrl);
 
 const tilesUrl = bundleModule(
-  ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/economy/items.ts", "worldbox/player/profile.ts", "worldbox/player/presence.ts", "worldbox/world/seasons.ts", "worldbox/world/tiles.ts"],
   [
-    "worldTileSource", "mapTileAt", "T_GRASS", "T_TREE", "T_ROCK", "T_DIRT",
-    "applyTileAction", "applyPlaceBlock", "applyMineBlock", "tileView", "actionForTile", "tileKey",
-    "TERRAIN_ROCK_HP", "TERRAIN_TREE_HP", "terrainMaxHp", "terrainHpFraction",
-    "tileIvsAt", "purityBonusStone", "purityBonusCoal",
+    "worldbox/core/rng.ts",
+    "worldbox/world/mapgen.ts",
+    "worldbox/economy/items.ts",
+    "worldbox/player/profile.ts",
+    "worldbox/player/presence.ts",
+    "worldbox/world/seasons.ts",
+    "worldbox/world/tiles.ts",
+  ],
+  [
+    "worldTileSource",
+    "mapTileAt",
+    "T_GRASS",
+    "T_TREE",
+    "T_ROCK",
+    "T_DIRT",
+    "applyTileAction",
+    "applyPlaceBlock",
+    "applyMineBlock",
+    "tileView",
+    "actionForTile",
+    "tileKey",
+    "TERRAIN_ROCK_HP",
+    "TERRAIN_TREE_HP",
+    "terrainMaxHp",
+    "terrainHpFraction",
+    "tileIvsAt",
+    "purityBonusStone",
+    "purityBonusCoal",
   ],
 );
 const T = await import(tilesUrl);
@@ -103,7 +134,10 @@ test("耐久: wearTool は最良の道具から削れ、尽きたら1本壊れ�
 });
 
 test("耐久: toolHp は parse/serialize を往復し、不正値は落ちる", () => {
-  const p = inv.parseProfile({ items: { iron_axe: 1 }, toolHp: { iron_axe: 100, stone_sword: 9999, wood: 5 } });
+  const p = inv.parseProfile({
+    items: { iron_axe: 1 },
+    toolHp: { iron_axe: 100, stone_sword: 9999, wood: 5 },
+  });
   assert.equal(inv.toolHpOf(p, "iron_axe"), 100);
   const s = inv.serializeProfile(p);
   const p2 = inv.parseProfile(JSON.parse(s));
@@ -121,9 +155,23 @@ test("地形HP: 岩はミスリルでも1発で壊れず、ヒットでツルハ
   assert.equal(hit.ok, true);
   assert.deepEqual(hit.gained, {});
   assert.equal(hit.override.hp, T.TERRAIN_ROCK_HP - 40);
-  assert.equal(hit.view.hpFrac, (T.TERRAIN_ROCK_HP - 40) / T.TERRAIN_ROCK_HP, "ビューに残り割合が出る");
+  assert.equal(
+    hit.view.hpFrac,
+    (T.TERRAIN_ROCK_HP - 40) / T.TERRAIN_ROCK_HP,
+    "ビューに残り割合が出る",
+  );
   assert.equal(inv.toolHpOf(hit.profile, "mithril_pickaxe"), 499, "1ヒットで耐久が1減る");
-  const hit2 = T.applyTileAction(hit.override, hit.profile, map, ME_KEY, "mine", rockAt.x, rockAt.y, undefined, NOW);
+  const hit2 = T.applyTileAction(
+    hit.override,
+    hit.profile,
+    map,
+    ME_KEY,
+    "mine",
+    rockAt.x,
+    rockAt.y,
+    undefined,
+    NOW,
+  );
   assert.equal(hit2.override.tile, T.T_DIRT);
   // 石材は基本2＋その土地の純度ボーナス（個体値）。石炭も混ざることがある
   const rockIvs = T.tileIvsAt(rockAt.x, rockAt.y);
@@ -139,13 +187,33 @@ test("地形HP: 残り耐久1のツルハシは掘った瞬間に壊れて結果
   assert.equal(hit.broke, "wooden_pickaxe");
   assert.equal(inv.countItem(hit.profile, "wooden_pickaxe"), 0);
   // ツルハシが無くなれば次は掘れない
-  const next = T.applyTileAction(hit.override, hit.profile, map, ME_KEY, "mine", rockAt.x, rockAt.y, undefined, NOW);
+  const next = T.applyTileAction(
+    hit.override,
+    hit.profile,
+    map,
+    ME_KEY,
+    "mine",
+    rockAt.x,
+    rockAt.y,
+    undefined,
+    NOW,
+  );
   assert.equal(next.error, "tool_required");
 });
 
 test("地形HP: 耕すとクワが摩耗する", () => {
   const p = withItems({ wooden_hoe: 1 });
-  const tilled = T.applyTileAction(null, p, map, ME_KEY, "till", grassAt.x, grassAt.y, undefined, NOW);
+  const tilled = T.applyTileAction(
+    null,
+    p,
+    map,
+    ME_KEY,
+    "till",
+    grassAt.x,
+    grassAt.y,
+    undefined,
+    NOW,
+  );
   assert.equal(tilled.ok, true);
   assert.equal(inv.toolHpOf(tilled.profile, "wooden_hoe"), 59);
 });
@@ -154,9 +222,19 @@ test("地形HP: 耕すとクワが摩耗する", () => {
 
 test("ブロック採掘: ダメージ源の道具が摩耗する（柔らかいブロック×斧）", () => {
   const p = withItems({ dirt_block: 1, wooden_axe: 1 });
-  const placed = T.applyPlaceBlock(null, p, map, ME_KEY, grassAt.x, grassAt.y, "dirt_block", NOW, { onCapital: false });
+  const placed = T.applyPlaceBlock(null, p, map, ME_KEY, grassAt.x, grassAt.y, "dirt_block", NOW, {
+    onCapital: false,
+  });
   assert.equal(placed.ok, true);
-  const dug = T.applyMineBlock(placed.override, placed.profile, map, ME_KEY, grassAt.x, grassAt.y, NOW);
+  const dug = T.applyMineBlock(
+    placed.override,
+    placed.profile,
+    map,
+    ME_KEY,
+    grassAt.x,
+    grassAt.y,
+    NOW,
+  );
   assert.equal(dug.ok, true);
   assert.deepEqual(dug.gained, { dirt_block: 1 });
   assert.equal(inv.toolHpOf(dug.profile, "wooden_axe"), 59);
@@ -164,8 +242,15 @@ test("ブロック採掘: ダメージ源の道具が摩耗する（柔らかい
 
 test("棲み分け: 自分のブロックでも剣・クワでは掘れず、斧・ツルハシでのみ掘れる", () => {
   const view = {
-    x: 0, y: 0, tile: T.T_GRASS, farmland: false, stump: false, crop: null, hpFrac: 1,
-    block: { itemId: "stone_block", mine: true, hpFrac: 1 }, mine: true,
+    x: 0,
+    y: 0,
+    tile: T.T_GRASS,
+    farmland: false,
+    stump: false,
+    crop: null,
+    hpFrac: 1,
+    block: { itemId: "stone_block", mine: true, hpFrac: 1 },
+    mine: true,
   };
   assert.equal(T.actionForTile(view, { tool: "sword" }), null, "剣はピッケル枠に入らない");
   assert.equal(T.actionForTile(view, { tool: "hoe" }), null, "クワでも掘れない");

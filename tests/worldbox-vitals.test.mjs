@@ -46,14 +46,42 @@ function loadBundle(files, names) {
 }
 
 const v = loadBundle(
-  ["worldbox/economy/items.ts", "worldbox/player/profile.ts", "worldbox/player/roles.ts", "worldbox/player/vitals.ts", "worldbox/economy/economy.ts"],
   [
-    "ITEMS", "itemById", "DEFAULT_PROFILE", "parseProfile", "serializeProfile", "addItem",
-    "HP_MAX", "HUNGER_MAX", "stepVitals", "applyMobDamage", "applyPoison", "curePoison",
-    "isPoisoned", "consumeEffect", "applyDeath", "resolveRespawnPoint", "setBedRespawn",
-    "applyRest", "eatItem", "POISON_DURATION_MS", "MOB_DAMAGE_COOLDOWN_MS",
-    "applyBuff", "classifyActivity", "activityForWindow", "hungerDrainPerSec",
-    "HUNGER_DRAIN_IDLE_PER_SEC", "HUNGER_MOVE_MULT", "HUNGER_DASH_MULT",
+    "worldbox/economy/items.ts",
+    "worldbox/player/profile.ts",
+    "worldbox/player/roles.ts",
+    "worldbox/player/vitals.ts",
+    "worldbox/economy/economy.ts",
+  ],
+  [
+    "ITEMS",
+    "itemById",
+    "DEFAULT_PROFILE",
+    "parseProfile",
+    "serializeProfile",
+    "addItem",
+    "HP_MAX",
+    "HUNGER_MAX",
+    "stepVitals",
+    "applyMobDamage",
+    "applyPoison",
+    "curePoison",
+    "isPoisoned",
+    "consumeEffect",
+    "applyDeath",
+    "resolveRespawnPoint",
+    "setBedRespawn",
+    "applyRest",
+    "eatItem",
+    "POISON_DURATION_MS",
+    "MOB_DAMAGE_COOLDOWN_MS",
+    "applyBuff",
+    "classifyActivity",
+    "activityForWindow",
+    "hungerDrainPerSec",
+    "HUNGER_DRAIN_IDLE_PER_SEC",
+    "HUNGER_MOVE_MULT",
+    "HUNGER_DASH_MULT",
   ],
 );
 
@@ -61,7 +89,9 @@ const T0 = 1_700_000_000_000;
 const fresh = () => v.parseProfile(null);
 
 test("vitals: 旧形式プロフィールは HP 満タン・状態なしで読める", () => {
-  const old = v.parseProfile(JSON.stringify({ coins: 5, hunger: 40, items: { wood: 2 }, stealActorAt: 0, stealTargetAt: 0 }));
+  const old = v.parseProfile(
+    JSON.stringify({ coins: 5, hunger: 40, items: { wood: 2 }, stealActorAt: 0, stealTargetAt: 0 }),
+  );
   assert.equal(old.hp, v.HP_MAX);
   assert.deepEqual(old.status, []);
   assert.equal(old.respawn, null);
@@ -70,9 +100,13 @@ test("vitals: 旧形式プロフィールは HP 満タン・状態なしで読�
 
 test("vitals: HP・毒・リスポーン点が往復する", () => {
   const p = {
-    ...fresh(), hp: 37, hunger: 55,
+    ...fresh(),
+    hp: 37,
+    hunger: 55,
     status: [{ kind: "poison", until: T0 + 5000 }],
-    respawn: { x: 10.5, y: 20.5 }, restPoint: { x: 3.5, y: 4.5 }, deaths: 2,
+    respawn: { x: 10.5, y: 20.5 },
+    restPoint: { x: 3.5, y: 4.5 },
+    deaths: 2,
   };
   const back = v.parseProfile(v.serializeProfile(p));
   assert.equal(back.hp, 37);
@@ -101,8 +135,12 @@ test("vitals: 空腹は活動で減り方が変わり、0 が続くと HP が減
 
 test("vitals: 放置レートは満腹→空まで約4時間、活動倍率は 1.6 / 2.5", () => {
   assert.ok(Math.abs(v.hungerDrainPerSec("idle") * 14400 - 100) < 1e-9);
-  assert.ok(Math.abs(v.hungerDrainPerSec("move") / v.hungerDrainPerSec("idle") - v.HUNGER_MOVE_MULT) < 1e-9);
-  assert.ok(Math.abs(v.hungerDrainPerSec("dash") / v.hungerDrainPerSec("idle") - v.HUNGER_DASH_MULT) < 1e-9);
+  assert.ok(
+    Math.abs(v.hungerDrainPerSec("move") / v.hungerDrainPerSec("idle") - v.HUNGER_MOVE_MULT) < 1e-9,
+  );
+  assert.ok(
+    Math.abs(v.hungerDrainPerSec("dash") / v.hungerDrainPerSec("idle") - v.HUNGER_DASH_MULT) < 1e-9,
+  );
   assert.equal(v.HUNGER_DRAIN_IDLE_PER_SEC, 100 / 14400);
   // 30分精算を7回つなげると（=3.5時間放置）空腹は残りわずかで HP は無事
   let p = { ...fresh(), vitalAt: T0, hunger: 100 };
@@ -240,10 +278,22 @@ test("vitals: モブ接触ダメージとクールダウン", () => {
   const hit = v.applyMobDamage(p, "wolf", 6, T0 + 1000, () => 0.99);
   assert.equal(hit.applied, true);
   assert.equal(hit.profile.hp, v.HP_MAX - 6);
-  const again = v.applyMobDamage(hit.profile, "wolf", 6, T0 + 1000 + v.MOB_DAMAGE_COOLDOWN_MS - 1, () => 0.99);
+  const again = v.applyMobDamage(
+    hit.profile,
+    "wolf",
+    6,
+    T0 + 1000 + v.MOB_DAMAGE_COOLDOWN_MS - 1,
+    () => 0.99,
+  );
   assert.equal(again.applied, false);
   assert.equal(again.profile.hp, v.HP_MAX - 6);
-  const third = v.applyMobDamage(hit.profile, "wolf", 6, T0 + 1000 + v.MOB_DAMAGE_COOLDOWN_MS, () => 0.99);
+  const third = v.applyMobDamage(
+    hit.profile,
+    "wolf",
+    6,
+    T0 + 1000 + v.MOB_DAMAGE_COOLDOWN_MS,
+    () => 0.99,
+  );
   assert.equal(third.applied, true);
   assert.equal(third.profile.hp, v.HP_MAX - 12);
 });
@@ -355,12 +405,22 @@ test("vitals: 死亡・蘇生の移動先へプレゼンスとセーブをそろ
   const route = fs.readFileSync(path.join(rootDir, "app/api/worldbox/vitals/route.ts"), "utf8");
   // 死亡（自死）と蘇生配送の両方で、移動先が新しい連続性の基準になる
   assert.match(route, /movePresenceAndSave/);
-  assert.match(route, /movePresenceAndSave\(ownerKey, \{ space: "world", x: front\.x, y: front\.y \}, now, name\)/);
-  assert.match(route, /movePresenceAndSave\(ownerKey, \{ space: "world", x: point\.x, y: point\.y \}, now, name\)/);
+  assert.match(
+    route,
+    /movePresenceAndSave\(ownerKey, \{ space: "world", x: front\.x, y: front\.y \}, now, name\)/,
+  );
+  assert.match(
+    route,
+    /movePresenceAndSave\(ownerKey, \{ space: "world", x: point\.x, y: point\.y \}, now, name\)/,
+  );
   // 配送の更新に失敗したら pendingTeleport/lastDeath を残して次回再送する
   assert.match(route, /movePresenceAndSave\(ownerKey, teleport, now, session\.username/);
   // 失敗時は died:false で返し（通常 sync の返却と合わせて 3 箇所）、次回 sync で再送される
-  assert.equal(route.match(/return NextResponse\.json\(\{ profile, died: false \}, \{ headers: NO_STORE \}\)/g)?.length, 3);
+  assert.equal(
+    route.match(/return NextResponse\.json\(\{ profile, died: false \}, \{ headers: NO_STORE \}\)/g)
+      ?.length,
+    3,
+  );
 });
 
 test("vitals: sync / damage / set_bed / hazard はユーザー単位ロック内で読み直す（B3）", () => {
@@ -376,7 +436,10 @@ test("vitals: sync / damage / set_bed / hazard はユーザー単位ロック内
 });
 
 test("vitals: クライアントが HP バー・接触ダメージ・定期精算・ベッドを配線している", () => {
-  const client = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"), "utf8");
+  const client = fs.readFileSync(
+    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    "utf8",
+  );
   assert.match(client, /\/api\/worldbox\/vitals/);
   assert.match(client, /postMobDamage/);
   assert.match(client, /action: "sync"/);
@@ -391,7 +454,10 @@ test("vitals: クライアントが HP バー・接触ダメージ・定期精�
 test("vitals: 蘇生のテレポートは死亡した空間へ戻す（S5）", () => {
   // 従来は respawnActionRef が space を "world" に固定していたため、
   // 洞窟・遺跡・ダンジョンで蘇生されるとワールドの同座標へ飛ばされた。
-  const client = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"), "utf8");
+  const client = fs.readFileSync(
+    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    "utf8",
+  );
   assert.match(client, /parseInstanceSpace\(t\.space\)/);
   assert.match(client, /instanceWarpRef\.current\(t\.space/);
   assert.match(client, /instanceWarpRef\.current = warpToInstance/);

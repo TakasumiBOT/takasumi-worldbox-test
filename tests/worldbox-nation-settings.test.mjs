@@ -57,11 +57,20 @@ async function loadBundle(files, exportNames) {
 const wb = await loadBundle(
   ["worldbox/social/nation-settings.ts", "worldbox/economy/guild-shop.ts"],
   [
-    "TAX_RATE_DEFAULT", "TAX_RATE_MAX",
-    "defaultNationSettings", "normalizeTaxRate", "parseNationSettings",
-    "taxRateOf", "isPrivateNation", "memberKeysOf", "effectiveMinisters",
-    "resolveMemberRole", "isNationHiddenFrom",
-    "GUILD_SHOP_FEE_RATE", "sellerProceeds", "saleTaxAmount",
+    "TAX_RATE_DEFAULT",
+    "TAX_RATE_MAX",
+    "defaultNationSettings",
+    "normalizeTaxRate",
+    "parseNationSettings",
+    "taxRateOf",
+    "isPrivateNation",
+    "memberKeysOf",
+    "effectiveMinisters",
+    "resolveMemberRole",
+    "isNationHiddenFrom",
+    "GUILD_SHOP_FEE_RATE",
+    "sellerProceeds",
+    "saleTaxAmount",
   ],
 );
 
@@ -72,7 +81,14 @@ const USER_D = "discord:100000000000000004";
 const GUILD_1 = "900000000000000001";
 const GUILD_2 = "900000000000000002";
 
-const NATION = { guildId: GUILD_1, name: "一国", color: "#e5484d", kingKey: KING, capital: { x: 1, y: 1 }, createdAt: 1 };
+const NATION = {
+  guildId: GUILD_1,
+  name: "一国",
+  color: "#e5484d",
+  kingKey: KING,
+  capital: { x: 1, y: 1 },
+  createdAt: 1,
+};
 const MEMBER_KEYS = new Set([KING, USER_B, USER_C]);
 
 // ---------- parse / 検証 ----------
@@ -89,7 +105,11 @@ test("nation-settings: 空・壊れた保存は既定値（税率5%・公開・�
 
 test("nation-settings: 有効な保存を復元する（JSON文字列も可）", () => {
   const raw = JSON.stringify({
-    taxRate: 0.07, visibility: "private", ministers: [USER_B], taxCollected: 1234.9, updatedAt: 99,
+    taxRate: 0.07,
+    visibility: "private",
+    ministers: [USER_B],
+    taxCollected: 1234.9,
+    updatedAt: 99,
   });
   const s = wb.parseNationSettings(raw);
   assert.equal(s.taxRate, 0.07);
@@ -143,23 +163,27 @@ test("nation-settings: 王は常に王（任命・権限より優先）", () => 
 
 test("nation-settings: 任命大臣と Discord 大臣はどちらも大臣になる", () => {
   const settings = wb.parseNationSettings({ ministers: [USER_B] });
-  assert.deepEqual(
-    wb.resolveMemberRole(NATION, settings, USER_B, "citizen", MEMBER_KEYS),
-    { role: "minister", appointed: true, discordMinister: false },
-  );
-  assert.deepEqual(
-    wb.resolveMemberRole(NATION, settings, USER_C, "minister", MEMBER_KEYS),
-    { role: "minister", appointed: false, discordMinister: true },
-  );
+  assert.deepEqual(wb.resolveMemberRole(NATION, settings, USER_B, "citizen", MEMBER_KEYS), {
+    role: "minister",
+    appointed: true,
+    discordMinister: false,
+  });
+  assert.deepEqual(wb.resolveMemberRole(NATION, settings, USER_C, "minister", MEMBER_KEYS), {
+    role: "minister",
+    appointed: false,
+    discordMinister: true,
+  });
   const both = wb.parseNationSettings({ ministers: [USER_C] });
-  assert.deepEqual(
-    wb.resolveMemberRole(NATION, both, USER_C, "minister", MEMBER_KEYS),
-    { role: "minister", appointed: true, discordMinister: true },
-  );
-  assert.deepEqual(
-    wb.resolveMemberRole(NATION, null, USER_C, "citizen", MEMBER_KEYS),
-    { role: "citizen", appointed: false, discordMinister: false },
-  );
+  assert.deepEqual(wb.resolveMemberRole(NATION, both, USER_C, "minister", MEMBER_KEYS), {
+    role: "minister",
+    appointed: true,
+    discordMinister: true,
+  });
+  assert.deepEqual(wb.resolveMemberRole(NATION, null, USER_C, "citizen", MEMBER_KEYS), {
+    role: "citizen",
+    appointed: false,
+    discordMinister: false,
+  });
 });
 
 test("nation-settings: 国民でなくなった任命大臣は自動で落ちる", () => {
@@ -198,18 +222,45 @@ test("nation-settings: 非公開の国は他国民から隠れ、自国民には
 // ---------- ルート配線 ----------
 
 test("nation-settings: ルート配線（税率適用・join拒否・ランキングフィルタ・設定API）", () => {
-  const guildShopRoute = fs.readFileSync(path.join(rootDir, "app/api/worldbox/guild-shop/route.ts"), "utf8");
+  const guildShopRoute = fs.readFileSync(
+    path.join(rootDir, "app/api/worldbox/guild-shop/route.ts"),
+    "utf8",
+  );
   assert.ok(guildShopRoute.includes("taxRateOf"), "ギルドショップが国の税率を引いていない");
   assert.ok(guildShopRoute.includes("saleTaxAmount"), "税額の累計加算が配線されていない");
-  assert.ok(guildShopRoute.includes("updateNationSettings"), "税収の加算が設定ストアへ書かれていない");
-  const nationsRoute = fs.readFileSync(path.join(rootDir, "app/api/worldbox/nations/route.ts"), "utf8");
+  assert.ok(
+    guildShopRoute.includes("updateNationSettings"),
+    "税収の加算が設定ストアへ書かれていない",
+  );
+  const nationsRoute = fs.readFileSync(
+    path.join(rootDir, "app/api/worldbox/nations/route.ts"),
+    "utf8",
+  );
   assert.ok(nationsRoute.includes("nation_private"), "非公開の国の join 拒否が配線されていない");
-  assert.ok(nationsRoute.includes("isNationHiddenFrom"), "国一覧の非公開フィルタが配線されていない");
+  assert.ok(
+    nationsRoute.includes("isNationHiddenFrom"),
+    "国一覧の非公開フィルタが配線されていない",
+  );
   const warRoute = fs.readFileSync(path.join(rootDir, "app/api/worldbox/war/route.ts"), "utf8");
-  assert.ok(warRoute.includes("isNationHiddenFrom"), "ランキングの非公開フィルタが配線されていない");
-  const settingsRoute = fs.readFileSync(path.join(rootDir, "app/api/worldbox/nation-settings/route.ts"), "utf8");
+  assert.ok(
+    warRoute.includes("isNationHiddenFrom"),
+    "ランキングの非公開フィルタが配線されていない",
+  );
+  const settingsRoute = fs.readFileSync(
+    path.join(rootDir, "app/api/worldbox/nation-settings/route.ts"),
+    "utf8",
+  );
   assert.ok(settingsRoute.includes("king_only"), "設定変更の王限定が配線されていない");
-  assert.ok(settingsRoute.includes("loadMyLobbyStation"), "設定変更のギルドボード前検証が配線されていない");
-  const panel = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxGuildBoardPanel.tsx"), "utf8");
-  assert.ok(panel.includes("/api/worldbox/nation-settings"), "パネルの設定タブが API に接続されていない");
+  assert.ok(
+    settingsRoute.includes("loadMyLobbyStation"),
+    "設定変更のギルドボード前検証が配線されていない",
+  );
+  const panel = fs.readFileSync(
+    path.join(rootDir, "app/games/worldbox/WorldBoxGuildBoardPanel.tsx"),
+    "utf8",
+  );
+  assert.ok(
+    panel.includes("/api/worldbox/nation-settings"),
+    "パネルの設定タブが API に接続されていない",
+  );
 });

@@ -48,13 +48,27 @@ function bundleModule(files, names) {
 }
 
 const ecoUrl = bundleModule(
-  ["worldbox/economy/items.ts", "worldbox/player/profile.ts", "worldbox/player/roles.ts", "worldbox/player/vitals.ts", "worldbox/economy/economy.ts"],
+  [
+    "worldbox/economy/items.ts",
+    "worldbox/player/profile.ts",
+    "worldbox/player/roles.ts",
+    "worldbox/player/vitals.ts",
+    "worldbox/economy/economy.ts",
+  ],
   ["RECIPES", "recipeById", "recipeKind", "parseProfile", "countItem", "craftItem"],
 );
 const E = await import(ecoUrl);
 
 const tilesUrl = bundleModule(
-  ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/economy/items.ts", "worldbox/player/profile.ts", "worldbox/player/presence.ts", "worldbox/world/seasons.ts", "worldbox/world/tiles.ts"],
+  [
+    "worldbox/core/rng.ts",
+    "worldbox/world/mapgen.ts",
+    "worldbox/economy/items.ts",
+    "worldbox/player/profile.ts",
+    "worldbox/player/presence.ts",
+    "worldbox/world/seasons.ts",
+    "worldbox/world/tiles.ts",
+  ],
   ["placedStationKinds", "PLACED_STATION_KINDS"],
 );
 const T = await import(tilesUrl);
@@ -140,8 +154,14 @@ test("設置施設: 作業種別の対応", () => {
 
 const routeSrc = fs.readFileSync(path.join(rootDir, "app/api/worldbox/profile/route.ts"), "utf8");
 const stationSrc = fs.readFileSync(path.join(libDir, "worldbox/world/station-online.ts"), "utf8");
-const clientSrc = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"), "utf8");
-const panelSrc = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxEconomyPanel.tsx"), "utf8");
+const clientSrc = fs.readFileSync(
+  path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+  "utf8",
+);
+const panelSrc = fs.readFileSync(
+  path.join(rootDir, "app/games/worldbox/WorldBoxEconomyPanel.tsx"),
+  "utf8",
+);
 
 test("配線: サーバーは設置施設でも作業を検証する", () => {
   assert.ok(stationSrc.includes("loadMyWorldStationKinds"), "ワールド設置施設の検証がある");
@@ -152,7 +172,10 @@ test("配線: サーバーは設置施設でも作業を検証する", () => {
 });
 
 test("配線: クライアントとパネルが設置施設の種別で表示を合わせる", () => {
-  assert.ok(clientSrc.includes("placedStationKinds(ov?.block?.itemId)"), "クライアントが近くの設置施設を検出する");
+  assert.ok(
+    clientSrc.includes("placedStationKinds(ov?.block?.itemId)"),
+    "クライアントが近くの設置施設を検出する",
+  );
   assert.ok(clientSrc.includes("worldStationKinds={worldStationKinds}"), "パネルへ種別を渡す");
   assert.ok(panelSrc.includes("canWork"), "パネルが種別ごとに可否を出す");
   assert.ok(panelSrc.includes('canWork("enhance")'), "強化欄は enhance のときだけ");

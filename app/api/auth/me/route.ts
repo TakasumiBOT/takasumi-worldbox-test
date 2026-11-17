@@ -18,13 +18,11 @@ export async function GET(request: Request) {
     return NextResponse.json({ user: null }, { headers: NO_STORE });
   }
   const avatar = session.avatar ?? null;
-  const avatarUrl = avatar && avatar.startsWith("http")
-    ? avatar
-    : session.provider === "google" || session.provider === "guest"
-      ? null
-      : userAvatarUrl(session.id, avatar);
-  return NextResponse.json(
-    { user: { name: session.username, avatarUrl } },
-    { headers: NO_STORE },
-  );
+  const avatarUrl =
+    avatar && avatar.startsWith("http")
+      ? avatar
+      : session.provider === "google" || session.provider === "guest"
+        ? null
+        : userAvatarUrl(session.id, avatar);
+  return NextResponse.json({ user: { name: session.username, avatarUrl } }, { headers: NO_STORE });
 }

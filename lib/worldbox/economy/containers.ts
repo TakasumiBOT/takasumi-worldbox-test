@@ -7,8 +7,11 @@
 // 同種は合算（上限 STACK_MAX、あふれた分は元の枠に残る）、異種は入れ替え。
 import { itemById } from "./items";
 import {
-  HOTBAR_SLOTS, STACK_MAX, STORAGE_SLOTS,
-  type ItemSlot, type PlayerProfile,
+  HOTBAR_SLOTS,
+  STACK_MAX,
+  STORAGE_SLOTS,
+  type ItemSlot,
+  type PlayerProfile,
 } from "../player/profile";
 
 /** コンテナとして使える家具と、その容量（枠数）。 */
@@ -106,9 +109,11 @@ export function parseContainerSlotRef(raw: unknown, capacity: number): Container
   if (typeof v.index !== "number" || !Number.isFinite(v.index)) return null;
   const index = Math.floor(v.index);
   const max =
-    v.side === "profile_hotbar" ? HOTBAR_SLOTS
-    : v.side === "profile_storage" ? STORAGE_SLOTS
-    : capacity;
+    v.side === "profile_hotbar"
+      ? HOTBAR_SLOTS
+      : v.side === "profile_storage"
+        ? STORAGE_SLOTS
+        : capacity;
   if (index < 0 || index >= max) return null;
   return { side: v.side, index };
 }

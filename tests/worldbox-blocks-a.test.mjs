@@ -55,26 +55,47 @@ const invUrl = bundleModule(
 const inv = await import(invUrl);
 
 const tilesUrl = bundleModule(
-  ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/economy/items.ts", "worldbox/player/profile.ts", "worldbox/player/presence.ts", "worldbox/world/seasons.ts", "worldbox/world/tiles.ts"],
   [
-    "worldTileSource", "mapTileAt", "T_GRASS",
-    "parseProfile", "countItem",
-    "applyPlaceBlock", "applyMineBlock", "applyFlowerAction",
-    "isFlowerPotItem", "isSeatItem", "parseTileOverride", "presenceIdFor",
+    "worldbox/core/rng.ts",
+    "worldbox/world/mapgen.ts",
+    "worldbox/economy/items.ts",
+    "worldbox/player/profile.ts",
+    "worldbox/player/presence.ts",
+    "worldbox/world/seasons.ts",
+    "worldbox/world/tiles.ts",
+  ],
+  [
+    "worldTileSource",
+    "mapTileAt",
+    "T_GRASS",
+    "parseProfile",
+    "countItem",
+    "applyPlaceBlock",
+    "applyMineBlock",
+    "applyFlowerAction",
+    "isFlowerPotItem",
+    "isSeatItem",
+    "parseTileOverride",
+    "presenceIdFor",
   ],
 );
 const T = await import(tilesUrl);
 
 const instUrl = bundleModule(
-  ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/world/lobby.ts", "worldbox/economy/items.ts", "worldbox/combat/mobs.ts", "worldbox/world/objects.ts", "worldbox/world/instances.ts"],
+  [
+    "worldbox/core/rng.ts",
+    "worldbox/world/mapgen.ts",
+    "worldbox/world/lobby.ts",
+    "worldbox/economy/items.ts",
+    "worldbox/combat/mobs.ts",
+    "worldbox/world/objects.ts",
+    "worldbox/world/instances.ts",
+  ],
   ["placedLightRadiusTiles", "PLACED_LIGHT_RADIUS"],
 );
 const I = await import(instUrl);
 
-const presenceUrl = bundleModule(
-  ["worldbox/player/presence.ts"],
-  ["sanitizeHeartbeat"],
-);
+const presenceUrl = bundleModule(["worldbox/player/presence.ts"], ["sanitizeHeartbeat"]);
 const P = await import(presenceUrl);
 
 // ---------- 花の植え付け ----------
@@ -96,7 +117,17 @@ const NO_CTX = { onCapital: false };
 const withItems = (items) => inv.parseProfile({ items });
 
 function placedPot(ownerKey = ME_KEY, potId = "planter", items = { [potId]: 1, flower: 2 }) {
-  const placed = T.applyPlaceBlock(null, withItems(items), map, ownerKey, grassAt.x, grassAt.y, potId, NOW, NO_CTX);
+  const placed = T.applyPlaceBlock(
+    null,
+    withItems(items),
+    map,
+    ownerKey,
+    grassAt.x,
+    grassAt.y,
+    potId,
+    NOW,
+    NO_CTX,
+  );
   assert.equal(placed.ok, true, `設置できる: ${JSON.stringify(placed)}`);
   return placed;
 }
@@ -110,7 +141,16 @@ test("花: 植木鉢・プランターの判定", () => {
 
 test("花: 植えると花を1つ消費して deco に残る", () => {
   const placed = placedPot();
-  const r = T.applyFlowerAction(placed.override, placed.profile, map, ME_KEY, grassAt.x, grassAt.y, "plant_flower", NOW);
+  const r = T.applyFlowerAction(
+    placed.override,
+    placed.profile,
+    map,
+    ME_KEY,
+    grassAt.x,
+    grassAt.y,
+    "plant_flower",
+    NOW,
+  );
   assert.equal(r.ok, true);
   assert.equal(r.override.deco, "flower");
   assert.equal(inv.countItem(r.profile, "flower"), 1, "花は2→1");
@@ -118,16 +158,52 @@ test("花: 植えると花を1つ消費して deco に残る", () => {
 
 test("花: 植えてある鉢には重ねて植えられない", () => {
   const placed = placedPot();
-  const r1 = T.applyFlowerAction(placed.override, placed.profile, map, ME_KEY, grassAt.x, grassAt.y, "plant_flower", NOW);
-  const r2 = T.applyFlowerAction(r1.override, r1.profile, map, ME_KEY, grassAt.x, grassAt.y, "plant_flower", NOW);
+  const r1 = T.applyFlowerAction(
+    placed.override,
+    placed.profile,
+    map,
+    ME_KEY,
+    grassAt.x,
+    grassAt.y,
+    "plant_flower",
+    NOW,
+  );
+  const r2 = T.applyFlowerAction(
+    r1.override,
+    r1.profile,
+    map,
+    ME_KEY,
+    grassAt.x,
+    grassAt.y,
+    "plant_flower",
+    NOW,
+  );
   assert.equal(r2.ok, false);
   assert.equal(r2.error, "tile_blocked");
 });
 
 test("花: 取り除くと花が手元に戻る", () => {
   const placed = placedPot();
-  const r1 = T.applyFlowerAction(placed.override, placed.profile, map, ME_KEY, grassAt.x, grassAt.y, "plant_flower", NOW);
-  const r2 = T.applyFlowerAction(r1.override, r1.profile, map, ME_KEY, grassAt.x, grassAt.y, "remove_flower", NOW);
+  const r1 = T.applyFlowerAction(
+    placed.override,
+    placed.profile,
+    map,
+    ME_KEY,
+    grassAt.x,
+    grassAt.y,
+    "plant_flower",
+    NOW,
+  );
+  const r2 = T.applyFlowerAction(
+    r1.override,
+    r1.profile,
+    map,
+    ME_KEY,
+    grassAt.x,
+    grassAt.y,
+    "remove_flower",
+    NOW,
+  );
   assert.equal(r2.ok, true);
   assert.equal(r2.override.deco, undefined);
   assert.equal(inv.countItem(r2.profile, "flower"), 2, "花は1→2に戻る");
@@ -136,36 +212,109 @@ test("花: 取り除くと花が手元に戻る", () => {
 
 test("花: 他人の鉢には植えられない・花が無ければ植えられない", () => {
   const placed = placedPot();
-  const byOther = T.applyFlowerAction(placed.override, withItems({ flower: 1 }), map, OTHER_KEY, grassAt.x, grassAt.y, "plant_flower", NOW);
+  const byOther = T.applyFlowerAction(
+    placed.override,
+    withItems({ flower: 1 }),
+    map,
+    OTHER_KEY,
+    grassAt.x,
+    grassAt.y,
+    "plant_flower",
+    NOW,
+  );
   assert.equal(byOther.ok, false);
   assert.equal(byOther.error, "not_owner");
-  const noFlower = T.applyFlowerAction(placed.override, withItems({}), map, ME_KEY, grassAt.x, grassAt.y, "plant_flower", NOW);
+  const noFlower = T.applyFlowerAction(
+    placed.override,
+    withItems({}),
+    map,
+    ME_KEY,
+    grassAt.x,
+    grassAt.y,
+    "plant_flower",
+    NOW,
+  );
   assert.equal(noFlower.ok, false);
   assert.equal(noFlower.error, "not_enough_items");
 });
 
 test("花: 鉢でないブロック・素のタイルには植えられない", () => {
-  const bench = T.applyPlaceBlock(null, withItems({ bench: 1 }), map, ME_KEY, grassAt.x, grassAt.y, "bench", NOW, NO_CTX);
+  const bench = T.applyPlaceBlock(
+    null,
+    withItems({ bench: 1 }),
+    map,
+    ME_KEY,
+    grassAt.x,
+    grassAt.y,
+    "bench",
+    NOW,
+    NO_CTX,
+  );
   assert.equal(bench.ok, true);
-  const r = T.applyFlowerAction(bench.override, withItems({ flower: 1 }), map, ME_KEY, grassAt.x, grassAt.y, "plant_flower", NOW);
+  const r = T.applyFlowerAction(
+    bench.override,
+    withItems({ flower: 1 }),
+    map,
+    ME_KEY,
+    grassAt.x,
+    grassAt.y,
+    "plant_flower",
+    NOW,
+  );
   assert.equal(r.ok, false);
   assert.equal(r.error, "no_block");
-  const bare = T.applyFlowerAction(null, withItems({ flower: 1 }), map, ME_KEY, grassAt.x, grassAt.y, "plant_flower", NOW);
+  const bare = T.applyFlowerAction(
+    null,
+    withItems({ flower: 1 }),
+    map,
+    ME_KEY,
+    grassAt.x,
+    grassAt.y,
+    "plant_flower",
+    NOW,
+  );
   assert.equal(bare.ok, false);
 });
 
 test("花: deco は保存形式を往復し、不正な値は落ちる", () => {
   const placed = placedPot();
-  const r = T.applyFlowerAction(placed.override, placed.profile, map, ME_KEY, grassAt.x, grassAt.y, "plant_flower", NOW);
+  const r = T.applyFlowerAction(
+    placed.override,
+    placed.profile,
+    map,
+    ME_KEY,
+    grassAt.x,
+    grassAt.y,
+    "plant_flower",
+    NOW,
+  );
   const parsed = T.parseTileOverride(JSON.parse(JSON.stringify(r.override)));
   assert.equal(parsed.deco, "flower");
-  const bogus = T.parseTileOverride({ ownerId: parsed.ownerId, block: parsed.block, deco: "sword" });
+  const bogus = T.parseTileOverride({
+    ownerId: parsed.ownerId,
+    block: parsed.block,
+    deco: "sword",
+  });
   assert.equal(bogus.deco, undefined, "花以外の deco は保存されない");
 });
 
 test("花: 鉢を壊すと deco ごと消える", () => {
-  const placed = placedPot(ME_KEY, "planter", { planter: 1, flower: 1, wooden_pickaxe: 1, wooden_axe: 1 });
-  const r1 = T.applyFlowerAction(placed.override, placed.profile, map, ME_KEY, grassAt.x, grassAt.y, "plant_flower", NOW);
+  const placed = placedPot(ME_KEY, "planter", {
+    planter: 1,
+    flower: 1,
+    wooden_pickaxe: 1,
+    wooden_axe: 1,
+  });
+  const r1 = T.applyFlowerAction(
+    placed.override,
+    placed.profile,
+    map,
+    ME_KEY,
+    grassAt.x,
+    grassAt.y,
+    "plant_flower",
+    NOW,
+  );
   // HP を削り切るまで掘る（道具ダメージで複数回かかる場合がある）
   let cur = r1.override;
   let prof = r1.profile;
@@ -209,17 +358,29 @@ test("光: 設置物の光源半径（発光ブロック・マグマ・溶岩を
 
 test("プレゼンス: sit は true のときだけ残る", () => {
   const bounds = { minX: -1024, maxX: 1024, minY: -1024, maxY: 1024 };
-  const sitting = P.sanitizeHeartbeat({ x: 1, y: 2, vx: 0, vy: 0, face: 1, space: "world", sit: true }, bounds);
+  const sitting = P.sanitizeHeartbeat(
+    { x: 1, y: 2, vx: 0, vy: 0, face: 1, space: "world", sit: true },
+    bounds,
+  );
   assert.equal(sitting.sit, true);
-  const standing = P.sanitizeHeartbeat({ x: 1, y: 2, vx: 0, vy: 0, face: 1, space: "world" }, bounds);
+  const standing = P.sanitizeHeartbeat(
+    { x: 1, y: 2, vx: 0, vy: 0, face: 1, space: "world" },
+    bounds,
+  );
   assert.equal(standing.sit, undefined);
-  const fake = P.sanitizeHeartbeat({ x: 1, y: 2, vx: 0, vy: 0, face: 1, space: "world", sit: "yes" }, bounds);
+  const fake = P.sanitizeHeartbeat(
+    { x: 1, y: 2, vx: 0, vy: 0, face: 1, space: "world", sit: "yes" },
+    bounds,
+  );
   assert.equal(fake.sit, undefined, "文字列の sit は通さない");
 });
 
 // ---------- クライアント配線・SE ----------
 
-const clientSrc = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"), "utf8");
+const clientSrc = fs.readFileSync(
+  path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+  "utf8",
+);
 const soundSrc = fs.readFileSync(path.join(libDir, "worldbox/media/sound.ts"), "utf8");
 const routeSrc = fs.readFileSync(path.join(rootDir, "app/api/worldbox/tiles/route.ts"), "utf8");
 
@@ -233,10 +394,19 @@ test("配線: ピアノはタップで note SE を音階で鳴らす", () => {
 test("配線: 座る・花・明かり・じゅうたん・噴水", () => {
   assert.ok(clientSrc.includes("isSeatItem(view.block.itemId)"), "座れる家具のタップ分岐");
   assert.ok(clientSrc.includes("sitTileRef"), "座り状態を持つ");
-  assert.ok(clientSrc.includes('"plant_flower"') && clientSrc.includes('"remove_flower"'), "花の行為を送る");
+  assert.ok(
+    clientSrc.includes('"plant_flower"') && clientSrc.includes('"remove_flower"'),
+    "花の行為を送る",
+  );
   assert.ok(routeSrc.includes("applyFlowerAction"), "タイル API が花の行為を検証する");
-  assert.ok((clientSrc.match(/placedLightRadiusTiles/g) ?? []).length >= 3, "洞窟と夜の両方で設置物の光を使う");
-  assert.ok(clientSrc.includes('ov!.block.itemId === "rug"') || clientSrc.includes('isRug'), "じゅうたんは平たく描く");
+  assert.ok(
+    (clientSrc.match(/placedLightRadiusTiles/g) ?? []).length >= 3,
+    "洞窟と夜の両方で設置物の光を使う",
+  );
+  assert.ok(
+    clientSrc.includes('ov!.block.itemId === "rug"') || clientSrc.includes("isRug"),
+    "じゅうたんは平たく描く",
+  );
   assert.ok(clientSrc.includes('ov.block?.itemId !== "fountain"'), "噴水の水しぶき判定");
   assert.ok(clientSrc.includes('spawnBurst(fxSys, "splash"'), "噴水は splash の粒を出す");
 });

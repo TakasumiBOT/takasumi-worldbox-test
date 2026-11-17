@@ -29,9 +29,13 @@ function dataUrl(js) {
 process.env.DISCORD_SESSION_SECRET = ["worldbox", "guest", "test", "secret"].join("-");
 
 const subdomainUrl = dataUrl(transpile("subdomain.ts"));
-const headersStubUrl = dataUrl("export async function cookies() { throw new Error('tests do not use cookies()'); }");
+const headersStubUrl = dataUrl(
+  "export async function cookies() { throw new Error('tests do not use cookies()'); }",
+);
 const authUrl = dataUrl(
-  transpile("auth.ts").replaceAll('"./subdomain"', JSON.stringify(subdomainUrl)).replaceAll('"next/headers"', JSON.stringify(headersStubUrl)),
+  transpile("auth.ts")
+    .replaceAll('"./subdomain"', JSON.stringify(subdomainUrl))
+    .replaceAll('"next/headers"', JSON.stringify(headersStubUrl)),
 );
 const auth = await import(authUrl);
 
@@ -63,14 +67,14 @@ const guestRoute = await import(
     transpile("api/auth/guest/route.ts", appDir)
       .replaceAll('"next/server"', JSON.stringify(nextServerStubUrl))
       .replaceAll('"@/lib/auth"', JSON.stringify(authUrl)),
-  ),
+  )
 );
 const gateRoute = await import(
   dataUrl(
     transpile("api/worldbox/gate/route.ts", appDir)
       .replaceAll('"next/server"', JSON.stringify(nextServerStubUrl))
       .replaceAll('"@/lib/auth"', JSON.stringify(authUrl)),
-  ),
+  )
 );
 const dashboardCoreStubUrl = dataUrl(`
 export function userAvatarUrl(id, hash) { return "https://cdn.discordapp.com/avatars/" + id + "/" + (hash || "x") + ".png"; }
@@ -81,7 +85,7 @@ const meRoute = await import(
       .replaceAll('"next/server"', JSON.stringify(nextServerStubUrl))
       .replaceAll('"@/lib/auth"', JSON.stringify(authUrl))
       .replaceAll('"@/lib/dashboard-core"', JSON.stringify(dashboardCoreStubUrl)),
-  ),
+  )
 );
 
 const UUID = "12345678-9abc-4def-8abc-1234567890ab";
@@ -97,7 +101,12 @@ function req(url, cookie) {
 // ---------- セッション ----------
 
 test("guest: セッションの往復で provider と所有者キーが保たれる", () => {
-  const value = auth.createSession({ id: UUID, username: "ゲスト1234", avatar: null, provider: "guest" });
+  const value = auth.createSession({
+    id: UUID,
+    username: "ゲスト1234",
+    avatar: null,
+    provider: "guest",
+  });
   const info = auth.readSessionInfo(value);
   assert.ok(info);
   assert.equal(info.provider, "guest");
@@ -109,11 +118,25 @@ test("guest: セッションの往復で provider と所有者キーが保たれ
 });
 
 test("guest: sessionAvatarUrl は null（Discord と Google は従来どおり）", () => {
-  const guest = auth.readSessionInfo(auth.createSession({ id: UUID, username: "ゲスト1234", avatar: null, provider: "guest" }));
+  const guest = auth.readSessionInfo(
+    auth.createSession({ id: UUID, username: "ゲスト1234", avatar: null, provider: "guest" }),
+  );
   assert.equal(auth.sessionAvatarUrl(guest), null);
-  const discord = auth.readSessionInfo(auth.createSession({ id: ME, username: "d-user", avatar: "abcdef" }));
-  assert.equal(auth.sessionAvatarUrl(discord), "https://cdn.discordapp.com/avatars/611111111111111111/abcdef.png?size=64");
-  const google = auth.readSessionInfo(auth.createSession({ id: "633333333333333333", username: "g-user", avatar: null, provider: "google" }));
+  const discord = auth.readSessionInfo(
+    auth.createSession({ id: ME, username: "d-user", avatar: "abcdef" }),
+  );
+  assert.equal(
+    auth.sessionAvatarUrl(discord),
+    "https://cdn.discordapp.com/avatars/611111111111111111/abcdef.png?size=64",
+  );
+  const google = auth.readSessionInfo(
+    auth.createSession({
+      id: "633333333333333333",
+      username: "g-user",
+      avatar: null,
+      provider: "google",
+    }),
+  );
   assert.equal(auth.sessionAvatarUrl(google), null);
 });
 
@@ -136,12 +159,20 @@ test("guest: セッション秘密が未設定でもゲストは入れるが、d
   delete process.env.DISCORD_CLIENT_SECRET;
   try {
     // ゲストはフォールバック署名で往復できる
-    const value = auth.createSession({ id: UUID, username: "ゲスト0001", avatar: null, provider: "guest" });
+    const value = auth.createSession({
+      id: UUID,
+      username: "ゲスト0001",
+      avatar: null,
+      provider: "guest",
+    });
     const info = auth.readSessionInfo(value);
     assert.equal(info?.provider, "guest");
     assert.equal(info?.id, UUID);
     // discord セッションは秘密なしでは作れない（従来どおり）
-    assert.throws(() => auth.createSession({ id: ME, username: "d-user" }), /session secret is not configured/);
+    assert.throws(
+      () => auth.createSession({ id: ME, username: "d-user" }),
+      /session secret is not configured/,
+    );
     // フォールバック署名のペイロードを discord に書き換えても受理しない
     const [encoded, signature] = value.split(".");
     const payload = JSON.parse(Buffer.from(encoded, "base64url").toString("utf8"));
@@ -178,7 +209,11 @@ test("API(guest): POST でセッションが張られ、2回目は同じ身元�
   const second = await guestRoute.POST(req(URL_GUEST, cookieOf(cookie.value)));
   assert.equal(second.status, 200);
   assert.equal((await second.json()).user.name, firstData.user.name);
-  assert.equal(second.cookies.get("ago_session"), undefined, "既存ゲストには Cookie を張り直さない");
+  assert.equal(
+    second.cookies.get("ago_session"),
+    undefined,
+    "既存ゲストには Cookie を張り直さない",
+  );
 
   // そのセッションでゲートが開く
   const gate = await gateRoute.GET(req(URL_GATE, cookieOf(cookie.value)));
@@ -191,7 +226,12 @@ test("API(guest): Discord セッションは格下げされず、Google はゲ�
   assert.equal((await kept.json()).user.name, "d-user");
   assert.equal(kept.cookies.get("ago_session"), undefined, "Discord セッションを上書きしない");
 
-  const google = auth.createSession({ id: "633333333333333333", username: "g-user", avatar: null, provider: "google" });
+  const google = auth.createSession({
+    id: "633333333333333333",
+    username: "g-user",
+    avatar: null,
+    provider: "google",
+  });
   const switched = await guestRoute.POST(req(URL_GUEST, cookieOf(google)));
   assert.match((await switched.json()).user.name, /^ゲスト\d{4}$/);
   const newCookie = switched.cookies.get("ago_session");
@@ -200,21 +240,40 @@ test("API(guest): Discord セッションは格下げされず、Google はゲ�
 });
 
 test("API(gate): ゲストは通り、Google と未ログインは従来どおり閉じる", async () => {
-  const google = auth.createSession({ id: "633333333333333333", username: "g-user", avatar: null, provider: "google" });
-  assert.equal((await (await gateRoute.GET(req(URL_GATE, cookieOf(google)))).json()).allowed, false);
+  const google = auth.createSession({
+    id: "633333333333333333",
+    username: "g-user",
+    avatar: null,
+    provider: "google",
+  });
+  assert.equal(
+    (await (await gateRoute.GET(req(URL_GATE, cookieOf(google)))).json()).allowed,
+    false,
+  );
   assert.equal((await (await gateRoute.GET(req(URL_GATE))).json()).allowed, false);
   const discord = auth.createSession({ id: ME, username: "d-user" });
-  assert.equal((await (await gateRoute.GET(req(URL_GATE, cookieOf(discord)))).json()).allowed, true);
+  assert.equal(
+    (await (await gateRoute.GET(req(URL_GATE, cookieOf(discord)))).json()).allowed,
+    true,
+  );
 });
 
 test("API(me): ゲストの avatarUrl は null、Discord は CDN URL", async () => {
-  const guest = auth.createSession({ id: UUID, username: "ゲスト1234", avatar: null, provider: "guest" });
+  const guest = auth.createSession({
+    id: UUID,
+    username: "ゲスト1234",
+    avatar: null,
+    provider: "guest",
+  });
   const guestData = await (await meRoute.GET(req(URL_ME, cookieOf(guest)))).json();
   assert.equal(guestData.user.name, "ゲスト1234");
   assert.equal(guestData.user.avatarUrl, null);
   const discord = auth.createSession({ id: ME, username: "d-user", avatar: "abcdef" });
   const discordData = await (await meRoute.GET(req(URL_ME, cookieOf(discord)))).json();
-  assert.equal(discordData.user.avatarUrl, "https://cdn.discordapp.com/avatars/611111111111111111/abcdef.png");
+  assert.equal(
+    discordData.user.avatarUrl,
+    "https://cdn.discordapp.com/avatars/611111111111111111/abcdef.png",
+  );
 });
 
 // ---------- 経済ブリッジ ----------
@@ -243,7 +302,7 @@ const economyOnline = await import(
     transpile("worldbox/economy/economy-bridge-online.ts")
       .replaceAll('"../../bot-api"', JSON.stringify(botApiStubUrl))
       .replaceAll('"./economy-bridge"', JSON.stringify(economyUrl)),
-  ),
+  )
 );
 const eco = await import(economyUrl);
 
@@ -251,13 +310,23 @@ test("economy: ゲストのオプは guest_not_allowed で即終端し、記録�
   const guestKey = `guest:${UUID}`;
   // buildEconomyOp の時点で作れない（最初の壁）
   assert.equal(
-    eco.buildEconomyOp({ kind: "earn", userKey: guestKey, discordId: UUID, amount: 100, reason: "harvest" }, "op-guest-01", 1),
+    eco.buildEconomyOp(
+      { kind: "earn", userKey: guestKey, discordId: UUID, amount: 100, reason: "harvest" },
+      "op-guest-01",
+      1,
+    ),
     null,
   );
   // 手組みのオプを直接 submit しても弾かれる（ブリッジの壁）
   const op = {
-    id: "op-guest-01", kind: "earn", userKey: guestKey, discordId: UUID,
-    amount: 100, reason: "harvest", status: "pending", createdAt: 1,
+    id: "op-guest-01",
+    kind: "earn",
+    userKey: guestKey,
+    discordId: UUID,
+    amount: 100,
+    reason: "harvest",
+    status: "pending",
+    createdAt: 1,
   };
   const result = await economyOnline.submitEconomyOp(op);
   assert.equal(result.state, "failed");
@@ -274,9 +343,20 @@ test("配線: ゲート画面にゲスト導線、経済・カジノパネルに
   const client = fs.readFileSync(path.join(appDir, "games/worldbox/WorldBoxClient.tsx"), "utf8");
   assert.ok(client.includes("ゲストで入る"), "ゲストボタンが無い");
   assert.ok(client.includes('fetch("/api/auth/guest"'), "ゲスト API を呼んでいない");
-  assert.ok(client.includes("/api/auth/discord/authorize?next=/games/worldbox"), "Discord 導線が残っていない");
-  for (const panel of ["WorldBoxEconomyPanel.tsx", "WorldBoxCasinoPanel.tsx", "WorldBoxArenaPanel.tsx", "WorldBoxRacingPanel.tsx"]) {
+  assert.ok(
+    client.includes("/api/auth/discord/authorize?next=/games/worldbox"),
+    "Discord 導線が残っていない",
+  );
+  for (const panel of [
+    "WorldBoxEconomyPanel.tsx",
+    "WorldBoxCasinoPanel.tsx",
+    "WorldBoxArenaPanel.tsx",
+    "WorldBoxRacingPanel.tsx",
+  ]) {
     const src = fs.readFileSync(path.join(appDir, "games/worldbox", panel), "utf8");
-    assert.ok(src.includes('guest_not_allowed: "ゲストはコイン機能を使えません"'), `${panel} にゲスト文言が無い`);
+    assert.ok(
+      src.includes('guest_not_allowed: "ゲストはコイン機能を使えません"'),
+      `${panel} にゲスト文言が無い`,
+    );
   }
 });

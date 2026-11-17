@@ -1,13 +1,28 @@
 import { NextResponse } from "next/server";
 import { getRequestSession, publicOrigin, sessionOwnerKey } from "@/lib/auth";
 import {
-  ARENA_PLAYER_HP, ARENA_TIERS, arenaStep, arenaTier, playerAttack, publicArenaView,
-  type ArenaActionKind, type ArenaSession,
+  ARENA_PLAYER_HP,
+  ARENA_TIERS,
+  arenaStep,
+  arenaTier,
+  playerAttack,
+  publicArenaView,
+  type ArenaActionKind,
+  type ArenaSession,
 } from "@/lib/worldbox/combat/arena";
-import { clearArenaSession, loadArenaSession, saveArenaSession } from "@/lib/worldbox/combat/arena-online";
+import {
+  clearArenaSession,
+  loadArenaSession,
+  saveArenaSession,
+} from "@/lib/worldbox/combat/arena-online";
 import { buildEconomyOp, type EconomyOp } from "@/lib/worldbox/economy/economy-bridge";
 import {
-  enqueueEconomyOp, enqueueEconomyOpOnce, findEconomyOp, isEconomyEnabled, loadMyEconomyOps, readUserBalance,
+  enqueueEconomyOp,
+  enqueueEconomyOpOnce,
+  findEconomyOp,
+  isEconomyEnabled,
+  loadMyEconomyOps,
+  readUserBalance,
   waitForOpDone,
 } from "@/lib/worldbox/economy/economy-bridge-online";
 import { loadProfile } from "@/lib/worldbox/player/profile-online";
@@ -49,13 +64,17 @@ function rng(): number {
   return buf[0] / 4294967296;
 }
 
-async function enqueue(userKey: string, discordId: string, input: {
-  kind: "spend" | "earn";
-  amount: number;
-  reason: string;
-  /** 決定的 ID（指定時は冪等登録: 同 ID が既にあれば作り直さない）。 */
-  id?: string;
-}): Promise<EconomyOp | null> {
+async function enqueue(
+  userKey: string,
+  discordId: string,
+  input: {
+    kind: "spend" | "earn";
+    amount: number;
+    reason: string;
+    /** 決定的 ID（指定時は冪等登録: 同 ID が既にあれば作り直さない）。 */
+    id?: string;
+  },
+): Promise<EconomyOp | null> {
   const op = buildEconomyOp(
     { kind: input.kind, userKey, discordId, amount: input.amount, reason: input.reason },
     input.id ?? crypto.randomUUID(),
@@ -139,12 +158,25 @@ async function handlePost(request: Request, session: AuthedSession) {
     if (balance === null || balance - pendingSpend < tier.fee) {
       return errorResponse("insufficient_balance", 409);
     }
-    const feeOp = await enqueue(ownerKey, discordId, { kind: "spend", amount: tier.fee, reason: "arena_entry" });
+    const feeOp = await enqueue(ownerKey, discordId, {
+      kind: "spend",
+      amount: tier.fee,
+      reason: "arena_entry",
+    });
     if (!feeOp) return errorResponse("economy_unavailable", 503);
     const s: ArenaSession = {
-      kind: "arena", state: "paying", tierId: tier.id, fee: tier.fee, prize: tier.prize,
-      feeOpId: feeOp.id, playerHp: ARENA_PLAYER_HP, enemyHp: tier.enemyHp,
-      guarding: false, turn: 0, startedAt: Date.now(), log: [],
+      kind: "arena",
+      state: "paying",
+      tierId: tier.id,
+      fee: tier.fee,
+      prize: tier.prize,
+      feeOpId: feeOp.id,
+      playerHp: ARENA_PLAYER_HP,
+      enemyHp: tier.enemyHp,
+      guarding: false,
+      turn: 0,
+      startedAt: Date.now(),
+      log: [],
     };
     await saveArenaSession(ownerKey, s);
     return stateResponse(ownerKey, discordId);
@@ -182,7 +214,12 @@ async function handlePost(request: Request, session: AuthedSession) {
       s.state = "fighting";
     }
     const profile = await loadProfile(ownerKey);
-    const result = arenaStep(s, move as ArenaActionKind, playerAttack(profile.items, profile.enhance), rng);
+    const result = arenaStep(
+      s,
+      move as ArenaActionKind,
+      playerAttack(profile.items, profile.enhance),
+      rng,
+    );
     const next: ArenaSession = {
       ...result.session,
       log: [...result.events, ...s.log].slice(0, 6),
@@ -190,7 +227,10 @@ async function handlePost(request: Request, session: AuthedSession) {
     if (result.outcome === "win") {
       // 賞金は決定的 ID で冪等に積む（再試行・再処理でも1試合1件だけ）
       await enqueue(ownerKey, discordId, {
-        kind: "earn", amount: next.prize, reason: "arena_prize", id: `prize-${s.feeOpId}`,
+        kind: "earn",
+        amount: next.prize,
+        reason: "arena_prize",
+        id: `prize-${s.feeOpId}`,
       });
       await clearArenaSession(ownerKey);
       const base = await stateResponse(ownerKey, discordId);

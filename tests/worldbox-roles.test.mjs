@@ -50,12 +50,30 @@ async function loadBundle(files, exportNames) {
 }
 
 const R = await loadBundle(
-  ["worldbox/media/fx.ts", "worldbox/economy/items.ts", "worldbox/player/profile.ts", "worldbox/player/roles.ts"],
   [
-    "ADVENTURE_ROLES", "SKILLS", "MASTERY_THRESHOLDS", "rankForXp", "masteryRankOf",
-    "addMasteryXp", "activeSkillFor", "skillCooldownLeft", "maxHpFor", "partyGateSatisfied",
-    "isAdventureRoleId", "parseProfile", "serializeProfile",
-    "SKILL_FX_DURATION_MS", "skillFxProgress", "skillFxStage", "thunderBoltPoints",
+    "worldbox/media/fx.ts",
+    "worldbox/economy/items.ts",
+    "worldbox/player/profile.ts",
+    "worldbox/player/roles.ts",
+  ],
+  [
+    "ADVENTURE_ROLES",
+    "SKILLS",
+    "MASTERY_THRESHOLDS",
+    "rankForXp",
+    "masteryRankOf",
+    "addMasteryXp",
+    "activeSkillFor",
+    "skillCooldownLeft",
+    "maxHpFor",
+    "partyGateSatisfied",
+    "isAdventureRoleId",
+    "parseProfile",
+    "serializeProfile",
+    "SKILL_FX_DURATION_MS",
+    "skillFxProgress",
+    "skillFxStage",
+    "thunderBoltPoints",
   ],
 );
 
@@ -84,7 +102,17 @@ test("every non-free role has a rank-1 skill and all 9 fx are used", () => {
     assert.equal(skill.minRank, 1);
   }
   for (const def of Object.values(R.SKILLS)) usedFx.add(def.fx);
-  for (const fx of ["fireball", "heal_zone", "sweep", "thunder_strike", "ice_lance", "meteor", "whirlwind", "arrow_rain", "poison_field"]) {
+  for (const fx of [
+    "fireball",
+    "heal_zone",
+    "sweep",
+    "thunder_strike",
+    "ice_lance",
+    "meteor",
+    "whirlwind",
+    "arrow_rain",
+    "poison_field",
+  ]) {
     assert.ok(usedFx.has(fx), `fx ${fx} must be assigned to some skill`);
   }
 });
@@ -186,7 +214,12 @@ test("role ids validated", () => {
 });
 
 const C = await loadBundle(
-  ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/combat/mobs.ts", "worldbox/combat/combat.ts"],
+  [
+    "worldbox/core/rng.ts",
+    "worldbox/world/mapgen.ts",
+    "worldbox/combat/mobs.ts",
+    "worldbox/combat/combat.ts",
+  ],
   ["parseMobStates"],
 );
 
@@ -194,7 +227,7 @@ test("mob states keep instance-prefixed keys (batch2 regression)", () => {
   const states = C.parseMobStates({
     "cave:1,2:1|slime@3,4": { hp: 5 },
     "slime@1,1": { hp: 7, frozenUntil: 999 },
-    "junk": { hp: 1 },
+    junk: { hp: 1 },
   });
   assert.equal(states["cave:1,2:1|slime@3,4"]?.hp, 5);
   assert.equal(states["slime@1,1"]?.hp, 7);

@@ -2,16 +2,26 @@ import { NextResponse } from "next/server";
 import { getRequestSession, publicOrigin, sessionOwnerKey } from "@/lib/auth";
 import { buildEconomyOp, type EconomyOp } from "@/lib/worldbox/economy/economy-bridge";
 import {
-  enqueueEconomyOpOnce, isEconomyEnabled, loadMyEconomyOps, readUserBalance,
+  enqueueEconomyOpOnce,
+  isEconomyEnabled,
+  loadMyEconomyOps,
+  readUserBalance,
 } from "@/lib/worldbox/economy/economy-bridge-online";
 import { casinoMachineNear } from "@/lib/worldbox/activity/casino";
 import {
-  CASINO_TOURNAMENT_ENTRY_MS, CASINO_TOURNAMENT_FEE, CASINO_TOURNAMENT_MAX_ENTRANTS,
-  CASINO_TOURNAMENT_PLAY_MS, casinoTournamentFeeOpId, casinoTournamentId,
-  publicCasinoTournamentView, type CasinoTournament,
+  CASINO_TOURNAMENT_ENTRY_MS,
+  CASINO_TOURNAMENT_FEE,
+  CASINO_TOURNAMENT_MAX_ENTRANTS,
+  CASINO_TOURNAMENT_PLAY_MS,
+  casinoTournamentFeeOpId,
+  casinoTournamentId,
+  publicCasinoTournamentView,
+  type CasinoTournament,
 } from "@/lib/worldbox/activity/casino-tournament";
 import {
-  advanceCasinoTournamentInner, loadCurrentCasinoTournament, saveCasinoTournament,
+  advanceCasinoTournamentInner,
+  loadCurrentCasinoTournament,
+  saveCasinoTournament,
 } from "@/lib/worldbox/activity/casino-tournament-online";
 import { buildLobby } from "@/lib/worldbox/world/lobby";
 import { isPresenceEnabled, loadMyPresence } from "@/lib/worldbox/player/presence-online";
@@ -54,11 +64,7 @@ async function currentMachine(ownerKey: string) {
   if (!isPresenceEnabled()) return null;
   const presence = await loadMyPresence(ownerKey);
   if (!presence || presence.space !== "lobby") return null;
-  return casinoMachineNear(
-    buildLobby().objects,
-    Math.floor(presence.x),
-    Math.floor(presence.y),
-  );
+  return casinoMachineNear(buildLobby().objects, Math.floor(presence.x), Math.floor(presence.y));
 }
 
 async function effectiveBalanceOf(ownerKey: string, discordId: string): Promise<number | null> {
@@ -107,9 +113,19 @@ export async function POST(request: Request) {
 
 type AuthedSession = NonNullable<ReturnType<typeof casinoTournamentSession>["session"]>;
 
-async function enqueueFee(ownerKey: string, discordId: string, id: string): Promise<EconomyOp | null> {
+async function enqueueFee(
+  ownerKey: string,
+  discordId: string,
+  id: string,
+): Promise<EconomyOp | null> {
   const op = buildEconomyOp(
-    { kind: "spend", userKey: ownerKey, discordId, amount: CASINO_TOURNAMENT_FEE, reason: "casino_tournament_entry" },
+    {
+      kind: "spend",
+      userKey: ownerKey,
+      discordId,
+      amount: CASINO_TOURNAMENT_FEE,
+      reason: "casino_tournament_entry",
+    },
     id,
     Date.now(),
   );
@@ -136,19 +152,26 @@ async function handlePost(request: Request, session: AuthedSession) {
   let t = await loadCurrentCasinoTournament(now);
   if (t && t.status !== "entry") return errorResponse("tournament_closed", 409);
   if (t && t.entrants.includes(discordId)) return stateResponse(ownerKey, discordId, t);
-  if (t && t.entrants.length >= CASINO_TOURNAMENT_MAX_ENTRANTS) return errorResponse("tournament_full", 409);
+  if (t && t.entrants.length >= CASINO_TOURNAMENT_MAX_ENTRANTS)
+    return errorResponse("tournament_full", 409);
 
   const mine = await effectiveBalanceOf(ownerKey, discordId);
-  if (mine === null || mine < CASINO_TOURNAMENT_FEE) return errorResponse("insufficient_balance", 409);
+  if (mine === null || mine < CASINO_TOURNAMENT_FEE)
+    return errorResponse("insufficient_balance", 409);
 
   if (!t) {
     t = {
-      id: casinoTournamentId(now), status: "entry", createdAt: now,
+      id: casinoTournamentId(now),
+      status: "entry",
+      createdAt: now,
       entryEndsAt: now + CASINO_TOURNAMENT_ENTRY_MS,
       playEndsAt: now + CASINO_TOURNAMENT_ENTRY_MS + CASINO_TOURNAMENT_PLAY_MS,
       playStartedAt: null,
-      entrants: [], scores: {},
-      prizesPaid: false, refundPaid: false, closedAt: null,
+      entrants: [],
+      scores: {},
+      prizesPaid: false,
+      refundPaid: false,
+      closedAt: null,
     };
   }
   const fee = await enqueueFee(ownerKey, discordId, casinoTournamentFeeOpId(t.id, discordId));

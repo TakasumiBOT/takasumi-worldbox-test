@@ -33,8 +33,10 @@ export function rectBounds(width: number, height: number): CoordBounds {
 /** ワールド全体の範囲（実質無制限）。 */
 export function worldBounds(): CoordBounds {
   return {
-    minX: -WORLD_COORD_LIMIT, maxX: WORLD_COORD_LIMIT,
-    minY: -WORLD_COORD_LIMIT, maxY: WORLD_COORD_LIMIT,
+    minX: -WORLD_COORD_LIMIT,
+    maxX: WORLD_COORD_LIMIT,
+    minY: -WORLD_COORD_LIMIT,
+    maxY: WORLD_COORD_LIMIT,
   };
 }
 
@@ -114,10 +116,22 @@ export function tileIvsAt(x: number, y: number): TileIvs {
   const ty = Math.floor(y);
   const altitude = fbm((tx * IV_ELEV_CELLS) / IV_SPAN, (ty * IV_ELEV_CELLS) / IV_SPAN, MAP_SEED, 4);
   const jitter = latticeHash(tx, ty, MAP_SEED ^ 0x27d4eb2d);
-  const soil = fbm((tx * 15) / IV_SPAN + 71.25, (ty * 15) / IV_SPAN + 13.5, MAP_SEED ^ 0x3f4a5b6, 3);
+  const soil = fbm(
+    (tx * 15) / IV_SPAN + 71.25,
+    (ty * 15) / IV_SPAN + 13.5,
+    MAP_SEED ^ 0x3f4a5b6,
+    3,
+  );
   const fertility = Math.round(100 * ivClamp01(0.9 * ivStretch(soil) + 0.1 * jitter));
-  const pureNoise = fbm((tx * 25) / IV_SPAN + 11.75, (ty * 25) / IV_SPAN + 53.5, MAP_SEED ^ 0x51ab3c7, 3);
-  const purity = Math.round(100 * ivClamp01(0.6 * ivStretch(pureNoise) + 0.4 * ivStretch(altitude)));
+  const pureNoise = fbm(
+    (tx * 25) / IV_SPAN + 11.75,
+    (ty * 25) / IV_SPAN + 53.5,
+    MAP_SEED ^ 0x51ab3c7,
+    3,
+  );
+  const purity = Math.round(
+    100 * ivClamp01(0.6 * ivStretch(pureNoise) + 0.4 * ivStretch(altitude)),
+  );
   return { fertility, purity, altitude: Math.round(100 * ivClamp01(altitude)) };
 }
 
@@ -148,7 +162,12 @@ export function mapTileAt(map: TileSource, x: number, y: number): number {
 }
 
 /** タイル配列から有限のタイル源を作る。範囲外は岩（固体）。 */
-export function tilesSource(seed: number, width: number, height: number, tiles: Uint8Array): TileSource {
+export function tilesSource(
+  seed: number,
+  width: number,
+  height: number,
+  tiles: Uint8Array,
+): TileSource {
   return {
     seed,
     width,
@@ -190,7 +209,9 @@ const RIVER_HALF = 0.9;
 const RIVER_BANK = 2.1;
 
 function riverCenterAt(seed: number, x: number): number {
-  return RIVER_CENTER_Y + (fbm(x * RIVER_FREQ, RIVER_PHASE, seed ^ 0x51ab, 3) - 0.5) * 2 * RIVER_AMP;
+  return (
+    RIVER_CENTER_Y + (fbm(x * RIVER_FREQ, RIVER_PHASE, seed ^ 0x51ab, 3) - 0.5) * 2 * RIVER_AMP
+  );
 }
 
 /**
@@ -207,7 +228,7 @@ export function tileAt(x: number, y: number, seed: number = MAP_SEED): number {
   else {
     const m = fbm(x * MOIST_FREQ + 37.5, y * MOIST_FREQ + 91.25, seed ^ 0x9e3779b9, 3);
     if (m > 0.585) id = T_TREE;
-    else if (m < 0.30) id = T_DIRT;
+    else if (m < 0.3) id = T_DIRT;
   }
   if (y < snowBoundaryAt(seed, x)) {
     if (id === T_GRASS || id === T_DIRT) id = T_SNOW;

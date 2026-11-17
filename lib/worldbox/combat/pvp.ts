@@ -135,8 +135,11 @@ export function createDuel(a: PvpQueueEntry, b: PvpQueueEntry, now: number): Pvp
 
 /** 大会の対戦を作る（参加費は大会の参加時に払い済みのため fighting から始める）。 */
 export function createTournamentDuel(
-  a: PvpQueueEntry, b: PvpQueueEntry, now: number,
-  tournamentId: string, matchId: string,
+  a: PvpQueueEntry,
+  b: PvpQueueEntry,
+  now: number,
+  tournamentId: string,
+  matchId: string,
 ): PvpDuel {
   const duel = createDuel(a, b, now);
   return { ...duel, state: "fighting", tournament: { tournamentId, matchId } };
@@ -233,7 +236,12 @@ export function parsePvpDuel(raw: unknown): PvpDuel | null {
   for (const p of v.players as unknown[]) {
     if (typeof p !== "object" || p === null) return null;
     const q = p as Record<string, unknown>;
-    if (typeof q.ownerKey !== "string" || typeof q.discordId !== "string" || typeof q.attack !== "number") return null;
+    if (
+      typeof q.ownerKey !== "string" ||
+      typeof q.discordId !== "string" ||
+      typeof q.attack !== "number"
+    )
+      return null;
   }
   return v as unknown as PvpDuel;
 }
@@ -247,7 +255,12 @@ export function parsePvpQueue(raw: unknown): PvpQueueEntry[] {
     const v = item as Record<string, unknown>;
     if (typeof v.ownerKey !== "string" || typeof v.discordId !== "string") continue;
     if (typeof v.attack !== "number" || typeof v.queuedAt !== "number") continue;
-    out.push({ ownerKey: v.ownerKey, discordId: v.discordId, attack: v.attack, queuedAt: v.queuedAt });
+    out.push({
+      ownerKey: v.ownerKey,
+      discordId: v.discordId,
+      attack: v.attack,
+      queuedAt: v.queuedAt,
+    });
   }
   return out;
 }

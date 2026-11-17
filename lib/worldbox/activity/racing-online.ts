@@ -10,7 +10,10 @@
 import { kvGet, kvSet } from "../../bot-api";
 import { findEconomyOp } from "../economy/economy-bridge-online";
 import {
-  generateRaceCore, estimateOdds, payoutFor, RACE_DURATION_MS,
+  generateRaceCore,
+  estimateOdds,
+  payoutFor,
+  RACE_DURATION_MS,
   type HorseOdds,
 } from "./racing";
 
@@ -93,7 +96,8 @@ export async function loadPopularity(postMs: number): Promise<PopularityRow[]> {
     if (!Array.isArray(raw)) return [];
     return raw.filter(
       (r): r is PopularityRow =>
-        !!r && typeof r === "object" &&
+        !!r &&
+        typeof r === "object" &&
         typeof (r as PopularityRow).horseId === "number" &&
         ((r as PopularityRow).type === "win" || (r as PopularityRow).type === "place") &&
         typeof (r as PopularityRow).amount === "number",
@@ -110,7 +114,9 @@ export async function appendPopularity(postMs: number, row: PopularityRow): Prom
 }
 
 /** 人気集計: 馬ごとの単勝/複勝の票数（実プレイヤーの馬券だけ。NPC はいない）。 */
-export function popularityCounts(rows: readonly PopularityRow[]): Map<number, { win: number; place: number }> {
+export function popularityCounts(
+  rows: readonly PopularityRow[],
+): Map<number, { win: number; place: number }> {
   const map = new Map<number, { win: number; place: number }>();
   for (const r of rows) {
     const cur = map.get(r.horseId) ?? { win: 0, place: 0 };
@@ -129,7 +135,10 @@ export async function loadOrEstimateOdds(postMs: number): Promise<Record<number,
       let ok = true;
       for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
         const o = v as { win?: unknown; place?: unknown };
-        if (typeof o?.win !== "number" || typeof o?.place !== "number") { ok = false; break; }
+        if (typeof o?.win !== "number" || typeof o?.place !== "number") {
+          ok = false;
+          break;
+        }
         out[Number(k)] = { win: o.win, place: o.place };
       }
       if (ok && Object.keys(out).length > 0) return out;
@@ -175,7 +184,13 @@ export async function settleMyBets(
       continue;
     }
     const core = generateRaceCore(bet.postMs);
-    const payout = payoutFor(bet.type, bet.horseId, bet.amount, { win: bet.oddsWin, place: bet.oddsPlace }, core);
+    const payout = payoutFor(
+      bet.type,
+      bet.horseId,
+      bet.amount,
+      { win: bet.oddsWin, place: bet.oddsPlace },
+      core,
+    );
     if (payout > 0) {
       const ok = await enqueueSettle(bet, payout);
       if (!ok) {

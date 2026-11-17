@@ -27,13 +27,19 @@ export const WORLD_EVENTS: readonly WorldEventDef[] = [
     id: "stardust_festival",
     name: "星屑祭り",
     kind: "seasonal",
-    startMonth: 12, startDay: 20, endMonth: 1, endDay: 5,
+    startMonth: 12,
+    startDay: 20,
+    endMonth: 1,
+    endDay: 5,
   },
   {
     id: "stardust_ruins",
     name: "星屑の遺跡",
     kind: "limited_dungeon",
-    startMonth: 12, startDay: 20, endMonth: 1, endDay: 5,
+    startMonth: 12,
+    startDay: 20,
+    endMonth: 1,
+    endDay: 5,
   },
 ];
 
@@ -54,7 +60,9 @@ export function activeEvents(now: number): WorldEventDef[] {
 }
 
 export function activeLimitedDungeon(now: number): WorldEventDef | null {
-  return WORLD_EVENTS.find((def) => def.kind === "limited_dungeon" && isEventActive(def, now)) ?? null;
+  return (
+    WORLD_EVENTS.find((def) => def.kind === "limited_dungeon" && isEventActive(def, now)) ?? null
+  );
 }
 
 /** その入口座標が期間ダンジョンの予約入口かどうか。 */

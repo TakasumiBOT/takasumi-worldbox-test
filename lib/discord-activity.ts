@@ -44,7 +44,9 @@ export type DiscordUserLike = {
  * オンライン対戦の既定プロフィールを作る。不正な形は null。
  * 名前はオンライン基盤の入力規則（2〜24文字）に合わせて丸める。
  */
-export function buildDiscordIdentity(user: DiscordUserLike | null | undefined): DiscordIdentity | null {
+export function buildDiscordIdentity(
+  user: DiscordUserLike | null | undefined,
+): DiscordIdentity | null {
   if (!user || typeof user.id !== "string" || !SNOWFLAKE.test(user.id)) return null;
   const username = typeof user.username === "string" ? user.username.trim() : "";
   const globalName = typeof user.global_name === "string" ? user.global_name.trim() : "";
@@ -98,7 +100,9 @@ export function shareCustomIdForRoom(gameId: string, code: string): string | nul
 }
 
 /** shareLink の custom_id をルーム宛先に戻す。不正は null。 */
-export function roomFromShareCustomId(raw: string | null | undefined): { gameId: string; code: string } | null {
+export function roomFromShareCustomId(
+  raw: string | null | undefined,
+): { gameId: string; code: string } | null {
   if (typeof raw !== "string") return null;
   const parts = raw.split(":");
   if (parts.length !== 3 || parts[0] !== "room") return null;

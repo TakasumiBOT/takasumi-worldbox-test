@@ -90,24 +90,26 @@ const gamesAuthRoute = await import(
       .replaceAll('"@/lib/auth"', JSON.stringify(authUrl))
       .replaceAll('"@/lib/dashboard"', JSON.stringify(dashboardStubUrl))
       .replaceAll('"@/lib/discord-activity"', JSON.stringify(discordActivityUrl)),
-  ),
+  )
 );
 const gateRoute = await import(
   dataUrl(
     transpile("api/worldbox/gate/route.ts", appDir)
       .replaceAll('"next/server"', JSON.stringify(nextServerStubUrl))
       .replaceAll('"@/lib/auth"', JSON.stringify(authUrl)),
-  ),
+  )
 );
 
 const VERIFIER = "a".repeat(43);
 
 test("activity: games-auth は identity を返し、通常ログインと同じセッションを張る", async () => {
-  const res = await gamesAuthRoute.POST(new Request("https://example.test/api/activity/games-auth", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ code: "code-1", codeVerifier: VERIFIER }),
-  }));
+  const res = await gamesAuthRoute.POST(
+    new Request("https://example.test/api/activity/games-auth", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code: "code-1", codeVerifier: VERIFIER }),
+    }),
+  );
   assert.equal(res.status, 200);
   const data = await res.json();
   assert.equal(data.user.id, ME);
@@ -117,17 +119,21 @@ test("activity: games-auth は identity を返し、通常ログインと同じ�
 });
 
 test("activity: games-auth のセッションで WORLD BOX ゲートが通る", async () => {
-  const res = await gamesAuthRoute.POST(new Request("https://example.test/api/activity/games-auth", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ code: "code-1", codeVerifier: VERIFIER }),
-  }));
+  const res = await gamesAuthRoute.POST(
+    new Request("https://example.test/api/activity/games-auth", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code: "code-1", codeVerifier: VERIFIER }),
+    }),
+  );
   const session = res.cookies.get("ago_session");
   assert.ok(session?.value);
   const cookie = `ago_session=${encodeURIComponent(session.value)}`;
-  const gateRes = await gateRoute.GET(new Request("https://example.test/api/worldbox/gate", {
-    headers: { Cookie: cookie },
-  }));
+  const gateRes = await gateRoute.GET(
+    new Request("https://example.test/api/worldbox/gate", {
+      headers: { Cookie: cookie },
+    }),
+  );
   assert.equal(gateRes.status, 200);
   assert.equal((await gateRes.json()).allowed, true, "Activity 認証のセッションでゲートが開く");
   const anonRes = await gateRoute.GET(new Request("https://example.test/api/worldbox/gate"));
@@ -140,7 +146,10 @@ test("activity: クライアントは Activity 内で OAuth リンクを出さ�
   assert.ok(client.includes("embedded"), "埋め込み判定を使う");
   assert.ok(client.includes("再試行"), "Activity 内は再試行ボタンを出す");
   assert.ok(client.includes("identityId"), "本人情報の到着でゲートを引き直す");
-  assert.ok(client.includes("/api/auth/discord/authorize?next=/games/worldbox"), "通常 Web のログイン導線は残る");
+  assert.ok(
+    client.includes("/api/auth/discord/authorize?next=/games/worldbox"),
+    "通常 Web のログイン導線は残る",
+  );
 });
 
 test("activity: SDK 認証の本人情報が届いたらセッション確認を待たずにゲートを通す", () => {
@@ -162,9 +171,11 @@ test("activity: SDK 認証の本人情報が届いたらセッション確認を
 // モック SDK + fetch で authorize のフォールバックを検証する。
 const activityClient = await import(
   dataUrl(
-    transpile("discord-activity-client.ts")
-      .replaceAll('"./discord-activity"', JSON.stringify(discordActivityUrl)),
-  ),
+    transpile("discord-activity-client.ts").replaceAll(
+      '"./discord-activity"',
+      JSON.stringify(discordActivityUrl),
+    ),
+  )
 );
 
 function fakeSdk(authorizeImpl) {
@@ -182,7 +193,10 @@ async function withFetchStub(run) {
   const original = globalThis.fetch;
   globalThis.fetch = async () => ({
     ok: true,
-    json: async () => ({ accessToken: "tok-test", user: { id: ME, name: "Tester", avatarUrl: "" } }),
+    json: async () => ({
+      accessToken: "tok-test",
+      user: { id: ME, name: "Tester", avatarUrl: "" },
+    }),
   });
   try {
     return await run();
@@ -198,7 +212,9 @@ test("activity: 無言認証（prompt none）が失敗したら承認画面あ�
     if (args.prompt === "none") throw new Error("not authorized yet");
     return { code: "code-2" };
   });
-  const identity = await withFetchStub(() => activityClient.authenticateDiscordIdentity(sdk, "123456789012345678"));
+  const identity = await withFetchStub(() =>
+    activityClient.authenticateDiscordIdentity(sdk, "123456789012345678"),
+  );
   assert.equal(identity?.id, ME, "初回ユーザーでも本人情報が届く");
   assert.deepEqual(prompts, ["none", null], "無言→承認画面ありの順で authorize する");
 });
@@ -209,7 +225,9 @@ test("activity: 無言認証が通れば承認画面は出さない", async () =
     prompts.push(args.prompt ?? null);
     return { code: "code-1" };
   });
-  const identity = await withFetchStub(() => activityClient.authenticateDiscordIdentity(sdk, "123456789012345678"));
+  const identity = await withFetchStub(() =>
+    activityClient.authenticateDiscordIdentity(sdk, "123456789012345678"),
+  );
   assert.equal(identity?.id, ME);
   assert.deepEqual(prompts, ["none"], "承認済みユーザーは無言認証だけで終わる");
 });
@@ -218,6 +236,8 @@ test("activity: 承認画面ありでも失敗したら null（表示は通常�
   const sdk = fakeSdk(async () => {
     throw new Error("user declined");
   });
-  const identity = await withFetchStub(() => activityClient.authenticateDiscordIdentity(sdk, "123456789012345678"));
+  const identity = await withFetchStub(() =>
+    activityClient.authenticateDiscordIdentity(sdk, "123456789012345678"),
+  );
   assert.equal(identity, null);
 });

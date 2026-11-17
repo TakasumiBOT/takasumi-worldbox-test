@@ -41,7 +41,14 @@ export function cleanCasinoUserState(raw: unknown): CasinoUserState {
 // ---------------------------------------------------------------- slot7
 // 回数指定は廃止済み: セッションは常に1回分（route.ts の slot7_start）。
 /** 揃った個数 → 基本倍率（原典 SLOT_BASE_MULTIPLIERS）。 */
-export const SLOT7_BASE_MULTIPLIERS: Record<number, number> = { 2: 1.1, 3: 6, 4: 25, 5: 120, 6: 500, 7: 2000 };
+export const SLOT7_BASE_MULTIPLIERS: Record<number, number> = {
+  2: 1.1,
+  3: 6,
+  4: 25,
+  5: 120,
+  6: 500,
+  7: 2000,
+};
 export const SLOT7_PITY_STREAK = 3;
 export const SLOT7_PITY_MULTIPLIER = 50;
 export const SLOT7_SEVEN_BONUS = 5;
@@ -59,7 +66,18 @@ const FORCE_SIX_PROBABILITY = 0.5;
 /** 数字0〜9のリール重み（原典 _reel_weights、お祓い棒なし）。 */
 export function slot7ReelWeights(kakuhen: boolean): number[] {
   const six = kakuhen ? WEIGHT_SIX_KAKUHEN : WEIGHT_SIX_NORMAL;
-  return [WEIGHT_OTHER, WEIGHT_OTHER, WEIGHT_OTHER, WEIGHT_OTHER, WEIGHT_OTHER, WEIGHT_OTHER, six, WEIGHT_SEVEN, WEIGHT_OTHER, WEIGHT_OTHER];
+  return [
+    WEIGHT_OTHER,
+    WEIGHT_OTHER,
+    WEIGHT_OTHER,
+    WEIGHT_OTHER,
+    WEIGHT_OTHER,
+    WEIGHT_OTHER,
+    six,
+    WEIGHT_SEVEN,
+    WEIGHT_OTHER,
+    WEIGHT_OTHER,
+  ];
 }
 
 export type Slot7SpinResult = {

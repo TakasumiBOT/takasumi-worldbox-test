@@ -64,7 +64,15 @@ function readApp(rel) {
 
 // ---------------------------------------------------------------- 道具強化
 const T = await loadBundle(
-  ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/economy/items.ts", "worldbox/player/profile.ts", "worldbox/player/presence.ts", "worldbox/world/seasons.ts", "worldbox/world/tiles.ts"],
+  [
+    "worldbox/core/rng.ts",
+    "worldbox/world/mapgen.ts",
+    "worldbox/economy/items.ts",
+    "worldbox/player/profile.ts",
+    "worldbox/player/presence.ts",
+    "worldbox/world/seasons.ts",
+    "worldbox/world/tiles.ts",
+  ],
   ["parseProfile", "bestToolTier", "blockMineDamage", "itemById", "BLOCK_MINE_DAMAGE"],
 );
 
@@ -96,7 +104,12 @@ test("enhance: blockMineDamage follows the effective pickaxe tier", () => {
 
 // ---------------------------------------------------------------- 食事まわり
 const E = await loadBundle(
-  ["worldbox/economy/items.ts", "worldbox/player/profile.ts", "worldbox/player/vitals.ts", "worldbox/economy/economy.ts"],
+  [
+    "worldbox/economy/items.ts",
+    "worldbox/player/profile.ts",
+    "worldbox/player/vitals.ts",
+    "worldbox/economy/economy.ts",
+  ],
   ["eatItem", "consumeEffect", "parseProfile", "itemById", "BUFF_DURATION_MS", "maxHpFor"],
 );
 
@@ -105,7 +118,10 @@ const NOW = 1_700_000_000_000;
 test("eat: guardian at HP 110/120 and full hunger can still eat healing food", () => {
   const guard = {
     ...E.parseProfile(null),
-    role: "guard", hp: 110, hunger: 100, items: { stew: 1 },
+    role: "guard",
+    hp: 110,
+    hunger: 100,
+    items: { stew: 1 },
   };
   assert.equal(E.maxHpFor(guard), 120);
   const r = E.eatItem(guard, "stew", NOW);
@@ -133,7 +149,10 @@ test("eat: eatItem applies exactly the consumeEffect formula (single source)", (
   assert.equal(viaEffect.profile.hp, ate.profile.hp);
   assert.deepEqual(viaEffect.profile.status, ate.profile.status);
   // 解毒も従来どおり効く
-  const poisoned = { ...ate.profile, status: [...ate.profile.status, { kind: "poison", until: NOW + 30000 }] };
+  const poisoned = {
+    ...ate.profile,
+    status: [...ate.profile.status, { kind: "poison", until: NOW + 30000 }],
+  };
   const drank = E.eatItem(poisoned, "honey_tea", NOW);
   assert.equal(drank.ok, true);
   assert.ok(!drank.profile.status.some((e) => e.kind === "poison"));
@@ -152,7 +171,10 @@ test("wiring: instances route counts enhancement in the cave tier gate and scout
   const src = readApp("api/worldbox/instances/route.ts");
   assert.match(src, /function bestToolTier\([\s\S]*?profile\.enhance/);
   const mitigations = src.match(/profile\.role === "scout" && rng\(\) < 0\.5/g) ?? [];
-  assert.ok(mitigations.length >= 3, `斥候の罠軽減は遺跡+洞窟+ダンジョンの3か所（実際 ${mitigations.length}）`);
+  assert.ok(
+    mitigations.length >= 3,
+    `斥候の罠軽減は遺跡+洞窟+ダンジョンの3か所（実際 ${mitigations.length}）`,
+  );
 });
 
 test("wiring: vitals hazard runs inside the user lock", () => {
@@ -165,9 +187,15 @@ test("wiring: vitals hazard runs inside the user lock", () => {
 test("wiring: roles skill/revive run inside user locks, with skill XP grants", () => {
   const src = readApp("api/worldbox/roles/route.ts");
   // skill 本体は自分のロック内で読み直す
-  assert.match(src, /fields\.action === "skill"[\s\S]{0,700}?withUserLock\(ownerKey, async \(\) => \{\s*const profile = await loadProfile\(ownerKey\);/);
+  assert.match(
+    src,
+    /fields\.action === "skill"[\s\S]{0,700}?withUserLock\(ownerKey, async \(\) => \{\s*const profile = await loadProfile\(ownerKey\);/,
+  );
   // revive は薬師→対象の順に別々のロック（対象の HP・pendingTeleport も対象のロック内）
-  assert.match(src, /fields\.action === "revive"[\s\S]*?withUserLock\(target\.ownerKey, async \(\) => \{/);
+  assert.match(
+    src,
+    /fields\.action === "revive"[\s\S]*?withUserLock\(target\.ownerKey, async \(\) => \{/,
+  );
   // 技 XP: 挑発（守護）・ヒーリングゾーン（薬師）・技撃破（全役職）
   assert.match(src, /addMasteryXp\(next, "guard", 2\)/);
   assert.match(src, /addMasteryXp\(next, "medic", 2\)/);

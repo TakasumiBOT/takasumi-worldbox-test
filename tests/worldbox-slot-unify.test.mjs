@@ -89,7 +89,10 @@ test("sell-shop: API は売却に sellGate（shop/smith/sell）を使い、購�
   const sellGateBody = route.match(/const sellGate = async \(\) => \{[\s\S]*?\};/)?.[0] ?? "";
   assert.ok(sellGateBody.includes('"sell"'), "sellGate が売却カウンターを許可する");
   const shopGateBody = route.match(/const shopGate = async \(\) => \{[\s\S]*?\};/)?.[0] ?? "";
-  assert.ok(shopGateBody.length > 0 && !shopGateBody.includes('"sell"'), "shopGate は売却カウンターで買わせない");
+  assert.ok(
+    shopGateBody.length > 0 && !shopGateBody.includes('"sell"'),
+    "shopGate は売却カウンターで買わせない",
+  );
   // sell ケースは sellGate、buy ケースは shopGate
   assert.ok(/case "sell": \{[\s\S]*?await sellGate\(\)/.test(route));
   assert.ok(/case "buy": \{[\s\S]*?await shopGate\(\)/.test(route));
@@ -99,7 +102,7 @@ test("sell-shop: API は売却に sellGate（shop/smith/sell）を使い、購�
 
 test("economy: 売却タブが売却専用ショップで開き、売却アクションは1か所だけ", () => {
   const panel = read("app/games/worldbox/WorldBoxEconomyPanel.tsx");
-  assert.ok(panel.includes('atSellShop'));
+  assert.ok(panel.includes("atSellShop"));
   assert.ok(panel.includes('tabBtn("sell", "売却")'));
   assert.equal(panel.split('action: "sell"').length - 1, 1, "売却ボタンは売却タブの注釈内だけ");
 });
@@ -130,7 +133,10 @@ test("slots: ギルドショップ・装置・ギルドボードは共通スロ�
   for (const rel of PANELS.slice(0, 3)) {
     const src = read(rel);
     assert.ok(src.includes('from "./ItemSlotGrid"'), `${rel} が ItemSlotGrid を使う`);
-    assert.ok(!src.includes('aria-label="アイテム"'), `${rel} にアイテム選択の select が残っていない`);
+    assert.ok(
+      !src.includes('aria-label="アイテム"'),
+      `${rel} にアイテム選択の select が残っていない`,
+    );
   }
 });
 
@@ -143,8 +149,10 @@ test("menu: ≡ の「設定」の中に BGM・効果音・通報が格納され
   const seIdx = client.indexOf("効果音を切る");
   const reportIdx = client.indexOf("通報する");
   assert.ok(settingsIdx > 0, "設定ボタンがある");
-  assert.ok(bgmIdx > settingsIdx && seIdx > settingsIdx && reportIdx > settingsIdx,
-    "BGM・効果音・通報は設定ボタンより後（設定の中）にある");
+  assert.ok(
+    bgmIdx > settingsIdx && seIdx > settingsIdx && reportIdx > settingsIdx,
+    "BGM・効果音・通報は設定ボタンより後（設定の中）にある",
+  );
   // 設定の中はインデント付きの入れ子グリッド
   assert.ok(client.includes("paddingLeft: 14"), "設定の中身は入れ子表示になっている");
 });
