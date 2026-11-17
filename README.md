@@ -1,6 +1,6 @@
 # takasumi-worldbox-test
 
-AGO WORLD BOX の中身だけを本家 [deshihito/BOT](https://github.com/deshihito/BOT) から抽出した移行テスト版。Vercel で本家とは別にもう1個動かすためのコピーで、**本家（AGO BOT / Pi）側は何も消えていない**。
+AGO WORLD BOX の中身だけを本家 [deshihito/BOT](https://github.com/deshihito/BOT) から抽出した移行テスト版。Vercel で本家とは別にもう1個動かすためのコピー
 
 抽出元: deshihito/BOT main `102daef`（PR #1079 マージ時点、2026-11-17。当初 `c301444` / PR #1075 から同期）。内訳と本家との差分は [docs/EXTRACTION.md](docs/EXTRACTION.md) を参照。
 
