@@ -289,6 +289,7 @@ import WorldBoxArcadePanel from "./WorldBoxArcadePanel";
 import { getWebGame } from "@/lib/games-catalog";
 import WorldBoxMachinePanel from "./WorldBoxMachinePanel";
 import WorldBoxEconomyPanel from "./WorldBoxEconomyPanel";
+import WorldBoxCompanyPanel from "./WorldBoxCompanyPanel";
 import WorldBoxGuildBoardPanel from "./WorldBoxGuildBoardPanel";
 import WorldBoxGuildShopPanel from "./WorldBoxGuildShopPanel";
 import { ItemSlot as ItemSlotView, ItemSlotGrid } from "./ItemSlotGrid";
@@ -973,6 +974,7 @@ export default function WorldBoxClient() {
   const playerPosRef = useRef({ x: 0.5, y: 0.5 });
   const [nationsUi, setNationsUi] = useState<NationsResponse>(EMPTY_NATIONS);
   const [showEconomy, setShowEconomy] = useState(false);
+  const [showCompany, setShowCompany] = useState(false);
   // マップ表示モード（周辺マップを大きく見る。描画ループは ref で見る）
   const [mapView, setMapView] = useState(false);
   const mapViewRef = useRef(false);
@@ -6469,6 +6471,12 @@ export default function WorldBoxClient() {
       run: () => setShowEconomy((v) => !v),
     },
     {
+      id: "company",
+      label: showCompany ? "会社を閉じる" : "会社",
+      show: true,
+      run: () => setShowCompany((v) => !v),
+    },
+    {
       id: "mapview",
       label: mapView ? "マップを閉じる" : "マップを見る",
       show: spaceUi === "world",
@@ -8031,6 +8039,7 @@ export default function WorldBoxClient() {
             onClose={() => setShowEconomy(false)}
           />
         )}
+        {showCompany && <WorldBoxCompanyPanel onClose={() => setShowCompany(false)} />}
         {telescopeOpen && (
           <div style={{ position: "absolute", inset: 0, pointerEvents: "none", zIndex: 6 }}>
             <div

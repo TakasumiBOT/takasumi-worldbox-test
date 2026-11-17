@@ -69,6 +69,11 @@ export const EARN_REASONS: ReadonlySet<string> = new Set([
   "guild_request_refund",
   "ruins_complete",
   "dungeon_clear",
+  // 会社システム（Takasumi 版）: 会社台帳から個人への払い出し。
+  // 給料・ボーナスは所得税控除後の額、解散返還は残資産の全額。
+  "company_salary",
+  "company_bonus",
+  "company_dissolve",
 ]);
 
 /** gamble の理由ホワイトリスト（Bot 側でも同じ集合で検証する）。 */

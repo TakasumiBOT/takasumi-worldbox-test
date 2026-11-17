@@ -1,5 +1,8 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "crons": [{ "path": "/api/worldbox/internal/economy-sweep", "schedule": "* * * * *" }],
+  "crons": [
+    { "path": "/api/worldbox/internal/economy-sweep", "schedule": "* * * * *" },
+    { "path": "/api/worldbox/internal/company-cron", "schedule": "0 * * * *" }
+  ],
   "framework": "nextjs"
 }
