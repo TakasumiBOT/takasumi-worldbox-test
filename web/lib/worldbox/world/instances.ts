@@ -324,7 +324,7 @@ export const RUINS_COMPLETE_EARN = 300;
  * 主宝箱の初回開封はその遺跡につき1人1回だけ（completed フラグは
  * 週次リセットを跨いで残る）なので、オプ ID も1回きりの形にして
  * 冪等登録（enqueueEconomyOpOnce）と組み合わせる。再試行や並行
- * リクエストでも earn は最大1件しか積まれない（PR #943 の規則）。
+ * リクエストでも earn は最大1件しか積まれない。
  * 形式はブリッジの OP_ID_RE（[A-Za-z0-9-]{8,64}）に収める。
  */
 export function ruinsCompleteOpId(entranceX: number, entranceY: number, discordId: string): string {

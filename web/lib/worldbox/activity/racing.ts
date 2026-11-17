@@ -1,5 +1,4 @@
 // AGO WORLD BOX の競馬（LHA 統合・純粋ロジック、DOM 非依存）。
-// 仕様: ~/workspace/your_files/lha-worldbox/SPEC-MVP.md（ユーザー承認済み 2026-11-16）。
 // Phase 1: 通常レース（30分間隔の時間制）・単勝/複勝・K=0.85・ダミーなし。
 // レースは ID（発走時刻 ms）から決定的に生成する: 同じ ID からは何度計算
 // しても同じ出走表・着順になる。確定結果は呼び出し側が保存してよいが、
@@ -15,7 +14,7 @@ export const RACE_INTERVAL_MS = 30 * 60 * 1000;
 export const RACE_DURATION_MS = 90 * 1000;
 /** 賭け締切は発走の5分前。 */
 export const BET_CLOSE_BEFORE_MS = 5 * 60 * 1000;
-/** 控除率係数（ユーザー決定: 期待値は全馬・全賭式で常に1未満）。 */
+/** 控除率係数（期待値は全馬・全賭式で常に1未満）。 */
 export const ODDS_K = 0.85;
 export const ODDS_MIN = 1.1;
 export const ODDS_MAX = 999.9;

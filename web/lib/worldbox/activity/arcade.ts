@@ -1,5 +1,5 @@
 // AGO WORLD BOX ロビーのアーケード筐体レジストリ（純粋ロジック、DOM 非依存）。
-// 移植の正は web/lib/online/registry.ts の ONLINE_GAMES 26タイトル。
+// 移植の正は ONLINE_GAMES の26タイトル。
 // このファイルは「どのタイトルをどの区分・どの順で筐体化するか」のデータだけを持つ。
 // 人数・タイトルは registry 側（各ゲームモジュール）が正で、ここでは重複して持たない。
 // ネットコードは作らない（既存の OnlineShell / useOnlineRoom のルーム基盤に載せる）。

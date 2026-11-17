@@ -600,7 +600,7 @@ export function slashAlpha(k: number): number {
 }
 
 /* ================= スキル演出プリセット（バッチ4） =================
- * プレビュー9種（~/workspace/worldbox-skill-fx/）の仕様を fx.ts に preset 化したもの。
+ * プレビュー9種の仕様を fx.ts に preset 化したもの。
  * 描画はクライアントが SkillFxEffect の進行度から行い、粒は spawnSkillFx が
  * 段階遷移時に spawnBurst へ委譲する。予告系（thunder/meteor）は2段構成。
  * warp はテレポーターのポーター設置用に追加したプリセット（立ち上る光柱＋リング）。

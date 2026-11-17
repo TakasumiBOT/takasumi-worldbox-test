@@ -41,7 +41,7 @@ export async function enqueueEconomyOp(op: EconomyOp): Promise<boolean> {
 }
 
 /**
- * 冪等なオプ登録（カジノの enqueueSettleOnce と同じ規則、PR #943）。
+ * 冪等なオプ登録（カジノの enqueueSettleOnce と同じ規則）。
  * 決定的 ID のオプ専用: 同 ID のオプが既にあれば（pending / done /
  * failed を問わず）作り直さず true を返す。「1つの論理的な支払い =
  * オプ1件」を保証し、再試行や並行リクエストで二重に払われない。
@@ -170,7 +170,6 @@ export async function readUserBalance(discordId: string): Promise<number | null>
   }
 }
 
-// ---------------------------------------------------------------------------
 // 直接適用（bot-api 経由でその場でコインを動かす）
 //
 // 旧 Python ワーカー（本家側）と同型の冪等手順を Web 側でも踏む:
@@ -188,7 +187,6 @@ export async function readUserBalance(discordId: string): Promise<number | null>
 // 金を動かす「前」に失敗したら（台帳/claim の書き込み失敗、対象外の
 // 種別）従来のキュー登録へフォールバックする。動かした後にキューへ
 // 積み直すことは絶対にしない。
-// ---------------------------------------------------------------------------
 
 /** 適用台帳の名前空間（ワーカーの APPLIED_NAMESPACE と同じ）。 */
 export const WORLDBOX_ECONOMY_APPLIED_NAMESPACE = "worldbox_economy_applied";
@@ -196,9 +194,9 @@ export const WORLDBOX_ECONOMY_APPLIED_NAMESPACE = "worldbox_economy_applied";
 export const WORLDBOX_ECONOMY_METRICS_NAMESPACE = "worldbox_metrics_econ";
 /** 取引履歴でシステム側の相手として記録する ID（ワーカーの WORLDBOX_ID）。 */
 export const WORLDBOX_HISTORY_ID = "WORLD_BOX";
-/** 新規ユーザーの初期残高（Python 側 NEW_USER_BALANCE と同じ）。 */
+/** 新規ユーザーの初期残高。 */
 export const NEW_USER_BALANCE = 10_000;
-/** 残高 CAS の再試行回数（Python wallet の BALANCE_UPDATE_ATTEMPTS と同じ）。 */
+/** 残高 CAS の再試行回数。 */
 const BALANCE_UPDATE_ATTEMPTS = 5;
 
 interface AppliedLedgerEntry {
@@ -264,7 +262,7 @@ async function saveAppliedLedger(opId: string, entry: AppliedLedgerEntry): Promi
   }
 }
 
-/** オプ記録を終端状態で書き直す（claim は落とす。ワーカーの _write_result と同じ形）。 */
+/** オプ記録を終端状態で書き直す（claim は落とす）。 */
 async function writeOpTerminal(
   op: EconomyOp,
   status: "done" | "failed",
@@ -287,7 +285,7 @@ type ChangeBalanceResult =
   | { ok: false; error: "insufficient_funds" | "balance_update_failed" };
 
 /**
- * 残高 CAS（Python wallet._change_balance と同じ規則）: 読んだ残高が
+ * 残高 CAS: 読んだ残高が
  * 変わっていないときだけ条件付き update で書き、競合したら読み直す。
  * 確定結果（成功 / 残高不足 / 再試行枯渇）だけを戻り値にし、API の
  * 通信例外は「成否曖昧」として呼び出し側へ投げる。ただし update の
@@ -369,7 +367,7 @@ interface MetricRecord {
   bankroll: number | null;
 }
 
-/** ワーカーの apply_metric と同じ集計。bankroll は読めたときだけ更新する。 */
+/** 適用分の集計。bankroll は読めたときだけ更新する。 */
 function applyMetricRecord(record: unknown, op: EconomyOp, applied: number, bankroll: number | null = null): MetricRecord {
   const out: MetricRecord = { earn: {}, spend: {}, bankroll: null };
   if (typeof record === "object" && record !== null && !Array.isArray(record)) {
@@ -418,14 +416,12 @@ class DirectFailure extends Error {
   }
 }
 
-// ---------------------------------------------------------------------------
 // 原資（economy_pool）の RPC 経由アクセス（コイン API 直接化 第2段）
 // 原資の正は Postgres の economy_pool_state（単一行）。pay_house 等は
-// docs/sql/economy_pool.sql の RPC が原子的に処理する。SQL 未適用の
+// RPC が原子的に処理する。SQL 未適用の
 // 環境ではテーブル自体が無いので、earn / gamble の直接適用は
 // テーブルの存在を事前に確認し、無ければ従来キューへ寄せる
 // （金を動かす前に判定する。途中まで直接で動かしてから寄せない）。
-// ---------------------------------------------------------------------------
 
 interface PayHouseBreakdown {
   paid: number;
@@ -516,7 +512,7 @@ async function addLossDirect(amount: number): Promise<void> {
   }
 }
 
-/** earn の直接適用（ワーカーの _apply_earn と同じ規則）。戻り値は実際に払えた額。 */
+/** earn の直接適用。戻り値は実際に払えた額。 */
 async function applyEarnDirect(op: EconomyOp): Promise<number> {
   const breakdown = await payHouseDirect(op.amount);
   const paid = breakdown.paid;
@@ -538,7 +534,7 @@ async function applyEarnDirect(op: EconomyOp): Promise<number> {
 }
 
 /**
- * gamble の直接適用（ワーカーの _apply_gamble と同じ規則）。
+ * gamble の直接適用。
  * pay_house が必要なオプは、ベットを引き落とす「前」に原資を確保する
  * （確保の成否が確定してから残高を動かすため、途中失敗でも
  * refund_house で原資を戻せば金はどこにも残らない）。
@@ -757,8 +753,7 @@ export async function submitEconomyOp(op: EconomyOp): Promise<SubmitEconomyOpRes
   return { state: "done", op: record };
 }
 
-// ---------------------------------------------------------------------------
-// 経済オプのスイープ（旧 Python ワーカー worldbox_economy.py の poll_once の
+// 経済オプのスイープ（旧 Python ワーカーの poll_once の
 // 移植。独立環境では Bot がいないため、Vercel Cron から内部ルート
 // /api/worldbox/internal/economy-sweep が毎分これを呼ぶ）。
 //
@@ -768,13 +763,12 @@ export async function submitEconomyOp(op: EconomyOp): Promise<SubmitEconomyOpRes
 // 同じ関数（applyDirectByKind）を使い、二重実装は作らない。台帳の
 // 解釈が壊れている場合はワーカーと同じく applying 扱いにする
 // （壊れた台帳を「無かったこと」にして再適用するのが一番危ないため）。
-// ---------------------------------------------------------------------------
 
-/** claim がこのミリ秒を超えたら放棄されたものとして再処理可にする（ワーカーの CLAIM_STALE_SECONDS = 90 秒）。 */
+/** claim がこのミリ秒を超えたら放棄されたものとして再処理可にする（90 秒）。 */
 export const ECONOMY_CLAIM_STALE_MS = 90_000;
-/** 1回のスイープで処理する上限（ワーカーの MAX_BATCH）。 */
+/** 1回のスイープで処理する上限。 */
 export const ECONOMY_SWEEP_BATCH = 100;
-/** 終端オプを名前空間に残す上限（ワーカーの PRUNE_KEEP_TERMINAL）。 */
+/** 終端オプを名前空間に残す上限。 */
 export const ECONOMY_PRUNE_KEEP_TERMINAL = 1000;
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -795,7 +789,7 @@ interface SweepCandidate {
   sortKey: number;
 }
 
-/** 適用候補（pending で claim が無い/古いもの）を古い順に返す（ワーカーの select_pending）。 */
+/** 適用候補（pending で claim が無い/古いもの）を古い順に返す。 */
 function selectSweepCandidates(records: Map<string, unknown>, now: number): SweepCandidate[] {
   const out: SweepCandidate[] = [];
   for (const [key, raw] of records) {
@@ -817,7 +811,7 @@ function selectSweepCandidates(records: Map<string, unknown>, now: number): Swee
   return out.slice(0, ECONOMY_SWEEP_BATCH);
 }
 
-/** 解釈できないレコードの終端書き込み（ワーカーの _write_result と同じ形）。 */
+/** 解釈できないレコードの終端書き込み。 */
 async function writeSweepInvalidResult(key: string, raw: unknown): Promise<void> {
   const base = asRecord(raw) ?? {};
   const record: Record<string, unknown> = { ...base, status: "failed", error: "invalid_op", appliedAt: Date.now() };
@@ -830,7 +824,7 @@ async function writeSweepInvalidResult(key: string, raw: unknown): Promise<void>
 }
 
 /**
- * スイープ用の適用ディスパッチ。ワーカーの _apply と同じ追加規則:
+ * スイープ用の適用ディスパッチ。追加規則:
  * steal は廃止済みとして即 failed（steal_disabled）、earn / gamble は
  * 理由ホワイトリストを適用時にも検証する（invalid_reason）。
  * それ以外は直接適用の applyDirectByKind をそのまま使う。
@@ -842,7 +836,7 @@ async function applySweepByKind(op: EconomyOp): Promise<number> {
   return applyDirectByKind(op);
 }
 
-/** オプ1件のスイープ処理（ワーカーの _process_one）。終端化したら true。 */
+/** オプ1件のスイープ処理。終端化したら true。 */
 async function sweepOneOp(key: string, raw: unknown): Promise<boolean> {
   const op = parseEconomyOp(raw);
   if (!op) {
@@ -875,7 +869,7 @@ async function sweepOneOp(key: string, raw: unknown): Promise<boolean> {
   }
   let ledger: AppliedLedgerEntry | null = null;
   if (ledgerRaw !== null && ledgerRaw !== undefined) {
-    // 壊れた台帳は applying 扱い（ワーカーの _parse_applied と同じ安全側の倒し方）
+    // 壊れた台帳は applying 扱い（安全側の倒し方）
     ledger = parseAppliedLedger(ledgerRaw) ?? { status: "applying", at: 0 };
   }
   if (ledger?.status === "applied") {
@@ -928,7 +922,7 @@ async function sweepOneOp(key: string, raw: unknown): Promise<boolean> {
   return true;
 }
 
-/** 終端オプの間引き（ワーカーの _prune_terminal）。スナップショット基準。 */
+/** 終端オプの間引き。スナップショット基準。 */
 async function pruneSweepTerminal(records: Map<string, unknown>): Promise<number> {
   const terminal: { at: number; key: string }[] = [];
   for (const [key, raw] of records) {
@@ -965,7 +959,7 @@ export interface EconomySweepResult {
 }
 
 /**
- * 経済オプのスイープ1回分（ワーカーの poll_once 相当）。
+ * 経済オプのスイープ1回分。
  * bot-api 未設定・読み取り失敗時は静かに 0 を返す（次回に回す）。
  */
 export async function sweepEconomyOps(): Promise<EconomySweepResult> {

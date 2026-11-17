@@ -1,10 +1,9 @@
 // AGO WORLD BOX のアイテム定義（純粋ロジック）。
-// Discord ボット側の経済機能（core/general/items・workshop/craft・
-// circulation/steal）の仕組みをワールドボックスに持ち込んだもの。
+// Discord ボット側の経済機能の仕組みをワールドボックスに持ち込んだもの。
 // カタログは「入口としての物量」を優先し、データ追加だけで厚くする:
 // 食事・素材・合成品・特殊に加え、道具（斧/ツルハシ/剣/クワ×素材4段）、
 // ブロック（耐久つき）、種と作物、家具を用意する。
-// 効果が未実装のアイテムは作らない（ボット側 items.py と同じ方針）。
+// 効果が未実装のアイテムは作らない。
 
 export type ItemCategory =
   | "food" | "material" | "crafted" | "special"
@@ -147,7 +146,7 @@ export const ITEMS: readonly ItemDef[] = [
   { id: "feather", name: "羽根", desc: "軽い素材", category: "material", price: 100 },
   { id: "bone", name: "骨", desc: "硬い素材", category: "material", price: 140 },
   { id: "slime", name: "スライム", desc: "粘る素材", category: "material", price: 220 },
-  // 合成の失敗作（PR-B）: レシピに無い組み合わせで台に入れると生まれる。
+  // 合成の失敗作: レシピに無い組み合わせで台に入れると生まれる。
   // レシピの材料にはしない（RECIPES には一切載せない）。アイコンは新規
   // png を作らず、塊っぽいスライムの絵を明示指定で流用する
   // （ITEM_ICON_IDS には足さない: 足すと存在しない mystery_lump.png を指す）。
@@ -428,8 +427,7 @@ export const ITEMS: readonly ItemDef[] = [
 
 /**
  * ドット絵アイコンを持つアイテムの ID 一覧。実体は
- * public/img/worldbox/items/<id>.png（生成: ago-world-box/make_item_icons.py、
- * 素材はユーザー承認済みのドット絵セット＋家具はロビースプライト）。
+ * public/img/worldbox/items/<id>.png。
  * ここに無いアイテムはアイコンなし（UI は名前ラベルで出す）。
  */
 export const ITEM_ICON_IDS: readonly string[] = [
@@ -529,7 +527,7 @@ export function sellPrice(item: ItemDef): number {
 }
 
 // ---------------------------------------------------------------- 合成
-// ボット側 workshop/craft と同じ「2種の素材を組み合わせる」方式。
+// ボット側と同じ「2種の素材を組み合わせる」方式。
 /** レシピの種別。どの設置物/施設で作れるかの判定に使う（未指定は "craft"）。 */
 export type RecipeKind = "craft" | "smelt" | "cook" | "weave";
 
@@ -744,7 +742,7 @@ export function recipeKind(recipe: Recipe): RecipeKind {
 }
 
 // ---------------------------------------------------------------- steal
-// ボット側 circulation/steal の規則をワールドボックスの経済規模に合わせて
+// ボット側の規則をワールドボックスの経済規模に合わせて
 // 縮小したもの（成功率・割合の考え方は同じ）。
 /** steal の成功率。 */
 export const STEAL_SUCCESS_RATE = 0.4;
