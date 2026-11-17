@@ -8,21 +8,39 @@
 // economy-bridge 経由で Bot 本体へ依頼する。残高の検証は、ルートが
 // 読み取った実残高を引数で渡す。
 import {
-  STEAL_ACTOR_COOLDOWN_SECONDS, STEAL_BALANCE_RATE, STEAL_FINE_AMOUNT,
-  STEAL_MAX_AMOUNT, STEAL_SUCCESS_RATE, STEAL_TARGET_COOLDOWN_SECONDS,
-  STEAL_TARGET_MIN_COINS, THIEF_MASK_BONUS, WORK_HUNGER_COST, WORK_REWARD_COINS,
-  RECIPES, itemById, recipeById, sellPrice, type ItemDef, type Recipe,
+  STEAL_ACTOR_COOLDOWN_SECONDS,
+  STEAL_BALANCE_RATE,
+  STEAL_FINE_AMOUNT,
+  STEAL_MAX_AMOUNT,
+  STEAL_SUCCESS_RATE,
+  STEAL_TARGET_COOLDOWN_SECONDS,
+  STEAL_TARGET_MIN_COINS,
+  THIEF_MASK_BONUS,
+  WORK_HUNGER_COST,
+  WORK_REWARD_COINS,
+  RECIPES,
+  itemById,
+  recipeById,
+  sellPrice,
+  type ItemDef,
+  type Recipe,
 } from "./items";
-import {
-  HUNGER_MAX, addItem, countItem, removeItem, type PlayerProfile,
-} from "../player/profile";
+import { HUNGER_MAX, addItem, countItem, removeItem, type PlayerProfile } from "../player/profile";
 import { consumeEffect } from "../player/vitals";
 
-
 export type EconomyError =
-  | "unknown_item" | "unknown_recipe" | "not_enough_coins" | "not_enough_items"
-  | "hunger_full" | "too_tired" | "invalid_count" | "invalid_request"
-  | "steal_cooldown" | "target_protected" | "target_recently_stolen" | "self_target";
+  | "unknown_item"
+  | "unknown_recipe"
+  | "not_enough_coins"
+  | "not_enough_items"
+  | "hunger_full"
+  | "too_tired"
+  | "invalid_count"
+  | "invalid_request"
+  | "steal_cooldown"
+  | "target_protected"
+  | "target_recently_stolen"
+  | "self_target";
 
 /** 遷移に伴うコインの移動（ブリッジのオプとして積む材料）。 */
 export type CoinMovement =
@@ -52,7 +70,10 @@ export function buyItem(
   if (!item) return { ok: false, error: "unknown_item" };
   const count = clampCount(countRaw);
   if (count === null) return { ok: false, error: "invalid_count" };
-  const price = typeof unitPrice === "number" && Number.isFinite(unitPrice) && unitPrice > 0 ? Math.floor(unitPrice) : item.price;
+  const price =
+    typeof unitPrice === "number" && Number.isFinite(unitPrice) && unitPrice > 0
+      ? Math.floor(unitPrice)
+      : item.price;
   const cost = price * count;
   if (balance < cost) return { ok: false, error: "not_enough_coins" };
   return {
@@ -71,11 +92,16 @@ export function sellItem(profile: PlayerProfile, itemId: unknown, countRaw?: unk
   const removed = removeItem(profile, item.id, count);
   if (!removed) return { ok: false, error: "not_enough_items" };
   // 金のアクセサリーを持っていると売却額が1割増える（装飾品の持続効果）
-  const bonus = (removed.items["accessory"] ?? 0) > 0 || (profile.items["accessory"] ?? 0) > 0 ? 1.1 : 1;
+  const bonus =
+    (removed.items["accessory"] ?? 0) > 0 || (profile.items["accessory"] ?? 0) > 0 ? 1.1 : 1;
   return {
     ok: true,
     profile: removed,
-    coin: { kind: "earn", amount: Math.floor(sellPrice(item) * count * bonus), reason: "shop_sale" },
+    coin: {
+      kind: "earn",
+      amount: Math.floor(sellPrice(item) * count * bonus),
+      reason: "shop_sale",
+    },
   };
 }
 
@@ -84,7 +110,11 @@ export function sellItem(profile: PlayerProfile, itemId: unknown, countRaw?: unk
  * 効果の数式（hunger / バフ）は vitals.consumeEffect が正で、
  * ここは消費・容器返却・満腹ゲートだけを持つ（二重実装にしない）。
  */
-export function eatItem(profile: PlayerProfile, itemId: unknown, now: number = Date.now()): Transition<{ item: ItemDef }> {
+export function eatItem(
+  profile: PlayerProfile,
+  itemId: unknown,
+  now: number = Date.now(),
+): Transition<{ item: ItemDef }> {
   const item = itemById(itemId);
   if (!item || (!item.hunger && !item.buff)) return { ok: false, error: "unknown_item" };
   if (item.hunger && profile.hunger >= HUNGER_MAX) {
@@ -95,7 +125,9 @@ export function eatItem(profile: PlayerProfile, itemId: unknown, now: number = D
   const effected = consumeEffect(removed, item.id, now);
   if (!effected) return { ok: false, error: "unknown_item" };
   // 容器入りの飲食物は、飲み終えた容器が手元に戻る（水入りバケツ→バケツ）
-  const withContainer = item.containerReturn ? addItem(effected.profile, item.containerReturn, 1) : effected.profile;
+  const withContainer = item.containerReturn
+    ? addItem(effected.profile, item.containerReturn, 1)
+    : effected.profile;
   return { ok: true, item, profile: withContainer };
 }
 
@@ -172,7 +204,12 @@ export function craftFromInputs(
   const inputs: Record<string, number> = {};
   for (const [id, countRaw] of entries) {
     if (!itemById(id)) return { ok: false, error: "unknown_item" };
-    if (typeof countRaw !== "number" || !Number.isInteger(countRaw) || countRaw < 1 || countRaw > CRAFT_MAX_PER_KIND) {
+    if (
+      typeof countRaw !== "number" ||
+      !Number.isInteger(countRaw) ||
+      countRaw < 1 ||
+      countRaw > CRAFT_MAX_PER_KIND
+    ) {
       return { ok: false, error: "invalid_request" };
     }
     inputs[id] = countRaw;
@@ -273,7 +310,10 @@ export function resolveSteal(
   const stampedActor = { ...actor, stealActorAt: now };
   const stampedTarget = { ...target, stealTargetAt: now };
   if (rng() < rate) {
-    const amount = Math.max(1, Math.min(STEAL_MAX_AMOUNT, Math.floor(balances.targetCoins * STEAL_BALANCE_RATE)));
+    const amount = Math.max(
+      1,
+      Math.min(STEAL_MAX_AMOUNT, Math.floor(balances.targetCoins * STEAL_BALANCE_RATE)),
+    );
     return { ok: true, success: true, amount, actor: stampedActor, target: stampedTarget };
   }
   const fine = Math.min(STEAL_FINE_AMOUNT, balances.actorCoins);
@@ -283,6 +323,8 @@ export function resolveSteal(
     amount: fine,
     actor: stampedActor,
     target: stampedTarget,
-    ...(fine > 0 ? { coin: { kind: "spend", amount: fine, reason: "steal_fine" } as CoinMovement } : {}),
+    ...(fine > 0
+      ? { coin: { kind: "spend", amount: fine, reason: "steal_fine" } as CoinMovement }
+      : {}),
   };
 }

@@ -51,23 +51,70 @@ function bundleModule(files, names) {
 const invUrl = bundleModule(
   ["worldbox/economy/items.ts", "worldbox/player/profile.ts"],
   [
-    "ITEMS", "itemById", "CROPS", "cropById", "cropBySeedId", "itemsWithTool",
-    "parseProfile", "serializeProfile", "countItem", "addItem", "removeItem",
-    "swapSlots", "overflowCount", "HOTBAR_SLOTS", "STORAGE_SLOTS", "STACK_MAX",
+    "ITEMS",
+    "itemById",
+    "CROPS",
+    "cropById",
+    "cropBySeedId",
+    "itemsWithTool",
+    "parseProfile",
+    "serializeProfile",
+    "countItem",
+    "addItem",
+    "removeItem",
+    "swapSlots",
+    "overflowCount",
+    "HOTBAR_SLOTS",
+    "STORAGE_SLOTS",
+    "STACK_MAX",
   ],
 );
 const inv = await import(invUrl);
 
 const tilesUrl = bundleModule(
-  ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/economy/items.ts", "worldbox/player/profile.ts", "worldbox/player/presence.ts", "worldbox/world/seasons.ts", "worldbox/world/tiles.ts"],
   [
-    "worldTileSource", "mapTileAt", "T_GRASS", "T_TREE", "T_ROCK", "T_DIRT", "T_SNOW", "T_SNOW_TREE",
-    "parseProfile", "addItem", "countItem",
-    "applyTileAction", "applyPlaceBlock", "applyMineBlock", "applyFlowerAction", "applyToggleGate", "tileView", "actionForTile", "tileKey",
-    "applySetSign", "applyDisplayAction", "applyDrawWater",
-    "tileIvsAt", "fertilityGrowthFactor", "fertilityBonusYield", "purityBonusStone", "purityBonusCoal",
-    "parseTileOverride", "parseTileOverrides", "isOverrideActive", "TREE_REGROW_MS",
-    "TERRAIN_ROCK_HP", "TERRAIN_TREE_HP",
+    "worldbox/core/rng.ts",
+    "worldbox/world/mapgen.ts",
+    "worldbox/economy/items.ts",
+    "worldbox/player/profile.ts",
+    "worldbox/player/presence.ts",
+    "worldbox/world/seasons.ts",
+    "worldbox/world/tiles.ts",
+  ],
+  [
+    "worldTileSource",
+    "mapTileAt",
+    "T_GRASS",
+    "T_TREE",
+    "T_ROCK",
+    "T_DIRT",
+    "T_SNOW",
+    "T_SNOW_TREE",
+    "parseProfile",
+    "addItem",
+    "countItem",
+    "applyTileAction",
+    "applyPlaceBlock",
+    "applyMineBlock",
+    "applyFlowerAction",
+    "applyToggleGate",
+    "tileView",
+    "actionForTile",
+    "tileKey",
+    "applySetSign",
+    "applyDisplayAction",
+    "applyDrawWater",
+    "tileIvsAt",
+    "fertilityGrowthFactor",
+    "fertilityBonusYield",
+    "purityBonusStone",
+    "purityBonusCoal",
+    "parseTileOverride",
+    "parseTileOverrides",
+    "isOverrideActive",
+    "TREE_REGROW_MS",
+    "TERRAIN_ROCK_HP",
+    "TERRAIN_TREE_HP",
   ],
 );
 const T = await import(tilesUrl);
@@ -100,7 +147,11 @@ test("カタログ: 道具は3種×4段（木・石・鉄・ミスリル、剣�
   for (const kind of ["axe", "pickaxe", "hoe"]) {
     const tools = inv.itemsWithTool(kind);
     assert.equal(tools.length, 4, kind);
-    assert.deepEqual(tools.map((t) => t.tier), [1, 2, 3, 4], kind);
+    assert.deepEqual(
+      tools.map((t) => t.tier),
+      [1, 2, 3, 4],
+      kind,
+    );
     for (const t of tools) assert.equal(t.category, "tool");
   }
 });
@@ -132,7 +183,9 @@ test("カタログ: 家具は10種以上（ロビーの調度と同系統）", (
 const slotSum = (slots) => slots.reduce((n, s) => n + (s ? s.count : 0), 0);
 
 test("インベントリ: 旧かばんは枠へ注がれて移行する（総数は不変）", () => {
-  const p = inv.parseProfile(JSON.stringify({ coins: 0, hunger: 80, items: { wood: 250, stone: 3 } }));
+  const p = inv.parseProfile(
+    JSON.stringify({ coins: 0, hunger: 80, items: { wood: 250, stone: 3 } }),
+  );
   assert.equal(inv.countItem(p, "wood"), 250);
   assert.equal(slotSum(p.hotbar), 253, "木材250＋石3がホットバーに収まる");
   assert.equal(p.hotbar[0].count, inv.STACK_MAX);
@@ -221,20 +274,60 @@ const withItems = (items) => inv.parseProfile({ items });
 
 test("タイル: 伐採は素手でもでき（収量1）、斧があると収量2、切り株つきで草地になり再生する", () => {
   // HP制（木=30）: 素手（6/ヒット）は5ヒット、倒れるまで収穫は無い
-  let bare = T.applyTileAction(null, withItems({}), map, ME_KEY, "chop", treeAt.x, treeAt.y, undefined, NOW);
+  let bare = T.applyTileAction(
+    null,
+    withItems({}),
+    map,
+    ME_KEY,
+    "chop",
+    treeAt.x,
+    treeAt.y,
+    undefined,
+    NOW,
+  );
   assert.equal(bare.ok, true, "素手でも伐採できる");
   assert.deepEqual(bare.gained, {});
   assert.equal(bare.override.hp, T.TERRAIN_TREE_HP - 6, "素手の1ヒットで HP が減る");
   for (let i = 0; i < 6 && !bare.override?.stump; i++) {
-    bare = T.applyTileAction(bare.override, bare.profile, map, ME_KEY, "chop", treeAt.x, treeAt.y, undefined, NOW);
+    bare = T.applyTileAction(
+      bare.override,
+      bare.profile,
+      map,
+      ME_KEY,
+      "chop",
+      treeAt.x,
+      treeAt.y,
+      undefined,
+      NOW,
+    );
   }
   assert.deepEqual(bare.gained, { wood: 1 });
   // 木の斧（10/ヒット）は3ヒットで倒れ、収量2
-  let ok = T.applyTileAction(null, withItems({ wooden_axe: 1 }), map, ME_KEY, "chop", treeAt.x, treeAt.y, undefined, NOW);
+  let ok = T.applyTileAction(
+    null,
+    withItems({ wooden_axe: 1 }),
+    map,
+    ME_KEY,
+    "chop",
+    treeAt.x,
+    treeAt.y,
+    undefined,
+    NOW,
+  );
   assert.equal(ok.ok, true);
   assert.equal(ok.override.hp, T.TERRAIN_TREE_HP - 10);
   for (let i = 0; i < 5 && !ok.override?.stump; i++) {
-    ok = T.applyTileAction(ok.override, ok.profile, map, ME_KEY, "chop", treeAt.x, treeAt.y, undefined, NOW);
+    ok = T.applyTileAction(
+      ok.override,
+      ok.profile,
+      map,
+      ME_KEY,
+      "chop",
+      treeAt.x,
+      treeAt.y,
+      undefined,
+      NOW,
+    );
   }
   assert.equal(ok.override.tile, T.T_GRASS);
   assert.equal(ok.override.stump, true);
@@ -248,105 +341,308 @@ test("タイル: 伐採は素手でもでき（収量1）、斧があると収�
   assert.equal(regrown.tile, T.T_TREE);
   assert.equal(regrown.stump, false);
   // 雪の木は雪地になる（石の斧 16/ヒット → 2ヒット）
-  let snow = T.applyTileAction(null, withItems({ stone_axe: 1 }), map, ME_KEY, "chop", snowTreeAt.x, snowTreeAt.y, undefined, NOW);
+  let snow = T.applyTileAction(
+    null,
+    withItems({ stone_axe: 1 }),
+    map,
+    ME_KEY,
+    "chop",
+    snowTreeAt.x,
+    snowTreeAt.y,
+    undefined,
+    NOW,
+  );
   for (let i = 0; i < 4 && snow.override?.tile !== T.T_SNOW; i++) {
-    snow = T.applyTileAction(snow.override, snow.profile, map, ME_KEY, "chop", snowTreeAt.x, snowTreeAt.y, undefined, NOW);
+    snow = T.applyTileAction(
+      snow.override,
+      snow.profile,
+      map,
+      ME_KEY,
+      "chop",
+      snowTreeAt.x,
+      snowTreeAt.y,
+      undefined,
+      NOW,
+    );
   }
   assert.equal(snow.override.tile, T.T_SNOW);
   // 草地は伐れない
   assert.equal(
-    T.applyTileAction(null, withItems({ wooden_axe: 1 }), map, ME_KEY, "chop", grassAt.x, grassAt.y, undefined, NOW).error,
+    T.applyTileAction(
+      null,
+      withItems({ wooden_axe: 1 }),
+      map,
+      ME_KEY,
+      "chop",
+      grassAt.x,
+      grassAt.y,
+      undefined,
+      NOW,
+    ).error,
     "tile_blocked",
   );
 });
 
 test("タイル: 採掘はツルハシが要り、岩が土になり石材が得られ、岩は再成長する", () => {
   assert.equal(
-    T.applyTileAction(null, withItems({}), map, ME_KEY, "mine", rockAt.x, rockAt.y, undefined, NOW).error,
+    T.applyTileAction(null, withItems({}), map, ME_KEY, "mine", rockAt.x, rockAt.y, undefined, NOW)
+      .error,
     "tool_required",
   );
   // HP制（岩=60）: 木ツルハシ（10/ヒット）は6ヒット。ミスリル（40）でも2ヒット
-  let ok = T.applyTileAction(null, withItems({ wooden_pickaxe: 1 }), map, ME_KEY, "mine", rockAt.x, rockAt.y, undefined, NOW);
+  let ok = T.applyTileAction(
+    null,
+    withItems({ wooden_pickaxe: 1 }),
+    map,
+    ME_KEY,
+    "mine",
+    rockAt.x,
+    rockAt.y,
+    undefined,
+    NOW,
+  );
   assert.equal(ok.ok, true);
   assert.equal(ok.override.hp, T.TERRAIN_ROCK_HP - 10, "1ヒットでは壊れず HP が減る");
   assert.equal(ok.override.tile, undefined, "壊れるまで地形は岩のまま");
   for (let i = 0; i < 8 && ok.override?.tile !== T.T_DIRT; i++) {
-    ok = T.applyTileAction(ok.override, ok.profile, map, ME_KEY, "mine", rockAt.x, rockAt.y, undefined, NOW);
+    ok = T.applyTileAction(
+      ok.override,
+      ok.profile,
+      map,
+      ME_KEY,
+      "mine",
+      rockAt.x,
+      rockAt.y,
+      undefined,
+      NOW,
+    );
   }
   assert.equal(ok.override.tile, T.T_DIRT);
   assert.equal(ok.override.until, NOW + 3 * 3600 * 1000, "岩の再成長タイマー（3時間）");
   // 石材は基本2＋その土地の純度ボーナス（個体値）
-  assert.equal(inv.countItem(ok.profile, "stone"), 2 + T.purityBonusStone(T.tileIvsAt(rockAt.x, rockAt.y).purity));
-  const mithril1 = T.applyTileAction(null, withItems({ mithril_pickaxe: 1 }), map, ME_KEY, "mine", rockAt.x, rockAt.y, undefined, NOW);
+  assert.equal(
+    inv.countItem(ok.profile, "stone"),
+    2 + T.purityBonusStone(T.tileIvsAt(rockAt.x, rockAt.y).purity),
+  );
+  const mithril1 = T.applyTileAction(
+    null,
+    withItems({ mithril_pickaxe: 1 }),
+    map,
+    ME_KEY,
+    "mine",
+    rockAt.x,
+    rockAt.y,
+    undefined,
+    NOW,
+  );
   assert.equal(mithril1.override.hp, T.TERRAIN_ROCK_HP - 40, "ミスリルでも1発では壊れない");
-  const mithril2 = T.applyTileAction(mithril1.override, mithril1.profile, map, ME_KEY, "mine", rockAt.x, rockAt.y, undefined, NOW);
+  const mithril2 = T.applyTileAction(
+    mithril1.override,
+    mithril1.profile,
+    map,
+    ME_KEY,
+    "mine",
+    rockAt.x,
+    rockAt.y,
+    undefined,
+    NOW,
+  );
   assert.equal(mithril2.override.tile, T.T_DIRT, "ミスリルは2ヒットで壊れる");
   // 土になった場所は掘れない
   assert.equal(
-    T.applyTileAction(ok.override, ok.profile, map, ME_KEY, "mine", rockAt.x, rockAt.y, undefined, NOW).error,
+    T.applyTileAction(
+      ok.override,
+      ok.profile,
+      map,
+      ME_KEY,
+      "mine",
+      rockAt.x,
+      rockAt.y,
+      undefined,
+      NOW,
+    ).error,
     "tile_blocked",
   );
   // 再成長が終わればまた岩として掘れる
-  const regrown = T.applyTileAction(ok.override, ok.profile, map, ME_KEY, "mine", rockAt.x, rockAt.y, undefined, NOW + 3 * 3600 * 1000 + 1);
+  const regrown = T.applyTileAction(
+    ok.override,
+    ok.profile,
+    map,
+    ME_KEY,
+    "mine",
+    rockAt.x,
+    rockAt.y,
+    undefined,
+    NOW + 3 * 3600 * 1000 + 1,
+  );
   assert.equal(regrown.ok, true);
 });
 
 test("タイル: 耕す→植える→育つ→所有者だけが収穫できる", () => {
   const farmer = withItems({ wooden_hoe: 1, wheat_seed: 2 });
   assert.equal(
-    T.applyTileAction(null, withItems({}), map, ME_KEY, "till", grassAt.x, grassAt.y, undefined, NOW).error,
+    T.applyTileAction(
+      null,
+      withItems({}),
+      map,
+      ME_KEY,
+      "till",
+      grassAt.x,
+      grassAt.y,
+      undefined,
+      NOW,
+    ).error,
     "tool_required",
   );
-  const tilled = T.applyTileAction(null, farmer, map, ME_KEY, "till", grassAt.x, grassAt.y, undefined, NOW);
+  const tilled = T.applyTileAction(
+    null,
+    farmer,
+    map,
+    ME_KEY,
+    "till",
+    grassAt.x,
+    grassAt.y,
+    undefined,
+    NOW,
+  );
   assert.equal(tilled.ok, true);
   assert.equal(tilled.override.farmland, true);
   // 二度耕しは不可
   assert.equal(
-    T.applyTileAction(tilled.override, farmer, map, ME_KEY, "till", grassAt.x, grassAt.y, undefined, NOW).error,
+    T.applyTileAction(
+      tilled.override,
+      farmer,
+      map,
+      ME_KEY,
+      "till",
+      grassAt.x,
+      grassAt.y,
+      undefined,
+      NOW,
+    ).error,
     "tile_blocked",
   );
   // 畑でない場所には植えられない
   assert.equal(
-    T.applyTileAction(null, farmer, map, ME_KEY, "plant", treeAt.x, treeAt.y, "wheat_seed", NOW).error,
+    T.applyTileAction(null, farmer, map, ME_KEY, "plant", treeAt.x, treeAt.y, "wheat_seed", NOW)
+      .error,
     "tile_blocked",
   );
   // 種の検証
   assert.equal(
-    T.applyTileAction(tilled.override, farmer, map, ME_KEY, "plant", grassAt.x, grassAt.y, "wood", NOW).error,
+    T.applyTileAction(
+      tilled.override,
+      farmer,
+      map,
+      ME_KEY,
+      "plant",
+      grassAt.x,
+      grassAt.y,
+      "wood",
+      NOW,
+    ).error,
     "unknown_seed",
   );
   assert.equal(
-    T.applyTileAction(tilled.override, withItems({ wooden_hoe: 1 }), map, ME_KEY, "plant", grassAt.x, grassAt.y, "wheat_seed", NOW).error,
+    T.applyTileAction(
+      tilled.override,
+      withItems({ wooden_hoe: 1 }),
+      map,
+      ME_KEY,
+      "plant",
+      grassAt.x,
+      grassAt.y,
+      "wheat_seed",
+      NOW,
+    ).error,
     "not_enough_items",
   );
-  const planted = T.applyTileAction(tilled.override, farmer, map, ME_KEY, "plant", grassAt.x, grassAt.y, "wheat_seed", NOW);
+  const planted = T.applyTileAction(
+    tilled.override,
+    farmer,
+    map,
+    ME_KEY,
+    "plant",
+    grassAt.x,
+    grassAt.y,
+    "wheat_seed",
+    NOW,
+  );
   assert.equal(planted.ok, true);
   assert.equal(planted.override.crop.cropId, "wheat");
   // NOW は秋: 小麦（適季=春）の反対の季節なので ×1.4 で遅く育つ。さらに土地の豊穣度倍率が掛かる
-  assert.equal(planted.override.crop.readyAt, NOW + Math.round(10 * 60_000 * 1.4 * T.fertilityGrowthFactor(T.tileIvsAt(grassAt.x, grassAt.y).fertility)));
+  assert.equal(
+    planted.override.crop.readyAt,
+    NOW +
+      Math.round(
+        10 * 60_000 * 1.4 * T.fertilityGrowthFactor(T.tileIvsAt(grassAt.x, grassAt.y).fertility),
+      ),
+  );
   assert.equal(inv.countItem(planted.profile, "wheat_seed"), 1, "種を1つ消費する");
   // 育つ前は収穫できない
   assert.equal(
-    T.applyTileAction(planted.override, planted.profile, map, ME_KEY, "harvest", grassAt.x, grassAt.y, undefined, NOW + 1000).error,
+    T.applyTileAction(
+      planted.override,
+      planted.profile,
+      map,
+      ME_KEY,
+      "harvest",
+      grassAt.x,
+      grassAt.y,
+      undefined,
+      NOW + 1000,
+    ).error,
     "not_ready",
   );
   const readyAt = planted.override.crop.readyAt;
   // 他人は収穫できない
   assert.equal(
-    T.applyTileAction(planted.override, withItems({}), map, OTHER_KEY, "harvest", grassAt.x, grassAt.y, undefined, readyAt).error,
+    T.applyTileAction(
+      planted.override,
+      withItems({}),
+      map,
+      OTHER_KEY,
+      "harvest",
+      grassAt.x,
+      grassAt.y,
+      undefined,
+      readyAt,
+    ).error,
     "not_owner",
   );
   // 所有者は収穫できる（畑は残る）
-  const harvested = T.applyTileAction(planted.override, planted.profile, map, ME_KEY, "harvest", grassAt.x, grassAt.y, undefined, readyAt);
+  const harvested = T.applyTileAction(
+    planted.override,
+    planted.profile,
+    map,
+    ME_KEY,
+    "harvest",
+    grassAt.x,
+    grassAt.y,
+    undefined,
+    readyAt,
+  );
   assert.equal(harvested.ok, true);
   // 収穫は基本2＋その土地の豊穣度ボーナス（個体値）
-  assert.deepEqual(harvested.gained, { wheat: 2 + T.fertilityBonusYield(T.tileIvsAt(grassAt.x, grassAt.y).fertility) });
+  assert.deepEqual(harvested.gained, {
+    wheat: 2 + T.fertilityBonusYield(T.tileIvsAt(grassAt.x, grassAt.y).fertility),
+  });
   assert.equal(inv.countItem(harvested.profile, "wheat"), 2);
   assert.equal(harvested.override.crop, null);
   assert.equal(harvested.override.farmland, true);
   // 収穫後は作物が無い
   assert.equal(
-    T.applyTileAction(harvested.override, harvested.profile, map, ME_KEY, "harvest", grassAt.x, grassAt.y, undefined, readyAt).error,
+    T.applyTileAction(
+      harvested.override,
+      harvested.profile,
+      map,
+      ME_KEY,
+      "harvest",
+      grassAt.x,
+      grassAt.y,
+      undefined,
+      readyAt,
+    ).error,
     "no_crop",
   );
 });
@@ -355,7 +651,10 @@ test("タイル: 上書きの解釈は壊れた値を落とす", () => {
   assert.equal(T.parseTileOverride(null), null);
   assert.equal(T.parseTileOverride("{壊れた"), null);
   assert.equal(T.parseTileOverride({ tile: 99, ownerId: "x" }).tile, undefined);
-  assert.equal(T.parseTileOverride({ crop: { cropId: "nope", plantedAt: 1, readyAt: 2 }, ownerId: "x" }).crop, undefined);
+  assert.equal(
+    T.parseTileOverride({ crop: { cropId: "nope", plantedAt: 1, readyAt: 2 }, ownerId: "x" }).crop,
+    undefined,
+  );
   const rows = new Map([
     ["1,2", JSON.stringify({ tile: 0, ownerId: "abc" })],
     ["bad-key", { ownerId: "abc" }],
@@ -366,15 +665,30 @@ test("タイル: 上書きの解釈は壊れた値を落とす", () => {
 });
 
 test("タイル: タップ判定（actionForTile）の優先順", () => {
-  const ready = { x: 0, y: 0, tile: T.T_GRASS, farmland: true, stump: false, crop: { cropId: "wheat", stage: 2, ready: true }, mine: true };
+  const ready = {
+    x: 0,
+    y: 0,
+    tile: T.T_GRASS,
+    farmland: true,
+    stump: false,
+    crop: { cropId: "wheat", stage: 2, ready: true },
+    mine: true,
+  };
   assert.deepEqual(T.actionForTile(ready, null), { action: "harvest" }, "実れば素手でも収穫");
   const emptyFarm = { ...ready, crop: null };
-  assert.deepEqual(T.actionForTile(emptyFarm, { seedId: "wheat_seed" }), { action: "plant", seedId: "wheat_seed" });
+  assert.deepEqual(T.actionForTile(emptyFarm, { seedId: "wheat_seed" }), {
+    action: "plant",
+    seedId: "wheat_seed",
+  });
   assert.deepEqual(T.actionForTile(emptyFarm, { tool: "hoe" }), { action: "plant-picker" });
   const tree = { ...ready, tile: T.T_TREE, farmland: false, crop: null };
   assert.deepEqual(T.actionForTile(tree, { tool: "axe" }), { action: "chop" });
   assert.deepEqual(T.actionForTile(tree, null), { action: "chop" }, "素手（未選択）でも伐採");
-  assert.deepEqual(T.actionForTile(tree, { tool: "pickaxe" }), { action: "chop" }, "選択中の道具を問わない");
+  assert.deepEqual(
+    T.actionForTile(tree, { tool: "pickaxe" }),
+    { action: "chop" },
+    "選択中の道具を問わない",
+  );
   const rock = { ...tree, tile: T.T_ROCK };
   assert.deepEqual(T.actionForTile(rock, { tool: "pickaxe" }), { action: "mine" });
   const grass = { ...tree, tile: T.T_GRASS };
@@ -387,9 +701,13 @@ test("タイル: タップ判定（actionForTile）の優先順", () => {
 // ---------- タイル API ----------
 
 const subdomainUrl = dataUrl(transpile("subdomain.ts"));
-const headersStubUrl = dataUrl("export async function cookies() { throw new Error('tests do not use cookies()'); }");
+const headersStubUrl = dataUrl(
+  "export async function cookies() { throw new Error('tests do not use cookies()'); }",
+);
 const authUrl = dataUrl(
-  transpile("auth.ts").replaceAll('"./subdomain"', JSON.stringify(subdomainUrl)).replaceAll('"next/headers"', JSON.stringify(headersStubUrl)),
+  transpile("auth.ts")
+    .replaceAll('"./subdomain"', JSON.stringify(subdomainUrl))
+    .replaceAll('"next/headers"', JSON.stringify(headersStubUrl)),
 );
 const auth = await import(authUrl);
 
@@ -398,7 +716,6 @@ const nationsOnlineStubUrl = dataUrl(`
 export function isNationsEnabled() { return true; }
 export async function loadNationsState() { return { nations: {} }; }
 `);
-
 
 const profileOnlineStubUrl = dataUrl(`
 import { parseProfile, serializeProfile } from ${JSON.stringify(invUrl)};
@@ -443,7 +760,10 @@ export class NextResponse {
 `);
 const userLockUrl = dataUrl(transpile("worldbox/core/user-lock.ts"));
 // 装置のスタブ: 実ロジック（isMachineItem / machineBufferCount）と空の保存層。
-const machinesUrl = bundleModule(["worldbox/economy/items.ts", "worldbox/economy/machines.ts"], ["isMachineItem", "machineBufferCount"]);
+const machinesUrl = bundleModule(
+  ["worldbox/economy/items.ts", "worldbox/economy/machines.ts"],
+  ["isMachineItem", "machineBufferCount"],
+);
 const opsOnlineStubUrl = dataUrl(`
 export async function loadFrozen() { return false; }
 export async function appendTileJournal() {}
@@ -460,7 +780,10 @@ const machinesOnlineStubUrl = dataUrl(`
 export async function loadMachine() { return null; }
 export async function deleteMachine() {}
 `);
-const stallsUrl = bundleModule(["worldbox/economy/items.ts", "worldbox/economy/stalls.ts"], ["isStallItem"]);
+const stallsUrl = bundleModule(
+  ["worldbox/economy/items.ts", "worldbox/economy/stalls.ts"],
+  ["isStallItem"],
+);
 const stallsOnlineStubUrl = dataUrl(`
 export async function loadStall() { return null; }
 export async function storeStall() { return true; }
@@ -479,7 +802,10 @@ const tilesRoute = await import(
       .replaceAll('"@/lib/worldbox/world/tiles"', JSON.stringify(tilesUrl))
       .replaceAll('"@/lib/worldbox/world/tiles-online"', JSON.stringify(tilesOnlineStubUrl))
       .replaceAll('"@/lib/worldbox/economy/containers"', JSON.stringify(containersBundleUrl))
-      .replaceAll('"@/lib/worldbox/economy/containers-online"', JSON.stringify(containersOnlineStubUrl))
+      .replaceAll(
+        '"@/lib/worldbox/economy/containers-online"',
+        JSON.stringify(containersOnlineStubUrl),
+      )
       .replaceAll('"@/lib/worldbox/economy/machines"', JSON.stringify(machinesUrl))
       .replaceAll('"@/lib/worldbox/economy/machines-online"', JSON.stringify(machinesOnlineStubUrl))
       .replaceAll('"@/lib/worldbox/economy/stalls"', JSON.stringify(stallsUrl))
@@ -487,8 +813,8 @@ const tilesRoute = await import(
       .replaceAll('"@/lib/worldbox/core/metrics-online"', JSON.stringify(metricsOnlineStubUrl))
       .replaceAll('"@/lib/worldbox/core/ops-online"', JSON.stringify(opsOnlineStubUrl))
       .replaceAll('"@/lib/worldbox/core/user-lock"', JSON.stringify(userLockUrl))
-      .replaceAll('"@/lib/worldbox/social/nations-online"', JSON.stringify(nationsOnlineStubUrl))
-  ),
+      .replaceAll('"@/lib/worldbox/social/nations-online"', JSON.stringify(nationsOnlineStubUrl)),
+  )
 );
 
 process.env["DISCORD_SESSION" + "_SECRET"] = "worldbox-farm-test-secret";
@@ -510,7 +836,9 @@ function apiRequest(url, method, cookie, body) {
 const URL_T = "http://localhost/api/worldbox/tiles";
 
 test("API(tiles): 未ログインの POST は 401、他オリジンは 403", async () => {
-  const anon = await tilesRoute.POST(apiRequest(URL_T, "POST", null, { action: "chop", x: treeAt.x, y: treeAt.y }));
+  const anon = await tilesRoute.POST(
+    apiRequest(URL_T, "POST", null, { action: "chop", x: treeAt.x, y: treeAt.y }),
+  );
   assert.equal(anon.status, 401);
   const cookie = sessionCookie(ME, "farm-user");
   const cross = new Request(URL_T, {
@@ -525,14 +853,25 @@ test("API(tiles): 伐採は素手でも適用され（収量1）、斧がある�
   const cookie = sessionCookie(ME, "farm-user");
   globalThis.__wbFarmTiles.clear();
   globalThis.__wbFarmProfiles.clear();
-  globalThis.__wbFarmPresence = [{
-    id: (await import(presenceBundleUrl)).presenceIdFor(MY_KEY),
-    name: "farm-user", x: treeAt.x, y: treeAt.y, vx: 0, vy: 0, face: 1, space: "world", ts: Date.now(),
-  }];
+  globalThis.__wbFarmPresence = [
+    {
+      id: (await import(presenceBundleUrl)).presenceIdFor(MY_KEY),
+      name: "farm-user",
+      x: treeAt.x,
+      y: treeAt.y,
+      vx: 0,
+      vy: 0,
+      face: 1,
+      space: "world",
+      ts: Date.now(),
+    },
+  ];
   // 素手（空のプロフィール）でも伐採できる（HP制: 6/ヒット → 5ヒットで倒れる）
   let bareData = null;
   for (let i = 0; i < 6; i++) {
-    const bare = await tilesRoute.POST(apiRequest(URL_T, "POST", cookie, { action: "chop", x: treeAt.x, y: treeAt.y }));
+    const bare = await tilesRoute.POST(
+      apiRequest(URL_T, "POST", cookie, { action: "chop", x: treeAt.x, y: treeAt.y }),
+    );
     assert.equal(bare.status, 200);
     bareData = await bare.json();
     if (bareData.tile.tile === T.T_GRASS) break;
@@ -543,10 +882,15 @@ test("API(tiles): 伐採は素手でも適用され（収量1）、斧がある�
   assert.ok(globalThis.__wbFarmTiles.has(`${treeAt.x},${treeAt.y}`), "上書きが保存される");
   // 斧を持たせると収量2（別の木で確認。10/ヒット → 3ヒット）
   globalThis.__wbFarmTiles.clear();
-  globalThis.__wbFarmProfiles.set(MY_KEY, inv.serializeProfile(inv.parseProfile({ items: { wooden_axe: 1 } })));
+  globalThis.__wbFarmProfiles.set(
+    MY_KEY,
+    inv.serializeProfile(inv.parseProfile({ items: { wooden_axe: 1 } })),
+  );
   let data = null;
   for (let i = 0; i < 4; i++) {
-    const ok = await tilesRoute.POST(apiRequest(URL_T, "POST", cookie, { action: "chop", x: treeAt.x, y: treeAt.y }));
+    const ok = await tilesRoute.POST(
+      apiRequest(URL_T, "POST", cookie, { action: "chop", x: treeAt.x, y: treeAt.y }),
+    );
     assert.equal(ok.status, 200);
     data = await ok.json();
     if (data.tile.tile === T.T_GRASS) break;
@@ -558,11 +902,22 @@ test("API(tiles): 伐採は素手でも適用され（収量1）、斧がある�
 
 test("API(tiles): 本人位置が分かる場合は遠くのタイルを拒む（too_far）", async () => {
   const cookie = sessionCookie(ME, "farm-user");
-  globalThis.__wbFarmPresence = [{
-    id: (await import(presenceBundleUrl)).presenceIdFor(MY_KEY),
-    name: "farm-user", x: 10.5, y: 10.5, vx: 0, vy: 0, face: 1, space: "world", ts: Date.now(),
-  }];
-  const res = await tilesRoute.POST(apiRequest(URL_T, "POST", cookie, { action: "chop", x: treeAt.x, y: treeAt.y }));
+  globalThis.__wbFarmPresence = [
+    {
+      id: (await import(presenceBundleUrl)).presenceIdFor(MY_KEY),
+      name: "farm-user",
+      x: 10.5,
+      y: 10.5,
+      vx: 0,
+      vy: 0,
+      face: 1,
+      space: "world",
+      ts: Date.now(),
+    },
+  ];
+  const res = await tilesRoute.POST(
+    apiRequest(URL_T, "POST", cookie, { action: "chop", x: treeAt.x, y: treeAt.y }),
+  );
   assert.equal(res.status, 409);
   assert.equal((await res.json()).error, "too_far");
   globalThis.__wbFarmPresence = [];
@@ -570,7 +925,10 @@ test("API(tiles): 本人位置が分かる場合は遠くのタイルを拒む�
 
 test("API(tiles): GET は範囲内の有効な上書きだけを返す", async () => {
   globalThis.__wbFarmTiles.clear();
-  globalThis.__wbFarmTiles.set("10,10", JSON.stringify({ tile: 0, stump: true, ownerId: "aa", until: Date.now() + 60_000 }));
+  globalThis.__wbFarmTiles.set(
+    "10,10",
+    JSON.stringify({ tile: 0, stump: true, ownerId: "aa", until: Date.now() + 60_000 }),
+  );
   globalThis.__wbFarmTiles.set("500,500", JSON.stringify({ tile: 5, ownerId: "aa" }));
   globalThis.__wbFarmTiles.set("11,10", JSON.stringify({ tile: 0, ownerId: "aa", until: 1 })); // 失効済み
   const res = await tilesRoute.GET(apiRequest(`${URL_T}?x0=0&y0=0&x1=20&y1=20`, "GET", null));
@@ -588,7 +946,9 @@ test("API(tiles): GET rect は旧境界の外（負座標・2000超）でも上�
   const neg = await tilesRoute.GET(apiRequest(`${URL_T}?x0=-64&y0=-64&x1=-1&y1=-1`, "GET", null));
   assert.equal(neg.status, 200);
   assert.deepEqual(Object.keys((await neg.json()).overrides), ["-40,-40"]);
-  const far = await tilesRoute.GET(apiRequest(`${URL_T}?x0=2000&y0=2000&x1=2100&y1=2100`, "GET", null));
+  const far = await tilesRoute.GET(
+    apiRequest(`${URL_T}?x0=2000&y0=2000&x1=2100&y1=2100`, "GET", null),
+  );
   assert.equal(far.status, 200);
   assert.deepEqual(Object.keys((await far.json()).overrides), ["2005,2005"]);
 });
@@ -596,7 +956,10 @@ test("API(tiles): GET rect は旧境界の外（負座標・2000超）でも上�
 // ---------- クライアント配線 ----------
 
 test("クライアント: ホットバー・ストレージ・種ピッカー・タイル API が配線されている", () => {
-  const client = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"), "utf8");
+  const client = fs.readFileSync(
+    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    "utf8",
+  );
   assert.ok(client.includes("/api/worldbox/tiles"), "タイル API を使っていない");
   assert.ok(client.includes("loadFarmSprites"), "農業スプライトを読み込んでいない");
   assert.ok(client.includes("actionForTile"), "タップ判定を使っていない");
@@ -607,15 +970,25 @@ test("クライアント: ホットバー・ストレージ・種ピッカー・
   const textures = fs.readFileSync(path.join(libDir, "worldbox/world/textures.ts"), "utf8");
   assert.ok(textures.includes("loadFarmSprites"), "テクスチャ側に農業読み込みが無い");
   for (const name of ["farmland", "stump", "crop_stage0", "crop_stage1", "crop_stage2"]) {
-    assert.ok(textures.includes(`/img/worldbox/farm/${name}.png`), `テクスチャ定義に ${name} が無い`);
+    assert.ok(
+      textures.includes(`/img/worldbox/farm/${name}.png`),
+      `テクスチャ定義に ${name} が無い`,
+    );
     const file = path.join(rootDir, "public/img/worldbox/farm", `${name}.png`);
     assert.ok(fs.existsSync(file), `農業スプライトが無い: ${name}.png`);
     const buf = fs.readFileSync(file);
-    assert.deepEqual([...buf.subarray(0, 8)], [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a], `${name}.png が PNG でない`);
+    assert.deepEqual(
+      [...buf.subarray(0, 8)],
+      [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a],
+      `${name}.png が PNG でない`,
+    );
     assert.equal(buf.readUInt32BE(16), 64, `${name}.png の幅が 64 でない`);
     assert.equal(buf.readUInt32BE(20), 64, `${name}.png の高さが 64 でない`);
   }
-  const panel = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxEconomyPanel.tsx"), "utf8");
+  const panel = fs.readFileSync(
+    path.join(rootDir, "app/games/worldbox/WorldBoxEconomyPanel.tsx"),
+    "utf8",
+  );
   assert.ok(panel.includes("かばんは空です"), "かばんの空状態が無い");
   assert.ok(!panel.includes("ショップで買うか、合成で作りましょう"), "案内文が残っている");
 });

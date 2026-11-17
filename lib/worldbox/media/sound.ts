@@ -16,7 +16,14 @@ import type { FxBurstKind } from "./fx";
 /* ================= 純粋ロジック: BGM の譜面 ================= */
 
 /** BGM の場面。ワールド昼/夜、ロビー、カジノで曲が切り替わる。 */
-export type WbBgmScene = "field-day" | "field-night" | "lobby" | "casino" | "cave" | "dungeon" | "ruins";
+export type WbBgmScene =
+  | "field-day"
+  | "field-night"
+  | "lobby"
+  | "casino"
+  | "cave"
+  | "dungeon"
+  | "ruins";
 
 /**
  * 現在の状況から BGM の場面を決める。優先順位は カジノ > 屋内 > 夜 > 昼。
@@ -100,10 +107,38 @@ export const BGM_TRACKS: Record<WbBgmScene, WbBgmTrack> = {
     scale: MAJOR_PENT,
     bass: bassLine([0, 5, 0, 7]),
     lead: [
-      4, null, 2, null, 3, null, 2, null,
-      1, null, 2, null, 3, null, null, null,
-      4, null, 5, null, 4, 3, 2, null,
-      3, null, 2, null, 1, null, 0, null,
+      4,
+      null,
+      2,
+      null,
+      3,
+      null,
+      2,
+      null,
+      1,
+      null,
+      2,
+      null,
+      3,
+      null,
+      null,
+      null,
+      4,
+      null,
+      5,
+      null,
+      4,
+      3,
+      2,
+      null,
+      3,
+      null,
+      2,
+      null,
+      1,
+      null,
+      0,
+      null,
     ],
     hat: barSteps([2, 6]),
     kick: barSteps([0, 4]),
@@ -115,10 +150,38 @@ export const BGM_TRACKS: Record<WbBgmScene, WbBgmTrack> = {
     scale: MINOR_PENT,
     bass: bassLine([0, 8, 3, 10]),
     lead: [
-      4, null, null, null, 3, null, null, null,
-      2, null, null, null, null, null, null, null,
-      4, null, null, null, 5, null, 4, null,
-      3, null, null, null, 2, null, null, null,
+      4,
+      null,
+      null,
+      null,
+      3,
+      null,
+      null,
+      null,
+      2,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      4,
+      null,
+      null,
+      null,
+      5,
+      null,
+      4,
+      null,
+      3,
+      null,
+      null,
+      null,
+      2,
+      null,
+      null,
+      null,
     ],
     hat: hatEvery(),
     kick: hatEvery(),
@@ -130,10 +193,38 @@ export const BGM_TRACKS: Record<WbBgmScene, WbBgmTrack> = {
     scale: MAJOR_PENT,
     bass: bassLine([0, 5, 0, 7]),
     lead: [
-      2, null, 3, null, 4, null, null, null,
-      3, null, 2, null, 1, null, 2, null,
-      2, null, 3, null, 4, null, 5, null,
-      4, null, 3, null, 2, null, null, null,
+      2,
+      null,
+      3,
+      null,
+      4,
+      null,
+      null,
+      null,
+      3,
+      null,
+      2,
+      null,
+      1,
+      null,
+      2,
+      null,
+      2,
+      null,
+      3,
+      null,
+      4,
+      null,
+      5,
+      null,
+      4,
+      null,
+      3,
+      null,
+      2,
+      null,
+      null,
+      null,
     ],
     hat: barSteps([1, 3, 5, 7]),
     kick: barSteps([0, 4]),
@@ -145,10 +236,38 @@ export const BGM_TRACKS: Record<WbBgmScene, WbBgmTrack> = {
     scale: MINOR_PENT,
     bass: bassLine([0, 3]),
     lead: [
-      4, null, null, null, 3, null, null, null,
-      null, null, 2, null, null, null, null, null,
-      3, null, null, null, 4, null, null, 5,
-      null, null, null, null, 2, null, null, null,
+      4,
+      null,
+      null,
+      null,
+      3,
+      null,
+      null,
+      null,
+      null,
+      null,
+      2,
+      null,
+      null,
+      null,
+      null,
+      null,
+      3,
+      null,
+      null,
+      null,
+      4,
+      null,
+      null,
+      5,
+      null,
+      null,
+      null,
+      null,
+      2,
+      null,
+      null,
+      null,
     ],
     hat: hatEvery(),
     kick: hatEvery(),
@@ -160,10 +279,38 @@ export const BGM_TRACKS: Record<WbBgmScene, WbBgmTrack> = {
     scale: MINOR_PENT,
     bass: bassLine([0, 0, 5, 3]),
     lead: [
-      4, null, 4, null, 3, null, 2, null,
-      4, null, null, null, 5, null, 4, 3,
-      2, null, 2, null, 3, null, 4, null,
-      null, null, 3, null, 2, null, null, null,
+      4,
+      null,
+      4,
+      null,
+      3,
+      null,
+      2,
+      null,
+      4,
+      null,
+      null,
+      null,
+      5,
+      null,
+      4,
+      3,
+      2,
+      null,
+      2,
+      null,
+      3,
+      null,
+      4,
+      null,
+      null,
+      null,
+      3,
+      null,
+      2,
+      null,
+      null,
+      null,
     ],
     hat: hatEvery(),
     kick: barSteps([0, 4]),
@@ -175,10 +322,38 @@ export const BGM_TRACKS: Record<WbBgmScene, WbBgmTrack> = {
     scale: MINOR_PENT,
     bass: bassLine([0, 10, 5, 8]),
     lead: [
-      4, null, null, null, null, null, 3, null,
-      null, null, 2, null, null, null, null, null,
-      5, null, null, null, 4, null, null, null,
-      3, null, null, null, 2, null, null, null,
+      4,
+      null,
+      null,
+      null,
+      null,
+      null,
+      3,
+      null,
+      null,
+      null,
+      2,
+      null,
+      null,
+      null,
+      null,
+      null,
+      5,
+      null,
+      null,
+      null,
+      4,
+      null,
+      null,
+      null,
+      3,
+      null,
+      null,
+      null,
+      2,
+      null,
+      null,
+      null,
     ],
     hat: barSteps([3, 7]),
     kick: hatEvery(),
@@ -196,10 +371,38 @@ export const BGM_TRACKS: Record<WbBgmScene, WbBgmTrack> = {
       return bass;
     })(),
     lead: [
-      4, 3, 4, null, 5, 4, 3, null,
-      2, 3, 4, null, 3, 2, 1, null,
-      4, 3, 4, null, 5, 6, 5, 4,
-      3, null, 2, null, 1, null, 0, null,
+      4,
+      3,
+      4,
+      null,
+      5,
+      4,
+      3,
+      null,
+      2,
+      3,
+      4,
+      null,
+      3,
+      2,
+      1,
+      null,
+      4,
+      3,
+      4,
+      null,
+      5,
+      6,
+      5,
+      4,
+      3,
+      null,
+      2,
+      null,
+      1,
+      null,
+      0,
+      null,
     ],
     hat: barSteps([0, 1, 2, 3, 4, 5, 6, 7]),
     kick: barSteps([0, 2, 4, 6]),
@@ -214,26 +417,72 @@ export function leadNoteCount(track: WbBgmTrack): number {
 /* ================= 純粋ロジック: SE の語彙と対応表 ================= */
 
 export type WbSeName =
-  | "chop" | "mine" | "till" | "plant" | "harvest"
-  | "place" | "build" | "debris" | "splash" | "step" | "dash" | "warp" | "poof"
-  | "swing" | "hit" | "kill" | "hurt"
-  | "coin" | "buy" | "sell" | "craft"
-  | "open" | "close" | "click" | "error" | "success" | "note";
+  | "chop"
+  | "mine"
+  | "till"
+  | "plant"
+  | "harvest"
+  | "place"
+  | "build"
+  | "debris"
+  | "splash"
+  | "step"
+  | "dash"
+  | "warp"
+  | "poof"
+  | "swing"
+  | "hit"
+  | "kill"
+  | "hurt"
+  | "coin"
+  | "buy"
+  | "sell"
+  | "craft"
+  | "open"
+  | "close"
+  | "click"
+  | "error"
+  | "success"
+  | "note";
 
 /** SE の優先度階層（sfx.ts と同じ配分: 勝敗・撃破 > ヒット > 行為 > 移動 > 刻み）。 */
 export type WbSeTier = 1 | 2 | 3 | 4 | 5;
 
 export const WB_SE_TIER_GAIN: Record<WbSeTier, number> = {
-  1: 0.22, 2: 0.16, 3: 0.12, 4: 0.08, 5: 0.04,
+  1: 0.22,
+  2: 0.16,
+  3: 0.12,
+  4: 0.08,
+  5: 0.04,
 };
 
 export const WB_SE_TIERS: Record<WbSeName, WbSeTier> = {
-  kill: 1, success: 1,
-  hit: 2, hurt: 2, coin: 2, error: 2,
-  chop: 3, mine: 3, till: 3, plant: 3, harvest: 3,
-  place: 3, build: 3, debris: 3, splash: 3, warp: 3,
-  buy: 3, sell: 3, craft: 3, note: 3,
-  swing: 4, dash: 4, poof: 4, open: 4, close: 4, click: 4,
+  kill: 1,
+  success: 1,
+  hit: 2,
+  hurt: 2,
+  coin: 2,
+  error: 2,
+  chop: 3,
+  mine: 3,
+  till: 3,
+  plant: 3,
+  harvest: 3,
+  place: 3,
+  build: 3,
+  debris: 3,
+  splash: 3,
+  warp: 3,
+  buy: 3,
+  sell: 3,
+  craft: 3,
+  note: 3,
+  swing: 4,
+  dash: 4,
+  poof: 4,
+  open: 4,
+  close: 4,
+  click: 4,
   step: 5,
 };
 
@@ -272,12 +521,17 @@ export type FootstepMaterial = "grass" | "stone" | "wood" | "snow" | "sand" | "w
  * 泳ぎ中は水、テント内は木の床、ロビー/洞窟/遺跡/ダンジョンは石、
  * ワールドはバイオームで草・雪・砂・水・石に分ける。
  */
-export function footstepMaterialFor(input: { biome?: string; space?: string; swimming?: boolean }): FootstepMaterial {
+export function footstepMaterialFor(input: {
+  biome?: string;
+  space?: string;
+  swimming?: boolean;
+}): FootstepMaterial {
   if (input.swimming) return "water";
   const space = input.space ?? "world";
   if (space === "tent") return "wood";
   if (space === "lobby" || space === "lobby2" || space === "lobby3") return "stone";
-  if (space.startsWith("cave:") || space.startsWith("dungeon:") || space.startsWith("ruins:")) return "stone";
+  if (space.startsWith("cave:") || space.startsWith("dungeon:") || space.startsWith("ruins:"))
+    return "stone";
   switch (input.biome) {
     case "snowfield":
     case "snow_forest":
@@ -372,7 +626,9 @@ export const BGM_CROSSFADE_MS = 1200;
 function ensureCtx(): AudioContext | null {
   if (typeof window === "undefined") return null;
   if (!ctx) {
-    const AC = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    const AC =
+      window.AudioContext ??
+      (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
     if (!AC) return null;
     ctx = new AC();
     masterBus = ctx.createGain();
@@ -431,7 +687,8 @@ function tone(opts: {
   const g = ctx.createGain();
   osc.type = opts.type ?? "triangle";
   osc.frequency.setValueAtTime(Math.max(20, opts.freq * pitch), t);
-  if (opts.freqEnd) osc.frequency.exponentialRampToValueAtTime(Math.max(20, opts.freqEnd * pitch), t + opts.dur);
+  if (opts.freqEnd)
+    osc.frequency.exponentialRampToValueAtTime(Math.max(20, opts.freqEnd * pitch), t + opts.dur);
   const peak = (opts.gain ?? 0.2) * (isSe ? seGain : 1);
   g.gain.setValueAtTime(0.0001, t);
   g.gain.exponentialRampToValueAtTime(peak, t + 0.008);
@@ -469,7 +726,11 @@ function noise(opts: {
   filter.type = opts.type ?? "bandpass";
   filter.Q.value = 0.9;
   filter.frequency.setValueAtTime((opts.filterFrom ?? 1800) * pitch, t);
-  if (opts.filterTo) filter.frequency.exponentialRampToValueAtTime(Math.max(30, opts.filterTo * pitch), t + opts.dur);
+  if (opts.filterTo)
+    filter.frequency.exponentialRampToValueAtTime(
+      Math.max(30, opts.filterTo * pitch),
+      t + opts.dur,
+    );
   const g = ctx.createGain();
   const peak = (opts.gain ?? 0.16) * (isSe ? seGain : 1);
   g.gain.setValueAtTime(0.0001, t);
@@ -496,7 +757,10 @@ function tierGain(name: WbSeName, local = 1): number {
 }
 
 /** 足音の素材ごとのノイズ色（B4）。草=土ぼこり、石=硬いコツッ、木=ノック、雪=柔らかいサクッ、砂=サラッ、水=チャプッ。 */
-const STEP_MATERIAL_NOISE: Record<FootstepMaterial, { dur: number; gain: number; type: BiquadFilterType; from: number; to?: number }> = {
+const STEP_MATERIAL_NOISE: Record<
+  FootstepMaterial,
+  { dur: number; gain: number; type: BiquadFilterType; from: number; to?: number }
+> = {
   grass: { dur: 0.05, gain: 1.4, type: "lowpass", from: 700 },
   stone: { dur: 0.04, gain: 1.1, type: "bandpass", from: 1900 },
   wood: { dur: 0.06, gain: 1.2, type: "bandpass", from: 950 },
@@ -511,18 +775,39 @@ let currentStepMaterial: FootstepMaterial = "grass";
 const SE_RECIPES: Record<WbSeName, (t: number) => void> = {
   // 木を打つ: 低い木の響き＋繊維のバリッというノイズ
   chop: (t) => {
-    tone({ freq: 190, freqEnd: 90, dur: 0.1, type: "triangle", gain: tierGain("chop", 1.4), at: t });
+    tone({
+      freq: 190,
+      freqEnd: 90,
+      dur: 0.1,
+      type: "triangle",
+      gain: tierGain("chop", 1.4),
+      at: t,
+    });
     noise({ dur: 0.09, gain: tierGain("chop"), at: t, type: "lowpass", filterFrom: 1100 });
   },
   // 石を打つ: 金属っぽい高音の欠け＋硬いノック
   mine: (t) => {
     tone({ freq: 2350, dur: 0.05, type: "square", gain: tierGain("mine", 0.5), at: t });
-    tone({ freq: 320, freqEnd: 140, dur: 0.07, type: "triangle", gain: tierGain("mine", 1.2), at: t });
+    tone({
+      freq: 320,
+      freqEnd: 140,
+      dur: 0.07,
+      type: "triangle",
+      gain: tierGain("mine", 1.2),
+      at: t,
+    });
     noise({ dur: 0.05, gain: tierGain("mine", 0.8), at: t, type: "highpass", filterFrom: 2800 });
   },
   // 土を耕す: 柔らかい低域ノイズのこすれ
   till: (t) => {
-    noise({ dur: 0.16, gain: tierGain("till", 1.3), at: t, type: "lowpass", filterFrom: 620, filterTo: 300 });
+    noise({
+      dur: 0.16,
+      gain: tierGain("till", 1.3),
+      at: t,
+      type: "lowpass",
+      filterFrom: 620,
+      filterTo: 300,
+    });
     tone({ freq: 120, freqEnd: 70, dur: 0.12, type: "sine", gain: tierGain("till"), at: t });
   },
   // 植える: 土の小さな音＋若葉の2音
@@ -534,7 +819,8 @@ const SE_RECIPES: Record<WbSeName, (t: number) => void> = {
   // 収穫: ペンタの3音アルペジオ（実りの払い戻し）
   harvest: (t) => {
     [523.25, 659.25, 783.99].forEach((f, i) =>
-      tone({ freq: f, dur: 0.14, type: "triangle", gain: tierGain("harvest"), at: t + i * 0.055 }));
+      tone({ freq: f, dur: 0.14, type: "triangle", gain: tierGain("harvest"), at: t + i * 0.055 }),
+    );
   },
   // 設置: 収まるドスッ＋土煙
   place: (t) => {
@@ -543,29 +829,78 @@ const SE_RECIPES: Record<WbSeName, (t: number) => void> = {
   },
   // 建築: 木/石のノック2発＋確定音
   build: (t) => {
-    tone({ freq: 210, freqEnd: 110, dur: 0.07, type: "triangle", gain: tierGain("build", 1.2), at: t });
-    tone({ freq: 180, freqEnd: 95, dur: 0.08, type: "triangle", gain: tierGain("build", 1.2), at: t + 0.09 });
+    tone({
+      freq: 210,
+      freqEnd: 110,
+      dur: 0.07,
+      type: "triangle",
+      gain: tierGain("build", 1.2),
+      at: t,
+    });
+    tone({
+      freq: 180,
+      freqEnd: 95,
+      dur: 0.08,
+      type: "triangle",
+      gain: tierGain("build", 1.2),
+      at: t + 0.09,
+    });
     tone({ freq: 523, dur: 0.12, type: "triangle", gain: tierGain("build", 0.7), at: t + 0.18 });
   },
   // 破壊: 破片の散り＋落下
   debris: (t) => {
     noise({ dur: 0.18, gain: tierGain("debris", 1.2), at: t, filterFrom: 1600, filterTo: 400 });
-    tone({ freq: 240, freqEnd: 60, dur: 0.2, type: "triangle", gain: tierGain("debris"), at: t + 0.02 });
+    tone({
+      freq: 240,
+      freqEnd: 60,
+      dur: 0.2,
+      type: "triangle",
+      gain: tierGain("debris"),
+      at: t + 0.02,
+    });
   },
   // 水: バンドパスのうねり＋水滴2つ
   splash: (t) => {
     noise({ dur: 0.22, gain: tierGain("splash", 1.2), at: t, filterFrom: 900, filterTo: 2400 });
-    tone({ freq: 740, freqEnd: 1180, dur: 0.07, type: "sine", gain: tierGain("splash", 0.6), at: t + 0.06 });
-    tone({ freq: 620, freqEnd: 990, dur: 0.07, type: "sine", gain: tierGain("splash", 0.5), at: t + 0.13 });
+    tone({
+      freq: 740,
+      freqEnd: 1180,
+      dur: 0.07,
+      type: "sine",
+      gain: tierGain("splash", 0.6),
+      at: t + 0.06,
+    });
+    tone({
+      freq: 620,
+      freqEnd: 990,
+      dur: 0.07,
+      type: "sine",
+      gain: tierGain("splash", 0.5),
+      at: t + 0.13,
+    });
   },
   // 足音: 素材でノイズ色を変える（tier5）。石と木は短いノック音も重ねる。
   step: (t) => {
     const m = STEP_MATERIAL_NOISE[currentStepMaterial];
-    noise({ dur: m.dur, gain: tierGain("step", m.gain), at: t, type: m.type, filterFrom: m.from, filterTo: m.to });
+    noise({
+      dur: m.dur,
+      gain: tierGain("step", m.gain),
+      at: t,
+      type: m.type,
+      filterFrom: m.from,
+      filterTo: m.to,
+    });
     if (currentStepMaterial === "stone") {
       tone({ freq: 1450, dur: 0.025, type: "square", gain: tierGain("step", 0.5), at: t });
     } else if (currentStepMaterial === "wood") {
-      tone({ freq: 320, freqEnd: 180, dur: 0.05, type: "triangle", gain: tierGain("step", 0.9), at: t });
+      tone({
+        freq: 320,
+        freqEnd: 180,
+        dur: 0.05,
+        type: "triangle",
+        gain: tierGain("step", 0.9),
+        at: t,
+      });
     }
   },
   // ダッシュ: 風の筋
@@ -575,11 +910,19 @@ const SE_RECIPES: Record<WbSeName, (t: number) => void> = {
   // ワープ: 矩形波の速い上昇アルペジオ（乾いた電子音）
   warp: (t) => {
     [440, 587, 880, 1175].forEach((f, i) =>
-      tone({ freq: f, dur: 0.09, type: "square", gain: tierGain("warp", 0.45), at: t + i * 0.045 }));
+      tone({ freq: f, dur: 0.09, type: "square", gain: tierGain("warp", 0.45), at: t + i * 0.045 }),
+    );
   },
   // 消滅: 煙のプフ
   poof: (t) => {
-    noise({ dur: 0.14, gain: tierGain("poof", 1.2), at: t, type: "lowpass", filterFrom: 1000, filterTo: 300 });
+    noise({
+      dur: 0.14,
+      gain: tierGain("poof", 1.2),
+      at: t,
+      type: "lowpass",
+      filterFrom: 1000,
+      filterTo: 300,
+    });
   },
   // 振り: 風切り（下がるスイープ）
   swing: (t) => {
@@ -587,7 +930,14 @@ const SE_RECIPES: Record<WbSeName, (t: number) => void> = {
   },
   // 命中: 芯のある打撃
   hit: (t) => {
-    tone({ freq: 210, freqEnd: 65, dur: 0.12, type: "triangle", gain: tierGain("hit", 1.3), at: t });
+    tone({
+      freq: 210,
+      freqEnd: 65,
+      dur: 0.12,
+      type: "triangle",
+      gain: tierGain("hit", 1.3),
+      at: t,
+    });
     noise({ dur: 0.06, gain: tierGain("hit", 0.8), at: t, filterFrom: 2400 });
   },
   // 撃破: 打撃＋下降フレーズ＋きらめき
@@ -618,7 +968,14 @@ const SE_RECIPES: Record<WbSeName, (t: number) => void> = {
   },
   // 合成: ノック＋完成のプラック
   craft: (t) => {
-    tone({ freq: 200, freqEnd: 110, dur: 0.07, type: "triangle", gain: tierGain("craft", 1.2), at: t });
+    tone({
+      freq: 200,
+      freqEnd: 110,
+      dur: 0.07,
+      type: "triangle",
+      gain: tierGain("craft", 1.2),
+      at: t,
+    });
     tone({ freq: 659, dur: 0.12, type: "triangle", gain: tierGain("craft", 0.8), at: t + 0.09 });
     tone({ freq: 880, dur: 0.16, type: "triangle", gain: tierGain("craft", 0.8), at: t + 0.17 });
   },
@@ -640,7 +997,14 @@ const SE_RECIPES: Record<WbSeName, (t: number) => void> = {
   // 成功ジングル: ペンタ4音
   success: (t) => {
     [523.25, 659.25, 783.99, 1046.5].forEach((f, i) =>
-      tone({ freq: f, dur: 0.18, type: "triangle", gain: tierGain("success", 0.8), at: t + i * 0.07 }));
+      tone({
+        freq: f,
+        dur: 0.18,
+        type: "triangle",
+        gain: tierGain("success", 0.8),
+        at: t + i * 0.07,
+      }),
+    );
   },
   // 楽器の単音（ピアノ等）: 基音 C5 を pitch でずらして音階にする。倍音を薄く重ねる
   note: (t) => {
@@ -698,7 +1062,8 @@ export function playWbSe(name: WbSeName, opts: WbSeOptions = {}): void {
     lastPlayedAt.set(name, now);
   }
   // 同時発音の整理: 短い窓に詰め込みすぎたら tier 4 以下を落とす。
-  while (recentSeTimes.length > 0 && now - recentSeTimes[0] > SE_BURST_WINDOW_MS) recentSeTimes.shift();
+  while (recentSeTimes.length > 0 && now - recentSeTimes[0] > SE_BURST_WINDOW_MS)
+    recentSeTimes.shift();
   if (recentSeTimes.length >= SE_BURST_MAX && WB_SE_TIERS[name] >= 4) return;
   recentSeTimes.push(now);
   const variation = seVariation();
@@ -742,7 +1107,14 @@ function scheduleStep(track: WbBgmTrack, step: number, at: number, dest: AudioNo
   if (!ctx) return;
   const bassSemi = track.bass[step];
   if (bassSemi !== null) {
-    tone({ freq: semitoneFreq(track.root / 2, bassSemi), dur: 0.34, type: "triangle", gain: 0.16, at, dest });
+    tone({
+      freq: semitoneFreq(track.root / 2, bassSemi),
+      dur: 0.34,
+      type: "triangle",
+      gain: 0.16,
+      at,
+      dest,
+    });
   }
   const leadDegree = track.lead[step];
   if (leadDegree !== null) {

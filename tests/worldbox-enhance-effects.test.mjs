@@ -78,7 +78,9 @@ const V = await loadBundle(
 function baseProfile(overrides = {}) {
   return {
     ...V.parseProfile(null),
-    hunger: 100, vitalAt: 1_000_000, status: [],
+    hunger: 100,
+    vitalAt: 1_000_000,
+    status: [],
     ...overrides,
   };
 }
@@ -97,7 +99,12 @@ test("buffs: warm slows hunger drain (alert は存在しない)", () => {
 });
 
 const E = await loadBundle(
-  ["worldbox/economy/items.ts", "worldbox/player/profile.ts", "worldbox/player/vitals.ts", "worldbox/economy/economy.ts"],
+  [
+    "worldbox/economy/items.ts",
+    "worldbox/player/profile.ts",
+    "worldbox/player/vitals.ts",
+    "worldbox/economy/economy.ts",
+  ],
   ["eatItem", "sellItem", "parseProfile"],
 );
 
@@ -111,7 +118,10 @@ test("effects: stew grants warm, honey tea is hunger only", () => {
   const drank = E.eatItem(ate.profile, "honey_tea", now);
   assert.equal(drank.ok, true);
   assert.ok(!drank.profile.status.some((e) => e.kind === "alert"), "alert バフは無い");
-  assert.ok(drank.profile.status.some((e) => e.kind === "warm"), "warm バフは残る");
+  assert.ok(
+    drank.profile.status.some((e) => e.kind === "warm"),
+    "warm バフは残る",
+  );
 });
 
 test("effects: holding the golden accessory boosts sell proceeds by 10%", () => {

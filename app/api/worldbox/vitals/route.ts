@@ -65,12 +65,25 @@ async function movePresenceAndSave(
   const prev = parseSave(await loadWorldBoxSave(ownerKey));
   const saved = await storeWorldBoxSave(
     ownerKey,
-    serializeSave({ space: dest.space, x: dest.x, y: dest.y, worldReturn: prev?.worldReturn ?? null }),
+    serializeSave({
+      space: dest.space,
+      x: dest.x,
+      y: dest.y,
+      worldReturn: prev?.worldReturn ?? null,
+    }),
   );
   if (!saved) return false;
   return putPresence(
     ownerKey,
-    { name: name.trim() || "プレイヤー", x: dest.x, y: dest.y, vx: 0, vy: 0, face: 1, space: dest.space },
+    {
+      name: name.trim() || "プレイヤー",
+      x: dest.x,
+      y: dest.y,
+      vx: 0,
+      vy: 0,
+      face: 1,
+      space: dest.space,
+    },
     now,
   );
 }
@@ -87,7 +100,10 @@ export async function POST(request: Request) {
     return errorResponse("invalid_request", 400);
   }
   const data = (body ?? {}) as {
-    action?: unknown; px?: unknown; py?: unknown; space?: unknown;
+    action?: unknown;
+    px?: unknown;
+    py?: unknown;
+    space?: unknown;
   };
   const ownerKey = sessionOwnerKey(session);
   const now = Date.now();
@@ -101,17 +117,23 @@ export async function POST(request: Request) {
       // 前回精算位置との平均速度で idle / move / dash に分類し、
       // 現在位置は次回の判定用に profile へ残す。
       const reported =
-        typeof data.px === "number" && typeof data.py === "number" &&
-        Number.isFinite(data.px) && Number.isFinite(data.py) &&
-        Math.abs(data.px) <= WORLD_COORD_LIMIT && Math.abs(data.py) <= WORLD_COORD_LIMIT
+        typeof data.px === "number" &&
+        typeof data.py === "number" &&
+        Number.isFinite(data.px) &&
+        Number.isFinite(data.py) &&
+        Math.abs(data.px) <= WORLD_COORD_LIMIT &&
+        Math.abs(data.py) <= WORLD_COORD_LIMIT
           ? { x: data.px, y: data.py }
           : null;
-      const space = typeof data.space === "string" && data.space.length > 0 ? data.space.slice(0, 64) : "world";
+      const space =
+        typeof data.space === "string" && data.space.length > 0 ? data.space.slice(0, 64) : "world";
       const pos = await actorWorldPosition(ownerKey, reported, space);
-      const prev = typeof current.vitalX === "number" && typeof current.vitalY === "number" &&
+      const prev =
+        typeof current.vitalX === "number" &&
+        typeof current.vitalY === "number" &&
         typeof current.vitalSpace === "string"
-        ? { x: current.vitalX, y: current.vitalY, space: current.vitalSpace }
-        : null;
+          ? { x: current.vitalX, y: current.vitalY, space: current.vitalSpace }
+          : null;
       const cur = pos ? { x: pos.x, y: pos.y, space } : null;
       const elapsedSec = current.vitalAt > 0 ? (now - current.vitalAt) / 1000 : 0;
       const activity = activityForWindow(prev, cur, elapsedSec);

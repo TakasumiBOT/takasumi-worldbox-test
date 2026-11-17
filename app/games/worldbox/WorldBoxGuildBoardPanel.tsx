@@ -12,11 +12,19 @@
 // 経済ブリッジのオプとして積む（このパネルは結果を表示するだけ）。
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ITEMS, itemById } from "@/lib/worldbox/economy/items";
-import { onGuildBoardChanged, onGuildRequestsChanged } from "@/lib/worldbox/social/guild-board-push";
+import {
+  onGuildBoardChanged,
+  onGuildRequestsChanged,
+} from "@/lib/worldbox/social/guild-board-push";
 import { ItemAnnotation, ItemSlot, ItemSlotGrid } from "./ItemSlotGrid";
 import type { NationRole, NationsResponse } from "@/lib/worldbox/social/nations";
 import type { PlayerProfile } from "@/lib/worldbox/player/profile";
-import { ADVENTURE_ROLES, masteryRankOf, roleChangeCost, type AdventureRoleId } from "@/lib/worldbox/player/roles";
+import {
+  ADVENTURE_ROLES,
+  masteryRankOf,
+  roleChangeCost,
+  type AdventureRoleId,
+} from "@/lib/worldbox/player/roles";
 import type { GuildRequest } from "@/lib/worldbox/social/requests";
 
 const ROLE_LABEL: Record<NationRole, string> = { king: "王", minister: "大臣", citizen: "国民" };
@@ -84,31 +92,57 @@ type RequestsData = {
 };
 
 const root: React.CSSProperties = {
-  position: "absolute", left: "50%", top: "50%", transform: "translate(-50%, -50%)",
-  width: "min(430px, calc(100% - 24px))", maxHeight: "calc(100% - 24px)", overflowY: "auto",
-  padding: 14, borderRadius: 12, zIndex: 6, textAlign: "left",
-  border: "1px solid rgba(255,255,255,0.25)", background: "rgba(10,12,20,0.94)", color: "#fff",
+  position: "absolute",
+  left: "50%",
+  top: "50%",
+  transform: "translate(-50%, -50%)",
+  width: "min(430px, calc(100% - 24px))",
+  maxHeight: "calc(100% - 24px)",
+  overflowY: "auto",
+  padding: 14,
+  borderRadius: 12,
+  zIndex: 6,
+  textAlign: "left",
+  border: "1px solid rgba(255,255,255,0.25)",
+  background: "rgba(10,12,20,0.94)",
+  color: "#fff",
   boxShadow: "0 10px 32px rgba(0,0,0,0.55)",
 };
 const btn: React.CSSProperties = {
-  minHeight: 38, padding: "4px 14px", borderRadius: 10, cursor: "pointer",
-  border: "1px solid rgba(255,255,255,0.25)", background: "rgba(255,255,255,0.07)", color: "inherit",
-  touchAction: "manipulation", userSelect: "none", WebkitUserSelect: "none", WebkitTouchCallout: "none",
+  minHeight: 38,
+  padding: "4px 14px",
+  borderRadius: 10,
+  cursor: "pointer",
+  border: "1px solid rgba(255,255,255,0.25)",
+  background: "rgba(255,255,255,0.07)",
+  color: "inherit",
+  touchAction: "manipulation",
+  userSelect: "none",
+  WebkitUserSelect: "none",
+  WebkitTouchCallout: "none",
 };
 const tabBtn: React.CSSProperties = { ...btn, minHeight: 34, padding: "2px 12px", fontSize: 13 };
 const tabOn: React.CSSProperties = {
-  background: "rgba(255,210,62,0.22)", borderColor: "rgba(255,210,62,0.8)",
+  background: "rgba(255,210,62,0.22)",
+  borderColor: "rgba(255,210,62,0.8)",
 };
 const rowStyle: React.CSSProperties = {
-  display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap",
-  padding: "7px 0", borderBottom: "1px solid rgba(255,255,255,0.08)",
+  display: "flex",
+  alignItems: "center",
+  gap: 8,
+  flexWrap: "wrap",
+  padding: "7px 0",
+  borderBottom: "1px solid rgba(255,255,255,0.08)",
 };
 const input: React.CSSProperties = {
-  minHeight: 38, padding: "4px 8px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.25)",
-  background: "rgba(255,255,255,0.08)", color: "#fff", fontSize: 14,
+  minHeight: 38,
+  padding: "4px 8px",
+  borderRadius: 8,
+  border: "1px solid rgba(255,255,255,0.25)",
+  background: "rgba(255,255,255,0.08)",
+  color: "#fff",
+  fontSize: 14,
 };
-
-
 
 export default function WorldBoxGuildBoardPanel({
   nations,
@@ -130,13 +164,17 @@ export default function WorldBoxGuildBoardPanel({
   /** 招待リンク（?union=）で指定されたサーバー。該当行を先頭に強調する。 */
   inviteGuildId?: string | null;
 }) {
-  const [tab, setTab] = useState<"requests" | "roles" | "adventure" | "board" | "settings">("requests");
+  const [tab, setTab] = useState<"requests" | "roles" | "adventure" | "board" | "settings">(
+    "requests",
+  );
   // 国家設定（税率・公開/非公開・大臣）
   const [nsData, setNsData] = useState<NationSettingsData | null>(null);
   const [nsLoaded, setNsLoaded] = useState(false);
   const refreshSettings = useCallback(async () => {
     try {
-      const res = await fetch("/api/worldbox/nation-settings", { headers: { Accept: "application/json" } });
+      const res = await fetch("/api/worldbox/nation-settings", {
+        headers: { Accept: "application/json" },
+      });
       if (res.ok) setNsData((await res.json()) as NationSettingsData);
       else setNsData(null);
     } catch {
@@ -170,7 +208,9 @@ export default function WorldBoxGuildBoardPanel({
     }
   };
   // ユニオン掲示（チャット）と Discord 連携設定
-  const [unionMsgs, setUnionMsgs] = useState<{ name: string; text: string; at: number; source?: string }[]>([]);
+  const [unionMsgs, setUnionMsgs] = useState<
+    { name: string; text: string; at: number; source?: string }[]
+  >([]);
   const [unionRole, setUnionRole] = useState<string>("");
   const [unionMode, setUnionMode] = useState<"global" | "channel" | "none">("none");
   const [unionLinkChannelId, setUnionLinkChannelId] = useState<string | null>(null);
@@ -186,21 +226,28 @@ export default function WorldBoxGuildBoardPanel({
         fetch("/api/worldbox/union-settings", { headers: { Accept: "application/json" } }),
       ]);
       if (chatRes.ok) {
-        const data = (await chatRes.json()) as { messages?: { name: string; text: string; at: number; source?: string }[] };
+        const data = (await chatRes.json()) as {
+          messages?: { name: string; text: string; at: number; source?: string }[];
+        };
         setUnionMsgs(data.messages ?? []);
       }
       if (setRes.ok) {
         const data = (await setRes.json()) as {
           role?: string;
           settings?: { mode?: "global" | "channel" | "none"; channelId?: string | null };
-          directory?: { channels: { id: string; name: string }[]; globalChatChannelId: string | null } | null;
+          directory?: {
+            channels: { id: string; name: string }[];
+            globalChatChannelId: string | null;
+          } | null;
         };
         setUnionRole(data.role ?? "");
         setUnionMode(data.settings?.mode ?? "none");
         setUnionLinkChannelId(data.settings?.channelId ?? null);
         setUnionDirectory(data.directory ?? null);
       }
-    } catch { /* 読めなくてもパネルは開いたままにする */ }
+    } catch {
+      /* 読めなくてもパネルは開いたままにする */
+    }
   }, []);
   useEffect(() => {
     if (tab === "board") void refreshUnion();
@@ -223,9 +270,11 @@ export default function WorldBoxGuildBoardPanel({
         await refreshUnion();
       } else {
         setMsg(
-          res.status === 429 ? "少し待ってから送ってください"
-          : res.status === 409 ? "ユニオンに所属していません"
-          : "送れませんでした",
+          res.status === 429
+            ? "少し待ってから送ってください"
+            : res.status === 409
+              ? "ユニオンに所属していません"
+              : "送れませんでした",
         );
       }
     } catch {
@@ -253,10 +302,13 @@ export default function WorldBoxGuildBoardPanel({
         setMsg("保存した");
       } else {
         setMsg(
-          json.error === "directory_unavailable" ? "Discord側の準備待ちです"
-          : json.error === "global_not_available" ? "グローバルチャットがありません"
-          : json.error === "channel_not_listed" ? "そのチャンネルは選べません"
-          : "保存できない",
+          json.error === "directory_unavailable"
+            ? "Discord側の準備待ちです"
+            : json.error === "global_not_available"
+              ? "グローバルチャットがありません"
+              : json.error === "channel_not_listed"
+                ? "そのチャンネルは選べません"
+                : "保存できない",
         );
       }
     } catch {
@@ -275,9 +327,13 @@ export default function WorldBoxGuildBoardPanel({
 
   const refresh = useCallback(async () => {
     try {
-      const res = await fetch("/api/worldbox/requests", { headers: { Accept: "application/json" } });
+      const res = await fetch("/api/worldbox/requests", {
+        headers: { Accept: "application/json" },
+      });
       if (res.ok) setData((await res.json()) as RequestsData);
-    } catch { /* 読めなくてもパネルは開いたままにする */ }
+    } catch {
+      /* 読めなくてもパネルは開いたままにする */
+    }
   }, []);
 
   useEffect(() => {
@@ -289,13 +345,25 @@ export default function WorldBoxGuildBoardPanel({
   // 操作とタブ切替で更新される。
   const tabRef = useRef(tab);
   tabRef.current = tab;
-  useEffect(() => onGuildRequestsChanged(() => { void refresh(); }), [refresh]);
   useEffect(
-    () => onGuildBoardChanged(() => { if (tabRef.current === "board") void refreshUnion(); }),
+    () =>
+      onGuildRequestsChanged(() => {
+        void refresh();
+      }),
+    [refresh],
+  );
+  useEffect(
+    () =>
+      onGuildBoardChanged(() => {
+        if (tabRef.current === "board") void refreshUnion();
+      }),
     [refreshUnion],
   );
 
-  const act = async (body: Record<string, unknown>, done?: (res: Record<string, unknown>) => void) => {
+  const act = async (
+    body: Record<string, unknown>,
+    done?: (res: Record<string, unknown>) => void,
+  ) => {
     setMsg("");
     setBusy(true);
     try {
@@ -321,7 +389,7 @@ export default function WorldBoxGuildBoardPanel({
   };
 
   const me = nations.me;
-  const myNation = me ? nations.nations.find((n) => n.id === me.nationId) ?? null : null;
+  const myNation = me ? (nations.nations.find((n) => n.id === me.nationId) ?? null) : null;
   const foundable = nations.myGuilds.filter((g) => g.owner && !g.hasNation);
   const joinable = nations.myGuilds.filter((g) => g.hasNation);
   const myGuildIds = new Set(nations.myGuilds.map((g) => g.guildId));
@@ -333,9 +401,15 @@ export default function WorldBoxGuildBoardPanel({
     <div style={root} role="dialog" aria-label="ギルドボード" className="wb-panel">
       <div
         style={{
-          display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap",
-          position: "sticky", top: -14, zIndex: 3,
-          margin: "-14px -14px 0", padding: "14px 14px 8px",
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          flexWrap: "wrap",
+          position: "sticky",
+          top: -14,
+          zIndex: 3,
+          margin: "-14px -14px 0",
+          padding: "14px 14px 8px",
           background: "rgba(10,12,20,0.98)",
         }}
       >
@@ -395,7 +469,12 @@ export default function WorldBoxGuildBoardPanel({
               <span style={{ fontSize: 13, opacity: 0.75 }}>ログインが必要</span>
               <a
                 href="/api/auth/discord/authorize?next=/games/worldbox"
-                style={{ ...btn, textDecoration: "none", display: "inline-flex", alignItems: "center" }}
+                style={{
+                  ...btn,
+                  textDecoration: "none",
+                  display: "inline-flex",
+                  alignItems: "center",
+                }}
               >
                 Discordでログイン
               </a>
@@ -444,12 +523,11 @@ export default function WorldBoxGuildBoardPanel({
                             type="button"
                             style={btn}
                             disabled={busy || have < r.count}
-                            onClick={() => void act(
-                              { action: "fulfill", requestId: r.id },
-                              (res) => {
+                            onClick={() =>
+                              void act({ action: "fulfill", requestId: r.id }, (res) => {
                                 if (res.profile) onProfileChange(res.profile as PlayerProfile);
-                              },
-                            )}
+                              })
+                            }
                           >
                             納品（所持 {have}）
                           </button>
@@ -463,14 +541,22 @@ export default function WorldBoxGuildBoardPanel({
                     return (
                       <ItemAnnotation itemId={sel.itemId}>
                         <div style={{ marginTop: 6, fontSize: 13 }}>
-                          <span className="muted">報酬 {sel.reward} ／ 所持 {profile?.items[sel.itemId] ?? 0}</span>
+                          <span className="muted">
+                            報酬 {sel.reward} ／ 所持 {profile?.items[sel.itemId] ?? 0}
+                          </span>
                         </div>
                       </ItemAnnotation>
                     );
                   })()}
                 </div>
               )}
-              <div style={{ marginTop: 12, paddingTop: 10, borderTop: "1px solid rgba(255,255,255,0.15)" }}>
+              <div
+                style={{
+                  marginTop: 12,
+                  paddingTop: 10,
+                  borderTop: "1px solid rgba(255,255,255,0.15)",
+                }}
+              >
                 <div style={{ maxHeight: 168, overflowY: "auto", overscrollBehavior: "contain" }}>
                   <ItemSlotGrid>
                     {ITEMS.map((item) => (
@@ -484,12 +570,17 @@ export default function WorldBoxGuildBoardPanel({
                   </ItemSlotGrid>
                 </div>
                 {formItem && (
-                  <div style={{ fontSize: 13, marginTop: 6 }}>{itemById(formItem)?.name ?? formItem}</div>
+                  <div style={{ fontSize: 13, marginTop: 6 }}>
+                    {itemById(formItem)?.name ?? formItem}
+                  </div>
                 )}
               </div>
               <div
                 style={{
-                  display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  flexWrap: "wrap",
                   marginTop: 8,
                 }}
               >
@@ -514,16 +605,25 @@ export default function WorldBoxGuildBoardPanel({
                   type="button"
                   style={btn}
                   disabled={busy}
-                  onClick={() => void act({
-                    action: "post", itemId: formItem, count: formCount, reward: formReward,
-                  })}
+                  onClick={() =>
+                    void act({
+                      action: "post",
+                      itemId: formItem,
+                      count: formCount,
+                      reward: formReward,
+                    })
+                  }
                 >
                   依頼を出す
                 </button>
               </div>
             </div>
           )}
-          {msg && <p role="status" style={{ margin: "10px 0 0", fontSize: 13 }}>{msg}</p>}
+          {msg && (
+            <p role="status" style={{ margin: "10px 0 0", fontSize: 13 }}>
+              {msg}
+            </p>
+          )}
         </div>
       )}
 
@@ -539,8 +639,14 @@ export default function WorldBoxGuildBoardPanel({
                   <span
                     aria-hidden
                     style={{
-                      display: "inline-flex", alignItems: "center", justifyContent: "center",
-                      width: 26, height: 26, borderRadius: 7, fontSize: 14, fontWeight: 700,
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      width: 26,
+                      height: 26,
+                      borderRadius: 7,
+                      fontSize: 14,
+                      fontWeight: 700,
                       border: "1px solid rgba(255,255,255,0.35)",
                       background: current ? "rgba(255,210,62,0.25)" : "rgba(255,255,255,0.08)",
                     }}
@@ -548,7 +654,10 @@ export default function WorldBoxGuildBoardPanel({
                     {r.symbol}
                   </span>
                   <strong>{r.name}</strong>
-                  <span aria-label={`熟練ランク ${rank}`} style={{ letterSpacing: 2, fontSize: 11 }}>
+                  <span
+                    aria-label={`熟練ランク ${rank}`}
+                    style={{ letterSpacing: 2, fontSize: 11 }}
+                  >
                     {"●".repeat(rank)}
                     <span style={{ opacity: 0.3 }}>{"●".repeat(5 - rank)}</span>
                   </span>
@@ -558,41 +667,51 @@ export default function WorldBoxGuildBoardPanel({
                 </span>
                 <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   {cost > 0 && (
-                    <span style={{ fontSize: 12, opacity: 0.8 }}>{cost.toLocaleString("ja-JP")}</span>
+                    <span style={{ fontSize: 12, opacity: 0.8 }}>
+                      {cost.toLocaleString("ja-JP")}
+                    </span>
                   )}
-                <button
-                  type="button"
-                  style={{ ...btn, ...(current ? tabOn : {}) }}
-                  disabled={busy || current || !profile}
-                  onClick={async () => {
-                    setBusy(true);
-                    setMsg("");
-                    try {
-                      const res = await fetch("/api/worldbox/roles", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ action: "set_role", role: r.id as AdventureRoleId }),
-                      });
-                      const json = (await res.json().catch(() => ({}))) as { profile?: PlayerProfile; error?: string };
-                      if (res.ok && json.profile) {
-                        onProfileChange(json.profile);
-                        setMsg(`${r.name}になりました`);
-                      } else {
-                        setMsg(
-                          json.error === "not_at_guild_board" ? "ギルドボードの前で操作してください"
-                          : json.error === "not_enough_coins" ? "コインが足りません"
-                          : "変更できませんでした",
-                        );
+                  <button
+                    type="button"
+                    style={{ ...btn, ...(current ? tabOn : {}) }}
+                    disabled={busy || current || !profile}
+                    onClick={async () => {
+                      setBusy(true);
+                      setMsg("");
+                      try {
+                        const res = await fetch("/api/worldbox/roles", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            action: "set_role",
+                            role: r.id as AdventureRoleId,
+                          }),
+                        });
+                        const json = (await res.json().catch(() => ({}))) as {
+                          profile?: PlayerProfile;
+                          error?: string;
+                        };
+                        if (res.ok && json.profile) {
+                          onProfileChange(json.profile);
+                          setMsg(`${r.name}になりました`);
+                        } else {
+                          setMsg(
+                            json.error === "not_at_guild_board"
+                              ? "ギルドボードの前で操作してください"
+                              : json.error === "not_enough_coins"
+                                ? "コインが足りません"
+                                : "変更できませんでした",
+                          );
+                        }
+                      } catch {
+                        setMsg("変更できませんでした");
+                      } finally {
+                        setBusy(false);
                       }
-                    } catch {
-                      setMsg("変更できませんでした");
-                    } finally {
-                      setBusy(false);
-                    }
-                  }}
-                >
-                  {current ? "選択中" : "選ぶ"}
-                </button>
+                    }}
+                  >
+                    {current ? "選択中" : "選ぶ"}
+                  </button>
                 </span>
               </div>
             );
@@ -603,7 +722,15 @@ export default function WorldBoxGuildBoardPanel({
 
       {tab === "board" && (
         <div style={{ marginTop: 10 }}>
-          <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: 220, overflowY: "auto" }}>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 4,
+              maxHeight: 220,
+              overflowY: "auto",
+            }}
+          >
             {unionMsgs.length === 0 ? (
               <span style={{ fontSize: 13, opacity: 0.75 }}>まだ投稿がない</span>
             ) : (
@@ -611,7 +738,15 @@ export default function WorldBoxGuildBoardPanel({
                 <div key={i} style={{ fontSize: 13 }}>
                   <strong>{m.name}</strong>
                   {m.source === "discord" && (
-                    <span style={{ marginLeft: 6, fontSize: 10, padding: "1px 5px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.35)" }}>
+                    <span
+                      style={{
+                        marginLeft: 6,
+                        fontSize: 10,
+                        padding: "1px 5px",
+                        borderRadius: 6,
+                        border: "1px solid rgba(255,255,255,0.35)",
+                      }}
+                    >
                       Discord
                     </span>
                   )}
@@ -630,7 +765,9 @@ export default function WorldBoxGuildBoardPanel({
               placeholder="ユニオンへ投稿"
               maxLength={120}
               style={{ ...input, flex: 1 }}
-              onKeyDown={(e) => { if (e.key === "Enter") void sendUnionPost(); }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") void sendUnionPost();
+              }}
             />
             <button
               type="button"
@@ -652,7 +789,8 @@ export default function WorldBoxGuildBoardPanel({
                     {unionMode === "global"
                       ? "グローバルチャット"
                       : unionMode === "channel"
-                        ? (unionDirectory.channels.find((c) => c.id === unionLinkChannelId)?.name ?? "専用チャンネル")
+                        ? (unionDirectory.channels.find((c) => c.id === unionLinkChannelId)?.name ??
+                          "専用チャンネル")
                         : "連携なし"}
                   </span>
                   {(unionRole === "king" || unionRole === "minister") && (
@@ -662,7 +800,9 @@ export default function WorldBoxGuildBoardPanel({
                         style={{ ...tabBtn, ...(unionMode === "global" ? tabOn : {}) }}
                         disabled={busy || !unionDirectory.globalChatChannelId}
                         aria-pressed={unionMode === "global"}
-                        onClick={() => { void saveUnionLink("global", null); }}
+                        onClick={() => {
+                          void saveUnionLink("global", null);
+                        }}
                       >
                         グローバルチャット
                       </button>
@@ -680,7 +820,9 @@ export default function WorldBoxGuildBoardPanel({
                         style={{ ...tabBtn, ...(unionMode === "none" ? tabOn : {}) }}
                         disabled={busy}
                         aria-pressed={unionMode === "none"}
-                        onClick={() => { void saveUnionLink("none", null); }}
+                        onClick={() => {
+                          void saveUnionLink("none", null);
+                        }}
                       >
                         連携なし
                       </button>
@@ -689,21 +831,38 @@ export default function WorldBoxGuildBoardPanel({
                 </>
               )}
             </div>
-            {unionDirectory !== null && unionPicking && (unionRole === "king" || unionRole === "minister") && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 6, maxHeight: 160, overflowY: "auto" }}>
-                {unionDirectory.channels.map((c) => (
-                  <button
-                    key={c.id}
-                    type="button"
-                    style={{ ...btn, textAlign: "left", ...(unionLinkChannelId === c.id && unionMode === "channel" ? tabOn : {}) }}
-                    disabled={busy}
-                    onClick={() => { void saveUnionLink("channel", c.id); }}
-                  >
-                    #{c.name}
-                  </button>
-                ))}
-              </div>
-            )}
+            {unionDirectory !== null &&
+              unionPicking &&
+              (unionRole === "king" || unionRole === "minister") && (
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 4,
+                    marginTop: 6,
+                    maxHeight: 160,
+                    overflowY: "auto",
+                  }}
+                >
+                  {unionDirectory.channels.map((c) => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      style={{
+                        ...btn,
+                        textAlign: "left",
+                        ...(unionLinkChannelId === c.id && unionMode === "channel" ? tabOn : {}),
+                      }}
+                      disabled={busy}
+                      onClick={() => {
+                        void saveUnionLink("channel", c.id);
+                      }}
+                    >
+                      #{c.name}
+                    </button>
+                  ))}
+                </div>
+              )}
           </div>
           {msg && <div style={{ fontSize: 13, marginTop: 6 }}>{msg}</div>}
         </div>
@@ -726,7 +885,16 @@ export default function WorldBoxGuildBoardPanel({
                 {(() => {
                   const color = nations.nations.find((n) => n.id === nsData.guildId)?.color;
                   return color ? (
-                    <span aria-hidden style={{ width: 12, height: 12, borderRadius: 3, background: color, display: "inline-block" }} />
+                    <span
+                      aria-hidden
+                      style={{
+                        width: 12,
+                        height: 12,
+                        borderRadius: 3,
+                        background: color,
+                        display: "inline-block",
+                      }}
+                    />
                   ) : null;
                 })()}
                 <strong style={{ fontSize: 14 }}>{nsData.guildName}</strong>
@@ -740,7 +908,10 @@ export default function WorldBoxGuildBoardPanel({
                     <button
                       key={p}
                       type="button"
-                      style={{ ...tabBtn, ...(Math.round(nsData.taxRate * 100) === p ? tabOn : {}) }}
+                      style={{
+                        ...tabBtn,
+                        ...(Math.round(nsData.taxRate * 100) === p ? tabOn : {}),
+                      }}
                       aria-pressed={Math.round(nsData.taxRate * 100) === p}
                       disabled={busy}
                       onClick={() => void settingsAct({ action: "set_tax", taxRate: p / 100 })}
@@ -762,7 +933,9 @@ export default function WorldBoxGuildBoardPanel({
                       style={{ ...tabBtn, ...(nsData.visibility === "open" ? tabOn : {}) }}
                       aria-pressed={nsData.visibility === "open"}
                       disabled={busy}
-                      onClick={() => void settingsAct({ action: "set_visibility", visibility: "open" })}
+                      onClick={() =>
+                        void settingsAct({ action: "set_visibility", visibility: "open" })
+                      }
                     >
                       公開
                     </button>
@@ -771,13 +944,17 @@ export default function WorldBoxGuildBoardPanel({
                       style={{ ...tabBtn, ...(nsData.visibility === "private" ? tabOn : {}) }}
                       aria-pressed={nsData.visibility === "private"}
                       disabled={busy}
-                      onClick={() => void settingsAct({ action: "set_visibility", visibility: "private" })}
+                      onClick={() =>
+                        void settingsAct({ action: "set_visibility", visibility: "private" })
+                      }
                     >
                       非公開
                     </button>
                   </>
                 ) : (
-                  <span style={{ fontSize: 14 }}>{nsData.visibility === "private" ? "非公開" : "公開"}</span>
+                  <span style={{ fontSize: 14 }}>
+                    {nsData.visibility === "private" ? "非公開" : "公開"}
+                  </span>
                 )}
               </div>
               <div style={rowStyle}>
@@ -787,48 +964,81 @@ export default function WorldBoxGuildBoardPanel({
               </div>
               <p style={{ margin: "10px 0 6px", fontSize: 13 }}>大臣</p>
               <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
-                {nsData.members.filter((m) => m.role !== "king").map((m) => (
-                  <li key={m.key} style={rowStyle}>
-                    <span style={{ fontSize: 14 }}>{m.name}</span>
-                    {m.appointed && (
-                      <span style={{ fontSize: 11, padding: "1px 6px", borderRadius: 6, border: "1px solid rgba(255,210,62,0.7)", color: "#ffd23e" }}>
-                        任命
-                      </span>
-                    )}
-                    {m.discordMinister && (
-                      <span style={{ fontSize: 11, padding: "1px 6px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.35)", opacity: 0.85 }}>
-                        Discord
-                      </span>
-                    )}
-                    <span style={{ fontSize: 12, opacity: 0.75 }}>{ROLE_LABEL[m.role]}</span>
-                    <span style={{ flex: 1 }} />
-                    {nsData.role === "king" && (
-                      m.appointed ? (
-                        <button
-                          type="button"
-                          style={btn}
-                          disabled={busy}
-                          onClick={() => void settingsAct({ action: "set_minister", targetKey: m.key, minister: false })}
+                {nsData.members
+                  .filter((m) => m.role !== "king")
+                  .map((m) => (
+                    <li key={m.key} style={rowStyle}>
+                      <span style={{ fontSize: 14 }}>{m.name}</span>
+                      {m.appointed && (
+                        <span
+                          style={{
+                            fontSize: 11,
+                            padding: "1px 6px",
+                            borderRadius: 6,
+                            border: "1px solid rgba(255,210,62,0.7)",
+                            color: "#ffd23e",
+                          }}
                         >
-                          解除
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          style={btn}
-                          disabled={busy}
-                          onClick={() => void settingsAct({ action: "set_minister", targetKey: m.key, minister: true })}
+                          任命
+                        </span>
+                      )}
+                      {m.discordMinister && (
+                        <span
+                          style={{
+                            fontSize: 11,
+                            padding: "1px 6px",
+                            borderRadius: 6,
+                            border: "1px solid rgba(255,255,255,0.35)",
+                            opacity: 0.85,
+                          }}
                         >
-                          大臣にする
-                        </button>
-                      )
-                    )}
-                  </li>
-                ))}
+                          Discord
+                        </span>
+                      )}
+                      <span style={{ fontSize: 12, opacity: 0.75 }}>{ROLE_LABEL[m.role]}</span>
+                      <span style={{ flex: 1 }} />
+                      {nsData.role === "king" &&
+                        (m.appointed ? (
+                          <button
+                            type="button"
+                            style={btn}
+                            disabled={busy}
+                            onClick={() =>
+                              void settingsAct({
+                                action: "set_minister",
+                                targetKey: m.key,
+                                minister: false,
+                              })
+                            }
+                          >
+                            解除
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            style={btn}
+                            disabled={busy}
+                            onClick={() =>
+                              void settingsAct({
+                                action: "set_minister",
+                                targetKey: m.key,
+                                minister: true,
+                              })
+                            }
+                          >
+                            大臣にする
+                          </button>
+                        ))}
+                    </li>
+                  ))}
               </ul>
             </div>
           )}
-          {msg && <p role="status" style={{ margin: "10px 0 0", fontSize: 13 }}>{msg}</p>}
+          {msg && (
+            <p role="status" style={{ margin: "10px 0 0", fontSize: 13 }}>
+              {msg}
+            </p>
+          )}
         </div>
       )}
 
@@ -836,7 +1046,16 @@ export default function WorldBoxGuildBoardPanel({
         <div style={{ marginTop: 10 }}>
           {me && myNation ? (
             <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-              <span aria-hidden style={{ width: 12, height: 12, borderRadius: 3, background: myNation.color, display: "inline-block" }} />
+              <span
+                aria-hidden
+                style={{
+                  width: 12,
+                  height: 12,
+                  borderRadius: 3,
+                  background: myNation.color,
+                  display: "inline-block",
+                }}
+              />
               <strong>{myNation.name}</strong>
               <span>{ROLE_LABEL[me.role]}</span>
               <span style={{ opacity: 0.75, fontSize: 13 }}>国民 {myNation.members}人</span>
@@ -859,22 +1078,33 @@ export default function WorldBoxGuildBoardPanel({
               >
                 招待リンク
               </button>
-              <button
-                type="button"
-                style={btn}
-                onClick={() => onNationAction({ action: "leave" })}
-              >
+              <button type="button" style={btn} onClick={() => onNationAction({ action: "leave" })}>
                 {me.role === "king" && myNation.members <= 1 ? "解散" : "離脱"}
               </button>
             </div>
           ) : (
             <div>
               {nations.loggedIn && nations.guildsScopeRequired && (
-                <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 12 }}>
-                  <span style={{ fontSize: 13, opacity: 0.75 }}>サーバー一覧の取得に再ログインが必要</span>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    flexWrap: "wrap",
+                    marginBottom: 12,
+                  }}
+                >
+                  <span style={{ fontSize: 13, opacity: 0.75 }}>
+                    サーバー一覧の取得に再ログインが必要
+                  </span>
                   <a
                     href="/api/auth/discord/authorize?next=/games/worldbox"
-                    style={{ ...btn, textDecoration: "none", display: "inline-flex", alignItems: "center" }}
+                    style={{
+                      ...btn,
+                      textDecoration: "none",
+                      display: "inline-flex",
+                      alignItems: "center",
+                    }}
                   >
                     Discordで再ログイン
                   </a>
@@ -885,10 +1115,17 @@ export default function WorldBoxGuildBoardPanel({
                   <p style={{ margin: "0 0 6px", fontSize: 13 }}>建国できるサーバー</p>
                   <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 8 }}>
                     {foundable.map((g) => (
-                      <li key={g.guildId} style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                      <li
+                        key={g.guildId}
+                        style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}
+                      >
                         <strong>{g.name}</strong>
                         <span style={{ flex: 1 }} />
-                        <button type="button" style={btn} onClick={() => onNationAction({ action: "found", guildId: g.guildId })}>
+                        <button
+                          type="button"
+                          style={btn}
+                          onClick={() => onNationAction({ action: "found", guildId: g.guildId })}
+                        >
                           建国
                         </button>
                       </li>
@@ -901,28 +1138,58 @@ export default function WorldBoxGuildBoardPanel({
                   <p style={{ margin: "0 0 6px", fontSize: 13 }}>国があるサーバー</p>
                   <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 8 }}>
                     {[...joinable]
-                      .sort((a, b) => (a.guildId === inviteGuildId ? -1 : 0) - (b.guildId === inviteGuildId ? -1 : 0))
+                      .sort(
+                        (a, b) =>
+                          (a.guildId === inviteGuildId ? -1 : 0) -
+                          (b.guildId === inviteGuildId ? -1 : 0),
+                      )
                       .map((g) => {
-                      const n = nations.nations.find((x) => x.guildId === g.guildId);
-                      return (
-                        <li key={g.guildId} style={{
-                          display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap",
-                          ...(g.guildId === inviteGuildId
-                            ? { border: "1px solid #e8c85a", borderRadius: 8, padding: "4px 6px" }
-                            : {}),
-                        }}>
-                          {n && (
-                            <span aria-hidden style={{ width: 12, height: 12, borderRadius: 3, background: n.color, display: "inline-block" }} />
-                          )}
-                          <strong>{g.name}</strong>
-                          <span style={{ opacity: 0.75, fontSize: 13 }}>{ROLE_LABEL[g.myRole]}{n ? ` ・ ${n.members}人` : ""}</span>
-                          <span style={{ flex: 1 }} />
-                          <button type="button" style={btn} onClick={() => onNationAction({ action: "join", guildId: g.guildId })}>
-                            参加
-                          </button>
-                        </li>
-                      );
-                    })}
+                        const n = nations.nations.find((x) => x.guildId === g.guildId);
+                        return (
+                          <li
+                            key={g.guildId}
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 10,
+                              flexWrap: "wrap",
+                              ...(g.guildId === inviteGuildId
+                                ? {
+                                    border: "1px solid #e8c85a",
+                                    borderRadius: 8,
+                                    padding: "4px 6px",
+                                  }
+                                : {}),
+                            }}
+                          >
+                            {n && (
+                              <span
+                                aria-hidden
+                                style={{
+                                  width: 12,
+                                  height: 12,
+                                  borderRadius: 3,
+                                  background: n.color,
+                                  display: "inline-block",
+                                }}
+                              />
+                            )}
+                            <strong>{g.name}</strong>
+                            <span style={{ opacity: 0.75, fontSize: 13 }}>
+                              {ROLE_LABEL[g.myRole]}
+                              {n ? ` ・ ${n.members}人` : ""}
+                            </span>
+                            <span style={{ flex: 1 }} />
+                            <button
+                              type="button"
+                              style={btn}
+                              onClick={() => onNationAction({ action: "join", guildId: g.guildId })}
+                            >
+                              参加
+                            </button>
+                          </li>
+                        );
+                      })}
                   </ul>
                 </div>
               )}
@@ -931,12 +1198,34 @@ export default function WorldBoxGuildBoardPanel({
               ) : others.length > 0 ? (
                 <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 8 }}>
                   {others.map((n) => {
-                    const dist = Math.round(Math.hypot(n.capital.x + 0.5 - pos.x, n.capital.y + 0.5 - pos.y));
+                    const dist = Math.round(
+                      Math.hypot(n.capital.x + 0.5 - pos.x, n.capital.y + 0.5 - pos.y),
+                    );
                     return (
-                      <li key={n.id} style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", opacity: 0.55 }}>
-                        <span aria-hidden style={{ width: 12, height: 12, borderRadius: 3, background: n.color, display: "inline-block" }} />
+                      <li
+                        key={n.id}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 10,
+                          flexWrap: "wrap",
+                          opacity: 0.55,
+                        }}
+                      >
+                        <span
+                          aria-hidden
+                          style={{
+                            width: 12,
+                            height: 12,
+                            borderRadius: 3,
+                            background: n.color,
+                            display: "inline-block",
+                          }}
+                        />
                         <strong>{n.name}</strong>
-                        <span style={{ fontSize: 13 }}>{n.members}人 ・ 繁栄度 {n.prosperity} ・ {dist}タイル</span>
+                        <span style={{ fontSize: 13 }}>
+                          {n.members}人 ・ 繁栄度 {n.prosperity} ・ {dist}タイル
+                        </span>
                         <span style={{ flex: 1 }} />
                         {nations.loggedIn && (
                           <button type="button" style={btn} disabled>
@@ -949,12 +1238,16 @@ export default function WorldBoxGuildBoardPanel({
                 </ul>
               ) : null}
               {!nations.loggedIn && (
-                <p style={{ margin: "10px 0 0", fontSize: 13, opacity: 0.75 }}>建国・参加はログイン後</p>
+                <p style={{ margin: "10px 0 0", fontSize: 13, opacity: 0.75 }}>
+                  建国・参加はログイン後
+                </p>
               )}
             </div>
           )}
           {nationMsg && (
-            <p role="status" style={{ margin: "10px 0 0", fontSize: 13 }}>{nationMsg}</p>
+            <p role="status" style={{ margin: "10px 0 0", fontSize: 13 }}>
+              {nationMsg}
+            </p>
           )}
         </div>
       )}

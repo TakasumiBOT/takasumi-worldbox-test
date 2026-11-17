@@ -60,23 +60,67 @@ export function genreOfItem(itemId: unknown): ShopGenreId | null {
  */
 const SHOP_STOCK_IDS: ReadonlySet<string> = new Set([
   // 道具屋: 木/石/鉄の道具（ミスリルは合成のみ）と開拓のコンパス
-  "wooden_axe", "wooden_pickaxe", "wooden_hoe",
-  "stone_axe", "stone_pickaxe", "stone_hoe",
-  "iron_axe", "iron_pickaxe", "iron_hoe",
+  "wooden_axe",
+  "wooden_pickaxe",
+  "wooden_hoe",
+  "stone_axe",
+  "stone_pickaxe",
+  "stone_hoe",
+  "iron_axe",
+  "iron_pickaxe",
+  "iron_hoe",
   "explorer_compass",
   // 建築屋: 基本の地形ブロックと原木だけ（鉱石/金属/加工ブロックは売らない）
-  "dirt_block", "sand_block", "snow_block", "mud_block", "grass_block",
-  "gravel_block", "moss_block", "clay_block", "packed_snow_block", "ice_block",
-  "leaves_block", "path_block", "forest_floor_block", "cactus_block", "flower_block",
-  "oak_log", "pine_log", "birch_log", "sakura_log", "dark_log",
-  "autumn_log", "dead_log", "log_block",
+  "dirt_block",
+  "sand_block",
+  "snow_block",
+  "mud_block",
+  "grass_block",
+  "gravel_block",
+  "moss_block",
+  "clay_block",
+  "packed_snow_block",
+  "ice_block",
+  "leaves_block",
+  "path_block",
+  "forest_floor_block",
+  "cactus_block",
+  "flower_block",
+  "oak_log",
+  "pine_log",
+  "birch_log",
+  "sakura_log",
+  "dark_log",
+  "autumn_log",
+  "dead_log",
+  "log_block",
   // 家具屋: 施設と最低限の家具だけ（他は合成で作る）
-  "torch", "workbench", "furnace", "storage_chest", "chest_box", "bed",
+  "torch",
+  "workbench",
+  "furnace",
+  "storage_chest",
+  "chest_box",
+  "bed",
   // 食料屋: 基本食だけ（調理済み料理と作物そのものは売らない）
-  "onigiri", "energy_drink", "meal", "cake", "bento", "feast",
+  "onigiri",
+  "energy_drink",
+  "meal",
+  "cake",
+  "bento",
+  "feast",
   // 種・素材屋: 基礎素材だけ（種はカテゴリで許可。採取素材は売らない）
-  "wood", "stone", "stick", "clay", "glass", "paper", "bamboo", "charcoal",
-  "sugar", "iron_ingot", "copper_ingot", "salt",
+  "wood",
+  "stone",
+  "stick",
+  "clay",
+  "glass",
+  "paper",
+  "bamboo",
+  "charcoal",
+  "sugar",
+  "iron_ingot",
+  "copper_ingot",
+  "salt",
 ]);
 
 export function isShopExcluded(item: ItemDef): boolean {
@@ -151,7 +195,11 @@ export function dailyStockForGenre(genreId: ShopGenreId, dayKey: string): ItemDe
 }
 
 /** その日その店で買えるか（ジャンル店での日次品目チェック）。 */
-export function checkDailyStock(genreId: ShopGenreId | null, itemId: unknown, dayKey: string): "not_sold" | null {
+export function checkDailyStock(
+  genreId: ShopGenreId | null,
+  itemId: unknown,
+  dayKey: string,
+): "not_sold" | null {
   if (genreId === null) return null;
   if (typeof itemId !== "string") return null;
   return dailyStockForGenre(genreId, dayKey).some((i) => i.id === itemId) ? null : "not_sold";

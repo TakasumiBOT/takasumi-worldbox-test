@@ -76,27 +76,42 @@ export async function rpc(name, params) {
 }
 `);
 const subdomainUrl = dataUrl(transpile("subdomain.ts"));
-const headersStubUrl = dataUrl("export async function cookies() { throw new Error('tests do not use cookies()'); }");
+const headersStubUrl = dataUrl(
+  "export async function cookies() { throw new Error('tests do not use cookies()'); }",
+);
 const authUrl = dataUrl(
-  transpile("auth.ts").replaceAll('"./subdomain"', JSON.stringify(subdomainUrl)).replaceAll('"next/headers"', JSON.stringify(headersStubUrl)),
+  transpile("auth.ts")
+    .replaceAll('"./subdomain"', JSON.stringify(subdomainUrl))
+    .replaceAll('"next/headers"', JSON.stringify(headersStubUrl)),
 );
 const auth = await import(authUrl);
 const rngUrl = dataUrl(transpile("worldbox/core/rng.ts"));
-const mapgenUrl = dataUrl(transpile("worldbox/world/mapgen.ts").replaceAll('"../core/rng"', JSON.stringify(rngUrl)));
+const mapgenUrl = dataUrl(
+  transpile("worldbox/world/mapgen.ts").replaceAll('"../core/rng"', JSON.stringify(rngUrl)),
+);
 const maplogicUrl = dataUrl(
   transpile("worldbox/world/maplogic.ts")
     .replaceAll('"./mapgen"', JSON.stringify(mapgenUrl))
     .replaceAll('"../core/rng"', JSON.stringify(rngUrl)),
 );
-const moveUrl = dataUrl(transpile("worldbox/player/move.ts").replaceAll('"../world/mapgen"', JSON.stringify(mapgenUrl)));
-const lobbyUrl = dataUrl(transpile("worldbox/world/lobby.ts").replaceAll('"./mapgen"', JSON.stringify(mapgenUrl)));
+const moveUrl = dataUrl(
+  transpile("worldbox/player/move.ts").replaceAll('"../world/mapgen"', JSON.stringify(mapgenUrl)),
+);
+const lobbyUrl = dataUrl(
+  transpile("worldbox/world/lobby.ts").replaceAll('"./mapgen"', JSON.stringify(mapgenUrl)),
+);
 const lobbyFloorsUrl = dataUrl(
   transpile("worldbox/world/lobby-floors.ts")
     .replaceAll('"./mapgen"', JSON.stringify(mapgenUrl))
     .replaceAll('"./lobby"', JSON.stringify(lobbyUrl)),
 );
 const itemsUrl = dataUrl(transpile("worldbox/economy/items.ts"));
-const profileUrl = dataUrl(transpile("worldbox/player/profile.ts").replaceAll('"../economy/items"', JSON.stringify(itemsUrl)));
+const profileUrl = dataUrl(
+  transpile("worldbox/player/profile.ts").replaceAll(
+    '"../economy/items"',
+    JSON.stringify(itemsUrl),
+  ),
+);
 const vitalsUrl = dataUrl(
   transpile("worldbox/player/vitals.ts")
     .replaceAll('"../economy/items"', JSON.stringify(itemsUrl))
@@ -126,7 +141,10 @@ const saveUrl = dataUrl(
     .replaceAll('"../world/mapgen"', JSON.stringify(mapgenUrl)),
 );
 const saveOnlineUrl = dataUrl(
-  transpile("worldbox/core/save-online.ts").replaceAll('"../../bot-api"', JSON.stringify(botStubUrl)),
+  transpile("worldbox/core/save-online.ts").replaceAll(
+    '"../../bot-api"',
+    JSON.stringify(botStubUrl),
+  ),
 );
 const presenceUrl = dataUrl(transpile("worldbox/player/presence.ts"));
 const presenceOnlineUrl = dataUrl(
@@ -139,8 +157,12 @@ const profileOnlineUrl = dataUrl(
     .replaceAll('"../../bot-api"', JSON.stringify(botStubUrl))
     .replaceAll('"./profile"', JSON.stringify(profileUrl)),
 );
-const shopsUrl = dataUrl(transpile("worldbox/economy/shops.ts").replaceAll('"./items"', JSON.stringify(itemsUrl)));
-const rolesUrl = dataUrl(transpile("worldbox/player/roles.ts").replaceAll('"./profile"', JSON.stringify(profileUrl)));
+const shopsUrl = dataUrl(
+  transpile("worldbox/economy/shops.ts").replaceAll('"./items"', JSON.stringify(itemsUrl)),
+);
+const rolesUrl = dataUrl(
+  transpile("worldbox/player/roles.ts").replaceAll('"./profile"', JSON.stringify(profileUrl)),
+);
 const userLockUrl = dataUrl(transpile("worldbox/core/user-lock.ts"));
 const nationsUrl = dataUrl(
   transpile("worldbox/social/nations.ts")
@@ -201,7 +223,7 @@ const instancesUrl = dataUrl(
     .replaceAll('"./lobby"', JSON.stringify(lobbyUrl))
     .replaceAll('"./mapgen"', JSON.stringify(mapgenUrl))
     .replaceAll('"../core/rng"', JSON.stringify(rngUrl))
-    .replaceAll('"./objects"', JSON.stringify(objectsUrl))
+    .replaceAll('"./objects"', JSON.stringify(objectsUrl)),
 );
 const instancesOnlineUrl = dataUrl(
   transpile("worldbox/world/instances-online.ts")
@@ -242,7 +264,7 @@ const profileRoute = await import(
       .replaceAll('"@/lib/worldbox/world/station-online"', JSON.stringify(stationOnlineUrl))
       .replaceAll('"@/lib/worldbox/player/profile-online"', JSON.stringify(profileOnlineUrl))
       .replaceAll('"@/lib/worldbox/core/user-lock"', JSON.stringify(userLockUrl)),
-  ),
+  )
 );
 const rolesRoute = await import(
   dataUrl(
@@ -269,8 +291,8 @@ const rolesRoute = await import(
       .replaceAll('"@/lib/worldbox/player/roles"', JSON.stringify(rolesUrl))
       .replaceAll('"@/lib/worldbox/economy/economy-bridge"', JSON.stringify(bridgeUrl))
       .replaceAll('"@/lib/worldbox/economy/economy-bridge-online"', JSON.stringify(bridgeOnlineUrl))
-      .replaceAll('"@/lib/worldbox/core/user-lock"', JSON.stringify(userLockUrl))
-  ),
+      .replaceAll('"@/lib/worldbox/core/user-lock"', JSON.stringify(userLockUrl)),
+  )
 );
 
 const shops = await import(shopsUrl);
@@ -292,7 +314,14 @@ function apiReq(url, ck, body) {
 function seedProfile(id, patch = {}) {
   globalThis.__wbDgStore.set(
     `worldbox_profiles discord:${id}`,
-    JSON.stringify({ coins: 0, hunger: 100, items: {}, stealActorAt: 0, stealTargetAt: 0, ...patch }),
+    JSON.stringify({
+      coins: 0,
+      hunger: 100,
+      items: {},
+      stealActorAt: 0,
+      stealTargetAt: 0,
+      ...patch,
+    }),
   );
 }
 function readProfile(id) {
@@ -301,7 +330,16 @@ function readProfile(id) {
 function seedPresence(id, x, y) {
   globalThis.__wbDgStore.set(
     `worldbox_presence discord:${id}`,
-    JSON.stringify({ name: "dg-user", x, y, vx: 0, vy: 0, face: 1, space: "lobby", ts: Date.now() }),
+    JSON.stringify({
+      name: "dg-user",
+      x,
+      y,
+      vx: 0,
+      vy: 0,
+      face: 1,
+      space: "lobby",
+      ts: Date.now(),
+    }),
   );
 }
 function findOps(pred) {
@@ -316,10 +354,19 @@ function findOps(pred) {
 function armFlip(pred, status, error = "insufficient_funds") {
   return new Promise((resolve) => {
     let timer;
-    const timeout = setTimeout(() => { clearInterval(timer); resolve(false); }, 5000);
+    const timeout = setTimeout(() => {
+      clearInterval(timer);
+      resolve(false);
+    }, 5000);
     timer = setInterval(() => {
       for (const [k, v] of globalThis.__wbDgStore) {
-        if (k.startsWith("worldbox_economy ") && v && typeof v === "object" && v.status === "pending" && pred(v)) {
+        if (
+          k.startsWith("worldbox_economy ") &&
+          v &&
+          typeof v === "object" &&
+          v.status === "pending" &&
+          pred(v)
+        ) {
           globalThis.__wbDgStore.set(k, { ...v, status, error });
           clearInterval(timer);
           clearTimeout(timeout);
@@ -339,7 +386,8 @@ function reset() {
 }
 
 // 本日の tools 棚で買える品目（日次ローテーション＋販売ホワイトリストの両方を満たすもの）。
-const BUY_ITEM = shops.dailyStockForGenre("tools", shops.shopDayKeyOf(Date.now()))
+const BUY_ITEM = shops
+  .dailyStockForGenre("tools", shops.shopDayKeyOf(Date.now()))
   .find((i) => shops.checkBuySold(i.id) === null);
 assert.ok(BUY_ITEM, "本日の tools 棚に買える品目がある");
 
@@ -347,7 +395,9 @@ test("API(profile): 購入の決済が failed ならアイテムは付かない�
   reset();
   seedPresence(ME, 5.5, 19.5);
   globalThis.__wbDgFailUpdate = true; // CAS が最後まで成立しない = 直接適用が確定失敗する
-  const res = await profileRoute.POST(apiReq(PROFILE_URL, cookie(ME), { action: "buy", itemId: BUY_ITEM.id, count: 1 }));
+  const res = await profileRoute.POST(
+    apiReq(PROFILE_URL, cookie(ME), { action: "buy", itemId: BUY_ITEM.id, count: 1 }),
+  );
   assert.equal(res.status, 409);
   const data = await res.json();
   assert.equal(data.error, "economy_failed");
@@ -362,7 +412,9 @@ test("API(profile): 購入の決済が failed ならアイテムは付かない�
 test("API(profile): 購入の決済が done ならアイテムが付いて opStatus が返る", async () => {
   reset();
   seedPresence(ME, 5.5, 19.5);
-  const res = await profileRoute.POST(apiReq(PROFILE_URL, cookie(ME), { action: "buy", itemId: BUY_ITEM.id, count: 1 }));
+  const res = await profileRoute.POST(
+    apiReq(PROFILE_URL, cookie(ME), { action: "buy", itemId: BUY_ITEM.id, count: 1 }),
+  );
   assert.equal(res.status, 200);
   const data = await res.json();
   assert.equal(data.opStatus, "done");
@@ -379,7 +431,9 @@ test("API(profile): 売却の決済が pending のままなら従来どおり交
   seedProfile(ME, { items: { wood: 3 } });
   seedPresence(ME, 5.5, 19.5);
   // earn は PR1 ではキュー経路: ワーカーが拾わない限り pending のまま。
-  const res = await profileRoute.POST(apiReq(PROFILE_URL, cookie(ME), { action: "sell", itemId: "wood", count: 1 }));
+  const res = await profileRoute.POST(
+    apiReq(PROFILE_URL, cookie(ME), { action: "sell", itemId: "wood", count: 1 }),
+  );
   assert.equal(res.status, 200);
   const data = await res.json();
   assert.equal(data.opStatus, undefined, "pending のままなら opStatus は付かない");
@@ -393,8 +447,14 @@ test("API(profile): 売却の決済が failed ならアイテムは戻る（巻�
   reset();
   seedProfile(ME, { items: { wood: 3 } });
   seedPresence(ME, 5.5, 19.5);
-  const flipped = armFlip((o) => o.kind === "earn" && o.reason === "shop_sale", "failed", "credit_failed");
-  const res = await profileRoute.POST(apiReq(PROFILE_URL, cookie(ME), { action: "sell", itemId: "wood", count: 1 }));
+  const flipped = armFlip(
+    (o) => o.kind === "earn" && o.reason === "shop_sale",
+    "failed",
+    "credit_failed",
+  );
+  const res = await profileRoute.POST(
+    apiReq(PROFILE_URL, cookie(ME), { action: "sell", itemId: "wood", count: 1 }),
+  );
   assert.equal(await flipped, true, "ワーカーがオプを failed にした");
   assert.equal(res.status, 409);
   assert.equal((await res.json()).error, "economy_failed");
@@ -406,7 +466,9 @@ test("API(profile): 強化の決済が failed ならレベルも素材も戻る�
   seedProfile(ME, { items: { wooden_pickaxe: 1, wood: 5 } });
   seedPresence(ME, 25.5, 35.5);
   globalThis.__wbDgFailUpdate = true;
-  const res = await profileRoute.POST(apiReq(PROFILE_URL, cookie(ME), { action: "enhance", itemId: "wooden_pickaxe" }));
+  const res = await profileRoute.POST(
+    apiReq(PROFILE_URL, cookie(ME), { action: "enhance", itemId: "wooden_pickaxe" }),
+  );
   assert.equal(res.status, 409);
   assert.equal((await res.json()).error, "economy_failed");
   const after = readProfile(ME);
@@ -419,7 +481,9 @@ test("API(profile): 強化の決済が done ならレベルが上がって素材
   reset();
   seedProfile(ME, { items: { wooden_pickaxe: 1, wood: 5 } });
   seedPresence(ME, 25.5, 35.5);
-  const res = await profileRoute.POST(apiReq(PROFILE_URL, cookie(ME), { action: "enhance", itemId: "wooden_pickaxe" }));
+  const res = await profileRoute.POST(
+    apiReq(PROFILE_URL, cookie(ME), { action: "enhance", itemId: "wooden_pickaxe" }),
+  );
   assert.equal(res.status, 200);
   const after = readProfile(ME);
   assert.equal(after.enhance?.wooden_pickaxe, 1, "強化レベルが上がっている");
@@ -452,7 +516,9 @@ test("API(roles): 転職の決済が failed なら役職は変わらない（巻
   seedProfile(ME, { role: "blade", rolePicked: true });
   seedPresence(ME, 24.5, 16.5);
   globalThis.__wbDgFailUpdate = true;
-  const res = await rolesRoute.POST(apiReq(ROLES_URL, cookie(ME), { action: "set_role", role: "guard" }));
+  const res = await rolesRoute.POST(
+    apiReq(ROLES_URL, cookie(ME), { action: "set_role", role: "guard" }),
+  );
   assert.equal(res.status, 409);
   assert.equal((await res.json()).error, "economy_failed");
   assert.equal(readProfile(ME).role, "blade", "役職は変わっていない");
@@ -463,7 +529,9 @@ test("API(roles): 転職の決済が done なら役職が変わる", async () =>
   reset();
   seedProfile(ME, { role: "blade", rolePicked: true });
   seedPresence(ME, 24.5, 16.5);
-  const res = await rolesRoute.POST(apiReq(ROLES_URL, cookie(ME), { action: "set_role", role: "guard" }));
+  const res = await rolesRoute.POST(
+    apiReq(ROLES_URL, cookie(ME), { action: "set_role", role: "guard" }),
+  );
   assert.equal(res.status, 200);
   const data = await res.json();
   assert.equal(data.cost, 100000);

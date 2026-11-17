@@ -15,9 +15,22 @@ import type { EconomyOp } from "@/lib/worldbox/economy/economy-bridge";
 import { onEconomyApplied } from "@/lib/worldbox/economy/economy-push";
 import { ITEMS, itemById, recipeById, sellPrice } from "@/lib/worldbox/economy/items";
 import type { StationKind } from "@/lib/worldbox/world/tiles";
-import { dailyPriceFor, dailyStockForGenre, genreById, isShopExcluded, itemsForGenre, shopDayKeyOf, type ShopGenreId } from "@/lib/worldbox/economy/shops";
+import {
+  dailyPriceFor,
+  dailyStockForGenre,
+  genreById,
+  isShopExcluded,
+  itemsForGenre,
+  shopDayKeyOf,
+  type ShopGenreId,
+} from "@/lib/worldbox/economy/shops";
 import type { LobbyStation } from "@/lib/worldbox/world/lobby";
-import { ENHANCE_BASE_COST, ENHANCE_MATERIALS, ENHANCE_MAX_LEVEL, type PlayerProfile } from "@/lib/worldbox/player/profile";
+import {
+  ENHANCE_BASE_COST,
+  ENHANCE_MATERIALS,
+  ENHANCE_MAX_LEVEL,
+  type PlayerProfile,
+} from "@/lib/worldbox/player/profile";
 import type { SaveSpace } from "@/lib/worldbox/core/save";
 import { playWbSe, type WbSeName } from "@/lib/worldbox/media/sound";
 import { ItemAnnotation, ItemIcon, ItemSlot, ItemSlotGrid } from "./ItemSlotGrid";
@@ -70,21 +83,44 @@ const OP_STATUS_LABEL: Record<EconomyOp["status"], string> = {
 
 /** 経済パネルもゲームステージ内のオーバーレイ（クライアント側 panelOverlay と同値）。 */
 const panel: React.CSSProperties = {
-  position: "absolute", left: "50%", top: "50%", transform: "translate(-50%, -50%)",
-  width: "min(600px, calc(100% - 20px))", maxHeight: "calc(100% - 20px)", overflowY: "auto",
-  overscrollBehavior: "contain", touchAction: "pan-y",
-  padding: 12, borderRadius: 12, zIndex: 6, textAlign: "left",
-  border: "1px solid rgba(255,255,255,0.22)", background: "rgba(10,12,18,0.93)", color: "#f2f2f2",
+  position: "absolute",
+  left: "50%",
+  top: "50%",
+  transform: "translate(-50%, -50%)",
+  width: "min(600px, calc(100% - 20px))",
+  maxHeight: "calc(100% - 20px)",
+  overflowY: "auto",
+  overscrollBehavior: "contain",
+  touchAction: "pan-y",
+  padding: 12,
+  borderRadius: 12,
+  zIndex: 6,
+  textAlign: "left",
+  border: "1px solid rgba(255,255,255,0.22)",
+  background: "rgba(10,12,18,0.93)",
+  color: "#f2f2f2",
   boxShadow: "0 12px 36px rgba(0,0,0,0.5)",
 };
 const btn: React.CSSProperties = {
-  minHeight: 36, padding: "4px 12px", borderRadius: 10, cursor: "pointer",
-  border: "1px solid rgba(255,255,255,0.25)", background: "rgba(255,255,255,0.06)", color: "inherit",
-  touchAction: "manipulation", userSelect: "none", WebkitUserSelect: "none", WebkitTouchCallout: "none",
+  minHeight: 36,
+  padding: "4px 12px",
+  borderRadius: 10,
+  cursor: "pointer",
+  border: "1px solid rgba(255,255,255,0.25)",
+  background: "rgba(255,255,255,0.06)",
+  color: "inherit",
+  touchAction: "manipulation",
+  userSelect: "none",
+  WebkitUserSelect: "none",
+  WebkitTouchCallout: "none",
 };
 const row: React.CSSProperties = {
-  display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap",
-  padding: "7px 0", borderBottom: "1px solid rgba(255,255,255,0.08)",
+  display: "flex",
+  alignItems: "center",
+  gap: 8,
+  flexWrap: "wrap",
+  padding: "7px 0",
+  borderBottom: "1px solid rgba(255,255,255,0.08)",
 };
 
 /** 素材 id から決定的に色相を出す（同じ素材は常に同じ色。ランダムは使わない）。 */
@@ -114,7 +150,19 @@ function mixColorFor(set: Record<string, number>): { liquid: string; smoke: stri
   };
 }
 
-export default function WorldBoxEconomyPanel({ space, station, genre, worldStationKinds, onClose }: { space: SaveSpace; station: LobbyStation | null; genre: ShopGenreId | null; worldStationKinds?: string; onClose: () => void }) {
+export default function WorldBoxEconomyPanel({
+  space,
+  station,
+  genre,
+  worldStationKinds,
+  onClose,
+}: {
+  space: SaveSpace;
+  station: LobbyStation | null;
+  genre: ShopGenreId | null;
+  worldStationKinds?: string;
+  onClose: () => void;
+}) {
   // 行動の場所制約: 売買はショップの前、合成は作業台（鍛冶屋）の前、
   // 送金は銀行の前でのみ。いる場所に対応するタブだけを出す（サーバー側
   // でもプレゼンスで検証されるため、ここは表示の一致が役割）。
@@ -175,7 +223,9 @@ export default function WorldBoxEconomyPanel({ space, station, genre, worldStati
         setBalance(data.balance);
         setOps(Array.isArray(data.ops) ? data.ops : []);
       }
-    } catch { /* ブリッジが読めなくても他の機能は使える */ }
+    } catch {
+      /* ブリッジが読めなくても他の機能は使える */
+    }
   }, []);
 
   const refreshProfile = useCallback(async () => {
@@ -204,7 +254,10 @@ export default function WorldBoxEconomyPanel({ space, station, genre, worldStati
     void refreshProfile();
     void refreshBridge();
     // 経済オプ確定の push で残高・履歴を即時更新する
-    const off = onEconomyApplied(() => { void refreshProfile(); void refreshBridge(); });
+    const off = onEconomyApplied(() => {
+      void refreshProfile();
+      void refreshBridge();
+    });
     return () => {
       aliveRef.current = false;
       off();
@@ -215,7 +268,10 @@ export default function WorldBoxEconomyPanel({ space, station, genre, worldStati
     };
   }, [refreshProfile, refreshBridge]);
 
-  const act = async (payload: Record<string, unknown>, describe: (data: Record<string, unknown>) => string) => {
+  const act = async (
+    payload: Record<string, unknown>,
+    describe: (data: Record<string, unknown>) => string,
+  ) => {
     setBusy(true);
     setMsg("");
     try {
@@ -225,7 +281,8 @@ export default function WorldBoxEconomyPanel({ space, station, genre, worldStati
         body: JSON.stringify(payload),
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown> & {
-        profile?: PlayerProfile; error?: string;
+        profile?: PlayerProfile;
+        error?: string;
       };
       if (!res.ok || !data.profile) {
         setMsg(ERROR_LABEL[data.error ?? ""] ?? "できませんでした");
@@ -254,8 +311,12 @@ export default function WorldBoxEconomyPanel({ space, station, genre, worldStati
     setEnhanceFlashId(itemId);
     setEnhanceFlashOn(true);
     enhanceFlashTimersRef.current.push(
-      window.setTimeout(() => { if (aliveRef.current) setEnhanceFlashOn(false); }, 30),
-      window.setTimeout(() => { if (aliveRef.current) setEnhanceFlashId(null); }, 700),
+      window.setTimeout(() => {
+        if (aliveRef.current) setEnhanceFlashOn(false);
+      }, 30),
+      window.setTimeout(() => {
+        if (aliveRef.current) setEnhanceFlashId(null);
+      }, 700),
     );
   };
 
@@ -266,7 +327,11 @@ export default function WorldBoxEconomyPanel({ space, station, genre, worldStati
       const res = await fetch("/api/worldbox/economy", {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({ action: "transfer", toDiscordId: transferTo.trim(), amount: Number(transferAmount) }),
+        body: JSON.stringify({
+          action: "transfer",
+          toDiscordId: transferTo.trim(),
+          amount: Number(transferAmount),
+        }),
       });
       const data = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) {
@@ -311,7 +376,11 @@ export default function WorldBoxEconomyPanel({ space, station, genre, worldStati
     });
   };
   /** 工程が終わった瞬間に初めて結果を反映し、成果物を台の上に出現させる。 */
-  const finishCraft = (pending: { profile: PlayerProfile; craftedId: string; rareId: string | null }) => {
+  const finishCraft = (pending: {
+    profile: PlayerProfile;
+    craftedId: string;
+    rareId: string | null;
+  }) => {
     setProfile(pending.profile);
     setCraftSet({});
     setCraftPhase(0);
@@ -346,7 +415,8 @@ export default function WorldBoxEconomyPanel({ space, station, genre, worldStati
         body: JSON.stringify({ action: "craft", inputs }),
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown> & {
-        profile?: PlayerProfile; error?: string;
+        profile?: PlayerProfile;
+        error?: string;
       };
       if (!res.ok || !data.profile) {
         setMsg(ERROR_LABEL[data.error ?? ""] ?? "できませんでした");
@@ -354,7 +424,9 @@ export default function WorldBoxEconomyPanel({ space, station, genre, worldStati
         setBusy(false);
         return;
       }
-      setCraftHint(data.hint === "exact" || data.hint === "near" || data.hint === "far" ? data.hint : null);
+      setCraftHint(
+        data.hint === "exact" || data.hint === "near" || data.hint === "far" ? data.hint : null,
+      );
       const pending = {
         profile: data.profile,
         craftedId: typeof data.craftedId === "string" ? data.craftedId : "mystery_lump",
@@ -403,7 +475,9 @@ export default function WorldBoxEconomyPanel({ space, station, genre, worldStati
   // この店で売られている品目（ジャンル選別。販売はホワイトリスト86品のみ）
   // 品目と価格は日次ローテーション（サーバー側の購入検証と同じ式）
   const shopDayKey = shopDayKeyOf(Date.now());
-  const shopItems = shopGenre ? dailyStockForGenre(shopGenre, shopDayKey) : ITEMS.filter((item) => !isShopExcluded(item));
+  const shopItems = shopGenre
+    ? dailyStockForGenre(shopGenre, shopDayKey)
+    : ITEMS.filter((item) => !isShopExcluded(item));
   const priceOf = (item: (typeof ITEMS)[number]): number =>
     shopGenre ? dailyPriceFor(item, shopDayKey) : item.price;
   // 選択中アイテム（所持/品目から消えていたら注釈を出さない）
@@ -421,12 +495,25 @@ export default function WorldBoxEconomyPanel({ space, station, genre, worldStati
   // 施設の前にいないタブを開いたままにしない（その施設へ行くと使える）
   // 販売品目の無い店（鍛冶屋は合成・強化専用）ではショップタブ自体を出さない
   const tabAllowed = (t: Tab): boolean =>
-    t === "shop" ? atShop && shopItems.length > 0 : t === "sell" ? atSellShop : t === "craft" ? atWorkbench : t === "bank" ? atBank : true;
+    t === "shop"
+      ? atShop && shopItems.length > 0
+      : t === "sell"
+        ? atSellShop
+        : t === "craft"
+          ? atWorkbench
+          : t === "bank"
+            ? atBank
+            : true;
   const activeTab: Tab = tabAllowed(tab) ? tab : "bag";
   const tabBtn = (t: Tab, label: string) => (
     <button
       type="button"
-      style={{ ...btn, ...(activeTab === t ? { background: "rgba(255,210,62,0.18)", borderColor: "rgba(255,210,62,0.55)" } : {}) }}
+      style={{
+        ...btn,
+        ...(activeTab === t
+          ? { background: "rgba(255,210,62,0.18)", borderColor: "rgba(255,210,62,0.55)" }
+          : {}),
+      }}
       onClick={() => setTab(t)}
       aria-pressed={activeTab === t}
     >
@@ -441,21 +528,28 @@ export default function WorldBoxEconomyPanel({ space, station, genre, worldStati
           （ショップ利用中に要らない表示としてユーザー指示で撤去）。 */}
       <div
         style={{
-          position: "sticky", top: -12, zIndex: 3,
-          margin: "-12px -12px 0", padding: "12px 12px 8px",
+          position: "sticky",
+          top: -12,
+          zIndex: 3,
+          margin: "-12px -12px 0",
+          padding: "12px 12px 8px",
           background: "rgba(10,12,18,0.98)",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
           <strong>経済</strong>
-          <span>残高 <strong>{balance === null ? "—" : balance}</strong> コイン</span>
+          <span>
+            残高 <strong>{balance === null ? "—" : balance}</strong> コイン
+          </span>
           <span style={{ flex: 1 }} />
           {closeBtn}
         </div>
 
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
           {tabBtn("bag", "かばん")}
-          {atShop && shopItems.length > 0 && tabBtn("shop", shopGenre ? (genreById(shopGenre)?.name ?? "ショップ") : "ショップ")}
+          {atShop &&
+            shopItems.length > 0 &&
+            tabBtn("shop", shopGenre ? (genreById(shopGenre)?.name ?? "ショップ") : "ショップ")}
           {atSellShop && tabBtn("sell", "売却")}
           {atWorkbench && tabBtn("craft", "合成")}
           {atBank && tabBtn("bank", "銀行")}
@@ -477,15 +571,26 @@ export default function WorldBoxEconomyPanel({ space, station, genre, worldStati
           </ItemSlotGrid>
           {bagSelItem && (
             <ItemAnnotation itemId={bagSelItem.id}>
-              {(bagSelItem.hunger || bagSelItem.buff) ? (
+              {bagSelItem.hunger || bagSelItem.buff ? (
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 6 }}>
-                  {bagSelItem.hunger ? <span className="muted">空腹+{bagSelItem.hunger}</span> : null}
+                  {bagSelItem.hunger ? (
+                    <span className="muted">空腹+{bagSelItem.hunger}</span>
+                  ) : null}
                 </div>
               ) : null}
               {(bagSelItem.hunger || bagSelItem.buff) && (
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
-                  <button type="button" style={btn} disabled={busy}
-                    onClick={() => void act({ action: "eat", itemId: bagSelItem.id }, () => `${bagSelItem.name}を使った`)}>
+                  <button
+                    type="button"
+                    style={btn}
+                    disabled={busy}
+                    onClick={() =>
+                      void act(
+                        { action: "eat", itemId: bagSelItem.id },
+                        () => `${bagSelItem.name}を使った`,
+                      )
+                    }
+                  >
                     食べる
                   </button>
                 </div>
@@ -516,8 +621,17 @@ export default function WorldBoxEconomyPanel({ space, station, genre, worldStati
                 </div>
               ) : null}
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
-                <button type="button" style={btn} disabled={busy}
-                  onClick={() => void act({ action: "buy", itemId: shopSelItem.id }, () => `${shopSelItem.name}を買った`)}>
+                <button
+                  type="button"
+                  style={btn}
+                  disabled={busy}
+                  onClick={() =>
+                    void act(
+                      { action: "buy", itemId: shopSelItem.id },
+                      () => `${shopSelItem.name}を買った`,
+                    )
+                  }
+                >
                   買う（{priceOf(shopSelItem)} コイン）
                 </button>
               </div>
@@ -544,8 +658,18 @@ export default function WorldBoxEconomyPanel({ space, station, genre, worldStati
           {sellSelItem && (
             <ItemAnnotation itemId={sellSelItem.id}>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
-                <button type="button" style={btn} disabled={busy}
-                  onClick={() => void act({ action: "sell", itemId: sellSelItem.id }, () => `${sellSelItem.name}を売った（代金 ${sellPrice(sellSelItem)} コインは処理中）`)}>
+                <button
+                  type="button"
+                  style={btn}
+                  disabled={busy}
+                  onClick={() =>
+                    void act(
+                      { action: "sell", itemId: sellSelItem.id },
+                      () =>
+                        `${sellSelItem.name}を売った（代金 ${sellPrice(sellSelItem)} コインは処理中）`,
+                    )
+                  }
+                >
                   売る（{sellPrice(sellSelItem)}）
                 </button>
               </div>
@@ -554,109 +678,177 @@ export default function WorldBoxEconomyPanel({ space, station, genre, worldStati
         </div>
       )}
 
-      {activeTab === "craft" && (() => {
-        const setEntries = Object.entries(craftSet);
-        const totalSet = setEntries.reduce((a, [, n]) => a + n, 0);
-        const mixed = mixColorFor(craftSet);
-        // 工程中の煙は気配で変える（exact=金、near=暖色、far=灰色に濁る）
-        const smokeColor = craftBusy
-          ? craftHint === "exact"
-            ? "rgba(255,210,62,0.8)"
-            : craftHint === "near"
-              ? "rgba(255,150,80,0.65)"
-              : craftHint === "far"
-                ? "rgba(125,125,130,0.6)"
-                : mixed.smoke
-          : mixed.smoke;
-        return (
-          <div style={{ marginTop: 6 }}>
-            <style>{`@keyframes wbCraftPop { 0% { opacity: 0; transform: translateX(-50%) translateY(10px) scale(0.4); } 60% { opacity: 1; transform: translateX(-50%) translateY(-4px) scale(1.15); } 100% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); } } @keyframes wbCraftShake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-2px); } 75% { transform: translateX(2px); } }`}</style>
-            {/* 台: 煙/液体の表現エリア + 素材スロット4枠 + 成果物の出現 */}
-            <div style={{ position: "relative", border: "1px solid rgba(255,255,255,0.14)", borderRadius: 12, padding: "10px 10px 12px", background: "rgba(255,255,255,0.03)", overflow: "hidden" }}>
-              <div aria-hidden style={{ position: "relative", height: 64 }}>
-                {[0, 1, 2].map((i) => (
+      {activeTab === "craft" &&
+        (() => {
+          const setEntries = Object.entries(craftSet);
+          const totalSet = setEntries.reduce((a, [, n]) => a + n, 0);
+          const mixed = mixColorFor(craftSet);
+          // 工程中の煙は気配で変える（exact=金、near=暖色、far=灰色に濁る）
+          const smokeColor = craftBusy
+            ? craftHint === "exact"
+              ? "rgba(255,210,62,0.8)"
+              : craftHint === "near"
+                ? "rgba(255,150,80,0.65)"
+                : craftHint === "far"
+                  ? "rgba(125,125,130,0.6)"
+                  : mixed.smoke
+            : mixed.smoke;
+          return (
+            <div style={{ marginTop: 6 }}>
+              <style>{`@keyframes wbCraftPop { 0% { opacity: 0; transform: translateX(-50%) translateY(10px) scale(0.4); } 60% { opacity: 1; transform: translateX(-50%) translateY(-4px) scale(1.15); } 100% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); } } @keyframes wbCraftShake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-2px); } 75% { transform: translateX(2px); } }`}</style>
+              {/* 台: 煙/液体の表現エリア + 素材スロット4枠 + 成果物の出現 */}
+              <div
+                style={{
+                  position: "relative",
+                  border: "1px solid rgba(255,255,255,0.14)",
+                  borderRadius: 12,
+                  padding: "10px 10px 12px",
+                  background: "rgba(255,255,255,0.03)",
+                  overflow: "hidden",
+                }}
+              >
+                <div aria-hidden style={{ position: "relative", height: 64 }}>
+                  {[0, 1, 2].map((i) => (
+                    <span
+                      key={i}
+                      style={{
+                        position: "absolute",
+                        left: `${38 + i * 12}%`,
+                        bottom: 6,
+                        width: 26 + i * 6,
+                        height: 26 + i * 6,
+                        borderRadius: "50%",
+                        background: smokeColor,
+                        filter: "blur(6px)",
+                        opacity: craftBusy ? 0.55 + craftPhase * 0.45 : totalSet > 0 ? 0.6 : 0.3,
+                        transform: `translateY(${craftBusy ? -craftPhase * 22 - i * 4 : -i * 3}px) scale(${1 + (craftBusy ? craftPhase * 0.7 : 0) + i * 0.15})`,
+                        transition: "background 0.4s, transform 0.3s, opacity 0.3s",
+                      }}
+                    />
+                  ))}
                   <span
-                    key={i}
                     style={{
-                      position: "absolute", left: `${38 + i * 12}%`, bottom: 6,
-                      width: 26 + i * 6, height: 26 + i * 6, borderRadius: "50%",
-                      background: smokeColor, filter: "blur(6px)",
-                      opacity: craftBusy ? 0.55 + craftPhase * 0.45 : totalSet > 0 ? 0.6 : 0.3,
-                      transform: `translateY(${craftBusy ? -craftPhase * 22 - i * 4 : -i * 3}px) scale(${1 + (craftBusy ? craftPhase * 0.7 : 0) + i * 0.15})`,
-                      transition: "background 0.4s, transform 0.3s, opacity 0.3s",
+                      position: "absolute",
+                      left: "50%",
+                      bottom: 0,
+                      transform: "translateX(-50%)",
+                      width: 150,
+                      height: 16,
+                      borderRadius: "50%",
+                      background: mixed.liquid,
+                      transition: "background 0.4s",
                     }}
                   />
-                ))}
-                <span
+                  {craftResult && (
+                    <span
+                      key={craftResultKey}
+                      style={{
+                        position: "absolute",
+                        left: "50%",
+                        bottom: 10,
+                        transform: "translateX(-50%)",
+                        animation: "wbCraftPop 0.45s ease-out",
+                      }}
+                    >
+                      <ItemIcon id={craftResult} size={34} />
+                    </span>
+                  )}
+                </div>
+                <div
                   style={{
-                    position: "absolute", left: "50%", bottom: 0, transform: "translateX(-50%)",
-                    width: 150, height: 16, borderRadius: "50%", background: mixed.liquid,
-                    transition: "background 0.4s",
+                    display: "flex",
+                    gap: 8,
+                    justifyContent: "center",
+                    marginTop: 8,
+                    ...(craftBusy ? { animation: "wbCraftShake 0.3s infinite" } : {}),
                   }}
-                />
-                {craftResult && (
-                  <span
-                    key={craftResultKey}
-                    style={{
-                      position: "absolute", left: "50%", bottom: 10,
-                      transform: "translateX(-50%)", animation: "wbCraftPop 0.45s ease-out",
-                    }}
-                  >
-                    <ItemIcon id={craftResult} size={34} />
-                  </span>
-                )}
-              </div>
-              <div style={{ display: "flex", gap: 8, justifyContent: "center", marginTop: 8, ...(craftBusy ? { animation: "wbCraftShake 0.3s infinite" } : {}) }}>
-                {[0, 1, 2, 3].map((i) => {
-                  const entry = setEntries[i];
-                  if (!entry) {
+                >
+                  {[0, 1, 2, 3].map((i) => {
+                    const entry = setEntries[i];
+                    if (!entry) {
+                      return (
+                        <span
+                          key={i}
+                          aria-hidden
+                          style={{
+                            width: 48,
+                            height: 48,
+                            minWidth: 48,
+                            minHeight: 48,
+                            borderRadius: 10,
+                            border: "1px dashed rgba(255,255,255,0.3)",
+                            background: "rgba(255,255,255,0.03)",
+                            display: "block",
+                            boxSizing: "border-box",
+                          }}
+                        />
+                      );
+                    }
+                    const [id, n] = entry;
                     return (
-                      <span
-                        key={i}
-                        aria-hidden
-                        style={{ width: 48, height: 48, minWidth: 48, minHeight: 48, borderRadius: 10, border: "1px dashed rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.03)", display: "block", boxSizing: "border-box" }}
+                      <ItemSlot
+                        key={id}
+                        itemId={id}
+                        count={n}
+                        disabled={craftBusy}
+                        onClick={() => removeFromCraft(id)}
                       />
                     );
-                  }
-                  const [id, n] = entry;
-                  return (
-                    <ItemSlot key={id} itemId={id} count={n} disabled={craftBusy} onClick={() => removeFromCraft(id)} />
-                  );
-                })}
-              </div>
-              <div style={{ display: "flex", justifyContent: "center", marginTop: 10 }}>
-                <button type="button" style={btn} disabled={busy || totalSet === 0} onClick={() => void runCraft()}>
-                  火を入れる
-                </button>
-              </div>
-              {craftBusy && (
-                <div style={{ height: 6, borderRadius: 3, background: "rgba(255,255,255,0.12)", marginTop: 10, overflow: "hidden" }}>
-                  <div style={{ width: `${Math.round(craftPhase * 100)}%`, height: "100%", background: smokeColor, transition: "width 0.08s linear" }} />
+                  })}
                 </div>
-              )}
-            </div>
-            {/* かばんから素材をセットする（表示個数は所持数 − セット済み数） */}
-            <div style={{ marginTop: 10 }}>
-              {owned.length === 0 && <p className="muted">かばんは空です</p>}
-              <ItemSlotGrid>
-                {owned.map((item) => {
-                  const remain = (profile.items[item.id] ?? 0) - (craftSet[item.id] ?? 0);
-                  if (remain <= 0) return null;
-                  return (
-                    <ItemSlot
-                      key={item.id}
-                      itemId={item.id}
-                      count={remain}
-                      disabled={craftBusy}
-                      onClick={() => addToCraft(item.id)}
+                <div style={{ display: "flex", justifyContent: "center", marginTop: 10 }}>
+                  <button
+                    type="button"
+                    style={btn}
+                    disabled={busy || totalSet === 0}
+                    onClick={() => void runCraft()}
+                  >
+                    火を入れる
+                  </button>
+                </div>
+                {craftBusy && (
+                  <div
+                    style={{
+                      height: 6,
+                      borderRadius: 3,
+                      background: "rgba(255,255,255,0.12)",
+                      marginTop: 10,
+                      overflow: "hidden",
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: `${Math.round(craftPhase * 100)}%`,
+                        height: "100%",
+                        background: smokeColor,
+                        transition: "width 0.08s linear",
+                      }}
                     />
-                  );
-                })}
-              </ItemSlotGrid>
+                  </div>
+                )}
+              </div>
+              {/* かばんから素材をセットする（表示個数は所持数 − セット済み数） */}
+              <div style={{ marginTop: 10 }}>
+                {owned.length === 0 && <p className="muted">かばんは空です</p>}
+                <ItemSlotGrid>
+                  {owned.map((item) => {
+                    const remain = (profile.items[item.id] ?? 0) - (craftSet[item.id] ?? 0);
+                    if (remain <= 0) return null;
+                    return (
+                      <ItemSlot
+                        key={item.id}
+                        itemId={item.id}
+                        count={remain}
+                        disabled={craftBusy}
+                        onClick={() => addToCraft(item.id)}
+                      />
+                    );
+                  })}
+                </ItemSlotGrid>
+              </div>
             </div>
-          </div>
-        );
-      })()}
+          );
+        })()}
 
       {activeTab === "craft" && discovered.length > 0 && (
         <div style={{ marginTop: 10 }}>
@@ -689,7 +881,9 @@ export default function WorldBoxEconomyPanel({ space, station, genre, worldStati
       )}
 
       {activeTab === "craft" && canWork("enhance") && (
-        <div style={{ marginTop: 10, borderTop: "1px solid rgba(255,255,255,0.14)", paddingTop: 8 }}>
+        <div
+          style={{ marginTop: 10, borderTop: "1px solid rgba(255,255,255,0.14)", paddingTop: 8 }}
+        >
           <strong style={{ fontSize: 13 }}>道具の強化</strong>
           <div style={{ marginTop: 6 }}>
             <ItemSlotGrid>
@@ -700,8 +894,10 @@ export default function WorldBoxEconomyPanel({ space, station, genre, worldStati
                   <span
                     key={item.id}
                     style={{
-                      display: "inline-flex", borderRadius: 10,
-                      background: flashing && enhanceFlashOn ? "rgba(255,210,62,0.35)" : "transparent",
+                      display: "inline-flex",
+                      borderRadius: 10,
+                      background:
+                        flashing && enhanceFlashOn ? "rgba(255,210,62,0.35)" : "transparent",
                       transition: "background 0.6s ease-out",
                     }}
                   >
@@ -716,44 +912,64 @@ export default function WorldBoxEconomyPanel({ space, station, genre, worldStati
                 );
               })}
             </ItemSlotGrid>
-            {enhanceSelItem && (() => {
-              const level = profile.enhance[enhanceSelItem.id] ?? 0;
-              const material = enhanceSelItem.tier ? ENHANCE_MATERIALS[enhanceSelItem.tier] : undefined;
-              const flashing = enhanceFlashId === enhanceSelItem.id;
-              return (
-                <div
-                  style={{
-                    borderRadius: 10,
-                    background: flashing && enhanceFlashOn ? "rgba(255,210,62,0.35)" : "transparent",
-                    transition: "background 0.6s ease-out",
-                  }}
-                >
-                  <ItemAnnotation itemId={enhanceSelItem.id}>
-                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 6, alignItems: "center" }}>
-                      <span>{"+".repeat(level) || "未強化"}</span>
-                      {level >= ENHANCE_MAX_LEVEL ? (
-                        <span className="muted">最大</span>
-                      ) : material ? (
-                        <span className="muted">
-                          {itemById(material.itemId)?.name}×{material.count}（所持 {profile.items[material.itemId] ?? 0}）・{ENHANCE_BASE_COST * (level + 1)} コイン
-                        </span>
-                      ) : null}
-                    </div>
-                    {level < ENHANCE_MAX_LEVEL && (
-                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
-                        <button type="button" style={btn} disabled={busy}
-                          onClick={() => void act({ action: "enhance", itemId: enhanceSelItem.id }, () => {
-                            triggerEnhanceFlash(enhanceSelItem.id);
-                            return `${enhanceSelItem.name}を強化した`;
-                          })}>
-                          強化する
-                        </button>
+            {enhanceSelItem &&
+              (() => {
+                const level = profile.enhance[enhanceSelItem.id] ?? 0;
+                const material = enhanceSelItem.tier
+                  ? ENHANCE_MATERIALS[enhanceSelItem.tier]
+                  : undefined;
+                const flashing = enhanceFlashId === enhanceSelItem.id;
+                return (
+                  <div
+                    style={{
+                      borderRadius: 10,
+                      background:
+                        flashing && enhanceFlashOn ? "rgba(255,210,62,0.35)" : "transparent",
+                      transition: "background 0.6s ease-out",
+                    }}
+                  >
+                    <ItemAnnotation itemId={enhanceSelItem.id}>
+                      <div
+                        style={{
+                          display: "flex",
+                          gap: 8,
+                          flexWrap: "wrap",
+                          marginTop: 6,
+                          alignItems: "center",
+                        }}
+                      >
+                        <span>{"+".repeat(level) || "未強化"}</span>
+                        {level >= ENHANCE_MAX_LEVEL ? (
+                          <span className="muted">最大</span>
+                        ) : material ? (
+                          <span className="muted">
+                            {itemById(material.itemId)?.name}×{material.count}（所持{" "}
+                            {profile.items[material.itemId] ?? 0}）・
+                            {ENHANCE_BASE_COST * (level + 1)} コイン
+                          </span>
+                        ) : null}
                       </div>
-                    )}
-                  </ItemAnnotation>
-                </div>
-              );
-            })()}
+                      {level < ENHANCE_MAX_LEVEL && (
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
+                          <button
+                            type="button"
+                            style={btn}
+                            disabled={busy}
+                            onClick={() =>
+                              void act({ action: "enhance", itemId: enhanceSelItem.id }, () => {
+                                triggerEnhanceFlash(enhanceSelItem.id);
+                                return `${enhanceSelItem.name}を強化した`;
+                              })
+                            }
+                          >
+                            強化する
+                          </button>
+                        </div>
+                      )}
+                    </ItemAnnotation>
+                  </div>
+                );
+              })()}
           </div>
         </div>
       )}
@@ -768,7 +984,15 @@ export default function WorldBoxEconomyPanel({ space, station, genre, worldStati
               placeholder="相手の Discord ID"
               value={transferTo}
               onChange={(e) => setTransferTo(e.target.value)}
-              style={{ flex: "1 1 160px", minHeight: 36, padding: "4px 8px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.25)", background: "rgba(255,255,255,0.06)", color: "inherit" }}
+              style={{
+                flex: "1 1 160px",
+                minHeight: 36,
+                padding: "4px 8px",
+                borderRadius: 8,
+                border: "1px solid rgba(255,255,255,0.25)",
+                background: "rgba(255,255,255,0.06)",
+                color: "inherit",
+              }}
             />
             <input
               type="number"
@@ -776,7 +1000,15 @@ export default function WorldBoxEconomyPanel({ space, station, genre, worldStati
               placeholder="金額"
               value={transferAmount}
               onChange={(e) => setTransferAmount(e.target.value)}
-              style={{ width: 110, minHeight: 36, padding: "4px 8px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.25)", background: "rgba(255,255,255,0.06)", color: "inherit" }}
+              style={{
+                width: 110,
+                minHeight: 36,
+                padding: "4px 8px",
+                borderRadius: 8,
+                border: "1px solid rgba(255,255,255,0.25)",
+                background: "rgba(255,255,255,0.06)",
+                color: "inherit",
+              }}
             />
             <button type="button" style={btn} disabled={busy} onClick={() => void sendTransfer()}>
               送金する
@@ -801,7 +1033,11 @@ export default function WorldBoxEconomyPanel({ space, station, genre, worldStati
         </div>
       )}
 
-      {msg && <p role="status" style={{ margin: "10px 0 0" }}>{msg}</p>}
+      {msg && (
+        <p role="status" style={{ margin: "10px 0 0" }}>
+          {msg}
+        </p>
+      )}
     </div>
   );
 }

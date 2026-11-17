@@ -7,15 +7,32 @@ import { masteryRankOf } from "@/lib/worldbox/player/roles";
 import { listPresenceWithOwners } from "@/lib/worldbox/player/presence-online";
 import { presenceIdFor } from "@/lib/worldbox/player/presence";
 import {
-  addInvite, createParty, inviteFor, isPartyLeader, isPartyMember, joinParty,
-  leaveParty, makePartyId, partyKeyOf, type Party, type PartyMember,
+  addInvite,
+  createParty,
+  inviteFor,
+  isPartyLeader,
+  isPartyMember,
+  joinParty,
+  leaveParty,
+  makePartyId,
+  partyKeyOf,
+  type Party,
+  type PartyMember,
 } from "@/lib/worldbox/social/party";
 import {
-  clearInviteIndex, clearMemberIndex, deleteParty, loadInvitedParty, loadParty,
-  loadPartyOf, storeParty,
+  clearInviteIndex,
+  clearMemberIndex,
+  deleteParty,
+  loadInvitedParty,
+  loadParty,
+  loadPartyOf,
+  storeParty,
 } from "@/lib/worldbox/social/party-online";
 import {
-  deleteDungeonSession, dungeonSessionClosed, loadDungeonSession, storeDungeonSession,
+  deleteDungeonSession,
+  dungeonSessionClosed,
+  loadDungeonSession,
+  storeDungeonSession,
   type DungeonSession,
 } from "@/lib/worldbox/world/instances-online";
 import { makeInstanceSpace, parseInstanceSpace } from "@/lib/worldbox/world/instances";
@@ -61,11 +78,15 @@ function dungeonEntranceNear(x: number, y: number, range: number): { x: number; 
   return null;
 }
 
-async function myPresence(ownerKey: string): Promise<{ x: number; y: number; space: string } | null> {
+async function myPresence(
+  ownerKey: string,
+): Promise<{ x: number; y: number; space: string } | null> {
   const owners = await listPresenceWithOwners();
   const selfId = presenceIdFor(ownerKey);
   const now = Date.now();
-  const mine = owners.find((o) => o.ownerKey === ownerKey && o.entry.id === selfId && now - o.entry.ts <= 15_000);
+  const mine = owners.find(
+    (o) => o.ownerKey === ownerKey && o.entry.id === selfId && now - o.entry.ts <= 15_000,
+  );
   return mine ? { x: mine.entry.x, y: mine.entry.y, space: mine.entry.space } : null;
 }
 
@@ -85,19 +106,33 @@ async function memberOf(ownerKey: string, name: string): Promise<PartyMember> {
  * セーブの整合もそちらで取る（PvP 被害者の死亡通知と同じ仕組み）。
  * 既に配送予定（蘇生など）がある場合はそちらを優先する。
  */
-async function queueDungeonExitTeleport(memberKey: string, entrance: { x: number; y: number }): Promise<void> {
+async function queueDungeonExitTeleport(
+  memberKey: string,
+  entrance: { x: number; y: number },
+): Promise<void> {
   try {
     const saved = parseSave(await loadWorldBoxSave(memberKey));
     if (!saved) return;
     const inst = parseInstanceSpace(saved.space);
-    if (!inst || inst.kind !== "dungeon" || inst.entranceX !== entrance.x || inst.entranceY !== entrance.y) return;
+    if (
+      !inst ||
+      inst.kind !== "dungeon" ||
+      inst.entranceX !== entrance.x ||
+      inst.entranceY !== entrance.y
+    )
+      return;
     const dest = saved.worldReturn ?? { x: entrance.x + 0.5, y: entrance.y + 0.5 };
     await withUserLock(memberKey, async () => {
       const profile = await loadProfile(memberKey);
       if (!profile || profile.pendingTeleport) return;
-      await storeProfile(memberKey, { ...profile, pendingTeleport: { space: "world", x: dest.x, y: dest.y } });
+      await storeProfile(memberKey, {
+        ...profile,
+        pendingTeleport: { space: "world", x: dest.x, y: dest.y },
+      });
     });
-  } catch { /* ベストエフォート: 失敗しても退出自体は成立させる */ }
+  } catch {
+    /* ベストエフォート: 失敗しても退出自体は成立させる */
+  }
 }
 
 /**
@@ -110,7 +145,11 @@ async function queueDungeonExitTeleport(memberKey: string, entrance: { x: number
  * - セッションへアクセスを失う人（退出者本人は常時、解散時は中にいる
  *   全員）は pendingTeleport で入口前へ戻す。
  */
-async function settleDungeonSessionOnLeave(party: Party, ownerKey: string, disbanded: boolean): Promise<void> {
+async function settleDungeonSessionOnLeave(
+  party: Party,
+  ownerKey: string,
+  disbanded: boolean,
+): Promise<void> {
   const floor1 = makeInstanceSpace("dungeon", party.entrance.x, party.entrance.y, 0);
   const ds = await loadDungeonSession(floor1, party.id);
   if (!ds) return;
@@ -144,7 +183,12 @@ function partyView(party: Party | null) {
     id: party.id,
     leaderKey: party.leaderKey,
     entrance: party.entrance,
-    members: party.members.map((m) => ({ name: m.name, role: m.role, rank: m.rank, leader: m.ownerKey === party.leaderKey })),
+    members: party.members.map((m) => ({
+      name: m.name,
+      role: m.role,
+      rank: m.rank,
+      leader: m.ownerKey === party.leaderKey,
+    })),
   };
 }
 
@@ -154,7 +198,8 @@ export async function GET(request: Request) {
   const ownerKey = sessionOwnerKey(session);
   const now = Date.now();
   const party = await loadPartyOf(ownerKey);
-  let invite: { partyId: string; leaderName: string; entrance: { x: number; y: number } } | null = null;
+  let invite: { partyId: string; leaderName: string; entrance: { x: number; y: number } } | null =
+    null;
   if (!party) {
     const invited = await loadInvitedParty(ownerKey);
     if (invited && inviteFor(invited, ownerKey, now)) {
@@ -168,12 +213,24 @@ export async function GET(request: Request) {
   const space = url.searchParams.get("space");
   if (space && space.startsWith("dungeon:")) {
     const floor1 = space.replace(/:\d+$/, ":0");
-    const ds = await loadDungeonSession(floor1, partyKeyOf(party && isPartyMember(party, ownerKey) ? party : null, ownerKey));
+    const ds = await loadDungeonSession(
+      floor1,
+      partyKeyOf(party && isPartyMember(party, ownerKey) ? party : null, ownerKey),
+    );
     if (ds) {
       dungeon = { size: ds.size };
     }
   }
-  return NextResponse.json({ party: partyView(party), partyKey: partyKeyOf(party, ownerKey), isLeader: party?.leaderKey === ownerKey, invite, dungeon }, { headers: NO_STORE });
+  return NextResponse.json(
+    {
+      party: partyView(party),
+      partyKey: partyKeyOf(party, ownerKey),
+      isLeader: party?.leaderKey === ownerKey,
+      invite,
+      dungeon,
+    },
+    { headers: NO_STORE },
+  );
 }
 
 export async function POST(request: Request) {
@@ -198,7 +255,8 @@ export async function POST(request: Request) {
     const entrance = dungeonEntranceNear(pos.x, pos.y, ENTRANCE_RANGE);
     if (!entrance) return err("not_at_entrance", 409);
     const existing = await loadPartyOf(ownerKey);
-    if (existing) return NextResponse.json({ ok: true, party: partyView(existing) }, { headers: NO_STORE });
+    if (existing)
+      return NextResponse.json({ ok: true, party: partyView(existing) }, { headers: NO_STORE });
     const me = await memberOf(ownerKey, name);
     const party = createParty(makePartyId(ownerKey, now), me, entrance, now);
     if (!(await storeParty(party))) return err("store_failed", 503);
@@ -213,11 +271,18 @@ export async function POST(request: Request) {
     if (!pos || pos.space !== "world") return err("not_at_entrance", 409);
     const targetId = typeof fields.targetId === "string" ? fields.targetId : "";
     const owners = await listPresenceWithOwners();
-    const target = owners.find((o) => o.entry.id === targetId && o.entry.space === "world" && now - o.entry.ts <= 15_000);
+    const target = owners.find(
+      (o) => o.entry.id === targetId && o.entry.space === "world" && now - o.entry.ts <= 15_000,
+    );
     if (!target) return err("target_not_near", 409);
-    if (Math.hypot(target.entry.x - pos.x, target.entry.y - pos.y) > INVITE_RANGE) return err("target_not_near", 409);
+    if (Math.hypot(target.entry.x - pos.x, target.entry.y - pos.y) > INVITE_RANGE)
+      return err("target_not_near", 409);
     if (target.ownerKey === ownerKey) return err("invalid_request", 400);
-    const next = addInvite(party, { toKey: target.ownerKey, name: target.entry.name ?? "", at: now });
+    const next = addInvite(party, {
+      toKey: target.ownerKey,
+      name: target.entry.name ?? "",
+      at: now,
+    });
     if (!(await storeParty(next))) return err("store_failed", 503);
     return NextResponse.json({ ok: true, party: partyView(next) }, { headers: NO_STORE });
   }
@@ -232,12 +297,16 @@ export async function POST(request: Request) {
     const existing = await loadPartyOf(ownerKey);
     if (existing && existing.id !== invited.id) return err("already_in_party", 409);
     if (!pos || pos.space !== "world") return err("not_at_entrance", 409);
-    if (Math.hypot(invited.entrance.x + 0.5 - pos.x, invited.entrance.y + 0.5 - pos.y) > ENTRANCE_RANGE + 2) {
+    if (
+      Math.hypot(invited.entrance.x + 0.5 - pos.x, invited.entrance.y + 0.5 - pos.y) >
+      ENTRANCE_RANGE + 2
+    ) {
       return err("not_at_entrance", 409);
     }
     const me = await memberOf(ownerKey, name);
     const joined = joinParty(invited, me);
-    if ("error" in joined) return err(joined.error === "full" ? "party_full" : "already_member", 409);
+    if ("error" in joined)
+      return err(joined.error === "full" ? "party_full" : "already_member", 409);
     if (!(await storeParty(joined.party))) return err("store_failed", 503);
     await clearInviteIndex(ownerKey);
     return NextResponse.json({ ok: true, party: partyView(joined.party) }, { headers: NO_STORE });

@@ -63,7 +63,15 @@ function readApp(rel) {
 
 // ---------------------------------------------------------------- 道具強化
 const T = await loadBundle(
-  ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/economy/items.ts", "worldbox/player/profile.ts", "worldbox/player/presence.ts", "worldbox/world/seasons.ts", "worldbox/world/tiles.ts"],
+  [
+    "worldbox/core/rng.ts",
+    "worldbox/world/mapgen.ts",
+    "worldbox/economy/items.ts",
+    "worldbox/player/profile.ts",
+    "worldbox/player/presence.ts",
+    "worldbox/world/seasons.ts",
+    "worldbox/world/tiles.ts",
+  ],
   ["parseProfile", "bestToolTier", "blockMineDamage", "itemById", "BLOCK_MINE_DAMAGE"],
 );
 
@@ -95,7 +103,12 @@ test("enhance: blockMineDamage follows the effective pickaxe tier", () => {
 
 // ---------------------------------------------------------------- 食事まわり
 const E = await loadBundle(
-  ["worldbox/economy/items.ts", "worldbox/player/profile.ts", "worldbox/player/vitals.ts", "worldbox/economy/economy.ts"],
+  [
+    "worldbox/economy/items.ts",
+    "worldbox/player/profile.ts",
+    "worldbox/player/vitals.ts",
+    "worldbox/economy/economy.ts",
+  ],
   ["eatItem", "consumeEffect", "parseProfile", "itemById", "BUFF_DURATION_MS"],
 );
 
@@ -125,7 +138,11 @@ test("eat: eatItem applies exactly the consumeEffect formula (single source)", (
   assert.equal(viaEffect.profile.hunger, ate.profile.hunger);
   assert.deepEqual(viaEffect.profile.status, ate.profile.status);
   // はちみつティーは空腹だけ（解毒・alert バフは無い）
-  const drank = E.eatItem({ ...E.parseProfile(null), hunger: 50, items: { honey_tea: 1 } }, "honey_tea", NOW);
+  const drank = E.eatItem(
+    { ...E.parseProfile(null), hunger: 50, items: { honey_tea: 1 } },
+    "honey_tea",
+    NOW,
+  );
   assert.equal(drank.ok, true);
   assert.equal(drank.profile.hunger, 66);
   assert.deepEqual(drank.profile.status, []);
@@ -153,7 +170,10 @@ test("wiring: vitals route は sync のみをユーザーロック内で処理�
 
 test("wiring: roles の技は porter 設置のみ（蘇生は無い）", () => {
   const src = readApp("api/worldbox/roles/route.ts");
-  assert.match(src, /fields\.action === "skill"[\s\S]{0,700}?withUserLock\(ownerKey, async \(\) => \{\s*const profile = await loadProfile\(ownerKey\);/);
+  assert.match(
+    src,
+    /fields\.action === "skill"[\s\S]{0,700}?withUserLock\(ownerKey, async \(\) => \{\s*const profile = await loadProfile\(ownerKey\);/,
+  );
   assert.ok(!src.includes('"revive"'), "蘇生が残っている");
   assert.match(src, /addMasteryXp\(next, "teleporter", 2\)/, "ポーター設置の技 XP が無い");
 });

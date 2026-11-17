@@ -58,13 +58,31 @@ async function loadBundle(files, exportNames) {
 const fx = await loadBundle(
   ["worldbox/media/fx.ts"],
   [
-    "FX_CAP", "FX_BURST_MAX", "createFxSystem", "fxRand", "fxLifeRatio", "stepFx", "spawnBurst",
-    "ambientKindFor", "spawnAmbient", "createShake", "startShake", "shakeOffsetAt",
-    "popScale", "popProgress", "SWING_DURATION_MS", "swingProgress", "slashAlpha",
+    "FX_CAP",
+    "FX_BURST_MAX",
+    "createFxSystem",
+    "fxRand",
+    "fxLifeRatio",
+    "stepFx",
+    "spawnBurst",
+    "ambientKindFor",
+    "spawnAmbient",
+    "createShake",
+    "startShake",
+    "shakeOffsetAt",
+    "popScale",
+    "popProgress",
+    "SWING_DURATION_MS",
+    "swingProgress",
+    "slashAlpha",
     "WHIFF_ALPHA_SCALE",
-    "WEATHER_PERIOD_SEC", "weatherAt", "weatherAmbientKind", "phaseKind",
+    "WEATHER_PERIOD_SEC",
+    "weatherAt",
+    "weatherAmbientKind",
+    "phaseKind",
     "burstPaletteFor",
-    "WEATHER_BLEND_SEC", "weatherBlendAt",
+    "WEATHER_BLEND_SEC",
+    "weatherBlendAt",
   ],
 );
 
@@ -185,7 +203,10 @@ test("fx2: hit は赤い火花で短命、death は大きめの破片、spawn �
     assert.ok(p.life >= 0.18 && p.life <= 0.38, "hit は短命");
     assert.ok(["spark", "chip"].includes(p.shape));
   }
-  assert.ok(hit.particles.some((p) => p.color === "#e5484d"), "ダメージ色（赤）を含む");
+  assert.ok(
+    hit.particles.some((p) => p.color === "#e5484d"),
+    "ダメージ色（赤）を含む",
+  );
 
   const death = fx.createFxSystem(22);
   assert.equal(fx.spawnBurst(death, "death", 5, 5), 22);
@@ -208,11 +229,18 @@ test("fx2: weatherAt は決定的で、区間内は不変、長期的には雨�
   assert.equal(fx.weatherAt(t0), fx.weatherAt(t0), "同じ時刻は同じ天候");
   const idx = Math.floor(t0 / fx.WEATHER_PERIOD_SEC);
   const start = idx * fx.WEATHER_PERIOD_SEC;
-  assert.equal(fx.weatherAt(start), fx.weatherAt(start + fx.WEATHER_PERIOD_SEC - 1), "区間内は不変");
+  assert.equal(
+    fx.weatherAt(start),
+    fx.weatherAt(start + fx.WEATHER_PERIOD_SEC - 1),
+    "区間内は不変",
+  );
   const seen = new Set();
   for (let i = 0; i < 200; i++) seen.add(fx.weatherAt(start + i * fx.WEATHER_PERIOD_SEC));
   assert.deepEqual([...seen].sort(), ["clear", "rain"], "200区間で両方が出る");
-  const rainRatio = Array.from({ length: 200 }, (_, i) => fx.weatherAt(start + i * fx.WEATHER_PERIOD_SEC)).filter((w) => w === "rain").length / 200;
+  const rainRatio =
+    Array.from({ length: 200 }, (_, i) => fx.weatherAt(start + i * fx.WEATHER_PERIOD_SEC)).filter(
+      (w) => w === "rain",
+    ).length / 200;
   assert.ok(rainRatio > 0.1 && rainRatio < 0.6, `雨の比率は 35% 前後 (実測 ${rainRatio})`);
 });
 
@@ -256,7 +284,10 @@ test("fx2: 空振り係数は成功時より薄い（0〜1）", () => {
 });
 
 test("fx: クライアント配線（イベント→粒/揺れ/ポップ、スイング、環境粒）", () => {
-  const client = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"), "utf8");
+  const client = fs.readFileSync(
+    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    "utf8",
+  );
   assert.match(client, /from "@\/lib\/worldbox\/media\/fx"/, "fx 基盤を使う");
   assert.match(client, /fxEventsRef\.current\.push/, "行為の成功が演出イベントになる");
   assert.match(client, /spawnBurst\(fxSys, ev\.kind/, "描画ループでイベントを粒に変換する");
@@ -269,9 +300,15 @@ test("fx: クライアント配線（イベント→粒/揺れ/ポップ、ス�
 });
 
 test("fx2: クライアント配線（空振り・天候・時間帯）", () => {
-  const client = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"), "utf8");
+  const client = fs.readFileSync(
+    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    "utf8",
+  );
   // 失敗分岐（タイル行為など）が whiff を push する（成功バーストは出さない）
-  const whiffPushes = client.match(/fxEventsRef\.current\.push\(\{\s*kind: "whiff"|fxEventsRef\.current\.push\(\{\n\s*kind: "whiff"/g) ?? [];
+  const whiffPushes =
+    client.match(
+      /fxEventsRef\.current\.push\(\{\s*kind: "whiff"|fxEventsRef\.current\.push\(\{\n\s*kind: "whiff"/g,
+    ) ?? [];
   assert.ok(whiffPushes.length >= 2, `whiff の push が複数箇所にある (実測 ${whiffPushes.length})`);
   assert.match(client, /ev\.kind === "whiff"/, "ループが whiff を分岐する");
   assert.match(client, /whiff: true/, "whiff スイングを立てる");
@@ -298,7 +335,10 @@ test("fx3: 天候ブレンドは境界で線形に混ざり、区間の途中で
   for (let idx = 1; idx < 500 && flipIdx < 0; idx++) {
     const prev = fx.weatherAt((idx - 1) * P + 1);
     const now = fx.weatherAt(idx * P + 1);
-    if (prev !== now) { flipIdx = idx; cur = now; }
+    if (prev !== now) {
+      flipIdx = idx;
+      cur = now;
+    }
   }
   assert.ok(flipIdx > 0, "天候の切り替わり境界が存在する");
   const start = flipIdx * P;
@@ -306,7 +346,10 @@ test("fx3: 天候ブレンドは境界で線形に混ざり、区間の途中で
   // 境界の瞬間は前区間の強さ（反対側）
   const at0 = fx.weatherBlendAt(start);
   assert.equal(at0.weather, cur);
-  assert.ok(Math.abs(at0.rainStrength - (1 - full)) < 1e-9, `境界直後は前区間の強さ (実測 ${at0.rainStrength})`);
+  assert.ok(
+    Math.abs(at0.rainStrength - (1 - full)) < 1e-9,
+    `境界直後は前区間の強さ (実測 ${at0.rainStrength})`,
+  );
   // ブレンドの中点は 0.5
   const mid = fx.weatherBlendAt(start + fx.WEATHER_BLEND_SEC / 2);
   assert.ok(Math.abs(mid.rainStrength - 0.5) < 1e-9, `中点は 0.5 (実測 ${mid.rainStrength})`);
@@ -314,7 +357,10 @@ test("fx3: 天候ブレンドは境界で線形に混ざり、区間の途中で
   for (const t of [start + fx.WEATHER_BLEND_SEC, start + P / 2, start + P - 1]) {
     const b = fx.weatherBlendAt(t);
     assert.equal(b.weather, cur);
-    assert.ok(Math.abs(b.rainStrength - full) < 1e-9, `区間内は一定 (t=${t}, 実測 ${b.rainStrength})`);
+    assert.ok(
+      Math.abs(b.rainStrength - full) < 1e-9,
+      `区間内は一定 (t=${t}, 実測 ${b.rainStrength})`,
+    );
   }
   // 決定的（同じ時刻は同じ結果）
   assert.deepEqual(fx.weatherBlendAt(start + 7), fx.weatherBlendAt(start + 7));
@@ -341,12 +387,18 @@ test("fx3: バーストのパレット上書きは全粒に効く", () => {
   fx.spawnBurst(sys, "mine", 5, 5, { colors: ["#111111", "#222222"] });
   assert.ok(sys.particles.length > 0);
   for (const p of sys.particles) {
-    assert.ok(["#111111", "#222222"].includes(p.color), `粒はパレットから選ばれる (実測 ${p.color})`);
+    assert.ok(
+      ["#111111", "#222222"].includes(p.color),
+      `粒はパレットから選ばれる (実測 ${p.color})`,
+    );
   }
 });
 
 test("fx3: クライアント配線（素材パレット・クリックSE・パネル出現）", () => {
-  const client = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"), "utf8");
+  const client = fs.readFileSync(
+    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    "utf8",
+  );
   // ヒットストップは存在しない（戦闘撤去）
   assert.ok(!client.includes("hitstop"), "ヒットストップが残っている");
   assert.match(client, /stepMove\(activeMap\(\), player, vel, sdt/, "プレイヤー移動は sdt で進む");
@@ -357,14 +409,26 @@ test("fx3: クライアント配線（素材パレット・クリックSE・パ�
   assert.match(client, /colors: ev\.colors/, "fx イベントのパレットがバーストへ渡る");
   // クリック SE の一本化（シェルの capture）と固有 SE 領域の除外マーカー
   assert.match(client, /onClickCapture/, "シェルがボタン押下を捕捉して click SE を鳴らす");
-  assert.match(client, /data-wb-se='self'|data-wb-se="self"/, "固有 SE の領域を除外するマーカーがある");
+  assert.match(
+    client,
+    /data-wb-se='self'|data-wb-se="self"/,
+    "固有 SE の領域を除外するマーカーがある",
+  );
   assert.match(client, /playWbSe\("click"\)/, "捕捉側が click SE を鳴らす");
   // パネル出現アニメーション（globals.css の共通クラス）
   const css = fs.readFileSync(path.join(rootDir, "app/globals.css"), "utf8");
   assert.match(css, /@keyframes wb-panel-in/, "パネル出現のキーフレームがある");
-  assert.match(css, /\.wb-shell \.wb-panel \{ animation: wb-panel-in/, "全パネル共通で出現アニメーションが付く");
+  assert.match(
+    css,
+    /\.wb-shell \.wb-panel \{ animation: wb-panel-in/,
+    "全パネル共通で出現アニメーションが付く",
+  );
   // 固有 SE を持つパネルはマーカーで除外される
-  for (const name of ["WorldBoxEconomyPanel.tsx", "WorldBoxCasinoPanel.tsx", "WorldBoxArcadePanel.tsx"]) {
+  for (const name of [
+    "WorldBoxEconomyPanel.tsx",
+    "WorldBoxCasinoPanel.tsx",
+    "WorldBoxArcadePanel.tsx",
+  ]) {
     const src = fs.readFileSync(path.join(rootDir, "app/games/worldbox", name), "utf8");
     assert.match(src, /data-wb-se="self"/, `${name} は固有 SE 側に寄せる`);
   }

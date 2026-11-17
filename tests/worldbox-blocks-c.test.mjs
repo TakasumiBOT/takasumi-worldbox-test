@@ -58,18 +58,44 @@ const invUrl = bundleModule(
 const inv = await import(invUrl);
 
 const tilesUrl = bundleModule(
-  ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/economy/items.ts", "worldbox/player/profile.ts", "worldbox/player/presence.ts", "worldbox/world/seasons.ts", "worldbox/world/tiles.ts"],
   [
-    "worldTileSource", "mapTileAt", "T_GRASS", "T_WATER",
-    "applyPlaceBlock", "applyToggleGate", "tileView", "actionForTile",
-    "placedBlockSolid", "isFloorItem", "floorSpeedMultiplier", "isFenceItem", "isGateItem",
-    "tileKey", "parseTileOverride", "presenceIdFor",
+    "worldbox/core/rng.ts",
+    "worldbox/world/mapgen.ts",
+    "worldbox/economy/items.ts",
+    "worldbox/player/profile.ts",
+    "worldbox/player/presence.ts",
+    "worldbox/world/seasons.ts",
+    "worldbox/world/tiles.ts",
+  ],
+  [
+    "worldTileSource",
+    "mapTileAt",
+    "T_GRASS",
+    "T_WATER",
+    "applyPlaceBlock",
+    "applyToggleGate",
+    "tileView",
+    "actionForTile",
+    "placedBlockSolid",
+    "isFloorItem",
+    "floorSpeedMultiplier",
+    "isFenceItem",
+    "isGateItem",
+    "tileKey",
+    "parseTileOverride",
+    "presenceIdFor",
   ],
 );
 const T = await import(tilesUrl);
 
 const v = loadBundle(
-  ["worldbox/economy/items.ts", "worldbox/player/profile.ts", "worldbox/player/roles.ts", "worldbox/player/vitals.ts", "worldbox/economy/economy.ts"],
+  [
+    "worldbox/economy/items.ts",
+    "worldbox/player/profile.ts",
+    "worldbox/player/roles.ts",
+    "worldbox/player/vitals.ts",
+    "worldbox/economy/economy.ts",
+  ],
   ["parseProfile"],
 );
 
@@ -113,7 +139,10 @@ test("橋: 水の上に置ける。通常ブロックと床（橋以外）は水
   assert.equal(place(null, withItems({ dirt_block: 1 }), ME_KEY, waterAt, "dirt_block").ok, false);
   assert.equal(place(null, withItems({ path_block: 1 }), ME_KEY, waterAt, "path_block").ok, false);
   // 橋は陸にも置ける
-  assert.equal(place(null, withItems({ bridge_block: 1 }), ME_KEY, grassAt, "bridge_block").ok, true);
+  assert.equal(
+    place(null, withItems({ bridge_block: 1 }), ME_KEY, grassAt, "bridge_block").ok,
+    true,
+  );
 });
 
 test("ハザード: サボテン/マグマは通常ブロック（ダメージの仕組みは無い）", () => {
@@ -142,14 +171,25 @@ test("柵と門: 柵は固体、門は開閉でき、状態が parse を往復�
   assert.equal(opened.ok, true);
   assert.equal(opened.override.gateOpen, true);
   assert.equal(opened.view.block.gateOpen, true);
-  const reclosed = T.applyToggleGate(opened.override, opened.profile, map, ME_KEY, grassAt.x, grassAt.y, NOW);
+  const reclosed = T.applyToggleGate(
+    opened.override,
+    opened.profile,
+    map,
+    ME_KEY,
+    grassAt.x,
+    grassAt.y,
+    NOW,
+  );
   assert.equal(reclosed.override.gateOpen, false);
   // parse の往復で gateOpen が残る
   const parsed = T.parseTileOverride(JSON.stringify(opened.override));
   assert.equal(parsed.gateOpen, true);
   // 門でないタイルは開閉できない
   const dirt = place(null, withItems({ dirt_block: 1 }), ME_KEY, grassAt, "dirt_block");
-  assert.equal(T.applyToggleGate(dirt.override, dirt.profile, map, ME_KEY, grassAt.x, grassAt.y, NOW).ok, false);
+  assert.equal(
+    T.applyToggleGate(dirt.override, dirt.profile, map, ME_KEY, grassAt.x, grassAt.y, NOW).ok,
+    false,
+  );
 });
 
 test("actionForTile: 門は開閉、所有者＋道具なら採掘、橋は水でも設置候補になる", () => {
@@ -159,7 +199,14 @@ test("actionForTile: 門は開閉、所有者＋道具なら採掘、橋は水�
   assert.equal(T.actionForTile(gateView, null)?.action, "toggle_gate");
   assert.equal(T.actionForTile(gateView, { tool: "pickaxe" })?.action, "mine_block");
   // 他人の門は道具を持っていても開閉（採掘にはならない）
-  const otherView = T.tileView(map, { [T.tileKey(grassAt.x, grassAt.y)]: placed.override }, grassAt.x, grassAt.y, NOW, "discord:699999999999999999");
+  const otherView = T.tileView(
+    map,
+    { [T.tileKey(grassAt.x, grassAt.y)]: placed.override },
+    grassAt.x,
+    grassAt.y,
+    NOW,
+    "discord:699999999999999999",
+  );
   assert.equal(T.actionForTile(otherView, { tool: "pickaxe" })?.action, "toggle_gate");
   // 橋は水タイルでも設置候補。通常ブロックは候補にならない
   const waterView = T.tileView(map, {}, waterAt.x, waterAt.y, NOW, ME_KEY);
@@ -173,7 +220,10 @@ test("配線: ハザード送信は無く、クライアントの床・滑りは
   assert.ok(!route.includes("applyHazardDamage"));
   const tilesRoute = fs.readFileSync(path.join(rootDir, "app/api/worldbox/tiles/route.ts"), "utf8");
   assert.match(tilesRoute, /applyToggleGate/);
-  const client = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"), "utf8");
+  const client = fs.readFileSync(
+    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    "utf8",
+  );
   assert.ok(!client.includes("postHazard"), "クライアントにハザード送信が残っている");
   assert.match(client, /slideVel/);
   assert.match(client, /onFloor !== "bridge_block"/);

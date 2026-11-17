@@ -3,7 +3,15 @@
 // space にそのまま乗る（入口タイルのワールド座標がインスタンスの識別子）。
 // 中身はワールドシード + 入口座標 + 層から決定的に生成され、保存しない。
 // 枯渇状態（鉱脈・宝箱）だけをサーバーが持つ（instances ルート）。
-import { L_DARK, L_MARBLE, L_SAND, L_WALL, isSolidLobbyTile, type LobbyData, type LobbyObject } from "./lobby";
+import {
+  L_DARK,
+  L_MARBLE,
+  L_SAND,
+  L_WALL,
+  isSolidLobbyTile,
+  type LobbyData,
+  type LobbyObject,
+} from "./lobby";
 import { T_GRASS, T_ROCK, tilesSource, type TopDownMap } from "./mapgen";
 import { makeRng } from "../core/rng";
 import { specialObjectById, type SpecialObjectDef } from "./objects";
@@ -19,7 +27,12 @@ export type InstanceSpaceRef = {
 
 const INSTANCE_SPACE_RE = /^(cave|ruins|dungeon):(-?\d+),(-?\d+):(\d+)$/;
 
-export function makeInstanceSpace(kind: InstanceKind, entranceX: number, entranceY: number, layer: number): string {
+export function makeInstanceSpace(
+  kind: InstanceKind,
+  entranceX: number,
+  entranceY: number,
+  layer: number,
+): string {
   return `${kind}:${Math.floor(entranceX)},${Math.floor(entranceY)}:${Math.max(0, Math.floor(layer))}`;
 }
 
@@ -41,7 +54,9 @@ export function isInstanceSpace(space: unknown): boolean {
 
 // ---------------------------------------------------------------- 明かり
 /** 明かりの半径（タイル）。松明 6 / ランプ 9 が基準、無しは足元のみ。 */
-export function lightRadiusTiles(inventory: Readonly<Record<string, number>> | null | undefined): number {
+export function lightRadiusTiles(
+  inventory: Readonly<Record<string, number>> | null | undefined,
+): number {
   if (!inventory) return 2.5;
   if ((inventory["lamp"] ?? 0) > 0) return 9;
   if ((inventory["torch"] ?? 0) > 0) return 6;
@@ -122,7 +137,12 @@ function hashSeed(seed: number, ex: number, ey: number, layer: number): number {
 const caveCache = new Map<string, CaveLayer>();
 
 /** 洞窟の1層を決定的に生成する（結果はキャッシュ）。 */
-export function buildCaveLayer(seed: number, entranceX: number, entranceY: number, layer: number): CaveLayer {
+export function buildCaveLayer(
+  seed: number,
+  entranceX: number,
+  entranceY: number,
+  layer: number,
+): CaveLayer {
   const cacheKey = `${seed}:${entranceX},${entranceY}:${layer}`;
   const cached = caveCache.get(cacheKey);
   if (cached) return cached;
@@ -138,7 +158,8 @@ export function buildCaveLayer(seed: number, entranceX: number, entranceY: numbe
 
   // 入口（ポータル）は南寄り中央。ランダムウォークで通路を掘り、部屋を繋ぐ。
   const portal = { x: 32, y: CAVE_H - 6 };
-  for (let dy = 0; dy < 3; dy++) for (let dx = -1; dx <= 1; dx++) carve(portal.x + dx, portal.y + dy - 1);
+  for (let dy = 0; dy < 3; dy++)
+    for (let dx = -1; dx <= 1; dx++) carve(portal.x + dx, portal.y + dy - 1);
   const walkers: { x: number; y: number }[] = [{ ...portal }];
   const roomCenters: { x: number; y: number }[] = [{ ...portal }];
   for (let w = 0; w < 5; w++) {
@@ -158,7 +179,8 @@ export function buildCaveLayer(seed: number, entranceX: number, entranceY: numbe
         // 部屋を掘って中心を記録（階段・宝箱・温泉の置き場候補）
         const rw = 3 + Math.floor(rng() * 3);
         const rh = 3 + Math.floor(rng() * 3);
-        for (let dy = 0; dy < rh; dy++) for (let dx = 0; dx < rw; dx++) carve(x + dx - 1, y + dy - 1);
+        for (let dy = 0; dy < rh; dy++)
+          for (let dx = 0; dx < rw; dx++) carve(x + dx - 1, y + dy - 1);
         roomCenters.push({ x, y });
       }
     }
@@ -222,7 +244,12 @@ export function buildCaveLayer(seed: number, entranceX: number, entranceY: numbe
         if (w.x < 1 || w.y < 1 || w.x >= CAVE_W - 1 || w.y >= CAVE_H - 1) continue;
         if (tiles[w.y * CAVE_W + w.x] !== L_WALL || wallUsed.has(key)) continue;
         wallUsed.add(key);
-        veins.push({ key: `${entry.objectId}:${veins.length}`, objectId: entry.objectId, x: w.x, y: w.y });
+        veins.push({
+          key: `${entry.objectId}:${veins.length}`,
+          objectId: entry.objectId,
+          x: w.x,
+          y: w.y,
+        });
         break;
       }
     }
@@ -232,14 +259,19 @@ export function buildCaveLayer(seed: number, entranceX: number, entranceY: numbe
   const objects: LobbyObject[] = [
     { sprite: "warp_pad", x: portal.x, y: portal.y, w: 1, h: 1, solid: false },
   ];
-  if (stairsDown) objects.push({ sprite: "stairs", x: stairsDown.x, y: stairsDown.y, w: 1, h: 1, solid: false });
-  if (stairsUp) objects.push({ sprite: "stairs", x: stairsUp.x, y: stairsUp.y, w: 1, h: 1, solid: false });
-  for (const v of veins) objects.push({ sprite: v.objectId, x: v.x, y: v.y, w: 1, h: 1, solid: true });
-  if (chest) objects.push({ sprite: "cave_chest", x: chest.x, y: chest.y, w: 1, h: 1, solid: true });
+  if (stairsDown)
+    objects.push({ sprite: "stairs", x: stairsDown.x, y: stairsDown.y, w: 1, h: 1, solid: false });
+  if (stairsUp)
+    objects.push({ sprite: "stairs", x: stairsUp.x, y: stairsUp.y, w: 1, h: 1, solid: false });
+  for (const v of veins)
+    objects.push({ sprite: v.objectId, x: v.x, y: v.y, w: 1, h: 1, solid: true });
+  if (chest)
+    objects.push({ sprite: "cave_chest", x: chest.x, y: chest.y, w: 1, h: 1, solid: true });
   const blocked = new Set<string>();
   for (const o of objects) if (o.solid) blocked.add(`${o.x},${o.y}`);
   const moveTiles = new Uint8Array(CAVE_W * CAVE_H);
-  for (let i = 0; i < tiles.length; i++) moveTiles[i] = isSolidLobbyTile(tiles[i]) ? T_ROCK : T_GRASS;
+  for (let i = 0; i < tiles.length; i++)
+    moveTiles[i] = isSolidLobbyTile(tiles[i]) ? T_ROCK : T_GRASS;
   const moveMap: TopDownMap = tilesSource(0, CAVE_W, CAVE_H, moveTiles);
   const result: CaveLayer = {
     data: { width: CAVE_W, height: CAVE_H, tiles, objects, npcs: [], blocked, moveMap },
@@ -256,7 +288,8 @@ export function buildCaveLayer(seed: number, entranceX: number, entranceY: numbe
 
 /** 入口・階段まわりの安全圏か（階段・ポータルの近接判定に使う）。 */
 export function isCaveSafeTile(cave: CaveLayer, x: number, y: number): boolean {
-  const near = (p: { x: number; y: number } | null) => p !== null && Math.hypot(x - p.x, y - p.y) <= 1.5;
+  const near = (p: { x: number; y: number } | null) =>
+    p !== null && Math.hypot(x - p.x, y - p.y) <= 1.5;
   return near(cave.portal) || near(cave.stairsUp) || near(cave.stairsDown);
 }
 
@@ -356,15 +389,25 @@ export function buildRuins(seed: number, entranceX: number, entranceY: number): 
   const corridor = (x0: number, y0: number, x1: number, y1: number) => {
     let x = x0;
     let y = y0;
-    while (x !== x1) { carve(x, y); carve(x, y + 1); x += Math.sign(x1 - x); }
-    while (y !== y1) { carve(x, y); carve(x + 1, y); y += Math.sign(y1 - y); }
+    while (x !== x1) {
+      carve(x, y);
+      carve(x, y + 1);
+      x += Math.sign(x1 - x);
+    }
+    while (y !== y1) {
+      carve(x, y);
+      carve(x + 1, y);
+      y += Math.sign(y1 - y);
+    }
     carve(x, y);
   };
   for (let ry = 0; ry < ROWS; ry++) {
     for (let rx = 0; rx < COLS; rx++) {
       const room = rooms[ry * COLS + rx];
-      if (rx + 1 < COLS) corridor(room.cx, room.cy, rooms[ry * COLS + rx + 1].cx, rooms[ry * COLS + rx + 1].cy);
-      if (ry + 1 < ROWS) corridor(room.cx, room.cy, rooms[(ry + 1) * COLS + rx].cx, rooms[(ry + 1) * COLS + rx].cy);
+      if (rx + 1 < COLS)
+        corridor(room.cx, room.cy, rooms[ry * COLS + rx + 1].cx, rooms[ry * COLS + rx + 1].cy);
+      if (ry + 1 < ROWS)
+        corridor(room.cx, room.cy, rooms[(ry + 1) * COLS + rx].cx, rooms[(ry + 1) * COLS + rx].cy);
     }
   }
 
@@ -377,7 +420,12 @@ export function buildRuins(seed: number, entranceX: number, entranceY: number): 
   while (queue.length) {
     const cur = queue.shift()!;
     const d = dist.get(`${cur.x},${cur.y}`)!;
-    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+    for (const [dx, dy] of [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1],
+    ]) {
       const nx = cur.x + dx;
       const ny = cur.y + dy;
       const key = `${nx},${ny}`;
@@ -396,12 +444,24 @@ export function buildRuins(seed: number, entranceX: number, entranceY: number): 
     const candidates: { x: number; y: number }[] = [];
     for (const key of floor) {
       const [x, y] = key.split(",").map(Number);
-      const inDeep = x >= deepest.x && x < deepest.x + deepest.w && y >= deepest.y && y < deepest.y + deepest.h;
+      const inDeep =
+        x >= deepest.x && x < deepest.x + deepest.w && y >= deepest.y && y < deepest.y + deepest.h;
       if (inDeep) continue;
-      const touchesDeep = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => {
+      const touchesDeep = [
+        [1, 0],
+        [-1, 0],
+        [0, 1],
+        [0, -1],
+      ].some(([dx, dy]) => {
         const nx = x + dx;
         const ny = y + dy;
-        return nx >= deepest.x && nx < deepest.x + deepest.w && ny >= deepest.y && ny < deepest.y + deepest.h && floor.has(`${nx},${ny}`);
+        return (
+          nx >= deepest.x &&
+          nx < deepest.x + deepest.w &&
+          ny >= deepest.y &&
+          ny < deepest.y + deepest.h &&
+          floor.has(`${nx},${ny}`)
+        );
       });
       if (touchesDeep) candidates.push({ x, y });
     }
@@ -429,12 +489,20 @@ export function buildRuins(seed: number, entranceX: number, entranceY: number): 
   // 床罠: 通路と部屋の床から、入口まわりを避けて決定的に選ぶ。
   const traps: RuinsTrap[] = [];
   const floorList = [...floor]
-    .map((k) => { const [x, y] = k.split(",").map(Number); return { x, y }; })
+    .map((k) => {
+      const [x, y] = k.split(",").map(Number);
+      return { x, y };
+    })
     .filter((t) => Math.hypot(t.x - portal.x, t.y - portal.y) > 4 && !doorSet.has(`${t.x},${t.y}`))
     .filter((t) => !chests.some((c) => c.x === t.x && c.y === t.y));
   for (let i = 0; i < 10 && floorList.length > 0; i++) {
     const pick = floorList.splice(Math.floor(rng() * floorList.length), 1)[0];
-    traps.push({ idx: i, x: pick.x, y: pick.y, kind: RUINS_TRAP_KINDS[i % RUINS_TRAP_KINDS.length] });
+    traps.push({
+      idx: i,
+      x: pick.x,
+      y: pick.y,
+      kind: RUINS_TRAP_KINDS[i % RUINS_TRAP_KINDS.length],
+    });
   }
 
   const objects: LobbyObject[] = [
@@ -445,7 +513,8 @@ export function buildRuins(seed: number, entranceX: number, entranceY: number): 
   const blocked = new Set<string>();
   for (const o of objects) if (o.solid) blocked.add(`${o.x},${o.y}`);
   const moveTiles = new Uint8Array(RUINS_W * RUINS_H);
-  for (let i = 0; i < tiles.length; i++) moveTiles[i] = isSolidLobbyTile(tiles[i]) ? T_ROCK : T_GRASS;
+  for (let i = 0; i < tiles.length; i++)
+    moveTiles[i] = isSolidLobbyTile(tiles[i]) ? T_ROCK : T_GRASS;
   const moveMap: TopDownMap = tilesSource(0, RUINS_W, RUINS_H, moveTiles);
   const result: RuinsMap = {
     data: { width: RUINS_W, height: RUINS_H, tiles, objects, npcs: [], blocked, moveMap },
@@ -483,7 +552,12 @@ export type DungeonFloorData = {
 
 const dungeonCache = new Map<string, DungeonFloorData>();
 
-export function buildDungeonFloor(seed: number, entranceX: number, entranceY: number, layer: number): DungeonFloorData {
+export function buildDungeonFloor(
+  seed: number,
+  entranceX: number,
+  entranceY: number,
+  layer: number,
+): DungeonFloorData {
   // layer は空間 ID の層（0 始まり。洞窟と同じ）。フロア番号は layer+1。
   const f = Math.max(1, Math.min(DUNGEON_FLOORS, (Math.floor(layer) || 0) + 1));
   const cacheKey = `dungeon:${seed}:${entranceX},${entranceY}:${f}`;
@@ -514,15 +588,25 @@ export function buildDungeonFloor(seed: number, entranceX: number, entranceY: nu
   const corridor = (x0: number, y0: number, x1: number, y1: number) => {
     let x = x0;
     let y = y0;
-    while (x !== x1) { carve(x, y); carve(x, y + 1); x += Math.sign(x1 - x); }
-    while (y !== y1) { carve(x, y); carve(x + 1, y); y += Math.sign(y1 - y); }
+    while (x !== x1) {
+      carve(x, y);
+      carve(x, y + 1);
+      x += Math.sign(x1 - x);
+    }
+    while (y !== y1) {
+      carve(x, y);
+      carve(x + 1, y);
+      y += Math.sign(y1 - y);
+    }
     carve(x, y);
   };
   for (let ry = 0; ry < ROWS; ry++) {
     for (let rx = 0; rx < COLS; rx++) {
       const room = rooms[ry * COLS + rx];
-      if (rx + 1 < COLS) corridor(room.cx, room.cy, rooms[ry * COLS + rx + 1].cx, rooms[ry * COLS + rx + 1].cy);
-      if (ry + 1 < ROWS) corridor(room.cx, room.cy, rooms[(ry + 1) * COLS + rx].cx, rooms[(ry + 1) * COLS + rx].cy);
+      if (rx + 1 < COLS)
+        corridor(room.cx, room.cy, rooms[ry * COLS + rx + 1].cx, rooms[ry * COLS + rx + 1].cy);
+      if (ry + 1 < ROWS)
+        corridor(room.cx, room.cy, rooms[(ry + 1) * COLS + rx].cx, rooms[(ry + 1) * COLS + rx].cy);
     }
   }
   const entranceRoom = rooms[(ROWS - 1) * COLS + 1];
@@ -533,7 +617,12 @@ export function buildDungeonFloor(seed: number, entranceX: number, entranceY: nu
   while (queue.length) {
     const cur = queue.shift()!;
     const d = dist.get(`${cur.x},${cur.y}`)!;
-    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+    for (const [dx, dy] of [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1],
+    ]) {
       const nx = cur.x + dx;
       const ny = cur.y + dy;
       const key = `${nx},${ny}`;
@@ -566,13 +655,25 @@ export function buildDungeonFloor(seed: number, entranceX: number, entranceY: nu
 
   const objects: LobbyObject[] = [
     { sprite: "warp_pad", x: portal.x, y: portal.y, w: 1, h: 1, solid: false },
-    ...(stairsDown ? [{ sprite: "stairs", x: stairsDown.x, y: stairsDown.y, w: 1, h: 1, solid: false } as LobbyObject] : []),
+    ...(stairsDown
+      ? [
+          {
+            sprite: "stairs",
+            x: stairsDown.x,
+            y: stairsDown.y,
+            w: 1,
+            h: 1,
+            solid: false,
+          } as LobbyObject,
+        ]
+      : []),
     ...chests.map((c) => ({ sprite: "dungeon_chest", x: c.x, y: c.y, w: 1, h: 1, solid: true })),
   ];
   const blocked = new Set<string>();
   for (const o of objects) if (o.solid) blocked.add(`${o.x},${o.y}`);
   const moveTiles = new Uint8Array(DUNGEON_W * DUNGEON_H);
-  for (let i = 0; i < tiles.length; i++) moveTiles[i] = isSolidLobbyTile(tiles[i]) ? T_ROCK : T_GRASS;
+  for (let i = 0; i < tiles.length; i++)
+    moveTiles[i] = isSolidLobbyTile(tiles[i]) ? T_ROCK : T_GRASS;
   const moveMap: TopDownMap = tilesSource(0, DUNGEON_W, DUNGEON_H, moveTiles);
   const result: DungeonFloorData = {
     data: { width: DUNGEON_W, height: DUNGEON_H, tiles, objects, npcs: [], blocked, moveMap },

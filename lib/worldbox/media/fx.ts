@@ -142,100 +142,212 @@ type BurstSpec = {
 
 const BURSTS: Record<FxBurstKind, BurstSpec> = {
   chop: {
-    count: 12, shapes: ["chip", "chip", "spark"],
+    count: 12,
+    shapes: ["chip", "chip", "spark"],
     colors: ["#8a5a2b", "#5d3a17", "#c89b62", "#2f6121"],
-    speed: [1.2, 3.4], dir: -Math.PI / 2, spread: 2.2, life: [0.3, 0.6], size: [0.06, 0.13],
-    gravity: 7, drag: 1.2, vrot: 9,
+    speed: [1.2, 3.4],
+    dir: -Math.PI / 2,
+    spread: 2.2,
+    life: [0.3, 0.6],
+    size: [0.06, 0.13],
+    gravity: 7,
+    drag: 1.2,
+    vrot: 9,
   },
   mine: {
-    count: 12, shapes: ["chip", "chip", "spark"],
+    count: 12,
+    shapes: ["chip", "chip", "spark"],
     colors: ["#8d8d93", "#55555c", "#c9c9cf", "#3c3c42"],
-    speed: [1.2, 3.6], dir: -Math.PI / 2, spread: 2.2, life: [0.3, 0.55], size: [0.05, 0.12],
-    gravity: 7.5, drag: 1.2, vrot: 10,
+    speed: [1.2, 3.6],
+    dir: -Math.PI / 2,
+    spread: 2.2,
+    life: [0.3, 0.55],
+    size: [0.05, 0.12],
+    gravity: 7.5,
+    drag: 1.2,
+    vrot: 10,
   },
   debris: {
-    count: 16, shapes: ["chip", "puff", "spark"],
+    count: 16,
+    shapes: ["chip", "puff", "spark"],
     colors: ["#9a7b4f", "#6b543a", "#c9b18a", "#4c4438"],
-    speed: [1.4, 4.0], dir: -Math.PI / 2, spread: 2.6, life: [0.35, 0.7], size: [0.06, 0.15],
-    gravity: 7, drag: 1.4, vrot: 9,
+    speed: [1.4, 4.0],
+    dir: -Math.PI / 2,
+    spread: 2.6,
+    life: [0.35, 0.7],
+    size: [0.06, 0.15],
+    gravity: 7,
+    drag: 1.4,
+    vrot: 9,
   },
   till: {
-    count: 10, shapes: ["chip", "puff"],
+    count: 10,
+    shapes: ["chip", "puff"],
     colors: ["#8a5a2b", "#5d3a17", "#a9743f", "#3d2712"],
-    speed: [0.8, 2.4], dir: -Math.PI / 2, spread: 2.0, life: [0.3, 0.55], size: [0.06, 0.13],
-    gravity: 6.5, drag: 1.6, vrot: 7,
+    speed: [0.8, 2.4],
+    dir: -Math.PI / 2,
+    spread: 2.0,
+    life: [0.3, 0.55],
+    size: [0.06, 0.13],
+    gravity: 6.5,
+    drag: 1.6,
+    vrot: 7,
   },
   plant: {
-    count: 9, shapes: ["spark", "chip"],
+    count: 9,
+    shapes: ["spark", "chip"],
     colors: ["#69b84a", "#3e7d2c", "#cfe89a", "#8a5a2b"],
-    speed: [0.6, 1.8], dir: -Math.PI / 2, spread: 2.4, life: [0.35, 0.65], size: [0.04, 0.09],
-    gravity: 3.5, drag: 1.4, vrot: 5,
+    speed: [0.6, 1.8],
+    dir: -Math.PI / 2,
+    spread: 2.4,
+    life: [0.35, 0.65],
+    size: [0.04, 0.09],
+    gravity: 3.5,
+    drag: 1.4,
+    vrot: 5,
   },
   harvest: {
-    count: 16, shapes: ["spark", "spark", "chip"],
+    count: 16,
+    shapes: ["spark", "spark", "chip"],
     colors: ["#ffd23e", "#f59e0b", "#69b84a", "#fff3b0"],
-    speed: [1.4, 3.8], dir: -Math.PI / 2, spread: 2.4, life: [0.4, 0.8], size: [0.04, 0.1],
-    gravity: 5.5, drag: 1.1, vrot: 8,
+    speed: [1.4, 3.8],
+    dir: -Math.PI / 2,
+    spread: 2.4,
+    life: [0.4, 0.8],
+    size: [0.04, 0.1],
+    gravity: 5.5,
+    drag: 1.1,
+    vrot: 8,
   },
   place: {
-    count: 8, shapes: ["puff", "ring"],
+    count: 8,
+    shapes: ["puff", "ring"],
     colors: ["#d8cfc0", "#a89a83", "#ffffff"],
-    speed: [0.5, 1.4], dir: null, spread: Math.PI * 2, life: [0.25, 0.45], size: [0.08, 0.16],
-    gravity: -0.6, drag: 2.2, vrot: 0,
+    speed: [0.5, 1.4],
+    dir: null,
+    spread: Math.PI * 2,
+    life: [0.25, 0.45],
+    size: [0.08, 0.16],
+    gravity: -0.6,
+    drag: 2.2,
+    vrot: 0,
   },
   build: {
-    count: 14, shapes: ["chip", "puff", "spark"],
+    count: 14,
+    shapes: ["chip", "puff", "spark"],
     colors: ["#c89b62", "#8a5a2b", "#9aa0a6", "#5d3a17"],
-    speed: [1.0, 3.0], dir: -Math.PI / 2, spread: 2.4, life: [0.35, 0.65], size: [0.05, 0.13],
-    gravity: 6.5, drag: 1.4, vrot: 8,
+    speed: [1.0, 3.0],
+    dir: -Math.PI / 2,
+    spread: 2.4,
+    life: [0.35, 0.65],
+    size: [0.05, 0.13],
+    gravity: 6.5,
+    drag: 1.4,
+    vrot: 8,
   },
   splash: {
-    count: 12, shapes: ["drop", "drop", "ring"],
+    count: 12,
+    shapes: ["drop", "drop", "ring"],
     colors: ["#7cc0e8", "#3a7cb4", "#ffffff", "#bfe6ff"],
-    speed: [1.0, 3.0], dir: -Math.PI / 2, spread: 1.7, life: [0.3, 0.55], size: [0.04, 0.1],
-    gravity: 8, drag: 0.7, vrot: 0,
+    speed: [1.0, 3.0],
+    dir: -Math.PI / 2,
+    spread: 1.7,
+    life: [0.3, 0.55],
+    size: [0.04, 0.1],
+    gravity: 8,
+    drag: 0.7,
+    vrot: 0,
   },
   step: {
-    count: 2, shapes: ["puff"],
+    count: 2,
+    shapes: ["puff"],
     colors: ["#cfc4ae", "#a89a83"],
-    speed: [0.2, 0.6], dir: -Math.PI / 2, spread: 2.6, life: [0.2, 0.35], size: [0.05, 0.09],
-    gravity: -0.8, drag: 2.4, vrot: 0,
+    speed: [0.2, 0.6],
+    dir: -Math.PI / 2,
+    spread: 2.6,
+    life: [0.2, 0.35],
+    size: [0.05, 0.09],
+    gravity: -0.8,
+    drag: 2.4,
+    vrot: 0,
   },
   dash: {
-    count: 3, shapes: ["spark"],
+    count: 3,
+    shapes: ["spark"],
     colors: ["#ffffff", "#d8ecff"],
-    speed: [0.4, 1.0], dir: null, spread: Math.PI * 2, life: [0.16, 0.28], size: [0.05, 0.1],
-    gravity: 0, drag: 3.2, vrot: 0,
+    speed: [0.4, 1.0],
+    dir: null,
+    spread: Math.PI * 2,
+    life: [0.16, 0.28],
+    size: [0.05, 0.1],
+    gravity: 0,
+    drag: 3.2,
+    vrot: 0,
   },
   warp: {
-    count: 20, shapes: ["glow", "spark"],
+    count: 20,
+    shapes: ["glow", "spark"],
     colors: ["#b79cff", "#7c5cd6", "#ffffff", "#e6dcff"],
-    speed: [0.3, 1.1], dir: -Math.PI / 2, spread: 0.9, life: [0.45, 0.9], size: [0.05, 0.12],
-    gravity: -2.6, drag: 1.0, vrot: 0,
+    speed: [0.3, 1.1],
+    dir: -Math.PI / 2,
+    spread: 0.9,
+    life: [0.45, 0.9],
+    size: [0.05, 0.12],
+    gravity: -2.6,
+    drag: 1.0,
+    vrot: 0,
   },
   poof: {
-    count: 10, shapes: ["puff"],
+    count: 10,
+    shapes: ["puff"],
     colors: ["#e8e4da", "#b9b2a2", "#8d867a"],
-    speed: [0.5, 1.5], dir: null, spread: Math.PI * 2, life: [0.35, 0.6], size: [0.1, 0.2],
-    gravity: -1.2, drag: 2.0, vrot: 0,
+    speed: [0.5, 1.5],
+    dir: null,
+    spread: Math.PI * 2,
+    life: [0.35, 0.6],
+    size: [0.1, 0.2],
+    gravity: -1.2,
+    drag: 2.0,
+    vrot: 0,
   },
   hit: {
-    count: 10, shapes: ["spark", "spark", "chip"],
+    count: 10,
+    shapes: ["spark", "spark", "chip"],
     colors: ["#e5484d", "#ffffff", "#7a1f24", "#ffb3b8"],
-    speed: [1.6, 4.2], dir: -Math.PI / 2, spread: 2.4, life: [0.18, 0.38], size: [0.04, 0.09],
-    gravity: 6, drag: 1.6, vrot: 8,
+    speed: [1.6, 4.2],
+    dir: -Math.PI / 2,
+    spread: 2.4,
+    life: [0.18, 0.38],
+    size: [0.04, 0.09],
+    gravity: 6,
+    drag: 1.6,
+    vrot: 8,
   },
   death: {
-    count: 22, shapes: ["chip", "puff", "chip"],
+    count: 22,
+    shapes: ["chip", "puff", "chip"],
     colors: ["#c9c2b4", "#8d867a", "#5c564c", "#e8e4da"],
-    speed: [1.2, 3.8], dir: null, spread: Math.PI * 2, life: [0.4, 0.85], size: [0.09, 0.22],
-    gravity: 5.5, drag: 1.3, vrot: 8,
+    speed: [1.2, 3.8],
+    dir: null,
+    spread: Math.PI * 2,
+    life: [0.4, 0.85],
+    size: [0.09, 0.22],
+    gravity: 5.5,
+    drag: 1.3,
+    vrot: 8,
   },
   spawn: {
-    count: 14, shapes: ["puff", "glow"],
+    count: 14,
+    shapes: ["puff", "glow"],
     colors: ["#e6dcff", "#b79cff", "#ffffff", "#8d867a"],
-    speed: [0.3, 1.2], dir: -Math.PI / 2, spread: 1.2, life: [0.4, 0.8], size: [0.08, 0.18],
-    gravity: -2.2, drag: 1.2, vrot: 0,
+    speed: [0.3, 1.2],
+    dir: -Math.PI / 2,
+    spread: 1.2,
+    life: [0.4, 0.8],
+    size: [0.08, 0.18],
+    gravity: -2.2,
+    drag: 1.2,
+    vrot: 0,
   },
 };
 
@@ -251,7 +363,15 @@ function emitBurst(
   spec: BurstSpec,
   x: number,
   y: number,
-  opts: { count: number; sizeMul?: number; scatterX?: number; scatterY?: number; dirX?: number; color?: string; colors?: string[] },
+  opts: {
+    count: number;
+    sizeMul?: number;
+    scatterX?: number;
+    scatterY?: number;
+    dirX?: number;
+    color?: string;
+    colors?: string[];
+  },
 ): number {
   const n = Math.max(0, Math.min(FX_BURST_MAX, Math.round(opts.count * sys.intensity)));
   const sizeMul = opts.sizeMul ?? 1;
@@ -295,7 +415,12 @@ export function spawnBurst(
   opts: { dirX?: number; color?: string; colors?: string[] } = {},
 ): number {
   const spec = BURSTS[kind];
-  return emitBurst(sys, spec, x, y, { count: spec.count, dirX: opts.dirX, color: opts.color, colors: opts.colors });
+  return emitBurst(sys, spec, x, y, {
+    count: spec.count,
+    dirX: opts.dirX,
+    color: opts.color,
+    colors: opts.colors,
+  });
 }
 
 // ---- 素材別パレット（対象の素材で破片の色を変える） ----
@@ -405,7 +530,12 @@ export function weatherBlendAt(unixSec: number): { weather: FxWeather; rainStren
  * 天候つきの環境粒の種類。優先順位は 雪 > 雨 > 森 > 夜 > 花粉
  * （雪バイオームでは雨でなく雪が降り続ける）。
  */
-export function weatherAmbientKind(weather: FxWeather, tile: number, isTree: boolean, night: number): FxAmbientKind {
+export function weatherAmbientKind(
+  weather: FxWeather,
+  tile: number,
+  isTree: boolean,
+  night: number,
+): FxAmbientKind {
   if (tile === 6 || tile === 7) return "snow";
   if (weather === "rain") return "rain";
   return ambientKindFor(tile, isTree, night);
@@ -430,16 +560,61 @@ export function phaseKind(phase: number): FxPhaseKind {
   return "night";
 }
 
-const AMBIENT_SPEC: Record<FxAmbientKind, { colors: string[]; size: [number, number]; life: [number, number]; fall: [number, number]; sway: number }> = {
-  snow: { colors: ["#ffffff", "#e8f1f7"], size: [0.03, 0.07], life: [1.6, 2.8], fall: [0.5, 0.9], sway: 0.5 },
-  leaf: { colors: ["#69b84a", "#3e7d2c", "#a8c256"], size: [0.05, 0.1], life: [1.4, 2.4], fall: [0.35, 0.65], sway: 0.8 },
-  pollen: { colors: ["#fff3b0", "#ffe98a"], size: [0.02, 0.045], life: [1.8, 3.0], fall: [0.06, 0.16], sway: 0.35 },
-  firefly: { colors: ["#d8ffb0", "#aef29a"], size: [0.03, 0.055], life: [1.6, 2.6], fall: [-0.05, 0.05], sway: 0.6 },
-  rain: { colors: ["#7cc0e8", "#a8d4f0", "#3a7cb4"], size: [0.03, 0.06], life: [0.9, 1.4], fall: [7, 10], sway: 0.4 },
+const AMBIENT_SPEC: Record<
+  FxAmbientKind,
+  {
+    colors: string[];
+    size: [number, number];
+    life: [number, number];
+    fall: [number, number];
+    sway: number;
+  }
+> = {
+  snow: {
+    colors: ["#ffffff", "#e8f1f7"],
+    size: [0.03, 0.07],
+    life: [1.6, 2.8],
+    fall: [0.5, 0.9],
+    sway: 0.5,
+  },
+  leaf: {
+    colors: ["#69b84a", "#3e7d2c", "#a8c256"],
+    size: [0.05, 0.1],
+    life: [1.4, 2.4],
+    fall: [0.35, 0.65],
+    sway: 0.8,
+  },
+  pollen: {
+    colors: ["#fff3b0", "#ffe98a"],
+    size: [0.02, 0.045],
+    life: [1.8, 3.0],
+    fall: [0.06, 0.16],
+    sway: 0.35,
+  },
+  firefly: {
+    colors: ["#d8ffb0", "#aef29a"],
+    size: [0.03, 0.055],
+    life: [1.6, 2.6],
+    fall: [-0.05, 0.05],
+    sway: 0.6,
+  },
+  rain: {
+    colors: ["#7cc0e8", "#a8d4f0", "#3a7cb4"],
+    size: [0.03, 0.06],
+    life: [0.9, 1.4],
+    fall: [7, 10],
+    sway: 0.4,
+  },
 };
 
 /** 画面範囲 [x0,x1]×[y0,y1] の上辺付近に環境粒を1つ出す。 */
-export function spawnAmbient(sys: FxSystem, kind: FxAmbientKind, x0: number, x1: number, y0: number): FxParticle | null {
+export function spawnAmbient(
+  sys: FxSystem,
+  kind: FxAmbientKind,
+  x0: number,
+  x1: number,
+  y0: number,
+): FxParticle | null {
   if (sys.intensity <= 0) return null;
   const spec = AMBIENT_SPEC[kind];
   const p: FxParticle = {
@@ -568,5 +743,8 @@ export function skillFxStage(effect: SkillFxEffect, nowMs: number): number {
 export function spawnSkillFx(sys: FxSystem, effect: SkillFxEffect, stage: number): void {
   const { x, y } = effect;
   // warp: 立ち上る光（ワープバースト）を重ねて柱らしくする
-  if (stage === 1) { spawnBurst(sys, "warp", x, y); spawnBurst(sys, "warp", x, y); }
+  if (stage === 1) {
+    spawnBurst(sys, "warp", x, y);
+    spawnBurst(sys, "warp", x, y);
+  }
 }

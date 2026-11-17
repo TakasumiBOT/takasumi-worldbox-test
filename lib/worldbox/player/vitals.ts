@@ -7,10 +7,7 @@
 // - 食事で空腹が回復し、温かい食事は一定時間 空腹の減りを緩やかにする
 // 割合・間隔などの数値はユーザー向けに開示しない（探索優先の原則）。
 import { ITEMS, itemById } from "../economy/items";
-import {
-  HUNGER_MAX, type PlayerProfile, type StatusEffect,
-} from "./profile";
-
+import { HUNGER_MAX, type PlayerProfile, type StatusEffect } from "./profile";
 
 /** 空腹の活動クラス（サーバー側が位置変化の平均速度から判定する）。 */
 export type HungerActivity = "idle" | "move" | "dash";
@@ -84,11 +81,7 @@ export const BUFF_DURATION_MS: Record<"warm", number> = {
 export const WARM_HUNGER_MULT = 0.6;
 
 /** バフを付ける（同種は付け直し）。 */
-export function applyBuff(
-  profile: PlayerProfile,
-  kind: "warm",
-  now: number,
-): PlayerProfile {
+export function applyBuff(profile: PlayerProfile, kind: "warm", now: number): PlayerProfile {
   const status = statusOf(profile).filter((e) => e.kind !== kind);
   status.push({ kind, until: now + BUFF_DURATION_MS[kind] });
   return { ...profile, status };
@@ -157,7 +150,9 @@ export function consumeEffect(
   const item = itemById(itemId);
   if (!item || (!item.hunger && !item.buff)) return null;
   let next = profile;
-  const hungerGain = item.hunger ? Math.min(HUNGER_MAX, next.hunger + item.hunger) - next.hunger : 0;
+  const hungerGain = item.hunger
+    ? Math.min(HUNGER_MAX, next.hunger + item.hunger) - next.hunger
+    : 0;
   next = { ...next, hunger: next.hunger + hungerGain };
   if (item.buff) next = applyBuff(next, item.buff.kind, now);
   return { profile: next, hungerGain };

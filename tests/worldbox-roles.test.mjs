@@ -52,12 +52,27 @@ async function loadBundle(files, exportNames) {
 }
 
 const R = await loadBundle(
-  ["worldbox/media/fx.ts", "worldbox/economy/items.ts", "worldbox/player/profile.ts", "worldbox/player/roles.ts"],
   [
-    "ADVENTURE_ROLES", "SKILLS", "MASTERY_THRESHOLDS", "rankForXp", "masteryRankOf",
-    "addMasteryXp", "activeSkillFor", "skillCooldownLeft",
-    "isAdventureRoleId", "parseProfile", "serializeProfile",
-    "SKILL_FX_DURATION_MS", "skillFxProgress", "skillFxStage",
+    "worldbox/media/fx.ts",
+    "worldbox/economy/items.ts",
+    "worldbox/player/profile.ts",
+    "worldbox/player/roles.ts",
+  ],
+  [
+    "ADVENTURE_ROLES",
+    "SKILLS",
+    "MASTERY_THRESHOLDS",
+    "rankForXp",
+    "masteryRankOf",
+    "addMasteryXp",
+    "activeSkillFor",
+    "skillCooldownLeft",
+    "isAdventureRoleId",
+    "parseProfile",
+    "serializeProfile",
+    "SKILL_FX_DURATION_MS",
+    "skillFxProgress",
+    "skillFxStage",
   ],
 );
 

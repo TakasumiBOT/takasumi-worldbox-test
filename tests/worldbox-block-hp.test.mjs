@@ -55,12 +55,33 @@ const invUrl = bundleModule(
 const inv = await import(invUrl);
 
 const tilesUrl = bundleModule(
-  ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/economy/items.ts", "worldbox/player/profile.ts", "worldbox/player/presence.ts", "worldbox/world/seasons.ts", "worldbox/world/tiles.ts"],
   [
-    "worldTileSource", "mapTileAt", "T_GRASS",
-    "parseProfile", "countItem",
-    "applyPlaceBlock", "applyMineBlock", "tileView", "tileKey", "parseTileOverride", "presenceIdFor",
-    "blockMaxHp", "blockHpFraction", "blockMineDamage", "bestToolTier", "BLOCK_MINE_DAMAGE", "DEFAULT_BLOCK_HP",
+    "worldbox/core/rng.ts",
+    "worldbox/world/mapgen.ts",
+    "worldbox/economy/items.ts",
+    "worldbox/player/profile.ts",
+    "worldbox/player/presence.ts",
+    "worldbox/world/seasons.ts",
+    "worldbox/world/tiles.ts",
+  ],
+  [
+    "worldTileSource",
+    "mapTileAt",
+    "T_GRASS",
+    "parseProfile",
+    "countItem",
+    "applyPlaceBlock",
+    "applyMineBlock",
+    "tileView",
+    "tileKey",
+    "parseTileOverride",
+    "presenceIdFor",
+    "blockMaxHp",
+    "blockHpFraction",
+    "blockMineDamage",
+    "bestToolTier",
+    "BLOCK_MINE_DAMAGE",
+    "DEFAULT_BLOCK_HP",
   ],
 );
 const T = await import(tilesUrl);
@@ -95,7 +116,11 @@ function hitsToBreak(placed, profile, key = ME_KEY, ctx = undefined) {
     assert.equal(r.ok, true, `hit ${i + 1} が失敗: ${r.error ?? ""}`);
     hits++;
     if (!r.override?.block) {
-      assert.deepEqual(r.gained, { [placed.override.block.itemId]: 1 }, "壊れたときにだけアイテムが戻る");
+      assert.deepEqual(
+        r.gained,
+        { [placed.override.block.itemId]: 1 },
+        "壊れたときにだけアイテムが戻る",
+      );
       return { hits, last: r };
     }
     assert.deepEqual(r.gained, {}, "壊れるまではアイテムは得られない");
@@ -147,7 +172,11 @@ test("HP: 道具ティアでヒット数が変わる（硬いブロックほど�
   const stone = () => place(withItems({ stone_block: 1 }), ME_KEY, "stone_block");
   assert.equal(hitsToBreak(stone(), withItems({})).hits, 7);
   assert.equal(hitsToBreak(stone(), withItems({ wooden_pickaxe: 1 })).hits, 4);
-  assert.equal(hitsToBreak(stone(), withItems({ wooden_axe: 1 })).hits, 4, "斧でも実効ティアに数える");
+  assert.equal(
+    hitsToBreak(stone(), withItems({ wooden_axe: 1 })).hits,
+    4,
+    "斧でも実効ティアに数える",
+  );
   // 鉄ブロック HP120・ツルハシ必須: 木10→12ヒット、石16→8、鉄25→5、ミスリル40→3
   const iron = () => place(withItems({ iron_block: 1 }), ME_KEY, "iron_block");
   assert.equal(hitsToBreak(iron(), withItems({ wooden_pickaxe: 1 })).hits, 12);
@@ -166,14 +195,25 @@ test("HP: 道具ティアでヒット数が変わる（硬いブロックほど�
 test("HP: 道具ゲートは維持される（要求道具なしでは1ヒットも入らない）", () => {
   const placed = place(withItems({ iron_block: 1 }), ME_KEY, "iron_block");
   assert.equal(mineBlock(placed.override, withItems({}), ME_KEY).error, "tool_required");
-  assert.equal(mineBlock(placed.override, withItems({ mithril_axe: 1 }), ME_KEY).error, "tool_required", "斧では掘れない");
+  assert.equal(
+    mineBlock(placed.override, withItems({ mithril_axe: 1 }), ME_KEY).error,
+    "tool_required",
+    "斧では掘れない",
+  );
   assert.equal(placed.override.block.hp, 120, "hp は減っていない");
 });
 
 test("HP: hp の無い旧データは満タン扱いで、ヒットから記録が付く", () => {
   const selfId = T.presenceIdFor(ME_KEY);
   const legacy = { block: { itemId: "stone_block", ownerId: selfId }, ownerId: selfId };
-  const view = T.tileView(map, { [T.tileKey(grassAt.x, grassAt.y)]: legacy }, grassAt.x, grassAt.y, NOW, ME_KEY);
+  const view = T.tileView(
+    map,
+    { [T.tileKey(grassAt.x, grassAt.y)]: legacy },
+    grassAt.x,
+    grassAt.y,
+    NOW,
+    ME_KEY,
+  );
   assert.equal(view.block.hpFrac, 1, "旧データは満タン");
   assert.equal(T.blockHpFraction(legacy.block), 1);
   const hit = mineBlock(legacy, withItems({}), ME_KEY);
@@ -182,23 +222,38 @@ test("HP: hp の無い旧データは満タン扱いで、ヒットから記録�
 });
 
 test("HP: parse は hp を往復し、壊れた hp は落とす", () => {
-  const ok = T.parseTileOverride({ block: { itemId: "stone_block", ownerId: "abc", hp: 17 }, ownerId: "abc" });
+  const ok = T.parseTileOverride({
+    block: { itemId: "stone_block", ownerId: "abc", hp: 17 },
+    ownerId: "abc",
+  });
   assert.deepEqual(ok.block, { itemId: "stone_block", ownerId: "abc", hp: 17 });
   const roundtrip = T.parseTileOverride(JSON.parse(JSON.stringify(ok)));
   assert.equal(roundtrip.block.hp, 17);
   for (const bad of ["17", -3, 0, NaN, null]) {
-    const parsed = T.parseTileOverride({ block: { itemId: "stone_block", ownerId: "abc", hp: bad }, ownerId: "abc" });
+    const parsed = T.parseTileOverride({
+      block: { itemId: "stone_block", ownerId: "abc", hp: bad },
+      ownerId: "abc",
+    });
     assert.equal(parsed.block.hp, undefined, `hp=${String(bad)} は落とす`);
   }
-  const none = T.parseTileOverride({ block: { itemId: "stone_block", ownerId: "abc" }, ownerId: "abc" });
+  const none = T.parseTileOverride({
+    block: { itemId: "stone_block", ownerId: "abc" },
+    ownerId: "abc",
+  });
   assert.deepEqual(none.block, { itemId: "stone_block", ownerId: "abc" }, "hp 無しはそのまま");
 });
 
 test("クライアント: ひび割れ描画とヒット/破壊の FX 分岐が配線されている", () => {
-  const client = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"), "utf8");
+  const client = fs.readFileSync(
+    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    "utf8",
+  );
   assert.ok(client.includes("drawBlockCracks"), "ひび割れ描画が無い");
   assert.ok(client.includes("BLOCK_CRACK_LINES"), "ひび割れの線定義が無い");
   assert.ok(client.includes("blockHpFraction(ov!.block)"), "描画が HP 割合を見ていない");
-  assert.ok(client.includes('data.override?.block ? "mine"'), "残るヒットと破壊で FX を分けていない");
+  assert.ok(
+    client.includes('data.override?.block ? "mine"'),
+    "残るヒットと破壊で FX を分けていない",
+  );
   assert.ok(client.includes("blockHpFraction"), "tiles から HP 割合を import していない");
 });

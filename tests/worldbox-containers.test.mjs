@@ -445,7 +445,6 @@ export function isNationsEnabled() { return true; }
 export async function loadNationsState() { return { nations: {} }; }
 `);
 
-
 const nextServerStubUrl = dataUrl(`
 export class NextResponse {
   static json(body, init = {}) {

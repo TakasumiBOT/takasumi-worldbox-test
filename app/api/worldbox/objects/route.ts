@@ -3,10 +3,16 @@ import { getRequestSession, publicOrigin, sessionOwnerKey } from "@/lib/auth";
 import { MAP_SEED, WORLD_COORD_LIMIT } from "@/lib/worldbox/world/mapgen";
 import { makeRng } from "@/lib/worldbox/core/rng";
 import {
-  objectRespawned, rollObjectLoot, specialObjectById, surfaceObjectAt,
+  objectRespawned,
+  rollObjectLoot,
+  specialObjectById,
+  surfaceObjectAt,
 } from "@/lib/worldbox/world/objects";
 import {
-  isObjectsEnabled, loadHarvestedAt, loadObjectStates, storeHarvestedAt,
+  isObjectsEnabled,
+  loadHarvestedAt,
+  loadObjectStates,
+  storeHarvestedAt,
 } from "@/lib/worldbox/world/objects-online";
 import { listPresence } from "@/lib/worldbox/player/presence-online";
 import { presenceIdFor } from "@/lib/worldbox/player/presence";
@@ -88,7 +94,12 @@ export async function POST(request: Request) {
   const fields = (body ?? {}) as { x?: unknown; y?: unknown };
   const x = typeof fields.x === "number" ? Math.floor(fields.x) : NaN;
   const y = typeof fields.y === "number" ? Math.floor(fields.y) : NaN;
-  if (!Number.isFinite(x) || !Number.isFinite(y) || Math.abs(x) > WORLD_COORD_LIMIT || Math.abs(y) > WORLD_COORD_LIMIT) {
+  if (
+    !Number.isFinite(x) ||
+    !Number.isFinite(y) ||
+    Math.abs(x) > WORLD_COORD_LIMIT ||
+    Math.abs(y) > WORLD_COORD_LIMIT
+  ) {
     return err("invalid_coord", 400);
   }
   const placed = surfaceObjectAt(MAP_SEED, x, y);
@@ -106,26 +117,32 @@ export async function POST(request: Request) {
     if (def.tool) {
       const tier = bestToolTier(profile, def.tool);
       if (tier <= 0) return err(def.tool === "pickaxe" ? "needs_pickaxe" : "tool_required", 409);
-      if (tier < (def.minTier ?? 0)) return err(def.tool === "pickaxe" ? "pickaxe_tier" : "tool_required", 409);
+      if (tier < (def.minTier ?? 0))
+        return err(def.tool === "pickaxe" ? "pickaxe_tier" : "tool_required", 409);
     }
     // 隣接検証（プレゼンス → セーブ。釣りと同じチェビシェフ ≤2）
     const selfId = presenceIdFor(ownerKey);
     const now = Date.now();
     const entries = await listPresence();
-    const entry = entries.find((e) => e.id === selfId && e.space === "world" && now - e.ts <= 15_000);
+    const entry = entries.find(
+      (e) => e.id === selfId && e.space === "world" && now - e.ts <= 15_000,
+    );
     let pos: { x: number; y: number } | null = entry ? { x: entry.x, y: entry.y } : null;
     if (!pos) {
       const saved = parseSave(await loadWorldBoxSave(ownerKey));
       if (saved && saved.space === "world") pos = { x: saved.x, y: saved.y };
     }
     if (!pos) return err("position_unknown", 409);
-    if (Math.max(Math.abs(Math.floor(pos.x) - x), Math.abs(Math.floor(pos.y) - y)) > MAX_ACTION_DISTANCE) {
+    if (
+      Math.max(Math.abs(Math.floor(pos.x) - x), Math.abs(Math.floor(pos.y) - y)) >
+      MAX_ACTION_DISTANCE
+    ) {
       return err("too_far", 409);
     }
     const harvestedAt = await loadHarvestedAt(x, y);
     if (!objectRespawned(def, harvestedAt, now)) return err("depleted", 409);
 
-    const rng = makeRng((now ^ x * 131 ^ y * 17) >>> 0);
+    const rng = makeRng((now ^ (x * 131) ^ (y * 17)) >>> 0);
     const loot = rollObjectLoot(def, rng);
     let next = profile;
     for (const [itemId, count] of Object.entries(loot.gained)) {

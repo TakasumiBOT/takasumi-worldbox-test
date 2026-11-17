@@ -7,9 +7,7 @@
 // が担うため、ここには定義を持たない（旧 cave_mouth/dungeon_gate/
 // ruins_gate は density 0 で配置されず、実体と二重管理になるため除去）。
 import { itemById } from "../economy/items";
-import {
-  biomeAt, chunkHash, type BiomeId,
-} from "./maplogic";
+import { biomeAt, chunkHash, type BiomeId } from "./maplogic";
 import { CHUNK_SIZE } from "./mapgen";
 import { makeRng } from "../core/rng";
 
@@ -57,102 +55,288 @@ const HOUR = 3600 * 1000;
 
 export const SPECIAL_OBJECTS: readonly SpecialObjectDef[] = [
   // ---- 採取系（自然の恵み） ---------------------------------------------
-  { id: "berry_bush", name: "木の実の茂み", interaction: "harvest", biomes: ["plains", "forest", "dense_forest"], density: 0.9, respawnMs: 30 * 60 * 1000, solid: false, loot: [
-    { itemId: "berry", min: 1, max: 3, chance: 1 },
-    { itemId: "apple", min: 1, max: 1, chance: 0.25 },
-    { itemId: "fiber", min: 1, max: 2, chance: 0.5 },
-  ] },
-  { id: "herb_patch", name: "薬草の群生", interaction: "harvest", biomes: ["plains", "forest", "wetland"], density: 0.8, respawnMs: 20 * 60 * 1000, solid: false, loot: [
-    { itemId: "herb", min: 1, max: 3, chance: 1 },
-    { itemId: "flower", min: 1, max: 2, chance: 0.4 },
-  ] },
-  { id: "mushroom_patch", name: "キノコの群生", interaction: "harvest", biomes: ["forest", "dense_forest", "wetland"], density: 0.7, respawnMs: 40 * 60 * 1000, solid: false, loot: [
-    { itemId: "mushroom", min: 1, max: 3, chance: 1 },
-  ] },
-  { id: "flower_meadow", name: "花畑", interaction: "harvest", biomes: ["plains", "wetland"], density: 0.6, respawnMs: 15 * 60 * 1000, solid: false, loot: [
-    { itemId: "flower", min: 2, max: 4, chance: 1 },
-    { itemId: "fiber", min: 1, max: 2, chance: 0.5 },
-  ] },
-  { id: "beehive", name: "ミツバチの巣", interaction: "harvest", biomes: ["forest", "dense_forest", "plains"], density: 0.35, respawnMs: 2 * HOUR, solid: true, loot: [
-    { itemId: "honey", min: 1, max: 2, chance: 1 },
-    { itemId: "beeswax", min: 1, max: 1, chance: 0.6 },
-  ] },
-  { id: "bird_nest", name: "鳥の巣", interaction: "harvest", biomes: ["forest", "snow_forest", "plains"], density: 0.4, respawnMs: 1 * HOUR, solid: false, loot: [
-    { itemId: "egg", min: 1, max: 2, chance: 0.9 },
-    { itemId: "feather", min: 1, max: 3, chance: 1 },
-  ] },
+  {
+    id: "berry_bush",
+    name: "木の実の茂み",
+    interaction: "harvest",
+    biomes: ["plains", "forest", "dense_forest"],
+    density: 0.9,
+    respawnMs: 30 * 60 * 1000,
+    solid: false,
+    loot: [
+      { itemId: "berry", min: 1, max: 3, chance: 1 },
+      { itemId: "apple", min: 1, max: 1, chance: 0.25 },
+      { itemId: "fiber", min: 1, max: 2, chance: 0.5 },
+    ],
+  },
+  {
+    id: "herb_patch",
+    name: "薬草の群生",
+    interaction: "harvest",
+    biomes: ["plains", "forest", "wetland"],
+    density: 0.8,
+    respawnMs: 20 * 60 * 1000,
+    solid: false,
+    loot: [
+      { itemId: "herb", min: 1, max: 3, chance: 1 },
+      { itemId: "flower", min: 1, max: 2, chance: 0.4 },
+    ],
+  },
+  {
+    id: "mushroom_patch",
+    name: "キノコの群生",
+    interaction: "harvest",
+    biomes: ["forest", "dense_forest", "wetland"],
+    density: 0.7,
+    respawnMs: 40 * 60 * 1000,
+    solid: false,
+    loot: [{ itemId: "mushroom", min: 1, max: 3, chance: 1 }],
+  },
+  {
+    id: "flower_meadow",
+    name: "花畑",
+    interaction: "harvest",
+    biomes: ["plains", "wetland"],
+    density: 0.6,
+    respawnMs: 15 * 60 * 1000,
+    solid: false,
+    loot: [
+      { itemId: "flower", min: 2, max: 4, chance: 1 },
+      { itemId: "fiber", min: 1, max: 2, chance: 0.5 },
+    ],
+  },
+  {
+    id: "beehive",
+    name: "ミツバチの巣",
+    interaction: "harvest",
+    biomes: ["forest", "dense_forest", "plains"],
+    density: 0.35,
+    respawnMs: 2 * HOUR,
+    solid: true,
+    loot: [
+      { itemId: "honey", min: 1, max: 2, chance: 1 },
+      { itemId: "beeswax", min: 1, max: 1, chance: 0.6 },
+    ],
+  },
+  {
+    id: "bird_nest",
+    name: "鳥の巣",
+    interaction: "harvest",
+    biomes: ["forest", "snow_forest", "plains"],
+    density: 0.4,
+    respawnMs: 1 * HOUR,
+    solid: false,
+    loot: [
+      { itemId: "egg", min: 1, max: 2, chance: 0.9 },
+      { itemId: "feather", min: 1, max: 3, chance: 1 },
+    ],
+  },
   // ---- 採掘系（鉱脈） -----------------------------------------------------
-  { id: "copper_vein", name: "銅の鉱脈", interaction: "mine", biomes: ["highland", "dryland"], density: 0.6, respawnMs: 3 * HOUR, solid: true, tool: "pickaxe", loot: [
-    { itemId: "copper_ore", min: 2, max: 4, chance: 1 },
-    { itemId: "stone", min: 1, max: 2, chance: 0.6 },
-  ] },
-  { id: "coal_vein", name: "石炭の鉱脈", interaction: "mine", biomes: ["highland"], density: 0.55, respawnMs: 3 * HOUR, solid: true, tool: "pickaxe", loot: [
-    { itemId: "coal", min: 2, max: 4, chance: 1 },
-    { itemId: "flint", min: 1, max: 1, chance: 0.3 },
-  ] },
-  { id: "rare_vein", name: "希少な鉱脈", interaction: "mine", biomes: ["highland"], density: 0.18, respawnMs: 6 * HOUR, solid: true, tool: "pickaxe", minTier: 2, loot: [
-    { itemId: "gold_ore", min: 1, max: 3, chance: 1 },
-    { itemId: "ruby", min: 1, max: 1, chance: 0.22 },
-    { itemId: "sapphire", min: 1, max: 1, chance: 0.22 },
-    { itemId: "emerald", min: 1, max: 1, chance: 0.15 },
-    { itemId: "diamond", min: 1, max: 1, chance: 0.1 },
-  ] },
-  { id: "crystal_cluster", name: "水晶のクラスター", interaction: "mine", biomes: ["highland", "snowfield"], density: 0.22, respawnMs: 6 * HOUR, solid: true, tool: "pickaxe", minTier: 2, loot: [
-    { itemId: "crystal_block", min: 1, max: 1, chance: 0.5 },
-    { itemId: "diamond", min: 1, max: 1, chance: 0.18 },
-    { itemId: "star_shard", min: 1, max: 1, chance: 0.08 },
-  ] },
-  { id: "mithril_vein", name: "ミスリルの鉱脈", interaction: "mine", biomes: [], density: 0, respawnMs: 6 * HOUR, solid: true, tool: "pickaxe", minTier: 3, loot: [
-    { itemId: "mithril", min: 1, max: 2, chance: 1 },
-    { itemId: "diamond", min: 1, max: 1, chance: 0.12 },
-  ] },
-  { id: "sulfur_vent", name: "硫黄の噴気", interaction: "harvest", biomes: ["highland", "dryland"], density: 0.3, respawnMs: 2 * HOUR, solid: false, loot: [
-    { itemId: "sulfur", min: 1, max: 3, chance: 1 },
-  ] },
+  {
+    id: "copper_vein",
+    name: "銅の鉱脈",
+    interaction: "mine",
+    biomes: ["highland", "dryland"],
+    density: 0.6,
+    respawnMs: 3 * HOUR,
+    solid: true,
+    tool: "pickaxe",
+    loot: [
+      { itemId: "copper_ore", min: 2, max: 4, chance: 1 },
+      { itemId: "stone", min: 1, max: 2, chance: 0.6 },
+    ],
+  },
+  {
+    id: "coal_vein",
+    name: "石炭の鉱脈",
+    interaction: "mine",
+    biomes: ["highland"],
+    density: 0.55,
+    respawnMs: 3 * HOUR,
+    solid: true,
+    tool: "pickaxe",
+    loot: [
+      { itemId: "coal", min: 2, max: 4, chance: 1 },
+      { itemId: "flint", min: 1, max: 1, chance: 0.3 },
+    ],
+  },
+  {
+    id: "rare_vein",
+    name: "希少な鉱脈",
+    interaction: "mine",
+    biomes: ["highland"],
+    density: 0.18,
+    respawnMs: 6 * HOUR,
+    solid: true,
+    tool: "pickaxe",
+    minTier: 2,
+    loot: [
+      { itemId: "gold_ore", min: 1, max: 3, chance: 1 },
+      { itemId: "ruby", min: 1, max: 1, chance: 0.22 },
+      { itemId: "sapphire", min: 1, max: 1, chance: 0.22 },
+      { itemId: "emerald", min: 1, max: 1, chance: 0.15 },
+      { itemId: "diamond", min: 1, max: 1, chance: 0.1 },
+    ],
+  },
+  {
+    id: "crystal_cluster",
+    name: "水晶のクラスター",
+    interaction: "mine",
+    biomes: ["highland", "snowfield"],
+    density: 0.22,
+    respawnMs: 6 * HOUR,
+    solid: true,
+    tool: "pickaxe",
+    minTier: 2,
+    loot: [
+      { itemId: "crystal_block", min: 1, max: 1, chance: 0.5 },
+      { itemId: "diamond", min: 1, max: 1, chance: 0.18 },
+      { itemId: "star_shard", min: 1, max: 1, chance: 0.08 },
+    ],
+  },
+  {
+    id: "mithril_vein",
+    name: "ミスリルの鉱脈",
+    interaction: "mine",
+    biomes: [],
+    density: 0,
+    respawnMs: 6 * HOUR,
+    solid: true,
+    tool: "pickaxe",
+    minTier: 3,
+    loot: [
+      { itemId: "mithril", min: 1, max: 2, chance: 1 },
+      { itemId: "diamond", min: 1, max: 1, chance: 0.12 },
+    ],
+  },
+  {
+    id: "sulfur_vent",
+    name: "硫黄の噴気",
+    interaction: "harvest",
+    biomes: ["highland", "dryland"],
+    density: 0.3,
+    respawnMs: 2 * HOUR,
+    solid: false,
+    loot: [{ itemId: "sulfur", min: 1, max: 3, chance: 1 }],
+  },
   // ---- 宝箱系（遺跡・洞窟・ダンジョンの中身の性格を地表の宝箱にも） -------
-  { id: "ruins_chest", name: "遺跡の宝箱", interaction: "open", biomes: ["plains", "forest", "dryland"], density: 0.12, respawnMs: 0, solid: true, trapChance: 0.3, loot: [
-    { itemId: "ancient_coin", min: 1, max: 2, chance: 0.9 },
-    { itemId: "ancient_relic", min: 1, max: 1, chance: 0.25 },
-    { itemId: "gold_ingot", min: 1, max: 2, chance: 0.5 },
-    { itemId: "star_map", min: 1, max: 1, chance: 0.2 },
-  ] },
-  { id: "cave_chest", name: "洞窟の宝箱", interaction: "open", biomes: ["highland"], density: 0.1, respawnMs: 0, solid: true, trapChance: 0.2, loot: [
-    { itemId: "gold_ore", min: 2, max: 4, chance: 0.9 },
-    { itemId: "emerald", min: 1, max: 1, chance: 0.3 },
-    { itemId: "golden_key", min: 1, max: 1, chance: 0.15 },
-  ] },
-  { id: "dungeon_chest", name: "ダンジョンの宝箱", interaction: "open", biomes: ["dense_forest", "snowfield", "highland"], density: 0.07, respawnMs: 0, solid: true, trapChance: 0.4, loot: [
-    { itemId: "ancient_relic", min: 1, max: 1, chance: 0.5 },
-    { itemId: "dragon_scale", min: 1, max: 1, chance: 0.3 },
-    { itemId: "ghost_tear", min: 1, max: 2, chance: 0.4 },
-    { itemId: "mithril", min: 1, max: 2, chance: 0.45 },
-  ] },
+  {
+    id: "ruins_chest",
+    name: "遺跡の宝箱",
+    interaction: "open",
+    biomes: ["plains", "forest", "dryland"],
+    density: 0.12,
+    respawnMs: 0,
+    solid: true,
+    trapChance: 0.3,
+    loot: [
+      { itemId: "ancient_coin", min: 1, max: 2, chance: 0.9 },
+      { itemId: "ancient_relic", min: 1, max: 1, chance: 0.25 },
+      { itemId: "gold_ingot", min: 1, max: 2, chance: 0.5 },
+      { itemId: "star_map", min: 1, max: 1, chance: 0.2 },
+    ],
+  },
+  {
+    id: "cave_chest",
+    name: "洞窟の宝箱",
+    interaction: "open",
+    biomes: ["highland"],
+    density: 0.1,
+    respawnMs: 0,
+    solid: true,
+    trapChance: 0.2,
+    loot: [
+      { itemId: "gold_ore", min: 2, max: 4, chance: 0.9 },
+      { itemId: "emerald", min: 1, max: 1, chance: 0.3 },
+      { itemId: "golden_key", min: 1, max: 1, chance: 0.15 },
+    ],
+  },
+  {
+    id: "dungeon_chest",
+    name: "ダンジョンの宝箱",
+    interaction: "open",
+    biomes: ["dense_forest", "snowfield", "highland"],
+    density: 0.07,
+    respawnMs: 0,
+    solid: true,
+    trapChance: 0.4,
+    loot: [
+      { itemId: "ancient_relic", min: 1, max: 1, chance: 0.5 },
+      { itemId: "dragon_scale", min: 1, max: 1, chance: 0.3 },
+      { itemId: "ghost_tear", min: 1, max: 2, chance: 0.4 },
+      { itemId: "mithril", min: 1, max: 2, chance: 0.45 },
+    ],
+  },
   // ---- 回復・探索系 ---------------------------------------------------------
-  { id: "hot_spring", name: "温泉", interaction: "rest", biomes: ["highland", "snowfield", "forest"], density: 0.15, respawnMs: 0, solid: false, loot: [
-    { itemId: "salt", min: 1, max: 2, chance: 0.4 },
-  ] },
-  { id: "ancient_pillar", name: "古代の石柱", interaction: "search", biomes: ["plains", "dryland", "snowfield"], density: 0.14, respawnMs: 0, solid: true, loot: [
-    { itemId: "ancient_coin", min: 1, max: 1, chance: 0.5 },
-    { itemId: "star_shard", min: 1, max: 1, chance: 0.1 },
-  ] },
-  { id: "fallen_log", name: "倒木", interaction: "search", biomes: ["forest", "dense_forest", "snow_forest"], density: 0.5, respawnMs: 4 * HOUR, solid: true, tool: "axe", loot: [
-    { itemId: "wood", min: 2, max: 4, chance: 1 },
-    { itemId: "mushroom", min: 1, max: 2, chance: 0.45 },
-  ] },
-  { id: "fishing_spot", name: "魚影", interaction: "fish", biomes: ["lake", "beach", "wetland"], density: 0.8, respawnMs: 10 * 60 * 1000, solid: false, loot: [
-    { itemId: "fish", min: 1, max: 2, chance: 1 },
-    { itemId: "pearl", min: 1, max: 1, chance: 0.12 },
-    { itemId: "salt", min: 1, max: 2, chance: 0.3 },
-  ] },
-  { id: "driftwood", name: "流木", interaction: "search", biomes: ["beach", "lake"], density: 0.5, respawnMs: 1 * HOUR, solid: false, loot: [
-    { itemId: "wood", min: 1, max: 3, chance: 1 },
-    { itemId: "rope", min: 1, max: 1, chance: 0.15 },
-  ] },
+  {
+    id: "hot_spring",
+    name: "温泉",
+    interaction: "rest",
+    biomes: ["highland", "snowfield", "forest"],
+    density: 0.15,
+    respawnMs: 0,
+    solid: false,
+    loot: [{ itemId: "salt", min: 1, max: 2, chance: 0.4 }],
+  },
+  {
+    id: "ancient_pillar",
+    name: "古代の石柱",
+    interaction: "search",
+    biomes: ["plains", "dryland", "snowfield"],
+    density: 0.14,
+    respawnMs: 0,
+    solid: true,
+    loot: [
+      { itemId: "ancient_coin", min: 1, max: 1, chance: 0.5 },
+      { itemId: "star_shard", min: 1, max: 1, chance: 0.1 },
+    ],
+  },
+  {
+    id: "fallen_log",
+    name: "倒木",
+    interaction: "search",
+    biomes: ["forest", "dense_forest", "snow_forest"],
+    density: 0.5,
+    respawnMs: 4 * HOUR,
+    solid: true,
+    tool: "axe",
+    loot: [
+      { itemId: "wood", min: 2, max: 4, chance: 1 },
+      { itemId: "mushroom", min: 1, max: 2, chance: 0.45 },
+    ],
+  },
+  {
+    id: "fishing_spot",
+    name: "魚影",
+    interaction: "fish",
+    biomes: ["lake", "beach", "wetland"],
+    density: 0.8,
+    respawnMs: 10 * 60 * 1000,
+    solid: false,
+    loot: [
+      { itemId: "fish", min: 1, max: 2, chance: 1 },
+      { itemId: "pearl", min: 1, max: 1, chance: 0.12 },
+      { itemId: "salt", min: 1, max: 2, chance: 0.3 },
+    ],
+  },
+  {
+    id: "driftwood",
+    name: "流木",
+    interaction: "search",
+    biomes: ["beach", "lake"],
+    density: 0.5,
+    respawnMs: 1 * HOUR,
+    solid: false,
+    loot: [
+      { itemId: "wood", min: 1, max: 3, chance: 1 },
+      { itemId: "rope", min: 1, max: 1, chance: 0.15 },
+    ],
+  },
 ];
 
 const OBJECT_BY_ID = new Map(SPECIAL_OBJECTS.map((o) => [o.id, o]));
 export function specialObjectById(id: unknown): SpecialObjectDef | null {
-  return typeof id === "string" ? OBJECT_BY_ID.get(id) ?? null : null;
+  return typeof id === "string" ? (OBJECT_BY_ID.get(id) ?? null) : null;
 }
 
 /** ルート定義の整合性（全エントリが実在アイテムを指すか）。 */
@@ -161,8 +345,10 @@ export function validateSpecialObjects(): string[] {
   for (const def of SPECIAL_OBJECTS) {
     for (const entry of def.loot) {
       if (!itemById(entry.itemId)) errors.push(`${def.id}: unknown loot item ${entry.itemId}`);
-      if (entry.min < 0 || entry.max < entry.min) errors.push(`${def.id}: bad loot range ${entry.itemId}`);
-      if (entry.chance <= 0 || entry.chance > 1) errors.push(`${def.id}: bad loot chance ${entry.itemId}`);
+      if (entry.min < 0 || entry.max < entry.min)
+        errors.push(`${def.id}: bad loot range ${entry.itemId}`);
+      if (entry.chance <= 0 || entry.chance > 1)
+        errors.push(`${def.id}: bad loot chance ${entry.itemId}`);
     }
   }
   return errors;
@@ -229,17 +415,32 @@ export function rollObjectLoot(def: SpecialObjectDef, rng: () => number): LootRe
 }
 
 /** 座標とオブジェクト ID から決定的にルートを引く（サーバー/クライアント一致用）。 */
-export function lootForObjectAt(seed: number, objectId: string, x: number, y: number, nonce: number): LootResult | null {
+export function lootForObjectAt(
+  seed: number,
+  objectId: string,
+  x: number,
+  y: number,
+  nonce: number,
+): LootResult | null {
   const def = specialObjectById(objectId);
   if (!def) return null;
-  let h = (seed ^ Math.imul(x + 101, 374761393) ^ Math.imul(y + 57, 668265263) ^ Math.imul(nonce + 1, 2246822519)) | 0;
+  let h =
+    (seed ^
+      Math.imul(x + 101, 374761393) ^
+      Math.imul(y + 57, 668265263) ^
+      Math.imul(nonce + 1, 2246822519)) |
+    0;
   h = Math.imul(h ^ (h >>> 13), 1274126177);
   const rng = makeRng((h ^ (h >>> 16)) >>> 0);
   return rollObjectLoot(def, rng);
 }
 
 /** 採取後に再出現しているか。respawnMs=0 の一回きりオブジェクトは常に false。 */
-export function objectRespawned(def: SpecialObjectDef, harvestedAt: number | null, now: number): boolean {
+export function objectRespawned(
+  def: SpecialObjectDef,
+  harvestedAt: number | null,
+  now: number,
+): boolean {
   if (harvestedAt === null) return true;
   if (def.respawnMs <= 0) return false;
   return now - harvestedAt >= def.respawnMs;
@@ -261,7 +462,11 @@ export function surfaceObjectAt(seed: number, x: number, y: number): PlacedObjec
  * 残るため、採取状態には依存しない。
  */
 export function surfaceSolidTilesInRect(
-  seed: number, x0: number, y0: number, x1: number, y1: number,
+  seed: number,
+  x0: number,
+  y0: number,
+  x1: number,
+  y1: number,
 ): Set<string> {
   const out = new Set<string>();
   const cx0 = Math.floor(x0 / CHUNK_SIZE);

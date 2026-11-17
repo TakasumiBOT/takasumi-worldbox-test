@@ -50,11 +50,27 @@ async function loadBundle(files, exportNames) {
 }
 
 const T = await loadBundle(
-  ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/world/lobby.ts", "worldbox/economy/items.ts", "worldbox/world/objects.ts", "worldbox/world/instances.ts", "worldbox/social/party.ts"],
   [
-    "buildDungeonFloor", "DUNGEON_FLOORS",
-    "createParty", "joinParty", "leaveParty", "addInvite", "inviteFor", "parseParty", "partyKeyOf",
-    "MAX_PARTY_MEMBERS", "PARTY_INVITE_TTL_MS",
+    "worldbox/core/rng.ts",
+    "worldbox/world/mapgen.ts",
+    "worldbox/world/lobby.ts",
+    "worldbox/economy/items.ts",
+    "worldbox/world/objects.ts",
+    "worldbox/world/instances.ts",
+    "worldbox/social/party.ts",
+  ],
+  [
+    "buildDungeonFloor",
+    "DUNGEON_FLOORS",
+    "createParty",
+    "joinParty",
+    "leaveParty",
+    "addInvite",
+    "inviteFor",
+    "parseParty",
+    "partyKeyOf",
+    "MAX_PARTY_MEMBERS",
+    "PARTY_INVITE_TTL_MS",
   ],
 );
 
@@ -133,7 +149,10 @@ test("dungeon: every floor has portal, stairs rules and chests (no mobs, no door
     assert.ok(f.portal.x >= 0 && f.portal.y >= 0);
     if (layer < T.DUNGEON_FLOORS - 1) {
       assert.ok(f.stairsDown, `floor ${layer + 1} stairs`);
-      assert.ok(f.chests.every((c) => !c.main), `floor ${layer + 1} main chest is final-floor only`);
+      assert.ok(
+        f.chests.every((c) => !c.main),
+        `floor ${layer + 1} main chest is final-floor only`,
+      );
     } else {
       assert.equal(f.stairsDown, null);
       // 最深層は主宝箱がちょうど1つ（クリア条件）

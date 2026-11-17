@@ -52,8 +52,13 @@ async function loadBundle(files, exportNames) {
 const M = await loadBundle(
   ["worldbox/core/metrics.ts"],
   [
-    "emptyDayMetrics", "parseDayMetrics", "parseUserFirstSteps", "dayKeyOf",
-    "funnelRates", "retentionRate", "FUNNEL_WINDOW_MS",
+    "emptyDayMetrics",
+    "parseDayMetrics",
+    "parseUserFirstSteps",
+    "dayKeyOf",
+    "funnelRates",
+    "retentionRate",
+    "FUNNEL_WINDOW_MS",
   ],
 );
 

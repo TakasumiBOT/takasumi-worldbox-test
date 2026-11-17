@@ -55,15 +55,48 @@ async function loadBundle(files, exportNames) {
 }
 
 const wb = await loadBundle(
-  ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/player/move.ts", "worldbox/player/presence.ts", "worldbox/social/nations.ts", "worldbox/social/guilds.ts"],
   [
-    "T_GRASS", "T_WATER", "T_DIRT", "T_SAND", "T_TREE", "T_ROCK", "worldTileSource", "tilesSource", "mapTileAt",
-    "presenceIdFor", "fastTravelDestination", "FAST_TRAVEL_COST", "FAST_TRAVEL_COOLDOWN_MS",
-    "TERRITORY_RADIUS", "NATION_PALETTE", "NATIONS_STATE_VERSION", "emptyNationsState",
-    "pickNationColor", "capitalFits", "findCapitalTile", "memberCounts",
-    "applyFound", "applyJoin", "applyLeave", "parseNationsState", "nationViews", "playerNationMap",
-    "buildNationsResponse", "prosperityOf",
-    "roleInGuild", "annotateMyGuilds", "parseGuildCache", "GUILD_CACHE_TTL_MS",
+    "worldbox/core/rng.ts",
+    "worldbox/world/mapgen.ts",
+    "worldbox/player/move.ts",
+    "worldbox/player/presence.ts",
+    "worldbox/social/nations.ts",
+    "worldbox/social/guilds.ts",
+  ],
+  [
+    "T_GRASS",
+    "T_WATER",
+    "T_DIRT",
+    "T_SAND",
+    "T_TREE",
+    "T_ROCK",
+    "worldTileSource",
+    "tilesSource",
+    "mapTileAt",
+    "presenceIdFor",
+    "fastTravelDestination",
+    "FAST_TRAVEL_COST",
+    "FAST_TRAVEL_COOLDOWN_MS",
+    "TERRITORY_RADIUS",
+    "NATION_PALETTE",
+    "NATIONS_STATE_VERSION",
+    "emptyNationsState",
+    "pickNationColor",
+    "capitalFits",
+    "findCapitalTile",
+    "memberCounts",
+    "applyFound",
+    "applyJoin",
+    "applyLeave",
+    "parseNationsState",
+    "nationViews",
+    "playerNationMap",
+    "buildNationsResponse",
+    "prosperityOf",
+    "roleInGuild",
+    "annotateMyGuilds",
+    "parseGuildCache",
+    "GUILD_CACHE_TTL_MS",
   ],
 );
 
@@ -91,7 +124,16 @@ test("nations: 2つ目の首都は領地が重ならない距離に置かれる"
   const map = fakeMap(wb.T_GRASS);
   const first = wb.findCapitalTile(map, [], { x: 64, y: 64 });
   assert.deepEqual(first, { x: 64, y: 64 });
-  const nations = [{ guildId: GUILD_1, name: "一国", color: wb.NATION_PALETTE[0], kingKey: KING_A, capital: first, createdAt: 1 }];
+  const nations = [
+    {
+      guildId: GUILD_1,
+      name: "一国",
+      color: wb.NATION_PALETTE[0],
+      kingKey: KING_A,
+      capital: first,
+      createdAt: 1,
+    },
+  ];
   // 距離 2R までは重なり、2R+1 から置ける
   assert.equal(wb.capitalFits(map, 64 + wb.TERRITORY_RADIUS * 2, 64, nations), false);
   assert.equal(wb.capitalFits(map, 64 + wb.TERRITORY_RADIUS * 2 + 1, 64, nations), true);
@@ -117,7 +159,16 @@ test("nations: 色は使用数の少ないものから割り当てる", () => {
   const empty = wb.emptyNationsState();
   assert.equal(wb.pickNationColor(empty), wb.NATION_PALETTE[0]);
   const one = {
-    nations: { [GUILD_1]: { guildId: GUILD_1, name: "一国", color: wb.NATION_PALETTE[0], kingKey: KING_A, capital: { x: 64, y: 64 }, createdAt: 1 } },
+    nations: {
+      [GUILD_1]: {
+        guildId: GUILD_1,
+        name: "一国",
+        color: wb.NATION_PALETTE[0],
+        kingKey: KING_A,
+        capital: { x: 64, y: 64 },
+        createdAt: 1,
+      },
+    },
     members: {},
   };
   assert.equal(wb.pickNationColor(one), wb.NATION_PALETTE[1]);
@@ -140,11 +191,20 @@ test("guilds: 役職は Discord 権限から（オーナー=王、ADMINISTRATOR=
 
 test("guilds: 自分のギルド一覧に国の有無と役職が付く", () => {
   const map = wb.worldTileSource();
-  const founded = wb.applyFound(wb.emptyNationsState(), KING_A, { id: GUILD_1, name: "あご鯖" }, map, 1000);
-  const annotated = wb.annotateMyGuilds([
-    { id: GUILD_1, name: "あご鯖", owner: true, permissions: "0" },
-    { id: GUILD_2, name: "別の鯖", owner: false, permissions: "8" },
-  ], founded.state);
+  const founded = wb.applyFound(
+    wb.emptyNationsState(),
+    KING_A,
+    { id: GUILD_1, name: "あご鯖" },
+    map,
+    1000,
+  );
+  const annotated = wb.annotateMyGuilds(
+    [
+      { id: GUILD_1, name: "あご鯖", owner: true, permissions: "0" },
+      { id: GUILD_2, name: "別の鯖", owner: false, permissions: "8" },
+    ],
+    founded.state,
+  );
   assert.deepEqual(annotated, [
     { guildId: GUILD_1, name: "あご鯖", owner: true, hasNation: true, myRole: "king" },
     { guildId: GUILD_2, name: "別の鯖", owner: false, hasNation: false, myRole: "minister" },
@@ -168,14 +228,23 @@ test("guilds: ギルドキャッシュは TTL 内だけ有効で、壊れた値�
   // 壊れた値・形式違いは無効
   assert.equal(wb.parseGuildCache("{壊れた", now), null);
   assert.equal(wb.parseGuildCache(null, now), null);
-  assert.equal(wb.parseGuildCache(JSON.stringify({ fetchedAt: now, guilds: [{ id: 1 }] }), now), null);
+  assert.equal(
+    wb.parseGuildCache(JSON.stringify({ fetchedAt: now, guilds: [{ id: 1 }] }), now),
+    null,
+  );
 });
 
 // ---------- 状態遷移 ----------
 
 test("nations: 建国→王、参加→渡された役職、二重所属と重複建国は却下", () => {
   const map = wb.worldTileSource();
-  const founded = wb.applyFound(wb.emptyNationsState(), KING_A, { id: GUILD_1, name: "あご鯖" }, map, 1000);
+  const founded = wb.applyFound(
+    wb.emptyNationsState(),
+    KING_A,
+    { id: GUILD_1, name: "あご鯖" },
+    map,
+    1000,
+  );
   assert.equal(founded.ok, true);
   assert.equal(founded.nation.guildId, GUILD_1);
   assert.equal(founded.nation.name, "あご鯖");
@@ -184,18 +253,30 @@ test("nations: 建国→王、参加→渡された役職、二重所属と重�
   assert.equal(founded.nation.color, wb.NATION_PALETTE[0]);
 
   // 同じサーバーの国は二つ作れない（建国者でなくても）
-  assert.equal(wb.applyFound(founded.state, USER_B, { id: GUILD_1, name: "あご鯖" }, map, 2000).error, "nation_exists");
+  assert.equal(
+    wb.applyFound(founded.state, USER_B, { id: GUILD_1, name: "あご鯖" }, map, 2000).error,
+    "nation_exists",
+  );
   // 所属中は別のサーバーでも建国できない（1人1国）
-  assert.equal(wb.applyFound(founded.state, KING_A, { id: GUILD_2, name: "別の鯖" }, map, 2000).error, "already_in_nation");
+  assert.equal(
+    wb.applyFound(founded.state, KING_A, { id: GUILD_2, name: "別の鯖" }, map, 2000).error,
+    "already_in_nation",
+  );
   // ギルド ID の形式が不正なら invalid_request
-  assert.equal(wb.applyFound(wb.emptyNationsState(), KING_A, { id: "abc", name: "x" }, map, 2000).error, "invalid_request");
+  assert.equal(
+    wb.applyFound(wb.emptyNationsState(), KING_A, { id: "abc", name: "x" }, map, 2000).error,
+    "invalid_request",
+  );
 
   const joined = wb.applyJoin(founded.state, USER_B, GUILD_1, "citizen");
   assert.equal(joined.ok, true);
   assert.equal(joined.state.members[USER_B].role, "citizen");
   assert.equal(wb.memberCounts(joined.state)[GUILD_1], 2);
   assert.equal(wb.applyJoin(joined.state, USER_B, GUILD_1, "citizen").error, "already_in_nation");
-  assert.equal(wb.applyJoin(founded.state, USER_C, "999999999999999999", "citizen").error, "nation_not_found");
+  assert.equal(
+    wb.applyJoin(founded.state, USER_C, "999999999999999999", "citizen").error,
+    "nation_not_found",
+  );
   // 大臣としての参加は役職がそのまま保存される
   const minister = wb.applyJoin(founded.state, USER_C, GUILD_1, "minister");
   assert.equal(minister.state.members[USER_C].role, "minister");
@@ -203,7 +284,13 @@ test("nations: 建国→王、参加→渡された役職、二重所属と重�
 
 test("nations: 王の離脱規則と、解散で首都が空く", () => {
   const map = wb.worldTileSource();
-  const founded = wb.applyFound(wb.emptyNationsState(), KING_A, { id: GUILD_1, name: "あご鯖" }, map, 1000);
+  const founded = wb.applyFound(
+    wb.emptyNationsState(),
+    KING_A,
+    { id: GUILD_1, name: "あご鯖" },
+    map,
+    1000,
+  );
   const joined = wb.applyJoin(founded.state, USER_B, GUILD_1, "citizen");
 
   // 国民がいる間、王は離脱できない
@@ -218,12 +305,21 @@ test("nations: 王の離脱規則と、解散で首都が空く", () => {
   assert.equal(disbanded.ok, true);
   assert.equal(disbanded.disbanded, true);
   assert.deepEqual(Object.keys(disbanded.state.nations), []);
-  assert.deepEqual(wb.findCapitalTile(map, Object.values(disbanded.state.nations)), { x: 512, y: 512 });
+  assert.deepEqual(wb.findCapitalTile(map, Object.values(disbanded.state.nations)), {
+    x: 512,
+    y: 512,
+  });
 });
 
 test("nations: 保存形式の往復（v2）と、旧形式の破棄・壊れた要素の除去", () => {
   const map = wb.worldTileSource();
-  const founded = wb.applyFound(wb.emptyNationsState(), KING_A, { id: GUILD_1, name: "あご鯖" }, map, 1000);
+  const founded = wb.applyFound(
+    wb.emptyNationsState(),
+    KING_A,
+    { id: GUILD_1, name: "あご鯖" },
+    map,
+    1000,
+  );
   const restored = wb.parseNationsState(
     JSON.stringify({ v: wb.NATIONS_STATE_VERSION, nations: founded.state.nations }),
     JSON.stringify(founded.state.members),
@@ -233,7 +329,14 @@ test("nations: 保存形式の往復（v2）と、旧形式の破棄・壊れた
   // 旧プレイヤー建国形式（包み無し・id キー）は丸ごと破棄する
   const legacy = wb.parseNationsState(
     JSON.stringify({
-      abc12345: { id: "abc12345", name: "旧王国", color: wb.NATION_PALETTE[0], kingKey: KING_A, capital: { x: 512, y: 512 }, createdAt: 1 },
+      abc12345: {
+        id: "abc12345",
+        name: "旧王国",
+        color: wb.NATION_PALETTE[0],
+        kingKey: KING_A,
+        capital: { x: 512, y: 512 },
+        createdAt: 1,
+      },
     }),
     JSON.stringify({ [KING_A]: { nationId: "abc12345", role: "king" } }),
   );
@@ -250,8 +353,22 @@ test("nations: 保存形式の往復（v2）と、旧形式の破棄・壊れた
     JSON.stringify({
       v: wb.NATIONS_STATE_VERSION,
       nations: {
-        bad1: { guildId: GUILD_1, name: "色が不正", color: "#000000", kingKey: KING_A, capital: { x: 1, y: 1 }, createdAt: 1 },
-        bad2: { guildId: GUILD_2, name: "首都が範囲外", color: wb.NATION_PALETTE[0], kingKey: KING_A, capital: { x: 2000000, y: 1 }, createdAt: 1 },
+        bad1: {
+          guildId: GUILD_1,
+          name: "色が不正",
+          color: "#000000",
+          kingKey: KING_A,
+          capital: { x: 1, y: 1 },
+          createdAt: 1,
+        },
+        bad2: {
+          guildId: GUILD_2,
+          name: "首都が範囲外",
+          color: wb.NATION_PALETTE[0],
+          kingKey: KING_A,
+          capital: { x: 2000000, y: 1 },
+          createdAt: 1,
+        },
       },
     }),
     JSON.stringify({
@@ -265,7 +382,13 @@ test("nations: 保存形式の往復（v2）と、旧形式の破棄・壊れた
 
 test("nations: 表示用ビューの人数とプレイヤー色マップ、ギルド情報の素通し", () => {
   const map = wb.worldTileSource();
-  const founded = wb.applyFound(wb.emptyNationsState(), KING_A, { id: GUILD_1, name: "あご鯖" }, map, 1000);
+  const founded = wb.applyFound(
+    wb.emptyNationsState(),
+    KING_A,
+    { id: GUILD_1, name: "あご鯖" },
+    map,
+    1000,
+  );
   const joined = wb.applyJoin(founded.state, USER_B, GUILD_1, "citizen");
   const views = wb.nationViews(joined.state);
   assert.equal(views.length, 1);
@@ -282,7 +405,9 @@ test("nations: 表示用ビューの人数とプレイヤー色マップ、ギ�
   assert.deepEqual(res.myGuilds, []);
   assert.equal(res.guildsScopeRequired, false);
   const withGuilds = wb.buildNationsResponse(joined.state, USER_B, {
-    myGuilds: [{ guildId: GUILD_1, name: "あご鯖", owner: false, hasNation: true, myRole: "citizen" }],
+    myGuilds: [
+      { guildId: GUILD_1, name: "あご鯖", owner: false, hasNation: true, myRole: "citizen" },
+    ],
     guildsScopeRequired: true,
   });
   assert.equal(withGuilds.myGuilds.length, 1);
@@ -294,7 +419,13 @@ test("nations: 表示用ビューの人数とプレイヤー色マップ、ギ�
 
 test("nations: 繁栄度 = 国民数 × 5 のみ（旧プレハブ建物の算入は廃止）、ビューに載る", () => {
   const map = wb.worldTileSource();
-  const founded = wb.applyFound(wb.emptyNationsState(), KING_A, { id: GUILD_1, name: "あご鯖" }, map, 1000);
+  const founded = wb.applyFound(
+    wb.emptyNationsState(),
+    KING_A,
+    { id: GUILD_1, name: "あご鯖" },
+    map,
+    1000,
+  );
   assert.equal(wb.prosperityOf(founded.state, GUILD_1), 5);
   const joined = wb.applyJoin(founded.state, USER_B, GUILD_1, "citizen");
   const state = joined.state;
@@ -337,14 +468,25 @@ export async function fetchDiscordGuilds(token) {
 }
 `);
 const subdomainUrl = dataUrl(transpile("subdomain.ts"));
-const headersStubUrl = dataUrl("export async function cookies() { throw new Error('tests do not use cookies()'); }");
+const headersStubUrl = dataUrl(
+  "export async function cookies() { throw new Error('tests do not use cookies()'); }",
+);
 const authUrl = dataUrl(
-  transpile("auth.ts").replaceAll('"./subdomain"', JSON.stringify(subdomainUrl)).replaceAll('"next/headers"', JSON.stringify(headersStubUrl)),
+  transpile("auth.ts")
+    .replaceAll('"./subdomain"', JSON.stringify(subdomainUrl))
+    .replaceAll('"next/headers"', JSON.stringify(headersStubUrl)),
 );
 const auth = await import(authUrl);
 const rngUrl = dataUrl(transpile("worldbox/core/rng.ts"));
-const mapgenUrl = dataUrl(transpile("worldbox/world/mapgen.ts").replaceAll('"../core/rng"', JSON.stringify(rngUrl)));
-const presenceUrl = dataUrl(transpile("worldbox/player/presence.ts").replaceAll('"../world/mapgen"', JSON.stringify(mapgenUrl)));
+const mapgenUrl = dataUrl(
+  transpile("worldbox/world/mapgen.ts").replaceAll('"../core/rng"', JSON.stringify(rngUrl)),
+);
+const presenceUrl = dataUrl(
+  transpile("worldbox/player/presence.ts").replaceAll(
+    '"../world/mapgen"',
+    JSON.stringify(mapgenUrl),
+  ),
+);
 const moveUrl = dataUrl(
   transpile("worldbox/player/move.ts").replaceAll('"../world/mapgen"', JSON.stringify(mapgenUrl)),
 );
@@ -352,7 +494,7 @@ const nationsUrl = dataUrl(
   transpile("worldbox/social/nations.ts")
     .replaceAll('"../world/mapgen"', JSON.stringify(mapgenUrl))
     .replaceAll('"../player/move"', JSON.stringify(moveUrl))
-    .replaceAll('"../player/presence"', JSON.stringify(presenceUrl))
+    .replaceAll('"../player/presence"', JSON.stringify(presenceUrl)),
 );
 const lobbyUrl = dataUrl(
   transpile("worldbox/world/lobby.ts").replaceAll('"./mapgen"', JSON.stringify(mapgenUrl)),
@@ -369,7 +511,10 @@ const saveUrl = dataUrl(
     .replaceAll('"../world/mapgen"', JSON.stringify(mapgenUrl)),
 );
 const saveOnlineUrl = dataUrl(
-  transpile("worldbox/core/save-online.ts").replaceAll('"../../bot-api"', JSON.stringify(botApiStubUrl)),
+  transpile("worldbox/core/save-online.ts").replaceAll(
+    '"../../bot-api"',
+    JSON.stringify(botApiStubUrl),
+  ),
 );
 const presenceOnlineUrl = dataUrl(
   transpile("worldbox/player/presence-online.ts")
@@ -388,8 +533,10 @@ const nationsOnlineUrl = dataUrl(
     .replaceAll('"./nations"', JSON.stringify(nationsUrl)),
 );
 const nationSettingsUrl = dataUrl(
-  transpile("worldbox/social/nation-settings.ts")
-    .replaceAll('"./nations"', JSON.stringify(nationsUrl)),
+  transpile("worldbox/social/nation-settings.ts").replaceAll(
+    '"./nations"',
+    JSON.stringify(nationsUrl),
+  ),
 );
 const userLockUrl = dataUrl(transpile("worldbox/core/user-lock.ts"));
 const nationSettingsOnlineUrl = dataUrl(
@@ -426,8 +573,11 @@ const nationsRoute = await import(
       .replaceAll('"@/lib/worldbox/world/station-online"', JSON.stringify(stationStubUrl))
       .replaceAll('"@/lib/worldbox/social/guilds"', JSON.stringify(guildsUrl))
       .replaceAll('"@/lib/worldbox/social/nation-settings"', JSON.stringify(nationSettingsUrl))
-      .replaceAll('"@/lib/worldbox/social/nation-settings-online"', JSON.stringify(nationSettingsOnlineUrl))
-  ),
+      .replaceAll(
+        '"@/lib/worldbox/social/nation-settings-online"',
+        JSON.stringify(nationSettingsOnlineUrl),
+      ),
+  )
 );
 const spawnUrl = dataUrl(
   transpile("worldbox/world/spawn.ts")
@@ -444,7 +594,7 @@ const saveRoute = await import(
       .replaceAll('"@/lib/worldbox/player/presence"', JSON.stringify(presenceUrl))
       .replaceAll('"@/lib/worldbox/player/presence-online"', JSON.stringify(presenceOnlineUrl))
       .replaceAll('"@/lib/worldbox/world/spawn"', JSON.stringify(spawnUrl)),
-  ),
+  )
 );
 process.env.DISCORD_SESSION_SECRET = ["worldbox", "nations", "test", "secret"].join("-");
 globalThis.__wbWebSessions = {};
@@ -462,7 +612,10 @@ function guildUser(id, username, sidHex, guilds) {
   const sid = sidHex.repeat(32);
   const token = `token-${id}`;
   globalThis.__wbWebSessions[sid] = {
-    user_id: id, username, access_token: token, expires_at: Date.now() + 3600_000,
+    user_id: id,
+    username,
+    access_token: token,
+    expires_at: Date.now() + 3600_000,
   };
   globalThis.__wbGuildsByToken[token] = guilds;
   const value = auth.createSession({ id, username }, sid);
@@ -495,8 +648,15 @@ test("API(nations): ゲストは閲覧のみ、書き込みは 401", async () =>
   assert.deepEqual(body.myGuilds, []);
   assert.equal(body.guildsScopeRequired, false);
   assert.ok(!("buildings" in body), "国家レスポンスに建物が混ざっている");
-  assert.equal((await nationsRoute.POST(nationsRequest("POST", null, { action: "found", guildId: ALPHA }))).status, 401);
-  assert.equal((await nationsRoute.POST(nationsRequest("POST", null, { action: "leave" }))).status, 401);
+  assert.equal(
+    (await nationsRoute.POST(nationsRequest("POST", null, { action: "found", guildId: ALPHA })))
+      .status,
+    401,
+  );
+  assert.equal(
+    (await nationsRoute.POST(nationsRequest("POST", null, { action: "leave" }))).status,
+    401,
+  );
 });
 
 test("API(nations): 建国はオーナーのみ・国名はサーバー名・参加はメンバーのみ・役職は権限由来", async () => {
@@ -526,15 +686,21 @@ test("API(nations): 建国はオーナーのみ・国名はサーバー名・参
   ]);
 
   // オーナー以外は建国できない（メンバーでも、部外者でも）
-  const memberFound = await nationsRoute.POST(nationsRequest("POST", cookieB, { action: "found", guildId: ALPHA }));
+  const memberFound = await nationsRoute.POST(
+    nationsRequest("POST", cookieB, { action: "found", guildId: ALPHA }),
+  );
   assert.equal(memberFound.status, 403);
   assert.equal((await memberFound.json()).error, "not_owner");
-  const outsiderFound = await nationsRoute.POST(nationsRequest("POST", cookieC, { action: "found", guildId: ALPHA }));
+  const outsiderFound = await nationsRoute.POST(
+    nationsRequest("POST", cookieC, { action: "found", guildId: ALPHA }),
+  );
   assert.equal(outsiderFound.status, 403);
   assert.equal((await outsiderFound.json()).error, "not_owner");
 
   // 建国: クライアントが名前を送ってきても、サーバー名が国名になる
-  const found = await nationsRoute.POST(nationsRequest("POST", cookieA, { action: "found", guildId: ALPHA, name: "偽の国名" }));
+  const found = await nationsRoute.POST(
+    nationsRequest("POST", cookieA, { action: "found", guildId: ALPHA, name: "偽の国名" }),
+  );
   assert.equal(found.status, 200);
   const foundBody = await found.json();
   assert.equal(foundBody.me.role, "king");
@@ -552,27 +718,39 @@ test("API(nations): 建国はオーナーのみ・国名はサーバー名・参
   assert.equal(Object.values(guestView.playerNations)[0].color, guestView.nations[0].color);
 
   // 同じサーバーの二重建国は 409（再建国も、別オーナー扱いでも）
-  const again = await nationsRoute.POST(nationsRequest("POST", cookieA, { action: "found", guildId: ALPHA }));
+  const again = await nationsRoute.POST(
+    nationsRequest("POST", cookieA, { action: "found", guildId: ALPHA }),
+  );
   assert.equal(again.status, 409);
   assert.equal((await again.json()).error, "nation_exists");
-  const transferred = await nationsRoute.POST(nationsRequest("POST", cookieE, { action: "found", guildId: ALPHA }));
+  const transferred = await nationsRoute.POST(
+    nationsRequest("POST", cookieE, { action: "found", guildId: ALPHA }),
+  );
   assert.equal(transferred.status, 409);
   assert.equal((await transferred.json()).error, "nation_exists");
 
   // 参加はそのサーバーのメンバーだけ
-  const outsiderJoin = await nationsRoute.POST(nationsRequest("POST", cookieC, { action: "join", guildId: ALPHA }));
+  const outsiderJoin = await nationsRoute.POST(
+    nationsRequest("POST", cookieC, { action: "join", guildId: ALPHA }),
+  );
   assert.equal(outsiderJoin.status, 403);
   assert.equal((await outsiderJoin.json()).error, "not_member");
   // 国の無いサーバーへの参加は nation_not_found
-  const noNation = await nationsRoute.POST(nationsRequest("POST", cookieF, { action: "join", guildId: BETA }));
+  const noNation = await nationsRoute.POST(
+    nationsRequest("POST", cookieF, { action: "join", guildId: BETA }),
+  );
   assert.equal(noNation.status, 409);
   assert.equal((await noNation.json()).error, "nation_not_found");
 
   // 参加→市民、二重参加は却下
-  const join = await nationsRoute.POST(nationsRequest("POST", cookieB, { action: "join", guildId: ALPHA }));
+  const join = await nationsRoute.POST(
+    nationsRequest("POST", cookieB, { action: "join", guildId: ALPHA }),
+  );
   assert.equal(join.status, 200);
   assert.equal((await join.json()).me.role, "citizen");
-  const joinAgain = await nationsRoute.POST(nationsRequest("POST", cookieB, { action: "join", guildId: ALPHA }));
+  const joinAgain = await nationsRoute.POST(
+    nationsRequest("POST", cookieB, { action: "join", guildId: ALPHA }),
+  );
   assert.equal(joinAgain.status, 409);
   assert.equal((await joinAgain.json()).error, "already_in_nation");
 
@@ -583,7 +761,13 @@ test("API(nations): 建国はオーナーのみ・国名はサーバー名・参
     { guildId: BETA, name: "べた鯖", owner: false, hasNation: false, myRole: "minister" },
   ]);
   const viewA = await (await nationsRoute.GET(nationsRequest("GET", cookieA))).json();
-  assert.deepEqual(viewA.myGuilds[0], { guildId: ALPHA, name: "あご鯖", owner: true, hasNation: true, myRole: "king" });
+  assert.deepEqual(viewA.myGuilds[0], {
+    guildId: ALPHA,
+    name: "あご鯖",
+    owner: true,
+    hasNation: true,
+    myRole: "king",
+  });
   assert.equal(viewA.nations[0].members, 2);
 
   // 王は国民がいる間は離脱できない
@@ -591,7 +775,10 @@ test("API(nations): 建国はオーナーのみ・国名はサーバー名・参
   assert.equal(kingLeave.status, 409);
   assert.equal((await kingLeave.json()).error, "king_must_transfer_or_disband");
   // 市民は離脱できる
-  assert.equal((await nationsRoute.POST(nationsRequest("POST", cookieB, { action: "leave" }))).status, 200);
+  assert.equal(
+    (await nationsRoute.POST(nationsRequest("POST", cookieB, { action: "leave" }))).status,
+    200,
+  );
   // 一人になった王は解散
   const disband = await nationsRoute.POST(nationsRequest("POST", cookieA, { action: "leave" }));
   assert.equal(disband.status, 200);
@@ -600,14 +787,24 @@ test("API(nations): 建国はオーナーのみ・国名はサーバー名・参
   assert.deepEqual(empty.nations, []);
 
   // 管理者権限のメンバーは大臣として参加する
-  const foundBeta = await nationsRoute.POST(nationsRequest("POST", cookieD, { action: "found", guildId: BETA }));
+  const foundBeta = await nationsRoute.POST(
+    nationsRequest("POST", cookieD, { action: "found", guildId: BETA }),
+  );
   assert.equal(foundBeta.status, 200);
   assert.deepEqual((await foundBeta.json()).nation.capital, { x: 512, y: 512 });
-  const joinMinister = await nationsRoute.POST(nationsRequest("POST", cookieB, { action: "join", guildId: BETA }));
+  const joinMinister = await nationsRoute.POST(
+    nationsRequest("POST", cookieB, { action: "join", guildId: BETA }),
+  );
   assert.equal(joinMinister.status, 200);
   assert.equal((await joinMinister.json()).me.role, "minister");
-  assert.equal((await nationsRoute.POST(nationsRequest("POST", cookieB, { action: "leave" }))).status, 200);
-  assert.equal((await nationsRoute.POST(nationsRequest("POST", cookieD, { action: "leave" }))).status, 200);
+  assert.equal(
+    (await nationsRoute.POST(nationsRequest("POST", cookieB, { action: "leave" }))).status,
+    200,
+  );
+  assert.equal(
+    (await nationsRoute.POST(nationsRequest("POST", cookieD, { action: "leave" }))).status,
+    200,
+  );
 });
 
 test("API(nations): 役職は GET のたびに Discord 権限から読み直され、ギルド一覧はキャッシュされる", async () => {
@@ -618,8 +815,14 @@ test("API(nations): 役職は GET のたびに Discord 権限から読み直さ�
   const cookieH = guildUser("200000000000000008", "user-h", "b8", [
     discordGuild(GAMMA, "がんま鯖", false, "0"),
   ]);
-  assert.equal((await nationsRoute.POST(nationsRequest("POST", cookieG, { action: "found", guildId: GAMMA }))).status, 200);
-  const joined = await nationsRoute.POST(nationsRequest("POST", cookieH, { action: "join", guildId: GAMMA }));
+  assert.equal(
+    (await nationsRoute.POST(nationsRequest("POST", cookieG, { action: "found", guildId: GAMMA })))
+      .status,
+    200,
+  );
+  const joined = await nationsRoute.POST(
+    nationsRequest("POST", cookieH, { action: "join", guildId: GAMMA }),
+  );
   assert.equal((await joined.json()).me.role, "citizen");
 
   // Discord 側で管理者になった + キャッシュを捨てると、次の GET で大臣に直る
@@ -639,8 +842,14 @@ test("API(nations): 役職は GET のたびに Discord 権限から読み直さ�
   assert.equal(globalThis.__wbGuildFetchCount["token-200000000000000009"], 1);
 
   // 後片付け
-  assert.equal((await nationsRoute.POST(nationsRequest("POST", cookieH, { action: "leave" }))).status, 200);
-  assert.equal((await nationsRoute.POST(nationsRequest("POST", cookieG, { action: "leave" }))).status, 200);
+  assert.equal(
+    (await nationsRoute.POST(nationsRequest("POST", cookieH, { action: "leave" }))).status,
+    200,
+  );
+  assert.equal(
+    (await nationsRoute.POST(nationsRequest("POST", cookieG, { action: "leave" }))).status,
+    200,
+  );
 });
 
 test("API(nations): トークンの無いセッションは guilds_scope_required（再ログイン導線）", async () => {
@@ -650,10 +859,14 @@ test("API(nations): トークンの無いセッションは guilds_scope_require
   assert.equal(view.loggedIn, true);
   assert.equal(view.guildsScopeRequired, true);
   assert.deepEqual(view.myGuilds, []);
-  const found = await nationsRoute.POST(nationsRequest("POST", cookie, { action: "found", guildId: ALPHA }));
+  const found = await nationsRoute.POST(
+    nationsRequest("POST", cookie, { action: "found", guildId: ALPHA }),
+  );
   assert.equal(found.status, 409);
   assert.equal((await found.json()).error, "guilds_scope_required");
-  const join = await nationsRoute.POST(nationsRequest("POST", cookie, { action: "join", guildId: ALPHA }));
+  const join = await nationsRoute.POST(
+    nationsRequest("POST", cookie, { action: "join", guildId: ALPHA }),
+  );
   assert.equal(join.status, 409);
   assert.equal((await join.json()).error, "guilds_scope_required");
   // 離脱はギルド検証なしで処理される（未所属なので not_in_nation）
@@ -664,12 +877,25 @@ test("API(nations): トークンの無いセッションは guilds_scope_require
 
 test("API(nations): 旧形式の保存データは読み込み時に破棄される", async () => {
   const store = globalThis.__wbNationsStore;
-  store.set("worldbox_nations nations", JSON.stringify({
-    abc12345: { id: "abc12345", name: "旧王国", color: "#e5484d", kingKey: "discord:1", capital: { x: 512, y: 512 }, createdAt: 1 },
-  }));
-  store.set("worldbox_nations members", JSON.stringify({
-    "discord:1": { nationId: "abc12345", role: "king" },
-  }));
+  store.set(
+    "worldbox_nations nations",
+    JSON.stringify({
+      abc12345: {
+        id: "abc12345",
+        name: "旧王国",
+        color: "#e5484d",
+        kingKey: "discord:1",
+        capital: { x: 512, y: 512 },
+        createdAt: 1,
+      },
+    }),
+  );
+  store.set(
+    "worldbox_nations members",
+    JSON.stringify({
+      "discord:1": { nationId: "abc12345", role: "king" },
+    }),
+  );
   const view = await (await nationsRoute.GET(nationsRequest("GET", null))).json();
   assert.deepEqual(view.nations, []);
   assert.deepEqual(view.playerNations, {});
@@ -682,7 +908,9 @@ test("API(nations): 不正なアクションは 400、他オリジンは 403", a
   const bad = await nationsRoute.POST(nationsRequest("POST", cookie, { action: "conquer" }));
   assert.equal(bad.status, 400);
   assert.equal((await bad.json()).error, "invalid_action");
-  const badGuild = await nationsRoute.POST(nationsRequest("POST", cookie, { action: "found", guildId: "abc" }));
+  const badGuild = await nationsRoute.POST(
+    nationsRequest("POST", cookie, { action: "found", guildId: "abc" }),
+  );
   assert.equal(badGuild.status, 400);
   assert.equal((await badGuild.json()).error, "invalid_request");
   const evil = await nationsRoute.POST(
@@ -694,7 +922,10 @@ test("API(nations): 不正なアクションは 400、他オリジンは 403", a
 // ---------- クライアント配線 ----------
 
 test("クライアント: 国家 API・首都マーカーが配線され、領地ティントは無い", () => {
-  const client = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"), "utf8");
+  const client = fs.readFileSync(
+    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    "utf8",
+  );
   assert.ok(client.includes("/api/worldbox/nations"), "国家 API を使っていない");
   assert.ok(client.includes("drawCapital"), "首都マーカーが無い");
   assert.ok(client.includes("建国"), "建国 UI が無い");
@@ -706,8 +937,14 @@ test("クライアント: 国家 API・首都マーカーが配線され、領�
 
 test("クライアント: 建国・参加はサーバー単位（国名の自由入力は無い）", () => {
   // 建国・参加の UI はギルドボードの役職タブ（WorldBoxGuildBoardPanel）が home
-  const client = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"), "utf8");
-  const panel = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxGuildBoardPanel.tsx"), "utf8");
+  const client = fs.readFileSync(
+    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    "utf8",
+  );
+  const panel = fs.readFileSync(
+    path.join(rootDir, "app/games/worldbox/WorldBoxGuildBoardPanel.tsx"),
+    "utf8",
+  );
   const ui = client + panel;
   assert.ok(!ui.includes('placeholder="国名"'), "国名の自由入力が残っている");
   assert.ok(!ui.includes("nationName"), "国名の入力状態が残っている");
@@ -718,11 +955,17 @@ test("クライアント: 建国・参加はサーバー単位（国名の自由
   assert.ok(panel.includes('action: "found", guildId'), "建国がサーバー指定でない");
   assert.ok(panel.includes('action: "join", guildId'), "参加がサーバー指定でない");
   assert.ok(panel.includes("guildsScopeRequired"), "再ログイン導線の分岐が無い");
-  assert.ok(panel.includes("/api/auth/discord/authorize?next=/games/worldbox"), "再ログインリンクが無い");
+  assert.ok(
+    panel.includes("/api/auth/discord/authorize?next=/games/worldbox"),
+    "再ログインリンクが無い",
+  );
 });
 
 test("クライアント: 旧プレハブ建物（家・畑・塔）は廃止され、繁栄度表示は残る", () => {
-  const client = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"), "utf8");
+  const client = fs.readFileSync(
+    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    "utf8",
+  );
   // 建物 API・建築モード・建物描画は撤去済み（家はブロック自由建築、畑は耕して植える）
   assert.ok(!client.includes("/api/worldbox/buildings"), "建物 API が残っている");
   assert.ok(!client.includes("drawBuilding"), "建物の描画が残っている");
@@ -730,11 +973,22 @@ test("クライアント: 旧プレハブ建物（家・畑・塔）は廃止さ
   assert.ok(!client.includes("chooseBuildTool"), "建築ツールの選択が残っている");
   assert.ok(!client.includes('action: "demolish"'), "取り壊しアクションが残っている");
   assert.ok(!client.includes("buildingsRef"), "建物レイヤーの参照が残っている");
-  const panel = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxGuildBoardPanel.tsx"), "utf8");
+  const panel = fs.readFileSync(
+    path.join(rootDir, "app/games/worldbox/WorldBoxGuildBoardPanel.tsx"),
+    "utf8",
+  );
   assert.ok(panel.includes("繁栄度"), "繁栄度の表示が無い");
-  assert.ok(panel.includes("prosperity - a.prosperity") || panel.includes("b.prosperity - a.prosperity"), "国リストが繁栄度順でない");
+  assert.ok(
+    panel.includes("prosperity - a.prosperity") || panel.includes("b.prosperity - a.prosperity"),
+    "国リストが繁栄度順でない",
+  );
   // 移動の当たり判定は空間でマップと固体集合を切り替える（固体は設置ブロック＋モブ占有）
-  assert.ok(client.includes("stepMove(activeMap(), player, vel, sdt, activeBlocked(), { swim: space === \"world\" })"), "当たり判定の配線が無い");
+  assert.ok(
+    client.includes(
+      'stepMove(activeMap(), player, vel, sdt, activeBlocked(), { swim: space === "world" })',
+    ),
+    "当たり判定の配線が無い",
+  );
   assert.ok(client.includes("blockedRef"), "ワールドの固体集合が無い");
 });
 
@@ -744,14 +998,23 @@ test("nations: ファストトラベル先は所属国の首都のみ（料金�
   assert.equal(wb.FAST_TRAVEL_COST, 0);
   assert.equal(wb.FAST_TRAVEL_COOLDOWN_MS, 0);
   const map = wb.worldTileSource();
-  const founded = wb.applyFound(wb.emptyNationsState(), KING_A, { id: GUILD_1, name: "あご鯖" }, map, 1000);
+  const founded = wb.applyFound(
+    wb.emptyNationsState(),
+    KING_A,
+    { id: GUILD_1, name: "あご鯖" },
+    map,
+    1000,
+  );
   const joined = wb.applyJoin(founded.state, USER_B, GUILD_1, "citizen");
   const cap = founded.nation.capital;
   for (const key of [KING_A, USER_B]) {
     const dest = wb.fastTravelDestination(joined.state, key, map);
     assert.equal(dest.ok, true);
     assert.equal(dest.nationId, GUILD_1);
-    assert.ok(Math.abs(dest.x - (cap.x + 0.5)) <= 1.5 && Math.abs(dest.y - (cap.y + 0.5)) <= 1.5, `(${dest.x}, ${dest.y})`);
+    assert.ok(
+      Math.abs(dest.x - (cap.x + 0.5)) <= 1.5 && Math.abs(dest.y - (cap.y + 0.5)) <= 1.5,
+      `(${dest.x}, ${dest.y})`,
+    );
   }
   assert.equal(wb.fastTravelDestination(joined.state, USER_C, map).error, "not_in_nation");
 });
@@ -770,7 +1033,9 @@ test("API(nations): トラベルは所属者だけができ、セーブがユニ
   assert.equal(denied.status, 409);
   assert.equal((await denied.json()).error, "not_in_nation");
   // 建国して首都を得る
-  const found = await nationsRoute.POST(nationsRequest("POST", cookieG, { action: "found", guildId: GAMMA }));
+  const found = await nationsRoute.POST(
+    nationsRequest("POST", cookieG, { action: "found", guildId: GAMMA }),
+  );
   assert.equal(found.status, 200);
   const cap = (await found.json()).nation.capital;
   // 王のトラベル: 座標は首都タイル中心付近
@@ -778,7 +1043,10 @@ test("API(nations): トラベルは所属者だけができ、セーブがユニ
   assert.equal(tv.status, 200);
   const tvBody = await tv.json();
   assert.equal(tvBody.nationId, GAMMA);
-  assert.ok(Math.abs(tvBody.x - (cap.x + 0.5)) <= 1.5 && Math.abs(tvBody.y - (cap.y + 0.5)) <= 1.5, `(${tvBody.x}, ${tvBody.y})`);
+  assert.ok(
+    Math.abs(tvBody.x - (cap.x + 0.5)) <= 1.5 && Math.abs(tvBody.y - (cap.y + 0.5)) <= 1.5,
+    `(${tvBody.x}, ${tvBody.y})`,
+  );
   // セーブに反映されている
   const saveMod = await import(saveUrl);
   const savedRaw = globalThis.__wbNationsStore.get("worldbox_save discord:200000000000000101");
@@ -788,7 +1056,11 @@ test("API(nations): トラベルは所属者だけができ、セーブがユニ
   assert.equal(saved.x, tvBody.x);
   assert.equal(saved.y, tvBody.y);
   // 国民もトラベルできる
-  assert.equal((await nationsRoute.POST(nationsRequest("POST", cookieH, { action: "join", guildId: GAMMA }))).status, 200);
+  assert.equal(
+    (await nationsRoute.POST(nationsRequest("POST", cookieH, { action: "join", guildId: GAMMA })))
+      .status,
+    200,
+  );
   const tvH = await nationsRoute.POST(nationsRequest("POST", cookieH, { action: "travel" }));
   assert.equal(tvH.status, 200);
   assert.equal((await tvH.json()).nationId, GAMMA);
@@ -814,7 +1086,10 @@ test("API(save): 初回 GET はランダムな陸スポーンでセーブを作�
   assert.ok(Math.abs(tx) <= 2000 && Math.abs(ty) <= 2000, `スポーン範囲外 (${tx}, ${ty})`);
   // 陸の歩行可能タイル（草・砂・土・雪）の中心に落ちる
   const t = wb.mapTileAt(wb.worldTileSource(), tx, ty);
-  assert.ok([wb.T_GRASS, wb.T_SAND, wb.T_DIRT, 6].includes(t), `スポーン不可タイル ${t} at (${tx}, ${ty})`);
+  assert.ok(
+    [wb.T_GRASS, wb.T_SAND, wb.T_DIRT, 6].includes(t),
+    `スポーン不可タイル ${t} at (${tx}, ${ty})`,
+  );
   assert.equal(parsed.x, tx + 0.5);
   assert.equal(parsed.y, ty + 0.5);
   // 2回目は作り直さず、保存済みの位置をそのまま返す
@@ -822,7 +1097,10 @@ test("API(save): 初回 GET はランダムな陸スポーンでセーブを作�
   assert.equal(res2.status, 200);
   assert.equal((await res2.json()).save, body.save);
   // 未ログインは 401
-  assert.equal((await saveRoute.GET(new Request("http://localhost/api/worldbox/save"))).status, 401);
+  assert.equal(
+    (await saveRoute.GET(new Request("http://localhost/api/worldbox/save"))).status,
+    401,
+  );
 });
 
 test("API(nations): 役職の操作はギルドボードの前でのみ（場所ゲート）", async () => {
@@ -833,24 +1111,38 @@ test("API(nations): 役職の操作はギルドボードの前でのみ（場所
   try {
     // 広場（ギルドボード前でない）からは建国できない
     globalThis.__wbStationValue = null;
-    const away = await nationsRoute.POST(nationsRequest("POST", cookieJ, { action: "found", guildId: DELTA }));
+    const away = await nationsRoute.POST(
+      nationsRequest("POST", cookieJ, { action: "found", guildId: DELTA }),
+    );
     assert.equal(away.status, 409);
     assert.equal((await away.json()).error, "not_at_guild_board");
     // 別の施設の前でもダメ
     globalThis.__wbStationValue = "shop";
-    const atShop = await nationsRoute.POST(nationsRequest("POST", cookieJ, { action: "found", guildId: DELTA }));
+    const atShop = await nationsRoute.POST(
+      nationsRequest("POST", cookieJ, { action: "found", guildId: DELTA }),
+    );
     assert.equal(atShop.status, 409);
     assert.equal((await atShop.json()).error, "not_at_guild_board");
     // ギルドボードの前なら建国できる
     globalThis.__wbStationValue = "guild";
-    assert.equal((await nationsRoute.POST(nationsRequest("POST", cookieJ, { action: "found", guildId: DELTA }))).status, 200);
+    assert.equal(
+      (
+        await nationsRoute.POST(
+          nationsRequest("POST", cookieJ, { action: "found", guildId: DELTA }),
+        )
+      ).status,
+      200,
+    );
     // 離脱もギルドボードの前でのみ
     globalThis.__wbStationValue = null;
     const leaveAway = await nationsRoute.POST(nationsRequest("POST", cookieJ, { action: "leave" }));
     assert.equal(leaveAway.status, 409);
     assert.equal((await leaveAway.json()).error, "not_at_guild_board");
     globalThis.__wbStationValue = "guild";
-    assert.equal((await nationsRoute.POST(nationsRequest("POST", cookieJ, { action: "leave" }))).status, 200);
+    assert.equal(
+      (await nationsRoute.POST(nationsRequest("POST", cookieJ, { action: "leave" }))).status,
+      200,
+    );
   } finally {
     globalThis.__wbStationValue = "guild";
   }

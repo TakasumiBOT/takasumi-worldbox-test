@@ -39,7 +39,10 @@ test("guild-shop: GET の view が mine を返し、生キーは出ない", () =
   assert.match(routeSrc, /view\(state, nations, ownerKey\)/);
   assert.match(routeSrc, /view\(pruned, nations, ownerKey\)/);
   // view の listings に sellerKey が含まれないこと
-  const viewBlock = routeSrc.slice(routeSrc.indexOf("function view("), routeSrc.indexOf("/** 国家設定込み"));
+  const viewBlock = routeSrc.slice(
+    routeSrc.indexOf("function view("),
+    routeSrc.indexOf("/** 国家設定込み"),
+  );
   assert.ok(!viewBlock.includes("sellerKey: l.sellerKey"), "view が sellerKey を漏らしている");
 });
 
@@ -91,7 +94,13 @@ test("casino: 先払いは submitSpend（直接提出）で、BJ の hit/stand �
   assert.match(src, /async function submitSpend\(/);
   assert.match(src, /await submitEconomyOp\(op\)/);
   for (const reason of ["slot7Prepay", "doubleBet", "blackjackBet"]) {
-    assert.match(src, new RegExp(`submitSpend\\(ctx\\.userKey, ctx\\.discordId, \\{\\s*amount: \\w+, reason: CASINO_SESSION_REASONS\\.${reason},?\\s*\\}\\)`), reason);
+    assert.match(
+      src,
+      new RegExp(
+        `submitSpend\\(ctx\\.userKey, ctx\\.discordId, \\{\\s*amount: \\w+, reason: CASINO_SESSION_REASONS\\.${reason},?\\s*\\}\\)`,
+      ),
+      reason,
+    );
   }
   // hit/stand のゲート: pending は bet_pending、失敗はセッション破棄
   const hitIdx = src.indexOf('action === "bj_hit"');

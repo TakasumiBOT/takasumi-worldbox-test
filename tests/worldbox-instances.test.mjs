@@ -50,8 +50,33 @@ async function loadBundle(files, exportNames) {
 }
 
 const T = await loadBundle(
-  ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/world/lobby.ts", "worldbox/economy/items.ts", "worldbox/world/objects.ts", "worldbox/world/instances.ts", "worldbox/core/save.ts", "worldbox/player/presence.ts"],
-  ["makeInstanceSpace", "parseInstanceSpace", "isInstanceSpace", "buildCaveLayer", "lightRadiusTiles", "CAVE_LAYERS", "CAVE_W", "CAVE_H", "isCaveSafeTile", "parseSave", "serializeSave", "sanitizePresenceSpace", "validateSpecialObjects", "specialObjectById", "ruinsCompleteOpId"],
+  [
+    "worldbox/core/rng.ts",
+    "worldbox/world/mapgen.ts",
+    "worldbox/world/lobby.ts",
+    "worldbox/economy/items.ts",
+    "worldbox/world/objects.ts",
+    "worldbox/world/instances.ts",
+    "worldbox/core/save.ts",
+    "worldbox/player/presence.ts",
+  ],
+  [
+    "makeInstanceSpace",
+    "parseInstanceSpace",
+    "isInstanceSpace",
+    "buildCaveLayer",
+    "lightRadiusTiles",
+    "CAVE_LAYERS",
+    "CAVE_W",
+    "CAVE_H",
+    "isCaveSafeTile",
+    "parseSave",
+    "serializeSave",
+    "sanitizePresenceSpace",
+    "validateSpecialObjects",
+    "specialObjectById",
+    "ruinsCompleteOpId",
+  ],
 );
 
 test("space id roundtrip", () => {
@@ -71,12 +96,19 @@ test("space id rejects junk", () => {
 });
 
 test("save keeps instance space", () => {
-  const raw = T.serializeSave({ space: "cave:5,6:1", x: 10, y: 10, worldReturn: { x: 5.5, y: 6.5 } });
+  const raw = T.serializeSave({
+    space: "cave:5,6:1",
+    x: 10,
+    y: 10,
+    worldReturn: { x: 5.5, y: 6.5 },
+  });
   assert.equal(T.parseSave(raw)?.space, "cave:5,6:1");
 });
 
 test("save clamps cave coords", () => {
-  const back = T.parseSave(T.serializeSave({ space: "cave:5,6:1", x: 9999, y: -3, worldReturn: null }));
+  const back = T.parseSave(
+    T.serializeSave({ space: "cave:5,6:1", x: 9999, y: -3, worldReturn: null }),
+  );
   assert.ok(back && back.x <= T.CAVE_W && back.y >= 0.5);
 });
 
@@ -99,7 +131,9 @@ test("cave deterministic", () => {
   const again = T.buildCaveLayer(SEED, 100, 200, 0);
   assert.equal(again.portal.x, layers[0].portal.x);
   assert.equal(again.veins.length, layers[0].veins.length);
-  assert.ok(again.veins.every((v, i) => v.x === layers[0].veins[i].x && v.y === layers[0].veins[i].y));
+  assert.ok(
+    again.veins.every((v, i) => v.x === layers[0].veins[i].x && v.y === layers[0].veins[i].y),
+  );
 });
 
 test("stairs chain", () => {
@@ -125,7 +159,12 @@ function reachable(cave) {
   const queue = [{ ...cave.portal }];
   while (queue.length) {
     const cur = queue.pop();
-    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+    for (const [dx, dy] of [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1],
+    ]) {
       const nx = cur.x + dx;
       const ny = cur.y + dy;
       const key = `${nx},${ny}`;
@@ -142,10 +181,12 @@ function reachable(cave) {
 for (const [i, cave] of layers.entries()) {
   test(`layer ${i + 1} connectivity`, () => {
     const seen = reachable(cave);
-    const near = (p) => p && [...seen].some((k) => {
-      const [x, y] = k.split(",").map(Number);
-      return Math.abs(x - p.x) + Math.abs(y - p.y) <= 1;
-    });
+    const near = (p) =>
+      p &&
+      [...seen].some((k) => {
+        const [x, y] = k.split(",").map(Number);
+        return Math.abs(x - p.x) + Math.abs(y - p.y) <= 1;
+      });
     assert.ok(near(cave.stairsDown ?? cave.stairsUp ?? cave.portal), "stairs");
     assert.ok(near(cave.chest), "chest");
     assert.ok(T.isCaveSafeTile(cave, cave.portal.x, cave.portal.y));
@@ -175,7 +216,14 @@ test("cave has no mobs, vein walls", () => {
 
 // ---- 遺跡（バッチ3） ----
 const R = await loadBundle(
-  ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/world/lobby.ts", "worldbox/economy/items.ts", "worldbox/world/objects.ts", "worldbox/world/instances.ts"],
+  [
+    "worldbox/core/rng.ts",
+    "worldbox/world/mapgen.ts",
+    "worldbox/world/lobby.ts",
+    "worldbox/economy/items.ts",
+    "worldbox/world/objects.ts",
+    "worldbox/world/instances.ts",
+  ],
   ["buildRuins", "RUINS_W", "RUINS_H", "weekKeyOf", "RUINS_MAIN_CHEST_LOOT", "RUINS_TRAP_KINDS"],
 );
 
@@ -201,7 +249,12 @@ test("ruins connectivity: portal reaches all rooms (door excluded)", () => {
   const queue = [{ ...ruins.portal }];
   while (queue.length) {
     const cur = queue.pop();
-    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+    for (const [dx, dy] of [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1],
+    ]) {
       const nx = cur.x + dx;
       const ny = cur.y + dy;
       const key = `${nx},${ny}`;
@@ -215,10 +268,13 @@ test("ruins connectivity: portal reaches all rooms (door excluded)", () => {
   // 扉以外の全小宝箱・部屋中心に届く
   for (const chest of ruins.chests) {
     if (chest.main) continue;
-    assert.ok([...seen].some((k) => {
-      const [x, y] = k.split(",").map(Number);
-      return Math.abs(x - chest.x) + Math.abs(y - chest.y) <= 1;
-    }), `chest ${chest.idx} reachable`);
+    assert.ok(
+      [...seen].some((k) => {
+        const [x, y] = k.split(",").map(Number);
+        return Math.abs(x - chest.x) + Math.abs(y - chest.y) <= 1;
+      }),
+      `chest ${chest.idx} reachable`,
+    );
   }
   assert.ok(ruins.roomCenters.length >= 8);
 });
@@ -249,7 +305,11 @@ test("ruinsCompleteOpId: 決定的でブリッジの ID 形式に収まり、入
   assert.equal(a, T.ruinsCompleteOpId(12, -34, "611111111111111111"), "同じ入力では同じ ID");
   assert.match(a, /^[A-Za-z0-9-]{8,64}$/);
   assert.notEqual(a, T.ruinsCompleteOpId(13, -34, "611111111111111111"), "入口が違えば別の ID");
-  assert.notEqual(a, T.ruinsCompleteOpId(12, -34, "622222222222222222"), "プレイヤーが違えば別の ID");
+  assert.notEqual(
+    a,
+    T.ruinsCompleteOpId(12, -34, "622222222222222222"),
+    "プレイヤーが違えば別の ID",
+  );
 });
 
 test("冪等性の配線: instances ルートは空間ロックと決定的 ID の冪等登録を使う", () => {
@@ -263,7 +323,10 @@ test("冪等性の配線: instances ルートは空間ロックと決定的 ID �
 test("冪等性の配線: 共有ロックと冪等登録がブリッジ側に用意されている", () => {
   const lock = fs.readFileSync(path.join(libDir, "worldbox/core/user-lock.ts"), "utf8");
   assert.match(lock, /export async function withUserLock/);
-  const online = fs.readFileSync(path.join(libDir, "worldbox/economy/economy-bridge-online.ts"), "utf8");
+  const online = fs.readFileSync(
+    path.join(libDir, "worldbox/economy/economy-bridge-online.ts"),
+    "utf8",
+  );
   assert.match(online, /export async function enqueueEconomyOpOnce/);
   assert.match(online, /submitEconomyOp\(op\)/, "冪等登録は直接適用（submitEconomyOp）へ委譲する");
   assert.match(online, /existing\.status === "done"/, "既存オプが終端していれば作り直さない");

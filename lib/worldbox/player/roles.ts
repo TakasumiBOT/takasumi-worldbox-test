@@ -26,7 +26,15 @@ export type SkillDef = {
 };
 
 export const SKILLS: Record<SkillId, SkillDef> = {
-  porter: { id: "porter", name: "ポーター設置", fx: "warp", minRank: 1, cooldownMs: 30_000, radius: 0, power: 0 },
+  porter: {
+    id: "porter",
+    name: "ポーター設置",
+    fx: "warp",
+    minRank: 1,
+    cooldownMs: 30_000,
+    radius: 0,
+    power: 0,
+  },
 };
 
 export type AdventureRoleDef = {
@@ -41,13 +49,62 @@ export type AdventureRoleDef = {
 };
 
 export const ADVENTURE_ROLES: Record<AdventureRoleId, AdventureRoleDef> = {
-  free: { id: "free", name: "自由人", symbol: "—", passiveName: "なし", specialtyName: "なし", skills: [] },
-  blade: { id: "blade", name: "剣士", symbol: "剣", passiveName: "剣の攻撃上昇", specialtyName: "大振り", skills: [] },
-  guard: { id: "guard", name: "守護", symbol: "盾", passiveName: "最大HP上昇・味方を守る", specialtyName: "挑発", skills: [] },
-  scout: { id: "scout", name: "斥候", symbol: "斥", passiveName: "移動スタミナ節約", specialtyName: "罠の探知", skills: [] },
-  miner: { id: "miner", name: "採掘者", symbol: "採", passiveName: "鉱脈の追加ドロップ", specialtyName: "鉱脈探知", skills: [] },
-  medic: { id: "medic", name: "薬師", symbol: "薬", passiveName: "回復アイテム強化", specialtyName: "蘇生", skills: [] },
-  teleporter: { id: "teleporter", name: "テレポーター", symbol: "ポ", passiveName: "ポーター設置", specialtyName: "ポーター設置", skills: ["porter"] },
+  free: {
+    id: "free",
+    name: "自由人",
+    symbol: "—",
+    passiveName: "なし",
+    specialtyName: "なし",
+    skills: [],
+  },
+  blade: {
+    id: "blade",
+    name: "剣士",
+    symbol: "剣",
+    passiveName: "剣の攻撃上昇",
+    specialtyName: "大振り",
+    skills: [],
+  },
+  guard: {
+    id: "guard",
+    name: "守護",
+    symbol: "盾",
+    passiveName: "最大HP上昇・味方を守る",
+    specialtyName: "挑発",
+    skills: [],
+  },
+  scout: {
+    id: "scout",
+    name: "斥候",
+    symbol: "斥",
+    passiveName: "移動スタミナ節約",
+    specialtyName: "罠の探知",
+    skills: [],
+  },
+  miner: {
+    id: "miner",
+    name: "採掘者",
+    symbol: "採",
+    passiveName: "鉱脈の追加ドロップ",
+    specialtyName: "鉱脈探知",
+    skills: [],
+  },
+  medic: {
+    id: "medic",
+    name: "薬師",
+    symbol: "薬",
+    passiveName: "回復アイテム強化",
+    specialtyName: "蘇生",
+    skills: [],
+  },
+  teleporter: {
+    id: "teleporter",
+    name: "テレポーター",
+    symbol: "ポ",
+    passiveName: "ポーター設置",
+    specialtyName: "ポーター設置",
+    skills: ["porter"],
+  },
 };
 
 export function roleById(id: unknown): AdventureRoleDef {
@@ -92,7 +149,6 @@ export function addMasteryXp(
 export const MINER_BONUS_CHANCE = 0.3;
 /** 斥候の移動スタミナ消費倍率。 */
 export const SCOUT_STAMINA_MULT = 0.8;
-
 
 // ---------------------------------------------------------------- 技
 /** その役職・ランクでダブルタップ発動できる技（上位ランクで置き換わる分は最上位のみ）。 */
@@ -140,4 +196,3 @@ export function applyRoleChange(
   if (nextRole === profile.role) return { profile, cost: 0 };
   return { profile: { ...profile, role: nextRole, rolePicked: true }, cost };
 }
-

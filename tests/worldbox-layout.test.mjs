@@ -55,7 +55,13 @@ async function loadBundle(files, exportNames) {
 
 const layout = await loadBundle(
   ["worldbox/world/layout.ts"],
-  ["WB_PORTRAIT_MAX_WIDTH", "WB_LANDSCAPE_MAX_HEIGHT", "WB_CHAT_LEFT_CLEARANCE_PX", "wbLayoutMode", "wbHudMetrics"],
+  [
+    "WB_PORTRAIT_MAX_WIDTH",
+    "WB_LANDSCAPE_MAX_HEIGHT",
+    "WB_CHAT_LEFT_CLEARANCE_PX",
+    "wbLayoutMode",
+    "wbHudMetrics",
+  ],
 );
 
 test("layout: 典型サイズのモード判定", () => {
@@ -69,7 +75,11 @@ test("layout: 典型サイズのモード判定", () => {
   assert.equal(layout.wbLayoutMode(1280, 800), "wide");
   assert.equal(layout.wbLayoutMode(768, 1024), "wide", "iPad 縦は wide");
   assert.equal(layout.wbLayoutMode(1024, 768), "wide");
-  assert.equal(layout.wbLayoutMode(800, 600), "wide", "低丈でも幅が広ければ wide ではないが landscape でもない");
+  assert.equal(
+    layout.wbLayoutMode(800, 600),
+    "wide",
+    "低丈でも幅が広ければ wide ではないが landscape でもない",
+  );
 });
 
 test("layout: 境界値（CSS メディアクエリと一致）", () => {
@@ -79,7 +89,11 @@ test("layout: 境界値（CSS メディアクエリと一致）", () => {
   assert.equal(layout.wbLayoutMode(760, 900), "wide");
   assert.equal(layout.wbLayoutMode(900, 499), "landscape");
   assert.equal(layout.wbLayoutMode(900, 500), "wide");
-  assert.equal(layout.wbLayoutMode(500, 500), "portrait", "正方形は portrait 扱い（CSS orientation と一致）");
+  assert.equal(
+    layout.wbLayoutMode(500, 500),
+    "portrait",
+    "正方形は portrait 扱い（CSS orientation と一致）",
+  );
 });
 
 test("layout: スマホのタップ下限とホットバー寸法", () => {
@@ -107,10 +121,17 @@ test("layout: チャットはスティック基点を避け、パーティカー
       hud.playerCardBottomPx >= hud.chatBottomPx + hud.chatMessagesPx + 38,
       `${mode} のプレイヤーカードはチャットの積み上げと重ならない`,
     );
-    assert.equal(hud.partyCardBottomPx, hud.chatBottomPx, `${mode} のパーティカードはチャットと同じドック`);
+    assert.equal(
+      hud.partyCardBottomPx,
+      hud.chatBottomPx,
+      `${mode} のパーティカードはチャットと同じドック`,
+    );
   }
   // 低丈の横持ちではメッセージの積み上げを絞る
-  assert.ok(layout.wbHudMetrics("landscape").chatMessagesPx < layout.wbHudMetrics("portrait").chatMessagesPx);
+  assert.ok(
+    layout.wbHudMetrics("landscape").chatMessagesPx <
+      layout.wbHudMetrics("portrait").chatMessagesPx,
+  );
 });
 
 test("layout: wide のメトリクスは従来値（PC 退行なし）", () => {
@@ -125,31 +146,52 @@ test("layout: wide のメトリクスは従来値（PC 退行なし）", () => {
 });
 
 test("layout: クライアント配線と CSS シート化", () => {
-  const client = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"), "utf8");
-  assert.ok(client.includes('from "@/lib/worldbox/world/layout"'), "クライアントが layout を使っていない");
+  const client = fs.readFileSync(
+    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    "utf8",
+  );
+  assert.ok(
+    client.includes('from "@/lib/worldbox/world/layout"'),
+    "クライアントが layout を使っていない",
+  );
   assert.ok(client.includes("wbLayoutMode(viewport.w, viewport.h)"));
   assert.ok(client.includes("safe-area-inset"), "safe-area が HUD に入っていない");
   assert.ok(client.includes("hud.hotbarSlotCss"));
   assert.ok(client.includes("hud.chatOnRight"));
 
   const css = fs.readFileSync(path.join(rootDir, "app/globals.css"), "utf8");
-  assert.ok(css.includes("@media (max-width: 759px) and (orientation: portrait)"), "縦持ちシートのメディアクエリが無い");
-  assert.ok(css.includes("@media (orientation: landscape) and (max-height: 499px)"), "横持ちのメディアクエリが無い");
+  assert.ok(
+    css.includes("@media (max-width: 759px) and (orientation: portrait)"),
+    "縦持ちシートのメディアクエリが無い",
+  );
+  assert.ok(
+    css.includes("@media (orientation: landscape) and (max-height: 499px)"),
+    "横持ちのメディアクエリが無い",
+  );
   assert.ok(css.includes(".wb-shell .wb-panel"), "wb-panel のシート規則が無い");
   assert.ok(css.includes("env(safe-area-inset-bottom"), "シート下端に safe-area が無い");
 
   // 全パネルのルートに wb-panel が付いている
   for (const f of [
-    "WorldBoxEconomyPanel.tsx", "WorldBoxCasinoPanel.tsx",
-    "WorldBoxGuildBoardPanel.tsx", "WorldBoxGuildShopPanel.tsx", "WorldBoxMachinePanel.tsx",
+    "WorldBoxEconomyPanel.tsx",
+    "WorldBoxCasinoPanel.tsx",
+    "WorldBoxGuildBoardPanel.tsx",
+    "WorldBoxGuildShopPanel.tsx",
+    "WorldBoxMachinePanel.tsx",
     "WorldBoxArcadePanel.tsx",
   ]) {
     const src = fs.readFileSync(path.join(rootDir, "app/games/worldbox", f), "utf8");
     assert.ok(src.includes("wb-panel"), `${f} に wb-panel が無い`);
   }
   // クライアント内蔵パネル（インベントリ等）もシート対象
-  assert.ok((client.match(/className="wb-panel"/g) ?? []).length >= 6, "内蔵パネルの wb-panel が足りない");
+  assert.ok(
+    (client.match(/className="wb-panel"/g) ?? []).length >= 6,
+    "内蔵パネルの wb-panel が足りない",
+  );
   // 装置パネルは高さ制限を持つ（低丈で溢れない）
-  const machine = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxMachinePanel.tsx"), "utf8");
+  const machine = fs.readFileSync(
+    path.join(rootDir, "app/games/worldbox/WorldBoxMachinePanel.tsx"),
+    "utf8",
+  );
   assert.ok(machine.includes("maxHeight"), "装置パネルに maxHeight が無い");
 });

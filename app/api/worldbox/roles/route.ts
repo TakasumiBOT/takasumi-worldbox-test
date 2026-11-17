@@ -9,8 +9,15 @@ import { parseSave } from "@/lib/worldbox/core/save";
 import { loadWorldBoxSave } from "@/lib/worldbox/core/save-online";
 import { loadMyLobbyStation } from "@/lib/worldbox/world/station-online";
 import {
-  activeSkillFor, addMasteryXp, applyRoleChange, isAdventureRoleId, masteryRankOf,
-  ROLE_CHANGE_REASON, skillCooldownLeft, SKILLS, type SkillId,
+  activeSkillFor,
+  addMasteryXp,
+  applyRoleChange,
+  isAdventureRoleId,
+  masteryRankOf,
+  ROLE_CHANGE_REASON,
+  skillCooldownLeft,
+  SKILLS,
+  type SkillId,
 } from "@/lib/worldbox/player/roles";
 import { isNationsEnabled, loadNationsState } from "@/lib/worldbox/social/nations-online";
 import { porterInRange, porterTileError } from "@/lib/worldbox/world/warp";
@@ -19,7 +26,10 @@ import { isOverrideActive } from "@/lib/worldbox/world/tiles";
 import { loadTileOverride } from "@/lib/worldbox/world/tiles-online";
 import { buildEconomyOp } from "@/lib/worldbox/economy/economy-bridge";
 import {
-  isEconomyEnabled, readUserBalance, submitEconomyOp, waitForOpDone,
+  isEconomyEnabled,
+  readUserBalance,
+  submitEconomyOp,
+  waitForOpDone,
 } from "@/lib/worldbox/economy/economy-bridge-online";
 import { withUserLock } from "@/lib/worldbox/core/user-lock";
 import { parseInstanceSpace } from "@/lib/worldbox/world/instances";
@@ -47,7 +57,11 @@ function err(error: string, status = 409) {
   return NextResponse.json({ error }, { status, headers: NO_STORE });
 }
 
-async function actorPos(ownerKey: string, space: string, reported: { x: number; y: number } | null) {
+async function actorPos(
+  ownerKey: string,
+  space: string,
+  reported: { x: number; y: number } | null,
+) {
   const selfId = presenceIdFor(ownerKey);
   const entries = await listPresence();
   const now = Date.now();
@@ -73,7 +87,9 @@ export async function GET(request: Request) {
       role: profile.role,
       rank: masteryRankOf(profile, profile.role),
       mastery: profile.mastery,
-      skill: skill ? { ...skill, cooldownLeftMs: skillCooldownLeft(profile, skill.id, Date.now()) } : null,
+      skill: skill
+        ? { ...skill, cooldownLeftMs: skillCooldownLeft(profile, skill.id, Date.now()) }
+        : null,
     },
     { headers: NO_STORE },
   );
@@ -91,8 +107,14 @@ export async function POST(request: Request) {
     return err("invalid_request", 400);
   }
   const fields = (body ?? {}) as {
-    action?: unknown; role?: unknown; skill?: unknown;
-    tx?: unknown; ty?: unknown; space?: unknown; px?: unknown; py?: unknown;
+    action?: unknown;
+    role?: unknown;
+    skill?: unknown;
+    tx?: unknown;
+    ty?: unknown;
+    space?: unknown;
+    px?: unknown;
+    py?: unknown;
   };
   const ownerKey = sessionOwnerKey(session);
   const now = Date.now();
@@ -141,7 +163,8 @@ export async function POST(request: Request) {
       // の無担保交付」の是正: 役職だけ変わって課金されない状態を
       // 作らない）。pending のままなら従来どおり返し、クライアントの
       // ポーリングに引き継ぐ。
-      const settled = submitted.state === "pending" ? await waitForOpDone(ownerKey, op.id) : submitted.op;
+      const settled =
+        submitted.state === "pending" ? await waitForOpDone(ownerKey, op.id) : submitted.op;
       if (settled && settled.status === "failed") {
         await storeProfile(ownerKey, current);
         return err("economy_failed", 409);
@@ -152,7 +175,10 @@ export async function POST(request: Request) {
 
   const space = typeof fields.space === "string" ? fields.space : "world";
   const reported =
-    typeof fields.px === "number" && typeof fields.py === "number" && Number.isFinite(fields.px) && Number.isFinite(fields.py)
+    typeof fields.px === "number" &&
+    typeof fields.py === "number" &&
+    Number.isFinite(fields.px) &&
+    Number.isFinite(fields.py)
       ? { x: fields.px, y: fields.py }
       : null;
   const pos = await actorPos(ownerKey, space, reported);
@@ -206,7 +232,16 @@ export async function POST(request: Request) {
       next = addMasteryXp(next, "teleporter", 2).profile;
       if (!(await storeProfile(ownerKey, next))) return err("store_failed", 503);
       return NextResponse.json(
-        { ok: true, skill: skillId, fx: skill.fx, cx: gx + 0.5, cy: gy + 0.5, profile: next, results: [], porter },
+        {
+          ok: true,
+          skill: skillId,
+          fx: skill.fx,
+          cx: gx + 0.5,
+          cy: gy + 0.5,
+          profile: next,
+          results: [],
+          porter,
+        },
         { headers: NO_STORE },
       );
     });

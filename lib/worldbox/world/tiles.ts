@@ -3,13 +3,36 @@
 // 扱うのはプレイヤーの行為で変わった差分だけ: 伐採・採掘・耕作・作付け。
 // 農業は「畑を設置」するのではなく、地面を耕して好きな作物を植える。
 // 保存は tiles-online.ts（bot_kv、タイルごとのキー）が担う。
-import { ITEMS, cropById, cropBySeedId, itemById, type ItemDef, type ToolKind } from "../economy/items";
 import {
-  T_DIRT, T_GRASS, T_ROCK, T_SAND, T_SNOW, T_SNOW_TREE, T_TREE, T_WATER, WORLD_COORD_LIMIT,
-  mapTileAt, tileIvsAt, type TileIvs, type TopDownMap,
+  ITEMS,
+  cropById,
+  cropBySeedId,
+  itemById,
+  type ItemDef,
+  type ToolKind,
+} from "../economy/items";
+import {
+  T_DIRT,
+  T_GRASS,
+  T_ROCK,
+  T_SAND,
+  T_SNOW,
+  T_SNOW_TREE,
+  T_TREE,
+  T_WATER,
+  WORLD_COORD_LIMIT,
+  mapTileAt,
+  tileIvsAt,
+  type TileIvs,
+  type TopDownMap,
 } from "./mapgen";
 import {
-  addItem, bestToolItem, countItem, removeItem, wearTool, type PlayerProfile,
+  addItem,
+  bestToolItem,
+  countItem,
+  removeItem,
+  wearTool,
+  type PlayerProfile,
 } from "../player/profile";
 import { presenceIdFor } from "../player/presence";
 import { seasonGrowthMult } from "./seasons";
@@ -120,7 +143,11 @@ export function placedStationKinds(itemId: unknown): readonly StationKind[] {
 
 /** 床ブロック: 固体にせず、上に乗ると効果がある（橋は水上に置けて渡れる）。 */
 export const FLOOR_ITEM_IDS: ReadonlySet<string> = new Set([
-  "path_block", "ice_block", "honey_block", "slime_block", "bridge_block",
+  "path_block",
+  "ice_block",
+  "honey_block",
+  "slime_block",
+  "bridge_block",
 ]);
 
 export function isFloorItem(itemId: string): boolean {
@@ -136,7 +163,9 @@ export function floorSpeedMultiplier(itemId: string | null): number {
 
 /** 柵: 家具扱い（facility）だが、区切りとして固体にする（placedBlockSolid の例外）。 */
 export const FENCE_ITEM_IDS: ReadonlySet<string> = new Set([
-  "fence_wood", "stone_fence", "iron_fence",
+  "fence_wood",
+  "stone_fence",
+  "iron_fence",
 ]);
 
 export function isFenceItem(itemId: string): boolean {
@@ -230,7 +259,14 @@ export type TileView = {
   stump: boolean;
   crop: { cropId: string; stage: 0 | 1 | 2; ready: boolean } | null;
   /** 設置されたブロック（自分のものかどうか・残り HP 割合・門の開閉・看板・展示つき）。 */
-  block: { itemId: string; mine: boolean; hpFrac: number; gateOpen?: boolean; signText?: string; display?: string } | null;
+  block: {
+    itemId: string;
+    mine: boolean;
+    hpFrac: number;
+    gateOpen?: boolean;
+    signText?: string;
+    display?: string;
+  } | null;
   /** 地形（岩・木）の残り HP 割合（1 = 無傷。HP制の対象でないタイルは 1）。 */
   hpFrac: number;
   /** マスの個体値（豊穣度・純度・標高。決定的生成で保存はしない）。 */
@@ -292,9 +328,20 @@ export function hasTool(profile: PlayerProfile, kind: ToolKind): boolean {
 }
 
 export type TileActionKind =
-  | "chop" | "mine" | "till" | "plant" | "harvest"
-  | "place_block" | "mine_block" | "plant_flower" | "remove_flower" | "toggle_gate"
-  | "set_sign" | "set_display" | "clear_display" | "draw_water";
+  | "chop"
+  | "mine"
+  | "till"
+  | "plant"
+  | "harvest"
+  | "place_block"
+  | "mine_block"
+  | "plant_flower"
+  | "remove_flower"
+  | "toggle_gate"
+  | "set_sign"
+  | "set_display"
+  | "clear_display"
+  | "draw_water";
 
 export type TileActionResult =
   | {
@@ -355,7 +402,13 @@ export function applyTileAction(
   seedIdRaw: unknown,
   now: number,
 ): TileActionResult {
-  if (action !== "chop" && action !== "mine" && action !== "till" && action !== "plant" && action !== "harvest") {
+  if (
+    action !== "chop" &&
+    action !== "mine" &&
+    action !== "till" &&
+    action !== "plant" &&
+    action !== "harvest"
+  ) {
     return { ok: false, error: "invalid_action" };
   }
   const tile = checkedTile(xRaw, yRaw);
@@ -387,12 +440,19 @@ export function applyTileAction(
       // HP制: 1タップ = 1ヒット。ダメージは斧の実効ティア（素手は最低段 6）。
       // 伐採は素手でもできる。道具は必須ではなく効率と収量に効く。
       const axe = bestToolItem(profile, "axe");
-      const dmg = BLOCK_MINE_DAMAGE[Math.max(0, Math.min(BLOCK_MINE_DAMAGE.length - 1, bestToolTier(profile, "axe")))];
+      const dmg =
+        BLOCK_MINE_DAMAGE[
+          Math.max(0, Math.min(BLOCK_MINE_DAMAGE.length - 1, bestToolTier(profile, "axe")))
+        ];
       const worn = axe ? wearTool(profile, "axe") : { profile, brokeItemId: null };
       const hpNow = Math.min(active?.hp ?? TERRAIN_TREE_HP, TERRAIN_TREE_HP);
       if (hpNow - dmg > 0) {
         // 倒れるまでは HP が減った上書きだけを返す（地形は木のまま）
-        const next: TileOverride = { ...(active ?? { ownerId: selfId }), hp: hpNow - dmg, ownerId: selfId };
+        const next: TileOverride = {
+          ...(active ?? { ownerId: selfId }),
+          hp: hpNow - dmg,
+          ownerId: selfId,
+        };
         return done(next, worn.profile, {}, worn.brokeItemId);
       }
       const count = axe ? CHOP_WOOD_COUNT : CHOP_WOOD_BAREHAND;
@@ -409,11 +469,18 @@ export function applyTileAction(
       if (!hasTool(profile, "pickaxe")) return { ok: false, error: "tool_required" };
       // HP制: 1タップ = 1ヒット。ダメージはツルハシの実効ティア。
       // 岩はミスリル（40）でも 2 ヒットかかる（TERRAIN_ROCK_HP = 60）。
-      const dmg = BLOCK_MINE_DAMAGE[Math.max(0, Math.min(BLOCK_MINE_DAMAGE.length - 1, bestToolTier(profile, "pickaxe")))];
+      const dmg =
+        BLOCK_MINE_DAMAGE[
+          Math.max(0, Math.min(BLOCK_MINE_DAMAGE.length - 1, bestToolTier(profile, "pickaxe")))
+        ];
       const worn = wearTool(profile, "pickaxe");
       const hpNow = Math.min(active?.hp ?? TERRAIN_ROCK_HP, TERRAIN_ROCK_HP);
       if (hpNow - dmg > 0) {
-        const next: TileOverride = { ...(active ?? { ownerId: selfId }), hp: hpNow - dmg, ownerId: selfId };
+        const next: TileOverride = {
+          ...(active ?? { ownerId: selfId }),
+          hp: hpNow - dmg,
+          ownerId: selfId,
+        };
         return done(next, worn.profile, {}, worn.brokeItemId);
       }
       // 掘った岩は一定時間で戻る（資源の再成長。until を過ぎれば地形どおり岩になる）
@@ -458,7 +525,14 @@ export function applyTileAction(
           cropId: cropDef.id,
           plantedAt: now,
           // 成長時間は季節倍率に加えて土地の豊穣度で変わる（個体値の効果）
-          readyAt: now + Math.round(cropDef.growthMinutes * 60_000 * seasonGrowthMult(cropDef.season, now) * fertilityGrowthFactor(tileIvsAt(x, y).fertility)),
+          readyAt:
+            now +
+            Math.round(
+              cropDef.growthMinutes *
+                60_000 *
+                seasonGrowthMult(cropDef.season, now) *
+                fertilityGrowthFactor(tileIvsAt(x, y).fertility),
+            ),
         },
         ownerId: selfId,
       };
@@ -474,11 +548,7 @@ export function applyTileAction(
       const next: TileOverride = { ...active, farmland: true, crop: null, ownerId: selfId };
       // 豊穣な土地は収穫量が増える（個体値の効果）
       const total = cropDef.produceCount + fertilityBonusYield(tileIvsAt(x, y).fertility);
-      return done(
-        next,
-        addItem(profile, cropDef.produceId, total),
-        { [cropDef.produceId]: total },
-      );
+      return done(next, addItem(profile, cropDef.produceId, total), { [cropDef.produceId]: total });
     }
   }
 }
@@ -636,7 +706,8 @@ export function applyMineBlock(
   const block = active?.block;
   if (!active || !block) return { ok: false, error: "no_block" };
   const selfId = presenceIdFor(ownerKey);
-  if (block.ownerId !== selfId && !ctx.containerBreakAllowed) return { ok: false, error: "not_owner" };
+  if (block.ownerId !== selfId && !ctx.containerBreakAllowed)
+    return { ok: false, error: "not_owner" };
   const def = itemById(block.itemId);
   if (!def) return { ok: false, error: "no_block" };
   const tool = blockMineTool(def);
@@ -644,11 +715,13 @@ export function applyMineBlock(
   // 道具の耐久: ダメージ源になった道具が1ヒットぶん摩耗する。要求道具が
   // あるブロックはその道具、無いブロックはダメージの出典（斧/ツルハシの
   // 実効ティアが高い方）。どちらも持っていなければ素手で、摩耗しない。
-  const wearKind: ToolKind | null = tool ?? (
-    bestToolItem(profile, "axe") || bestToolItem(profile, "pickaxe")
-      ? (bestToolTier(profile, "axe") >= bestToolTier(profile, "pickaxe") ? "axe" : "pickaxe")
-      : null
-  );
+  const wearKind: ToolKind | null =
+    tool ??
+    (bestToolItem(profile, "axe") || bestToolItem(profile, "pickaxe")
+      ? bestToolTier(profile, "axe") >= bestToolTier(profile, "pickaxe")
+        ? "axe"
+        : "pickaxe"
+      : null);
   const worn = wearKind ? wearTool(profile, wearKind) : { profile, brokeItemId: null };
   // HP制: 1ヒット分のダメージを適用する。残れば hp が減った上書きを返す
   const maxHp = blockMaxHp(def);
@@ -672,8 +745,11 @@ export function applyMineBlock(
   delete rest.signText; // 看板の文字も板ごと失われる
   delete rest.display; // 展示品は棚ごと失われる（アイテムは戻らない）
   const empty =
-    rest.tile === undefined && rest.farmland !== true && rest.crop === undefined &&
-    rest.stump !== true && rest.until === undefined;
+    rest.tile === undefined &&
+    rest.farmland !== true &&
+    rest.crop === undefined &&
+    rest.stump !== true &&
+    rest.until === undefined;
   const next = empty ? null : rest;
   const overrides: TileOverridesMap = { [key]: active };
   return {
@@ -713,7 +789,10 @@ export const SIGN_TEXT_MAX = 40;
 /** 看板テキストの整形: 制御文字と改行を空白にし、前後を整えて最大長で切る。 */
 export function sanitizeSignText(raw: unknown): string {
   if (typeof raw !== "string") return "";
-  return raw.replace(/[\u0000-\u001f\u007f]/g, " ").trim().slice(0, SIGN_TEXT_MAX);
+  return raw
+    .replace(/[\u0000-\u001f\u007f]/g, " ")
+    .trim()
+    .slice(0, SIGN_TEXT_MAX);
 }
 
 /** アイテムを展示できる棚。 */
@@ -975,7 +1054,12 @@ export function parseTileOverride(raw: unknown): TileOverride | null {
   const v = data as Record<string, unknown>;
   if (typeof v.ownerId !== "string" || v.ownerId.length === 0) return null;
   const out: TileOverride = { ownerId: v.ownerId };
-  if (typeof v.tile === "number" && Number.isFinite(v.tile) && v.tile >= 0 && v.tile <= T_SNOW_TREE) {
+  if (
+    typeof v.tile === "number" &&
+    Number.isFinite(v.tile) &&
+    v.tile >= 0 &&
+    v.tile <= T_SNOW_TREE
+  ) {
     out.tile = Math.floor(v.tile);
   }
   if (v.farmland === true) out.farmland = true;
@@ -1035,7 +1119,8 @@ export function actionForTile(
     // 見た目だけが残る。
     const miningTool = selected?.tool === "axe" || selected?.tool === "pickaxe";
     // 門はタップで開閉する。ただし所有者が採掘道具を選んでいるときは採掘を優先する（回収できるように）。
-    if (isGateItem(view.block.itemId) && !(view.block.mine && miningTool)) return { action: "toggle_gate" };
+    if (isGateItem(view.block.itemId) && !(view.block.mine && miningTool))
+      return { action: "toggle_gate" };
     // 自分のブロックは採掘道具を持っているときだけ掘る。他人のブロックは触れない。
     if (view.block.mine && miningTool) return { action: "mine_block" };
     return null;
@@ -1047,7 +1132,10 @@ export function actionForTile(
   if (view.crop) return null; // 育ちきるまでは何もしない
   if (selected?.blockId && !view.farmland && !view.stump) {
     // 通常の設置は陸地のみ。橋ブロックだけは水の上にも置ける。
-    if (PLACEABLE_TERRAIN.has(view.tile) || (selected.blockId === "bridge_block" && view.tile === T_WATER)) {
+    if (
+      PLACEABLE_TERRAIN.has(view.tile) ||
+      (selected.blockId === "bridge_block" && view.tile === T_WATER)
+    ) {
       return { action: "place_block", itemId: selected.blockId };
     }
   }
