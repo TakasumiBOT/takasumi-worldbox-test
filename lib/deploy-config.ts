@@ -18,7 +18,7 @@
 //   そのまま現れる）なので、書いても秘密にはならない。
 export const DEPLOY_CONFIG = {
   /** Discord OAuth アプリの Client ID（未記入なら空文字）。 */
-  discordClientId: "",
+  discordClientId: "1570377510561255474",
   /** Discord OAuth アプリの Client Secret（未記入なら空文字）。 */
   discordClientSecret: "",
   /** Discord Developer Portal の Redirects に登録した URL と完全一致させる。 */
