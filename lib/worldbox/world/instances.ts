@@ -7,7 +7,6 @@ import { L_DARK, L_MARBLE, L_SAND, L_WALL, isSolidLobbyTile, type LobbyData, typ
 import { T_GRASS, T_ROCK, tilesSource, type TopDownMap } from "./mapgen";
 import { makeRng } from "../core/rng";
 import { specialObjectById, type SpecialObjectDef } from "./objects";
-import { mobById, type PlacedMob } from "../combat/mobs";
 
 export type InstanceKind = "cave" | "ruins" | "dungeon";
 
@@ -87,7 +86,6 @@ export type CaveLayer = {
   onsen: readonly { x: number; y: number }[];
   veins: readonly CaveVein[];
   chest: { x: number; y: number } | null;
-  mobs: readonly PlacedMob[];
 };
 
 /** 層ごとの鉱脈プール（浅い=石炭/銅、深い=希少、水晶、最深=ミスリル）。 */
@@ -107,13 +105,6 @@ const CAVE_VEIN_POOLS: readonly (readonly { objectId: string; count: number }[])
     { objectId: "crystal_cluster", count: 3 },
     { objectId: "mithril_vein", count: 2 },
   ],
-];
-
-/** 層ごとのモブ（洞窟コウモリとゴーレム）。 */
-const CAVE_MOB_POOLS: readonly (readonly string[])[] = [
-  ["cave_bat", "cave_bat", "cave_bat", "cave_bat"],
-  ["cave_bat", "cave_bat", "cave_bat", "golem"],
-  ["cave_bat", "cave_bat", "golem", "golem"],
 ];
 
 /** 宝箱の再出現（共有マップなので有限にし、6時間で戻る）。 */
@@ -237,13 +228,6 @@ export function buildCaveLayer(seed: number, entranceX: number, entranceY: numbe
     }
   }
 
-  // モブ: 入口の安全圏（半径6）より外の床へ。
-  const mobs: PlacedMob[] = [];
-  for (const mobId of CAVE_MOB_POOLS[layer] ?? []) {
-    const t = pickFar(portal, 8, used);
-    if (t) mobs.push({ mobId, x: t.x, y: t.y, biome: "highland", size: mobId === "golem" ? 3 : 1 });
-  }
-
   // LobbyData として組み立てる（ロビー描画・移動をそのまま使う）。
   const objects: LobbyObject[] = [
     { sprite: "warp_pad", x: portal.x, y: portal.y, w: 1, h: 1, solid: false },
@@ -265,13 +249,12 @@ export function buildCaveLayer(seed: number, entranceX: number, entranceY: numbe
     onsen,
     veins,
     chest,
-    mobs,
   };
   caveCache.set(cacheKey, result);
   return result;
 }
 
-/** 入口・階段まわりの安全圏か（モブ配置と接触判定の除外に使う）。 */
+/** 入口・階段まわりの安全圏か（階段・ポータルの近接判定に使う）。 */
 export function isCaveSafeTile(cave: CaveLayer, x: number, y: number): boolean {
   const near = (p: { x: number; y: number } | null) => p !== null && Math.hypot(x - p.x, y - p.y) <= 1.5;
   return near(cave.portal) || near(cave.stairsUp) || near(cave.stairsDown);
@@ -281,9 +264,9 @@ export function isCaveSafeTile(cave: CaveLayer, x: number, y: number): boolean {
 export const RUINS_W = 48;
 export const RUINS_H = 48;
 
-/** 罠の種類（ダメージ/毒/警報/転移）。 */
-export type RuinsTrapKind = "damage" | "poison" | "alarm" | "teleport";
-export const RUINS_TRAP_KINDS: readonly RuinsTrapKind[] = ["damage", "poison", "alarm", "teleport"];
+/** 罠の種類（転移のみ）。 */
+export type RuinsTrapKind = "teleport";
+export const RUINS_TRAP_KINDS: readonly RuinsTrapKind[] = ["teleport"];
 
 export type RuinsChest = {
   idx: number;
@@ -480,8 +463,8 @@ export function buildRuins(seed: number, entranceX: number, entranceY: number): 
  * パーティ別インスタンス。マップ自体は入口ごとに決定的生成（52×52、部屋＋通路）。
  * パーティ分離は状態キー（"#<partyKey>"）とプレゼンスの party フィールドで担保し、
  * 空間 ID は cave/ruins と同じ `dungeon:<入口x>,<入口y>:<フロア>` 形式を使う。
- * フロア 1〜3 + フロア 4 がボス部屋。各フロア: 鍵扉の先にフロアボス、
- * フロアボスを倒すと階段が開く。鍵は番人（ghost）が落とす。
+ * フロア 1〜3 + フロア 4 が最奥フロア。各フロアの最奥の部屋に階段と
+ * 宝箱があり、最奥フロアの主宝箱を開けるとクリア（週1回の earn）。
  */
 
 export const DUNGEON_W = 52;
@@ -489,39 +472,12 @@ export const DUNGEON_H = 52;
 export const DUNGEON_FLOORS = 4;
 /** dungeon_clear の earn 額（暫定。Plan A の原資範囲内、週1回）。 */
 export const DUNGEON_CLEAR_EARN = 500;
-/** パーティ人数ごとのモブ HP 倍率（攻撃は不変）。 */
-export const DUNGEON_HP_SCALES = [1, 1.6, 2.2, 2.8] as const;
-
-export function dungeonHpScale(partySize: number): number {
-  const idx = Math.max(1, Math.min(4, Math.floor(partySize) || 1)) - 1;
-  return DUNGEON_HP_SCALES[idx];
-}
-
-/** 入口ごとに決定的に選ばれるボス（3種）。 */
-export const DUNGEON_BOSSES = ["ogre", "spider_queen", "dungeon_dragon"] as const;
-export function dungeonBossForEntrance(seed: number, entranceX: number, entranceY: number): string {
-  const h = hashSeed(seed, entranceX, entranceY, 4242) >>> 0;
-  return DUNGEON_BOSSES[h % DUNGEON_BOSSES.length];
-}
-
-/** フロアボス（中ボス）は入口ハッシュとフロアで回す。 */
-export function dungeonFloorBossFor(seed: number, entranceX: number, entranceY: number, floor: number): string {
-  if (floor >= DUNGEON_FLOORS) return dungeonBossForEntrance(seed, entranceX, entranceY);
-  const h = (hashSeed(seed, entranceX, entranceY, 5150) >>> 0) + floor;
-  return h % 2 === 0 ? "ogre" : "spider_queen";
-}
-
-export type DungeonChest = { idx: number; x: number; y: number; bossChest: boolean };
-export type DungeonDoor = { idx: number; x: number; y: number };
+export type DungeonChest = { idx: number; x: number; y: number; main: boolean };
 export type DungeonFloorData = {
   data: LobbyData;
   portal: { x: number; y: number };
   stairsDown: { x: number; y: number } | null;
-  boss: { mobId: string; x: number; y: number };
-  keyHolder: { mobId: string; x: number; y: number };
   chests: DungeonChest[];
-  doors: DungeonDoor[];
-  mobs: PlacedMob[];
   floor: number;
 };
 
@@ -587,83 +543,30 @@ export function buildDungeonFloor(seed: number, entranceX: number, entranceY: nu
     }
   }
   const roomDist = rooms.map((r) => dist.get(`${r.cx},${r.cy}`) ?? 0);
-  const bossRoomIdx = roomDist.indexOf(Math.max(...roomDist));
-  const bossRoom = rooms[bossRoomIdx];
-
-  // 鍵扉: ボス部屋の境界に接する通路タイル（遺跡と同じ方式）。
-  const doors: DungeonDoor[] = [];
-  {
-    const candidates: { x: number; y: number }[] = [];
-    for (const key of floorSet) {
-      const [x, y] = key.split(",").map(Number);
-      const inBoss = x >= bossRoom.x && x < bossRoom.x + bossRoom.w && y >= bossRoom.y && y < bossRoom.y + bossRoom.h;
-      if (inBoss) continue;
-      const touches = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => {
-        const nx = x + dx;
-        const ny = y + dy;
-        return nx >= bossRoom.x && nx < bossRoom.x + bossRoom.w && ny >= bossRoom.y && ny < bossRoom.y + bossRoom.h && floorSet.has(`${nx},${ny}`);
-      });
-      if (touches) candidates.push({ x, y });
-    }
-    candidates.sort((a, b) => (dist.get(`${b.x},${b.y}`) ?? 0) - (dist.get(`${a.x},${a.y}`) ?? 0));
-    if (candidates.length > 0) doors.push({ idx: 0, x: candidates[0].x, y: candidates[0].y });
-  }
-  const doorSet = new Set(doors.map((d) => `${d.x},${d.y}`));
-
-  const boss = {
-    mobId: dungeonFloorBossFor(seed, entranceX, entranceY, f),
-    x: bossRoom.cx,
-    y: bossRoom.cy,
-  };
-  // 番人（鍵持ち）は入口とボス部屋の中間の部屋に置く。
-  const sortedByDist = rooms.map((r, i) => ({ r, i, d: roomDist[i] })).sort((a, b) => a.d - b.d);
-  const midRoom = sortedByDist[Math.floor(sortedByDist.length / 2)].r;
-  const keyHolder = { mobId: "ghost", x: midRoom.cx, y: midRoom.cy };
-
-  // 雑魚モブ: 部屋ごとに決定的に配置（入口部屋とボス部屋のボス以外は薄く）。
-  const mobs: PlacedMob[] = [];
-  const mobPool = f === 1 ? ["skeleton", "slime", "spider"] : f === 2 ? ["skeleton", "spider", "ghost"] : ["ghost", "skeleton", "spider"];
-  for (const [i, room] of rooms.entries()) {
-    if (room === entranceRoom) continue;
-    const n = 1 + Math.floor(rng() * 2);
-    for (let k = 0; k < n; k++) {
-      const mobId = mobPool[Math.floor(rng() * mobPool.length)];
-      const def = mobById(mobId);
-      mobs.push({
-        mobId,
-        x: room.x + 1 + Math.floor(rng() * Math.max(1, room.w - 2)),
-        y: room.y + 1 + Math.floor(rng() * Math.max(1, room.h - 2)),
-        biome: "highland",
-        size: def?.size ?? 1,
-      });
-    }
-    void i;
-  }
-  mobs.push({ mobId: keyHolder.mobId, x: keyHolder.x, y: keyHolder.y, biome: "highland", size: mobById(keyHolder.mobId)?.size ?? 2 });
-  mobs.push({ mobId: boss.mobId, x: boss.x, y: boss.y, biome: "highland", size: mobById(boss.mobId)?.size ?? 4 });
+  const deepestRoomIdx = roomDist.indexOf(Math.max(...roomDist));
+  const deepestRoom = rooms[deepestRoomIdx];
 
   const chests: DungeonChest[] = [];
   if (f >= DUNGEON_FLOORS) {
-    chests.push({ idx: 0, x: bossRoom.cx + 2, y: bossRoom.cy, bossChest: true });
+    chests.push({ idx: 0, x: deepestRoom.cx + 2, y: deepestRoom.cy, main: true });
   } else {
     let idx = 0;
     for (const room of rooms) {
-      if (room === entranceRoom || room === bossRoom) continue;
+      if (room === entranceRoom || room === deepestRoom) continue;
       if (rng() < 0.35) continue;
       chests.push({
         idx: idx++,
         x: room.x + 1 + Math.floor(rng() * Math.max(1, room.w - 2)),
         y: room.y + 1 + Math.floor(rng() * Math.max(1, room.h - 2)),
-        bossChest: false,
+        main: false,
       });
     }
   }
-  const stairsDown = f < DUNGEON_FLOORS ? { x: bossRoom.cx - 2, y: bossRoom.cy } : null;
+  const stairsDown = f < DUNGEON_FLOORS ? { x: deepestRoom.cx - 2, y: deepestRoom.cy } : null;
 
   const objects: LobbyObject[] = [
     { sprite: "warp_pad", x: portal.x, y: portal.y, w: 1, h: 1, solid: false },
     ...(stairsDown ? [{ sprite: "stairs", x: stairsDown.x, y: stairsDown.y, w: 1, h: 1, solid: false } as LobbyObject] : []),
-    ...doors.map((d) => ({ sprite: "gold_door", x: d.x, y: d.y, w: 1, h: 1, solid: true })),
     ...chests.map((c) => ({ sprite: "dungeon_chest", x: c.x, y: c.y, w: 1, h: 1, solid: true })),
   ];
   const blocked = new Set<string>();
@@ -675,11 +578,7 @@ export function buildDungeonFloor(seed: number, entranceX: number, entranceY: nu
     data: { width: DUNGEON_W, height: DUNGEON_H, tiles, objects, npcs: [], blocked, moveMap },
     portal,
     stairsDown,
-    boss,
-    keyHolder,
     chests,
-    doors,
-    mobs,
     floor: f,
   };
   dungeonCache.set(cacheKey, result);

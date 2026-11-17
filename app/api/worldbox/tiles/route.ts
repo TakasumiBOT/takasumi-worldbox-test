@@ -11,8 +11,6 @@ import {
   type TileActionResult, type TileOverridesMap,
 } from "@/lib/worldbox/world/tiles";
 import { loadNationsState } from "@/lib/worldbox/social/nations-online";
-import { loadWarState } from "@/lib/worldbox/combat/war-online";
-import { canBreakOthersBlock } from "@/lib/worldbox/combat/war";
 import { containerIsEmpty, isContainerItem } from "@/lib/worldbox/economy/containers";
 import { isMachineItem, machineBufferCount } from "@/lib/worldbox/economy/machines";
 import { deleteMachine, loadMachine } from "@/lib/worldbox/economy/machines-online";
@@ -209,36 +207,9 @@ export async function POST(request: Request) {
               return NextResponse.json({ error: "not_empty" }, { status: 409, headers: NO_STORE });
             }
           }
-          // 戦争中の他者ブロック破壊: 攻撃側の国民が、防衛側の首都の
-          // WAR_TERRITORY_RADIUS 以内にある防衛側国民のブロックだけ掘れる。
-          // ブロック所有者の国は、所属マップの所有者キーから不透明 ID を
-          // 逆引きして求める（プレゼンスに居ない所有者にも届く）。
-          let warBreakAllowed = false;
-          const activeBlock =
-            current && isOverrideActive(current, Date.now()) ? current.block : undefined;
-          if (activeBlock && activeBlock.ownerId !== presenceIdFor(ownerKey)) {
-            const [warState, nationsState] = await Promise.all([loadWarState(), loadNationsState()]);
-            const members = nationsState.members ?? {};
-            const mine = members[ownerKey];
-            let ownerNationId: string | null = null;
-            for (const [memberKey, m] of Object.entries(members)) {
-              if (presenceIdFor(memberKey) === activeBlock.ownerId) {
-                ownerNationId = m.nationId;
-                break;
-              }
-            }
-            const defender = ownerNationId ? (nationsState.nations ?? {})[ownerNationId] : undefined;
-            // 期限も見る: この経路は expireWars を走らせないため、期限切れで
-            // status が "active" のまま残った戦争でも掘れてしまう。
-            warBreakAllowed = Boolean(
-              mine && defender &&
-              canBreakOthersBlock(warState, mine.nationId, defender.guildId, tx, ty, defender.capital, Date.now()),
-            );
-          }
           result = applyMineBlock(
             current, profile, map, ownerKey, fields.x, fields.y, Date.now(),
             {
-              warBreakAllowed,
               // 収納コンテナは中身が全員共有の仕様に合わせ、回収も誰でも可
               // （中身が空のときだけ、は上の not_empty 検証が担保する）
               containerBreakAllowed: Boolean(blockItemId && isContainerItem(blockItemId)),

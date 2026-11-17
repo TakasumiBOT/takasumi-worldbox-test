@@ -345,47 +345,6 @@ export function burstPaletteFor(id: string | null | undefined): string[] | null 
   return null;
 }
 
-// ---- モブ演出（出現/被ダメージ/死亡） ----
-
-export type FxMobEvent = "spawn" | "hit" | "death";
-
-/**
- * モブの大きさ（sizeTiles = 占有マス数 1〜20）に応じた粒数倍率。
- * 大きいモブほど多く出すが、FX_BURST_MAX の天井は別途 emitBurst が守る。
- */
-export function mobCountMul(sizeTiles: number): number {
-  return Math.min(2.6, 0.8 + 0.18 * sizeTiles);
-}
-
-/** モブの大きさに応じた粒サイズ倍率（最大 2.2 倍で頭打ち）。 */
-export function mobSizeMul(sizeTiles: number): number {
-  return Math.min(2.2, 0.85 + 0.09 * sizeTiles);
-}
-
-/**
- * モブの出現/被ダメージ/死亡の粒を出す。x/y はモブのアンカー中心（タイル単位）。
- * 粒は占有範囲いっぱいに散らし、粒数・粒サイズは大きさでスケールする。
- * sizeTiles が不正（0/NaN/負）なら 1 として扱う。返り値は出た粒数。
- */
-export function spawnMobFx(
-  sys: FxSystem,
-  event: FxMobEvent,
-  x: number,
-  y: number,
-  opts: { sizeTiles?: number; color?: string } = {},
-): number {
-  const raw = opts.sizeTiles ?? 1;
-  const sizeTiles = Number.isFinite(raw) ? Math.min(20, Math.max(1, Math.floor(raw))) : 1;
-  const spec = BURSTS[event];
-  return emitBurst(sys, spec, x, y, {
-    count: spec.count * mobCountMul(sizeTiles),
-    sizeMul: mobSizeMul(sizeTiles),
-    scatterX: Math.max(0.3, sizeTiles * 0.8),
-    scatterY: Math.max(0.2, sizeTiles * 0.8),
-    color: opts.color,
-  });
-}
-
 // ---- 環境パーティクル（バイオームと時刻で決まる漂い） ----
 
 export type FxAmbientKind = "snow" | "leaf" | "pollen" | "firefly" | "rain";
@@ -530,36 +489,6 @@ export function shakeOffsetAt(shake: FxShake, nowMs: number): { x: number; y: nu
   };
 }
 
-// ---- ヒットストップ（命中の一瞬だけ世界の時を止める） ----
-
-export type HitstopState = { until: number };
-
-/** 通常ヒットの停止（ms）。約3フレーム。 */
-export const HITSTOP_HIT_MS = 45;
-/** 撃破の停止（ms）。ヒットより長く止めて手応えを作る。 */
-export const HITSTOP_KILL_MS = 80;
-/** 被弾の停止（ms）。短く。 */
-export const HITSTOP_HURT_MS = 35;
-/** 停止の上限（ms）。連続ヒットでもここを超えて止め続けない。 */
-export const HITSTOP_MAX_MS = 120;
-
-export function createHitstop(): HitstopState {
-  return { until: 0 };
-}
-
-/** 停止を開始/延長する。今の停止より早く終わる指定では上書きしない。 */
-export function startHitstop(state: HitstopState, durationMs: number, nowMs: number): HitstopState {
-  const d = Math.max(0, Math.min(HITSTOP_MAX_MS, durationMs));
-  if (d <= 0) return state;
-  const until = nowMs + d;
-  return until > state.until ? { until } : state;
-}
-
-/** その時刻が停止中か。描画ループは停止中だけシミュレーション dt を 0 にする。 */
-export function hitstopActiveAt(state: HitstopState, nowMs: number): boolean {
-  return nowMs < state.until;
-}
-
 // ---- 出現ポップ（設置・建築の「収まった」感） ----
 
 /** 出現の拡大率。0.55 から行き過ぎて（最大 ~1.13）1 に収まる（k は 0〜1）。 */
@@ -606,9 +535,7 @@ export function slashAlpha(k: number): number {
  * warp はテレポーターのポーター設置用に追加したプリセット（立ち上る光柱＋リング）。
  */
 
-export type SkillFxKind =
-  | "fireball" | "heal_zone" | "sweep" | "thunder_strike" | "ice_lance"
-  | "meteor" | "whirlwind" | "arrow_rain" | "poison_field" | "taunt" | "warp";
+export type SkillFxKind = "warp";
 
 export type SkillFxEffect = {
   kind: SkillFxKind;
@@ -623,16 +550,6 @@ export type SkillFxEffect = {
 };
 
 export const SKILL_FX_DURATION_MS: Record<SkillFxKind, number> = {
-  fireball: 650,
-  heal_zone: 2500,
-  sweep: 350,
-  thunder_strike: 850,
-  ice_lance: 500,
-  meteor: 1450,
-  whirlwind: 900,
-  arrow_rain: 1500,
-  poison_field: 3000,
-  taunt: 500,
   warp: 1200,
 };
 
@@ -641,80 +558,15 @@ export function skillFxProgress(effect: SkillFxEffect, nowMs: number): number {
   return (nowMs - effect.startedAt) / SKILL_FX_DURATION_MS[effect.kind];
 }
 
-/** 段階番号（予告=0、本体=1、余韻=2）。クライアントの描画・粒発生の切り替えに使う。 */
+/** 段階番号（導入=0、本体=1）。クライアントの描画・粒発生の切り替えに使う。 */
 export function skillFxStage(effect: SkillFxEffect, nowMs: number): number {
   const p = skillFxProgress(effect, nowMs);
-  switch (effect.kind) {
-    case "thunder_strike":
-      return p < 0.55 ? 0 : p < 0.75 ? 1 : 2;
-    case "meteor":
-      return p < 0.6 ? 0 : p < 0.8 ? 1 : 2;
-    case "fireball":
-    case "ice_lance":
-      return p < 0.4 ? 0 : 1;
-    default:
-      return p < 0.15 ? 0 : 1;
-  }
-}
-
-/** 決定的な 0..1 ハッシュ（稲妻の形など、フレーム間で安定させる用途）。 */
-export function hash01(n: number): number {
-  let t = (n | 0) ^ 0x9e3779b9;
-  t = Math.imul(t ^ (t >>> 16), 0x21f0aaad);
-  t = Math.imul(t ^ (t >>> 15), 0x735a2d97);
-  return ((t ^ (t >>> 15)) >>> 0) / 4294967296;
-}
-
-/** 落雷の稲妻ポリライン（決定的生成）。起点→終点の間に中間点を刻む。 */
-export function thunderBoltPoints(
-  seed: number, x0: number, y0: number, x1: number, y1: number,
-): { x: number; y: number }[] {
-  const pts: { x: number; y: number }[] = [{ x: x0, y: y0 }];
-  const segs = 6;
-  for (let i = 1; i < segs; i++) {
-    const t = i / segs;
-    const jitter = (hash01(seed * 31 + i * 17) - 0.5) * 0.5 * (1 - Math.abs(t - 0.5));
-    pts.push({ x: x0 + (x1 - x0) * t + jitter, y: y0 + (y1 - y0) * t });
-  }
-  pts.push({ x: x1, y: y1 });
-  return pts;
+  return p < 0.15 ? 0 : 1;
 }
 
 /** 段階遷移時の粒を出す（クライアントが前回段階を覚えて呼ぶ）。 */
 export function spawnSkillFx(sys: FxSystem, effect: SkillFxEffect, stage: number): void {
   const { x, y } = effect;
-  switch (effect.kind) {
-    case "fireball":
-      if (stage === 1) { spawnBurst(sys, "death", x, y); spawnBurst(sys, "poof", x, y); }
-      break;
-    case "meteor":
-      if (stage === 2) { spawnBurst(sys, "death", x, y); spawnBurst(sys, "mine", x, y); spawnBurst(sys, "death", x, y); }
-      break;
-    case "thunder_strike":
-      if (stage === 1) { spawnBurst(sys, "death", x, y); spawnBurst(sys, "poof", x, y); }
-      break;
-    case "ice_lance":
-      if (stage === 1) spawnBurst(sys, "poof", x, y);
-      break;
-    case "sweep":
-    case "whirlwind":
-      if (stage === 1) spawnBurst(sys, "dash", x, y);
-      break;
-    case "arrow_rain":
-      if (stage === 1) spawnBurst(sys, "poof", x, y);
-      break;
-    case "heal_zone":
-      if (stage === 1) spawnBurst(sys, "warp", x, y);
-      break;
-    case "poison_field":
-      if (stage === 1) spawnBurst(sys, "poof", x, y);
-      break;
-    case "taunt":
-      if (stage === 1) spawnBurst(sys, "poof", x, y);
-      break;
-    case "warp":
-      // 立ち上る光（ワープバースト）を重ねて柱らしくする
-      if (stage === 1) { spawnBurst(sys, "warp", x, y); spawnBurst(sys, "warp", x, y); }
-      break;
-  }
+  // warp: 立ち上る光（ワープバースト）を重ねて柱らしくする
+  if (stage === 1) { spawnBurst(sys, "warp", x, y); spawnBurst(sys, "warp", x, y); }
 }

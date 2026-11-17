@@ -10,7 +10,7 @@ import {
 } from "@/lib/worldbox/world/objects-online";
 import { listPresence } from "@/lib/worldbox/player/presence-online";
 import { presenceIdFor } from "@/lib/worldbox/player/presence";
-import { addItem, maxHpFor, wearTool } from "@/lib/worldbox/player/profile";
+import { addItem, wearTool } from "@/lib/worldbox/player/profile";
 import { loadProfile, storeProfile } from "@/lib/worldbox/player/profile-online";
 import { addMasteryXp, MINER_BONUS_CHANCE } from "@/lib/worldbox/player/roles";
 import { bestToolTier } from "@/lib/worldbox/world/tiles";
@@ -33,8 +33,6 @@ export const runtime = "nodejs";
 const NO_STORE = { "Cache-Control": "no-store, max-age=0" };
 const MAX_RECT_SPAN = 128;
 const MAX_ACTION_DISTANCE = 2;
-/** 宝箱の罠ダメージ（洞窟・遺跡の宝箱と同値）。 */
-const TRAP_DAMAGE = 10;
 
 function err(error: string, status: number) {
   return NextResponse.json({ error }, { status, headers: NO_STORE });
@@ -138,7 +136,6 @@ export async function POST(request: Request) {
       trapped = loot.trapped;
       // 斥候の専門: 宝箱の罠を半減で回避する（洞窟・遺跡と同仕様）
       if (trapped && profile.role === "scout" && rng() < 0.5) trapped = false;
-      if (trapped) next = { ...next, hp: Math.max(0, next.hp - TRAP_DAMAGE) };
     }
     if (def.interaction === "mine" && profile.role === "miner") {
       // 採掘者の常時効果: 追加ドロップ抽選 + 熟練（洞窟の採掘と同仕様）
@@ -150,12 +147,6 @@ export async function POST(request: Request) {
       }
       next = addMasteryXp(next, "miner", (def.minTier ?? 0) >= 2 ? 4 : 1).profile;
     }
-    let healed = 0;
-    if (def.interaction === "rest" && def.heal) {
-      // 温泉: 定義の heal 分だけ回復する（洞窟温泉の全回復とは別物）
-      healed = Math.min(maxHpFor(next), next.hp + def.heal) - next.hp;
-      next = { ...next, hp: next.hp + healed };
-    }
     // 道具の耐久: 道具を使う行為（鉱脈・倒木など）は最良の1本が摩耗する
     let broke: string | null = null;
     if (def.tool) {
@@ -166,7 +157,7 @@ export async function POST(request: Request) {
     if (!(await storeProfile(ownerKey, next))) return err("store_failed", 503);
     await storeHarvestedAt(x, y, now);
     return NextResponse.json(
-      { ok: true, gained: loot.gained, trapped, healed, profile: next, ...(broke ? { broke } : {}) },
+      { ok: true, gained: loot.gained, trapped, profile: next, ...(broke ? { broke } : {}) },
       { headers: NO_STORE },
     );
   });

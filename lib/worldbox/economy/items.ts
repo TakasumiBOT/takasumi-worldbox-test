@@ -10,7 +10,7 @@ export type ItemCategory =
   | "tool" | "block" | "seed" | "crop" | "furniture";
 
 /** 道具の種類。ワールド上の行為（伐採・採掘・耕作・戦闘）の前提になる。 */
-export type ToolKind = "axe" | "pickaxe" | "sword" | "hoe";
+export type ToolKind = "axe" | "pickaxe" | "hoe";
 
 export type ItemDef = {
   id: string;
@@ -22,11 +22,9 @@ export type ItemDef = {
   /** 食べたときの空腹度回復量（food / crop のみ）。 */
   hunger?: number;
   /** 食べた・使ったときの HP 回復量（食事の一部と薬）。 */
-  heal?: number;
   /** 使うと毒を治す（薬・一部の飲み物）。 */
-  curePoison?: boolean;
   /** 食べると付く持続効果（warm=空腹が減りにくい / alert=満腹時に少しずつ回復）。 */
-  buff?: { kind: "warm" | "alert"; minutes: number };
+  buff?: { kind: "warm"; minutes: number };
   /** 食べた/飲んだ後に手元へ戻る容器のアイテム ID（水入りバケツ→バケツ）。 */
   containerReturn?: string;
   /** 道具の種類（tool のみ）。 */
@@ -59,10 +57,10 @@ export const ITEMS: readonly ItemDef[] = [
   { id: "onigiri", name: "おにぎり", desc: "手軽な携行食", category: "food", price: 150, hunger: 30 },
   { id: "energy_drink", name: "エナジードリンク", desc: "すばやく回復", category: "food", price: 250, hunger: 15 },
   { id: "water_bucket", name: "水入りバケツ", desc: "井戸で汲んだ水。飲むとバケツに戻る", category: "food", price: 100, hunger: 10, containerReturn: "bucket" },
-  { id: "meal", name: "定食", desc: "しっかり食べる", category: "food", price: 300, hunger: 55, heal: 8 },
+  { id: "meal", name: "定食", desc: "しっかり食べる", category: "food", price: 300, hunger: 55 },
   { id: "cake", name: "ケーキ", desc: "甘いごほうび", category: "food", price: 400, hunger: 45 },
   { id: "bento", name: "幕の内弁当", desc: "品数たっぷり", category: "food", price: 450, hunger: 80 },
-  { id: "feast", name: "フルコース", desc: "満腹まで食べる", category: "food", price: 500, hunger: 100, heal: 20 },
+  { id: "feast", name: "フルコース", desc: "満腹まで食べる", category: "food", price: 500, hunger: 100 },
   // ---- 素材（合成の材料） ---------------------------------------------
   { id: "wood", name: "木材", desc: "基本の素材", category: "material", price: 80, placesBlock: "oak_log" },
   { id: "stone", name: "石材", desc: "基本の素材", category: "material", price: 80, placesBlock: "stone_block" },
@@ -76,13 +74,11 @@ export const ITEMS: readonly ItemDef[] = [
   { id: "carving", name: "木彫りの置物", desc: "木材を彫った工芸品", category: "crafted", price: 450 },
   { id: "lantern", name: "石のランタン", desc: "石とガラスの明かり", category: "crafted", price: 600 },
   { id: "blanket", name: "毛布", desc: "布を重ねた防寒具", category: "crafted", price: 560 },
-  { id: "potion", name: "薬草ポーション", desc: "飲むと空腹度とHPが回復し、毒も治す", category: "crafted", price: 760, hunger: 60, heal: 35, curePoison: true },
-  { id: "antidote", name: "解毒薬", desc: "毒を治す薬", category: "crafted", price: 950, heal: 5, curePoison: true },
-  { id: "bandage", name: "包帯", desc: "巻くとHPが回復する", category: "crafted", price: 600, heal: 25 },
+  { id: "potion", name: "薬草ポーション", desc: "飲むと空腹度とHPが回復し、毒も治す", category: "crafted", price: 760, hunger: 60 },
   { id: "toolbox", name: "鉄の道具箱", desc: "鉄と木の実用品", category: "crafted", price: 850 },
   { id: "tent", name: "テント", desc: "布と木の野営道具", category: "crafted", price: 1100, facility: true },
   { id: "accessory", name: "金のアクセサリー", desc: "金とガラスの装飾品", category: "crafted", price: 1400 },
-  { id: "special_course", name: "特上コース料理", desc: "定食を超える一品", category: "crafted", price: 1300, hunger: 100, heal: 20 },
+  { id: "special_course", name: "特上コース料理", desc: "定食を超える一品", category: "crafted", price: 1300, hunger: 100 },
   // ---- 特殊（所持しているだけで効く） ---------------------------------
   { id: "guard_charm", name: "防犯チャーム", desc: "持っていると steal されなくなる", category: "special", price: 2000 },
   { id: "thief_mask", name: "怪盗マスク", desc: "持っていると steal の成功率が上がる", category: "special", price: 2000 },
@@ -95,9 +91,6 @@ export const ITEMS: readonly ItemDef[] = [
   { id: "wooden_pickaxe", name: "木のツルハシ", desc: "岩を掘る道具", category: "tool", price: 600, tool: "pickaxe", tier: 1, durability: 60 },
   { id: "stone_pickaxe", name: "石のツルハシ", desc: "岩を掘る道具", category: "tool", price: 1100, tool: "pickaxe", tier: 2, durability: 130 },
   { id: "iron_pickaxe", name: "鉄のツルハシ", desc: "岩を掘る道具", category: "tool", price: 2200, tool: "pickaxe", tier: 3, durability: 250 },
-  { id: "wooden_sword", name: "木の剣", desc: "戦う道具", category: "tool", price: 600, tool: "sword", tier: 1, durability: 60 },
-  { id: "stone_sword", name: "石の剣", desc: "戦う道具", category: "tool", price: 1100, tool: "sword", tier: 2, durability: 130 },
-  { id: "iron_sword", name: "鉄の剣", desc: "戦う道具", category: "tool", price: 2200, tool: "sword", tier: 3, durability: 250 },
   { id: "wooden_hoe", name: "木のクワ", desc: "地面を耕す道具", category: "tool", price: 600, tool: "hoe", tier: 1, durability: 60 },
   { id: "stone_hoe", name: "石のクワ", desc: "地面を耕す道具", category: "tool", price: 1100, tool: "hoe", tier: 2, durability: 130 },
   { id: "iron_hoe", name: "鉄のクワ", desc: "地面を耕す道具", category: "tool", price: 2200, tool: "hoe", tier: 3, durability: 250 },
@@ -199,7 +192,6 @@ export const ITEMS: readonly ItemDef[] = [
   // ---- 道具（ミスリル段位: 鉄の上の4段目） ------------------------------
   { id: "mithril_axe", name: "ミスリルの斧", desc: "木を伐る道具", category: "tool", price: 8500, tool: "axe", tier: 4, durability: 500 },
   { id: "mithril_pickaxe", name: "ミスリルのツルハシ", desc: "岩を掘る道具", category: "tool", price: 8500, tool: "pickaxe", tier: 4, durability: 500 },
-  { id: "mithril_sword", name: "ミスリルの剣", desc: "戦う道具", category: "tool", price: 8500, tool: "sword", tier: 4, durability: 500 },
   { id: "mithril_hoe", name: "ミスリルのクワ", desc: "地面を耕す道具", category: "tool", price: 8500, tool: "hoe", tier: 4, durability: 500 },
   // ---- 道具（特殊: 種別を持たない探索道具） ------------------------------
   // 開拓のコンパス: 所持している間、最も近い洞窟/ダンジョン入口の方向と
@@ -247,11 +239,11 @@ export const ITEMS: readonly ItemDef[] = [
   { id: "berry", name: "木の実", desc: "茂みで取れる果物", category: "food", price: 110, hunger: 10 },
   { id: "fish", name: "サカナ", desc: "水辺で取れる食材", category: "food", price: 160, hunger: 15 },
   { id: "cookie", name: "クッキー", desc: "甘い焼き菓子", category: "food", price: 750, hunger: 18 },
-  { id: "grilled_meat", name: "焼き肉", desc: "焼いた肉", category: "food", price: 380, hunger: 40, heal: 6 },
+  { id: "grilled_meat", name: "焼き肉", desc: "焼いた肉", category: "food", price: 380, hunger: 40 },
   { id: "grilled_fish", name: "焼き魚", desc: "焼いた魚", category: "food", price: 300, hunger: 30 },
   { id: "omelette", name: "オムレツ", desc: "たまご料理", category: "food", price: 320, hunger: 35 },
   { id: "baked_potato", name: "ベイクドポテト", desc: "焼いたジャガイモ", category: "food", price: 200, hunger: 25 },
-  { id: "stew", name: "シチュー", desc: "具だくさんの煮込み", category: "food", price: 700, hunger: 65, heal: 10, buff: { kind: "warm", minutes: 10 } },
+  { id: "stew", name: "シチュー", desc: "具だくさんの煮込み", category: "food", price: 700, hunger: 65, buff: { kind: "warm", minutes: 10 } },
   // ---- 種（追加分） -------------------------------------------------------
   { id: "onion_seed", name: "タマネギの種", desc: "畑に植える種", category: "seed", price: 80 },
   { id: "soybean_seed", name: "大豆の種", desc: "畑に植える種", category: "seed", price: 80 },
@@ -332,7 +324,7 @@ export const ITEMS: readonly ItemDef[] = [
   { id: "pickles", name: "漬物", desc: "塩漬けの野菜", category: "food", price: 350, hunger: 18 },
   { id: "fruit_punch", name: "フルーツポンチ", desc: "果物の盛り合わせ", category: "food", price: 880, hunger: 38 },
   { id: "veggie_soup", name: "野菜スープ", desc: "温かいスープ", category: "food", price: 640, hunger: 36 },
-  { id: "honey_tea", name: "はちみつティー", desc: "甘い温かい飲み物。毒も流す", category: "food", price: 750, hunger: 16, heal: 5, curePoison: true, buff: { kind: "alert", minutes: 5 } },
+  { id: "honey_tea", name: "はちみつティー", desc: "甘い温かい飲み物。毒も流す", category: "food", price: 750, hunger: 16 },
   { id: "cheese", name: "チーズ", desc: "発酵した乳製品", category: "food", price: 460, hunger: 20 },
   // ---- 合成品（追加分2） -------------------------------------------------------
   { id: "ceramic_vase", name: "陶器の壺", desc: "焼き物の壺", category: "crafted", price: 1250 },
@@ -383,7 +375,7 @@ export const ITEMS: readonly ItemDef[] = [
   { id: "apple_pie", name: "アップルパイ", desc: "甘い焼き菓子", category: "food", price: 480, hunger: 40 },
   { id: "grape_juice", name: "ブドウジュース", desc: "果実の飲み物", category: "food", price: 750, hunger: 25 },
   { id: "peach_juice", name: "桃ジュース", desc: "果実の飲み物", category: "food", price: 820, hunger: 25 },
-  { id: "curry", name: "カレーライス", desc: "畑の実りのカレー", category: "food", price: 880, hunger: 70, heal: 12 },
+  { id: "curry", name: "カレーライス", desc: "畑の実りのカレー", category: "food", price: 880, hunger: 70 },
   { id: "miso_soup", name: "味噌汁", desc: "温かい汁物", category: "food", price: 440, hunger: 30 },
   { id: "tofu", name: "豆腐", desc: "大豆の白い塊", category: "food", price: 620, hunger: 30 },
   { id: "fruit_salad", name: "フルーツサラダ", desc: "果実の盛り合わせ", category: "food", price: 1020, hunger: 45 },
@@ -396,7 +388,7 @@ export const ITEMS: readonly ItemDef[] = [
   { id: "dried_fruit", name: "ドライフルーツ", desc: "乾かした果実", category: "food", price: 720, hunger: 30 },
   { id: "tomato_soup", name: "トマトスープ", desc: "温かいスープ", category: "food", price: 480, hunger: 35 },
   { id: "melon_bread", name: "メロンパン", desc: "甘い焼きパン", category: "food", price: 950, hunger: 50 },
-  { id: "deluxe_meal", name: "贅沢御膳", desc: "品数たっぷりの御膳", category: "food", price: 1150, hunger: 100, heal: 20 },
+  { id: "deluxe_meal", name: "贅沢御膳", desc: "品数たっぷりの御膳", category: "food", price: 1150, hunger: 100 },
   { id: "fishing_rod", name: "釣り竿", desc: "糸を垂らす道具", category: "crafted", price: 340 },
   { id: "bow", name: "弓", desc: "矢を放つ道具", category: "crafted", price: 340 },
   { id: "arrow", name: "矢", desc: "弓で放つ矢", category: "crafted", price: 120 },
@@ -434,8 +426,7 @@ export const ITEM_ICON_IDS: readonly string[] = [
   // 道具（4種×3段すべて）
   "wooden_axe", "stone_axe", "iron_axe",
   "wooden_pickaxe", "stone_pickaxe", "iron_pickaxe",
-  "wooden_sword", "stone_sword", "iron_sword",
-  "wooden_hoe", "stone_hoe", "iron_hoe",
+    "wooden_hoe", "stone_hoe", "iron_hoe",
   // 素材（すべて）
   "wood", "stone", "herb", "cloth", "glass", "iron_ore", "gold_ore", "mithril",
   "stick", "fiber", "clay", "paper", "string", "bamboo", "charcoal", "feather",
@@ -461,7 +452,7 @@ export const ITEM_ICON_IDS: readonly string[] = [
   "fence_wood", "lamp", "item_shelf", "table_round", "tapestry", "bookshelf",
   "sofa", "piano",
   // 拡張分（ミスリル道具・金属/宝石素材・特殊ブロック）
-  "mithril_axe", "mithril_pickaxe", "mithril_sword", "mithril_hoe",
+  "mithril_axe", "mithril_pickaxe", "mithril_hoe",
   "copper_ore", "copper_ingot", "coal", "flint", "sulfur", "salt",
   "ruby", "sapphire", "emerald", "diamond", "pearl", "honey", "beeswax", "flower",
   "copper_block", "coal_block", "bedrock_block", "cactus_block", "leaves_block",
@@ -548,8 +539,6 @@ export const RECIPES: readonly Recipe[] = [
   { id: "lantern", inputs: { stone: 2, glass: 1 }, output: "lantern", outputCount: 1 },
   { id: "blanket", inputs: { cloth: 2 }, output: "blanket", outputCount: 1 },
   { id: "potion", inputs: { herb: 2, glass: 1 }, output: "potion", outputCount: 1, rareItem: "star_shard", rareChance: 0.05 },
-  { id: "antidote", inputs: { herb: 2, honey: 1 }, output: "antidote", outputCount: 1 },
-  { id: "bandage", inputs: { cloth: 2 }, output: "bandage", outputCount: 1 },
   { id: "toolbox", inputs: { iron_ore: 2, wood: 1 }, output: "toolbox", outputCount: 1 },
   { id: "tent", inputs: { cloth: 3, wood: 2 }, output: "tent", outputCount: 1 },
   { id: "accessory", inputs: { gold_ore: 1, glass: 1 }, output: "accessory", outputCount: 1, rareItem: "star_shard", rareChance: 0.08 },
@@ -559,15 +548,12 @@ export const RECIPES: readonly Recipe[] = [
   // 道具（木/石/鉄 × 斧/ツルハシ/剣/クワ）
   { id: "wooden_axe", inputs: { wood: 3, stick: 2 }, output: "wooden_axe", outputCount: 1 },
   { id: "wooden_pickaxe", inputs: { wood: 3, stick: 2 }, output: "wooden_pickaxe", outputCount: 1 },
-  { id: "wooden_sword", inputs: { wood: 2, stick: 1 }, output: "wooden_sword", outputCount: 1 },
   { id: "wooden_hoe", inputs: { wood: 2, stick: 2 }, output: "wooden_hoe", outputCount: 1 },
   { id: "stone_axe", inputs: { stone: 3, stick: 2 }, output: "stone_axe", outputCount: 1 },
   { id: "stone_pickaxe", inputs: { stone: 3, stick: 2 }, output: "stone_pickaxe", outputCount: 1 },
-  { id: "stone_sword", inputs: { stone: 2, stick: 1 }, output: "stone_sword", outputCount: 1 },
   { id: "stone_hoe", inputs: { stone: 2, stick: 2 }, output: "stone_hoe", outputCount: 1 },
   { id: "iron_axe", inputs: { iron_ore: 3, stick: 2 }, output: "iron_axe", outputCount: 1 },
   { id: "iron_pickaxe", inputs: { iron_ore: 3, stick: 2 }, output: "iron_pickaxe", outputCount: 1 },
-  { id: "iron_sword", inputs: { iron_ore: 2, stick: 1 }, output: "iron_sword", outputCount: 1 },
   { id: "iron_hoe", inputs: { iron_ore: 2, stick: 2 }, output: "iron_hoe", outputCount: 1 },
   // ブロック
   { id: "planks_block", inputs: { wood: 2 }, output: "planks_block", outputCount: 1 },
@@ -602,8 +588,6 @@ export const RECIPES: readonly Recipe[] = [
   // 道具（ミスリル段位）
   { id: "mithril_axe", inputs: { mithril: 3, stick: 2 }, output: "mithril_axe", outputCount: 1 },
   { id: "mithril_pickaxe", inputs: { mithril: 3, stick: 2 }, output: "mithril_pickaxe", outputCount: 1 },
-  { id: "mithril_sword", inputs: { mithril: 2, stick: 1 }, output: "mithril_sword", outputCount: 1 },
-  { id: "mithril_sword_dragon", inputs: { dragon_scale: 1, stick: 1 }, output: "mithril_sword", outputCount: 1 },
   { id: "ghost_lantern_mithril", inputs: { ghost_tear: 1, mithril: 1 }, output: "ghost_lantern", outputCount: 2 },
   { id: "mithril_hoe", inputs: { mithril: 2, stick: 2 }, output: "mithril_hoe", outputCount: 1 },
   // ブロック（金属・宝石・自然素材）

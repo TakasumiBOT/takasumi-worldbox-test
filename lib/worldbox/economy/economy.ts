@@ -14,7 +14,7 @@ import {
   RECIPES, itemById, recipeById, sellPrice, type ItemDef, type Recipe,
 } from "./items";
 import {
-  HP_MAX, HUNGER_MAX, maxHpFor, addItem, countItem, removeItem, type PlayerProfile,
+  HUNGER_MAX, addItem, countItem, removeItem, type PlayerProfile,
 } from "../player/profile";
 import { consumeEffect } from "../player/vitals";
 
@@ -81,21 +81,13 @@ export function sellItem(profile: PlayerProfile, itemId: unknown, countRaw?: unk
 
 /**
  * かばんの食事・飲み物を消費して空腹度を回復する。
- * 効果の数式（hunger / heal / 解毒 / バフ）は vitals.consumeEffect が正で、
+ * 効果の数式（hunger / バフ）は vitals.consumeEffect が正で、
  * ここは消費・容器返却・満腹ゲートだけを持つ（二重実装にしない）。
- * 満腹ゲートの HP 判定は役職込みの最大 HP（守護は 120）で見る: 素の
- * HP_MAX で判定すると、守護が HP 100〜119・満腹のときに回復食が
- * 常時 hunger_full で弾かれる。
  */
 export function eatItem(profile: PlayerProfile, itemId: unknown, now: number = Date.now()): Transition<{ item: ItemDef }> {
   const item = itemById(itemId);
-  if (!item || (!item.hunger && !item.heal && !item.curePoison && !item.buff)) return { ok: false, error: "unknown_item" };
-  const poisoned = Array.isArray(profile.status) && profile.status.some((e) => e.kind === "poison");
-  if (
-    profile.hunger >= HUNGER_MAX
-    && (!item.heal || (typeof profile.hp === "number" ? profile.hp : HP_MAX) >= maxHpFor(profile))
-    && (!item.curePoison || !poisoned)
-  ) {
+  if (!item || (!item.hunger && !item.buff)) return { ok: false, error: "unknown_item" };
+  if (item.hunger && profile.hunger >= HUNGER_MAX) {
     return { ok: false, error: "hunger_full" };
   }
   const removed = removeItem(profile, item.id, 1);

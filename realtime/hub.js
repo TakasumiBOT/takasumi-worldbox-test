@@ -153,7 +153,7 @@ function createHub(options = {}) {
   // ---- watch の宛先解決（本家 realtime-server.js と同一） ----
   const routeWatchChanges = (kind, changes, prev) => {
     if (changes.length === 0) return;
-    if (kind === "tiles" || kind === "mobs" || kind === "objects" || kind === "fishing") {
+    if (kind === "tiles" || kind === "objects" || kind === "fishing") {
       sendTo(() => true, { t: "kv", kind, changes });
     } else if (kind === "board") {
       for (const c of changes) {

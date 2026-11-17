@@ -2,9 +2,6 @@
 // 保存先は bot_kv（名前空間 "worldbox_instances"、キー = 空間 ID）。
 // 値: { veins: { veinKey: 採取時刻 }, chest: 宝箱を開けた時刻 }。
 import { isBotApiConfigured, kvDelete, kvGet, kvSet } from "../../bot-api";
-import { loadProfile } from "../player/profile-online";
-import { masteryRankOf, partyGateSatisfied } from "../player/roles";
-import { DUNGEON_FLOORS } from "./instances";
 
 export const WORLDBOX_INSTANCES_NAMESPACE = "worldbox_instances";
 
@@ -54,18 +51,17 @@ export function isInstancesEnabled(): boolean {
 }
 
 export type RuinsPersonalState = {
-  /** 週キー（月曜）。違う週なら宝箱・罠・扉・召喚はリセットされる。 */
+  /** 週キー（月曜）。違う週なら宝箱・罠・扉はリセットされる。 */
   week: string;
   chests: Record<string, boolean>;
   traps: Record<string, boolean>;
   doors: Record<string, boolean>;
-  summons: { mobId: string; x: number; y: number }[];
   /** 主宝箱の初回開封（ruins_complete 済み）。週次リセット対象外。 */
   completed: boolean;
 };
 
 export function emptyRuinsPersonal(week: string): RuinsPersonalState {
-  return { week, chests: {}, traps: {}, doors: {}, summons: [], completed: false };
+  return { week, chests: {}, traps: {}, doors: {}, completed: false };
 }
 
 export function parseRuinsPersonal(raw: unknown, week: string): RuinsPersonalState {
@@ -82,12 +78,7 @@ export function parseRuinsPersonal(raw: unknown, week: string): RuinsPersonalSta
       }
       return out;
     };
-    const summons = Array.isArray(v.summons)
-      ? v.summons.filter((s): s is { mobId: string; x: number; y: number } =>
-          !!s && typeof s === "object" && typeof (s as { mobId?: unknown }).mobId === "string" &&
-          typeof (s as { x?: unknown }).x === "number" && typeof (s as { y?: unknown }).y === "number")
-      : [];
-    return { week, chests: boolMap(v.chests), traps: boolMap(v.traps), doors: boolMap(v.doors), summons, completed };
+    return { week, chests: boolMap(v.chests), traps: boolMap(v.traps), doors: boolMap(v.doors), completed };
   } catch {
     return base;
   }
@@ -118,22 +109,17 @@ export async function storeRuinsPersonal(space: string, ownerKey: string, state:
 
 /* ================= ダンジョンのセッション（バッチ5） =================
  * パーティ別インスタンスの進行状態。キーは "<フロア1の空間ID>#<partyKey>"。
- * 全滅・全員離脱で削除する（インスタンスが閉じる）。クリア週の記録は
+ * 全員離脱で削除する（インスタンスが閉じる）。クリア週の記録は
  * "dungeonclear:<ownerKey>" に週キーを残す（週1回の earn 判定）。
  */
 
 export type DungeonSession = {
   partyKey: string;
   entrance: { x: number; y: number };
-  /** 入場時点のパーティ人数（モブ HP 倍率の基準）。 */
+  /** 入場時点のパーティ人数。 */
   size: number;
   members: string[];
   departed: string[];
-  dead: string[];
-  floorBossDead: Record<string, boolean>;
-  bossDead: boolean;
-  /** 開いた鍵扉: "<floor>:<idx>" → true（パーティ共有）。 */
-  doors: Record<string, boolean>;
   /** 宝箱の開封記録: "<ownerKey>:<floor>:<idx>" → 開封時刻。 */
   chests: Record<string, number>;
   startedAt: number;
@@ -165,28 +151,12 @@ function parseDungeonSession(raw: unknown, partyKey: string): DungeonSession | n
       if (typeof v === "number") chests[k] = v;
     }
   }
-  const floorBossDead: Record<string, boolean> = {};
-  if (data.floorBossDead && typeof data.floorBossDead === "object" && !Array.isArray(data.floorBossDead)) {
-    for (const [k, v] of Object.entries(data.floorBossDead as Record<string, unknown>)) {
-      if (v === true) floorBossDead[k] = true;
-    }
-  }
-  const doors: Record<string, boolean> = {};
-  if (data.doors && typeof data.doors === "object" && !Array.isArray(data.doors)) {
-    for (const [k, v] of Object.entries(data.doors as Record<string, unknown>)) {
-      if (v === true) doors[k] = true;
-    }
-  }
   return {
     partyKey,
     entrance: { x: entrance.x, y: entrance.y },
     size: typeof data.size === "number" ? Math.max(1, Math.min(4, Math.floor(data.size))) : 1,
     members: strList(data.members),
     departed: strList(data.departed),
-    dead: strList(data.dead),
-    floorBossDead,
-    bossDead: data.bossDead === true,
-    doors,
     chests,
     startedAt: typeof data.startedAt === "number" ? data.startedAt : 0,
   };
@@ -219,9 +189,9 @@ export async function deleteDungeonSession(spaceFloor1: string, partyKey: string
   } catch { /* ベストエフォート */ }
 }
 
-/** 全員が離脱・死亡したらインスタンスは閉じる。 */
+/** 全員が離脱したらインスタンスは閉じる。 */
 export function dungeonSessionClosed(session: DungeonSession): boolean {
-  return session.members.every((m) => session.departed.includes(m) || session.dead.includes(m));
+  return session.members.every((m) => session.departed.includes(m));
 }
 
 export async function loadDungeonClearWeek(ownerKey: string): Promise<string | null> {
@@ -246,16 +216,3 @@ export async function storeDungeonClearWeek(ownerKey: string, week: string): Pro
   } catch { /* ベストエフォート */ }
 }
 
-/** ダンジョンの熟練ゲート（F2 以降=ランク2+が1人、ボス層=ランク3+が1人）。 */
-export async function dungeonGateSatisfied(
-  memberKeys: readonly string[],
-  floor: number,
-): Promise<boolean> {
-  if (floor < 2) return true;
-  const ranks: number[] = [];
-  for (const key of memberKeys) {
-    const prof = await loadProfile(key);
-    if (prof) ranks.push(masteryRankOf(prof, prof.role));
-  }
-  return partyGateSatisfied(ranks, floor >= DUNGEON_FLOORS ? "boss" : "floor2");
-}

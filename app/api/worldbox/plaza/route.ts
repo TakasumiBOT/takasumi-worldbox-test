@@ -11,7 +11,6 @@ import { loadMyLobbyStation } from "@/lib/worldbox/world/station-online";
 import { withUserLock } from "@/lib/worldbox/core/user-lock";
 import { parseSave } from "@/lib/worldbox/core/save";
 import { loadWorldBoxSave } from "@/lib/worldbox/core/save-online";
-import { applyRest } from "@/lib/worldbox/player/vitals";
 
 export const runtime = "nodejs";
 
@@ -108,13 +107,9 @@ async function handlePost(request: Request, session: AuthedSession) {
       });
     }
     await kvSet(REST_NAMESPACE, key, String(now));
-    // 休憩は HP 全回復＋毒消去も兼ね、戻り先（ワールド座標）を最後の休憩地点として記録する
-    const saved = parseSave(await loadWorldBoxSave(ownerKey));
-    const restPoint = saved?.worldReturn ?? (saved && saved.space === "world" ? { x: saved.x, y: saved.y } : null);
+    // 休憩: スタミナ回復（クライアント側ゲージ）だけが効果。プロフィールは現状を返す。
     const profile = await loadProfile(ownerKey);
-    const rested = applyRest(profile, restPoint, now);
-    await storeProfile(ownerKey, rested);
-    return NextResponse.json({ ok: true, stamina: true, profile: rested }, { headers: NO_STORE });
+    return NextResponse.json({ ok: true, stamina: true, profile }, { headers: NO_STORE });
   }
 
   return errorResponse("bad_action", 400);

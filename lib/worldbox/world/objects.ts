@@ -50,8 +50,6 @@ export type SpecialObjectDef = {
   targetSpace?: "cave" | "dungeon" | "ruins" | "lobby";
   /** 宝箱の罠が発動する確率（0〜1）。 */
   trapChance?: number;
-  /** 回復量（rest のみ。HP/空腹の回復目安）。 */
-  heal?: number;
   loot: readonly LootEntry[];
 };
 
@@ -130,7 +128,7 @@ export const SPECIAL_OBJECTS: readonly SpecialObjectDef[] = [
     { itemId: "mithril", min: 1, max: 2, chance: 0.45 },
   ] },
   // ---- 回復・探索系 ---------------------------------------------------------
-  { id: "hot_spring", name: "温泉", interaction: "rest", biomes: ["highland", "snowfield", "forest"], density: 0.15, respawnMs: 0, solid: false, heal: 50, loot: [
+  { id: "hot_spring", name: "温泉", interaction: "rest", biomes: ["highland", "snowfield", "forest"], density: 0.15, respawnMs: 0, solid: false, loot: [
     { itemId: "salt", min: 1, max: 2, chance: 0.4 },
   ] },
   { id: "ancient_pillar", name: "古代の石柱", interaction: "search", biomes: ["plains", "dryland", "snowfield"], density: 0.14, respawnMs: 0, solid: true, loot: [

@@ -211,11 +211,6 @@ export function leadNoteCount(track: WbBgmTrack): number {
   return track.lead.filter((n) => n !== null).length;
 }
 
-/** 緊張レイヤーの条件（B3）: 敵対モブが近くにいるか、HP が 25% 以下。曲は変えず心拍だけ重ねる。 */
-export function tensionFor(input: { hostileNear: boolean; hpFrac: number }): boolean {
-  return input.hostileNear || input.hpFrac <= 0.25;
-}
-
 /* ================= 純粋ロジック: SE の語彙と対応表 ================= */
 
 export type WbSeName =
@@ -741,21 +736,9 @@ type BgmVoice = {
   nextStepAt: number;
 };
 let activeVoice: BgmVoice | null = null;
-/** 緊張レイヤー（心拍）の ON/OFF。クライアントが 1 秒ごとに更新する。 */
-let tensionOn = false;
 let bgmWasPlayingBeforeHidden = false;
 
-/** 緊張レイヤーの ON/OFF。次のステップから心拍が重なる。 */
-export function setWbBgmTension(on: boolean): void {
-  tensionOn = on;
-}
-
-/** 緊張レイヤーが今 ON か（テスト/表示用）。 */
-export function currentWbBgmTension(): boolean {
-  return tensionOn;
-}
-
-function scheduleStep(track: WbBgmTrack, step: number, at: number, dest: AudioNode, tension: boolean): void {
+function scheduleStep(track: WbBgmTrack, step: number, at: number, dest: AudioNode): void {
   if (!ctx) return;
   const bassSemi = track.bass[step];
   if (bassSemi !== null) {
@@ -770,15 +753,6 @@ function scheduleStep(track: WbBgmTrack, step: number, at: number, dest: AudioNo
   }
   if (track.kick[step]) {
     tone({ freq: 120, freqEnd: 42, dur: 0.12, type: "sine", gain: 0.2, at, dest });
-  }
-  // 緊張レイヤー: 1小節に2打の低い心拍（lub-dub）。曲そのものは変えない。
-  // 短い減衰のサイン波サンプで、パッド wash でもローパスでもない。
-  if (tension) {
-    if (step % 8 === 0) {
-      tone({ freq: 92, freqEnd: 44, dur: 0.16, type: "sine", gain: 0.2, at, dest });
-    } else if (step % 8 === 3) {
-      tone({ freq: 82, freqEnd: 40, dur: 0.13, type: "sine", gain: 0.14, at, dest });
-    }
   }
 }
 
@@ -800,7 +774,7 @@ function startVoice(scene: WbBgmScene): void {
       voice.nextStepAt += missed * stepSec;
     }
     while (voice.nextStepAt < ctx.currentTime + 0.28) {
-      scheduleStep(track, voice.step % BGM_STEPS, voice.nextStepAt, voice.gain, tensionOn);
+      scheduleStep(track, voice.step % BGM_STEPS, voice.nextStepAt, voice.gain);
       voice.step += 1;
       voice.nextStepAt += stepSec;
     }

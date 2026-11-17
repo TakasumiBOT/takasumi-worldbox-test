@@ -318,7 +318,8 @@ async function handlePost(request: Request, session: AuthedSession) {
     }
     case "eat": {
       const result = eatItem(current, data.itemId);
-      if (result.ok && current.role === "medic" && result.item.heal) {
+      if (result.ok && current.role === "medic") {
+        // 薬師の熟練は食事・薬の利用で付く
         const withXp = { ...result, profile: addMasteryXp(result.profile, "medic", 2).profile };
         return saveAndReturn(withXp, { itemName: result.item.name });
       }
