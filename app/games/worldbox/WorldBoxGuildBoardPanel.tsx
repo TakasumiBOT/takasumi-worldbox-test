@@ -30,7 +30,7 @@ import type { GuildRequest } from "@/lib/worldbox/social/requests";
 const ROLE_LABEL: Record<NationRole, string> = { king: "王", minister: "大臣", citizen: "国民" };
 
 const REQUEST_ERROR_LABEL: Record<string, string> = {
-  not_enough_coins: "コインが足りません",
+  not_enough_coins: "お金が足りません",
   not_enough_items: "アイテムが足りません",
   too_many_guild: "依頼がいっぱいです",
   too_many_poster: "自分の依頼がいっぱいです",
@@ -437,7 +437,7 @@ export default function WorldBoxGuildBoardPanel({
           aria-pressed={tab === "adventure"}
           onClick={() => setTab("adventure")}
         >
-          冒険役職
+          職業
         </button>
         <button
           type="button"
@@ -542,7 +542,7 @@ export default function WorldBoxGuildBoardPanel({
                       <ItemAnnotation itemId={sel.itemId}>
                         <div style={{ marginTop: 6, fontSize: 13 }}>
                           <span className="muted">
-                            報酬 {sel.reward} ／ 所持 {profile?.items[sel.itemId] ?? 0}
+                            報酬 {sel.reward} 円 ／ 所持 {profile?.items[sel.itemId] ?? 0}
                           </span>
                         </div>
                       </ItemAnnotation>
@@ -668,7 +668,7 @@ export default function WorldBoxGuildBoardPanel({
                 <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   {cost > 0 && (
                     <span style={{ fontSize: 12, opacity: 0.8 }}>
-                      {cost.toLocaleString("ja-JP")}
+                      {cost.toLocaleString("ja-JP")} 円
                     </span>
                   )}
                   <button
@@ -699,7 +699,7 @@ export default function WorldBoxGuildBoardPanel({
                             json.error === "not_at_guild_board"
                               ? "ギルドボードの前で操作してください"
                               : json.error === "not_enough_coins"
-                                ? "コインが足りません"
+                                ? "お金が足りません"
                                 : "変更できませんでした",
                           );
                         }

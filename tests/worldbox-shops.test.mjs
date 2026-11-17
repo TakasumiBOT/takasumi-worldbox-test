@@ -106,19 +106,19 @@ test("shops: 全カテゴリがちょうど1ジャンルに割り当たる", () 
   }
 });
 
-test("shops: ジャンル定義は想定の6種（鍛冶屋含む）", () => {
+test("shops: ジャンル定義は想定の6種（製造・R&D拠点含む）", () => {
   assert.deepEqual(
     shops.SHOP_GENRES.map((g) => [g.id, g.name]),
     [
-      ["tools", "道具屋"],
-      ["blocks", "建築屋"],
-      ["furniture", "家具屋"],
-      ["food", "食料屋"],
-      ["farm", "種・素材屋"],
-      ["smith", "鍛冶屋"],
+      ["tools", "ホームセンター"],
+      ["blocks", "建材店"],
+      ["furniture", "インテリア店"],
+      ["food", "コンビニ"],
+      ["farm", "資材店"],
+      ["smith", "製造・R&D拠点"],
     ],
   );
-  assert.equal(shops.genreById("tools")?.name, "道具屋");
+  assert.equal(shops.genreById("tools")?.name, "ホームセンター");
   assert.equal(shops.genreById("nope"), null);
   assert.equal(shops.genreById(null), null);
 });

@@ -114,7 +114,7 @@ export default function WorldBoxGuildShopPanel({
           data.error === "too_far"
             ? "区画の近くで買える"
             : data.error === "insufficient_balance"
-              ? "コインが足りない"
+              ? "お金が足りない"
               : data.error === "not_enough_items"
                 ? "持ち物が足りない"
                 : data.error === "not_enough_stock"

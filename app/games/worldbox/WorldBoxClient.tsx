@@ -905,15 +905,15 @@ const STATION_LABEL: Record<LobbyStation, string> = {
   shop: "ショップ",
   bank: "銀行",
   casino: "カジノ",
-  arena: "闘技場",
-  smith: "鍛冶屋",
+  arena: "アリーナ",
+  smith: "製造・R&D拠点",
   fountain: "噴水",
   rest: "休憩",
   arcade: "アーケード",
   race: "競馬場",
   piano: "ピアノ",
   sell: "売却専用ショップ",
-  telescope: "望遠鏡",
+  telescope: "展望台",
 };
 
 export default function WorldBoxClient() {
@@ -1421,7 +1421,7 @@ export default function WorldBoxClient() {
       if (!res.ok) {
         setPlazaMsg(
           data.error === "insufficient_balance"
-            ? "コインが足りません"
+            ? "お金が足りません"
             : data.error === "rest_cooldown"
               ? `まだ休めません（あと ${data.retryAfterSec ?? "?"} 秒）`
               : data.error === "unauthorized"
@@ -2496,7 +2496,7 @@ export default function WorldBoxClient() {
         setInvProfile(data.profile);
         setTileMsg("テントが広くなった");
       } else {
-        setTileMsg(data.error === "insufficient_balance" ? "コインが足りない" : "拡張できない");
+        setTileMsg(data.error === "insufficient_balance" ? "お金が足りない" : "拡張できない");
       }
     } catch {
       /* noop */
@@ -3085,14 +3085,14 @@ export default function WorldBoxClient() {
       else lastSaved = { x: player.x, y: player.y, at: performance.now() };
       setStatusText(
         space === "lobby"
-          ? "ロビー"
+          ? "中央広場"
           : space === "lobby2"
-            ? "ロビー 2F"
+            ? "ラウンジ"
             : space === "lobby3"
-              ? "ロビー 3F"
+              ? "展望デッキ"
               : space === "tent"
                 ? "テント"
-                : "共有ワールド",
+                : "郊外",
       );
     })();
 
@@ -4358,7 +4358,7 @@ export default function WorldBoxClient() {
           worldReturn = { x: player.x, y: player.y };
           space = "lobby";
           setSpaceUi("lobby");
-          setStatusText("ロビー");
+          setStatusText("中央広場");
           setBoardOpen(false);
           setGuildBoardOpen(false);
           placePlayer(LOBBY_ENTRY.x, LOBBY_ENTRY.y);
@@ -4393,9 +4393,9 @@ export default function WorldBoxClient() {
     /** ロビー内の階移動（1F⇄2F⇄3F、L2b）。階段を踏んだときだけ発火し、
      * ワープと同じフェード（B1）でつなぐ。建物内の移動なので worldReturn は触らない。 */
     const FLOOR_LABEL: Record<LobbyFloorSpace, string> = {
-      lobby: "ロビー",
-      lobby2: "ロビー 2F",
-      lobby3: "ロビー 3F",
+      lobby: "中央広場",
+      lobby2: "ラウンジ",
+      lobby3: "展望デッキ",
     };
     const doFloorWarp = (target: LobbyFloorSpace, entry: { x: number; y: number }) => {
       if (target === space) return;
@@ -4425,11 +4425,11 @@ export default function WorldBoxClient() {
         const inst = parseInstanceSpace(target);
         setStatusText(
           inst?.kind === "cave"
-            ? `洞窟 B${(inst.layer ?? 0) + 1}`
+            ? `採掘場 B${(inst.layer ?? 0) + 1}`
             : inst?.kind === "ruins"
-              ? "遺跡"
+              ? "旧市街"
               : inst?.kind === "dungeon"
-                ? `ダンジョン ${(inst.layer ?? 0) + 1}F`
+                ? `廃ビル ${(inst.layer ?? 0) + 1}F`
                 : "インスタンス",
         );
         lastStation = null;
@@ -6421,7 +6421,7 @@ export default function WorldBoxClient() {
   const menuActions: MenuAction[] = [
     {
       id: "warp",
-      label: spaceUi === "world" ? "ロビーへ行く" : "ワールドへ戻る",
+      label: spaceUi === "world" ? "中央広場へ行く" : "郊外へ戻る",
       show: true,
       run: () => warpActionRef.current(spaceUi === "world" ? "lobby" : "world"),
     },
@@ -6438,7 +6438,7 @@ export default function WorldBoxClient() {
     },
     {
       id: "event_dungeon",
-      label: `${eventsUi.find((e) => e.kind === "limited_dungeon")?.name ?? "期間ダンジョン"}へ行く`,
+      label: `${eventsUi.find((e) => e.kind === "limited_dungeon")?.name ?? "期間限定エリア"}へ行く`,
       show: spaceUi === "world" && eventsUi.some((e) => e.kind === "limited_dungeon"),
       run: () => enterEventDungeon(),
     },
@@ -6945,7 +6945,7 @@ export default function WorldBoxClient() {
                 style={{ ...btn, minHeight: hud.buttonMinHeight, padding: "2px 10px" }}
                 onClick={() => void plazaAction("fountain")}
               >
-                コインを投げる（10）
+                小銭を投げる（10円）
               </button>
             )}
             {stationUi === "rest" && (
@@ -7003,12 +7003,12 @@ export default function WorldBoxClient() {
           >
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <span ref={compassCaveArrowRef} style={compassArrow(COMPASS_CAVE_COLOR)} />
-              <span>洞窟</span>
+              <span>採掘場</span>
               <span ref={compassCaveDistRef} style={{ marginLeft: "auto" }} />
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <span ref={compassDungeonArrowRef} style={compassArrow(COMPASS_DUNGEON_COLOR)} />
-              <span>ダンジョン</span>
+              <span>廃ビル</span>
               <span ref={compassDungeonDistRef} style={{ marginLeft: "auto" }} />
             </div>
           </div>
@@ -7722,7 +7722,7 @@ export default function WorldBoxClient() {
                   <ItemIcon id={stallInfo.itemId} size={20} />
                   <span>{stallInfo.name}</span>
                   <span>
-                    {stallInfo.price} コイン × {stallInfo.count}
+                    {stallInfo.price} 円 × {stallInfo.count}
                   </span>
                 </div>
                 <div style={{ marginTop: 10 }}>
@@ -7770,7 +7770,7 @@ export default function WorldBoxClient() {
                           color: "#fff",
                         }}
                       />
-                      <span>コイン ×</span>
+                      <span>円 ×</span>
                       <input
                         value={stallCountText}
                         inputMode="numeric"
@@ -8060,7 +8060,7 @@ export default function WorldBoxClient() {
                 whiteSpace: "nowrap",
               }}
             >
-              <span>望遠鏡</span>
+              <span>展望台</span>
               <button
                 type="button"
                 style={{ ...btn, minHeight: hud.buttonMinHeight, padding: "2px 10px" }}

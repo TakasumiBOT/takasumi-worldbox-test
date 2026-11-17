@@ -62,10 +62,10 @@ interface RacingState {
 const ERROR_LABEL: Record<string, string> = {
   not_at_racecourse: "馬券カウンターの前にいません",
   betting_closed: "締め切りました",
-  bet_failed: "コインが足りません",
+  bet_failed: "お金が足りません",
   invalid_bet: "その馬券は買えません",
   economy_unavailable: "いま競馬場を使えません",
-  guest_not_allowed: "ゲストはコイン機能を使えません",
+  guest_not_allowed: "ゲストはお金の機能を使えません",
   unauthorized: "ログインが必要です",
 };
 
@@ -210,7 +210,7 @@ export default function WorldBoxRacingPanel({ onClose }: { onClose: () => void }
       <div style={{ fontSize: 17, fontWeight: 700 }}>競馬場</div>
       {state && (
         <div style={{ marginLeft: "auto", fontSize: 13, opacity: 0.9 }}>
-          {state.balance.toLocaleString()} コイン
+          {state.balance.toLocaleString()} 円
         </div>
       )}
       <button

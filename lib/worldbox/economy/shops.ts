@@ -16,12 +16,12 @@ export type ShopGenre = {
 
 /** ジャンル定義。カテゴリは全 ItemCategory をちょうど1回ずつ覆う。 */
 export const SHOP_GENRES: readonly ShopGenre[] = [
-  { id: "tools", name: "道具屋", categories: ["tool"] },
-  { id: "blocks", name: "建築屋", categories: ["block"] },
-  { id: "furniture", name: "家具屋", categories: ["furniture"] },
-  { id: "food", name: "食料屋", categories: ["food", "crop"] },
-  { id: "farm", name: "種・素材屋", categories: ["seed", "material"] },
-  { id: "smith", name: "鍛冶屋", categories: ["crafted", "special"] },
+  { id: "tools", name: "ホームセンター", categories: ["tool"] },
+  { id: "blocks", name: "建材店", categories: ["block"] },
+  { id: "furniture", name: "インテリア店", categories: ["furniture"] },
+  { id: "food", name: "コンビニ", categories: ["food", "crop"] },
+  { id: "farm", name: "資材店", categories: ["seed", "material"] },
+  { id: "smith", name: "製造・R&D拠点", categories: ["crafted", "special"] },
 ];
 
 const GENRE_BY_ID = new Map<string, ShopGenre>(SHOP_GENRES.map((g) => [g.id, g]));
