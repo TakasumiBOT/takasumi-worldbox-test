@@ -22,14 +22,17 @@ test("ステージをフルスクリーン化できる（ボタンは対応環�
 
 test("キャンバスは常時ステージいっぱいになる（独立シェル 100svh）", () => {
   // ステージはシェルの残り全高を占め、キャンバスは常にその全面を使う
-  assert.match(client, /flex: "1 1 auto", minHeight: 0/);
-  assert.match(client, /width: "100%", height: "100%", display: "block"/);
+  assert.match(client, /flex: "1 1 auto",\s*minHeight: 0/);
+  assert.match(client, /width: "100%",\s*height: "100%",\s*display: "block"/);
   assert.match(client, /isFullscreen \? \{ height: "100%", background: "#0b0e14" \}/);
 });
 
 test("≡ メニューはステージ下端からはみ出さない（収まらない分はスクロール）", () => {
   assert.match(client, /maxHeight: "calc\(100% - 68px\)"/);
-  assert.match(client, /overflowY: "auto", overscrollBehavior: "contain", touchAction: "pan-y"/);
+  assert.match(
+    client,
+    /overflowY: "auto",\s*overscrollBehavior: "contain",\s*touchAction: "pan-y"/,
+  );
 });
 
 test("ホットバーのスロットは画面幅でスケーリングする（縦画面ではみ出さない）", async () => {
@@ -45,6 +48,6 @@ test("ホットバーのスロットは画面幅でスケーリングする（�
   assert.match(layout, /"clamp\(30px, 10\.5vw, 42px\)"/);
   assert.match(layout, /"clamp\(38px, 12vw, 44px\)"/);
   // インベントリボタンは潰さず、バー全体はステージ幅に収める
-  assert.match(client, /flexShrink: 0, whiteSpace: "nowrap"/);
+  assert.match(client, /flexShrink: 0,\s*whiteSpace: "nowrap"/);
   assert.match(client, /maxWidth: "calc\(100% - 16px\)"/);
 });

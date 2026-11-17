@@ -309,18 +309,18 @@ test("sound: クライアント配線（解錠・場面・行為SE・足音・�
   );
   assert.match(client, /from "@\/lib\/worldbox\/media\/sound"/, "sound 基盤を使う");
   assert.match(client, /unlockWbAudio\(\)/, "最初の操作で AudioContext を解錠する");
-  assert.match(client, /setWbBgmScene\(bgmSceneFor\(/, "場面で BGM を切り替える");
+  assert.match(client, /setWbBgmScene\(\s*bgmSceneFor\(/, "場面で BGM を切り替える");
   assert.match(
     client,
-    /playWbSe\(seForFxBurst\(ev\.kind\), \{ distance: Math\.max/,
+    /playWbSe\(seForFxBurst\(ev\.kind\), \{\s*distance: Math\.max/,
     "行為イベントの SE も距離で減衰する",
   );
   assert.match(client, /playWbSe\("swing"\)/, "振りに風切り");
   assert.match(client, /playWbSe\("warp"\)/, "ワープ音");
-  assert.match(client, /playWbStep\(footstepMaterialFor\(/, "足音は素材別");
+  assert.match(client, /playWbStep\(\s*footstepMaterialFor\(/, "足音は素材別");
   assert.match(
     client,
-    /biomeAt\(MAP_SEED, Math\.floor\(player\.x\), Math\.floor\(player\.y\)\)/,
+    /biomeAt\(MAP_SEED,\s*Math\.floor\(player\.x\),\s*Math\.floor\(player\.y\)\)/,
     "足音の素材は現在地のバイオームから決める",
   );
   assert.match(client, /playWbSe\(menuOpen \? "close" : "open"\)/, "≡ メニューの開閉音");

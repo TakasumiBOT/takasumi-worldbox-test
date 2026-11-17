@@ -420,7 +420,7 @@ test("fx3: クライアント配線（素材パレット・クリックSE・パ�
   assert.match(css, /@keyframes wb-panel-in/, "パネル出現のキーフレームがある");
   assert.match(
     css,
-    /\.wb-shell \.wb-panel \{ animation: wb-panel-in/,
+    /\.wb-shell \.wb-panel \{[^}]*animation: wb-panel-in/,
     "全パネル共通で出現アニメーションが付く",
   );
   // 固有 SE を持つパネルはマーカーで除外される

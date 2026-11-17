@@ -153,7 +153,7 @@ test("配線: ルート/トークン/ラッパー/クライアント", () => {
   assert.match(token, /av: avatarUrl/);
   const wrapper = fs.readFileSync(path.join(rootDir, "realtime-server.js"), "utf8");
   assert.match(wrapper, /avatar: auth\.av \?\? null/);
-  assert.match(wrapper, /info\.baseline, info\.avatar\)/);
+  assert.match(wrapper, /info\.baseline,\s*info\.avatar,\s*\)/);
   const client = fs.readFileSync(
     path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
     "utf8",
@@ -164,6 +164,6 @@ test("配線: ルート/トークン/ラッパー/クライアント", () => {
   // NPC の描画はアイコン無し（従来キャラのまま）
   assert.match(
     client,
-    /draw: \(\) => drawAvatar\(ctx, Math\.round\(lobbyOx \+ \(n\.x \+ 0\.5\) \* TILE\), Math\.round\(lobbyOy \+ \(n\.y \+ 1\) \* TILE\), 1, 0, 0, null\)/,
+    /draw: \(\) =>\s*drawAvatar\(\s*ctx,\s*Math\.round\(lobbyOx \+ \(n\.x \+ 0\.5\) \* TILE\),\s*Math\.round\(lobbyOy \+ \(n\.y \+ 1\) \* TILE\),\s*1,\s*0,\s*0,\s*null,?\s*\)/,
   );
 });

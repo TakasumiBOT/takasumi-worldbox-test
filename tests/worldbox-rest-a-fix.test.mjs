@@ -97,7 +97,7 @@ test("casino: 先払いは submitSpend（直接提出）で、BJ の hit/stand �
     assert.match(
       src,
       new RegExp(
-        `submitSpend\\(ctx\\.userKey, ctx\\.discordId, \\{\\s*amount: \\w+, reason: CASINO_SESSION_REASONS\\.${reason},?\\s*\\}\\)`,
+        `submitSpend\\(ctx\\.userKey, ctx\\.discordId, \\{\\s*amount: \\w+,\\s*reason: CASINO_SESSION_REASONS\\.${reason},?\\s*\\}\\)`,
       ),
       reason,
     );

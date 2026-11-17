@@ -373,7 +373,7 @@ test("売買・合成・送金は施設の前でのみ開く（クライアン�
   );
   assert.match(
     client,
-    /<WorldBoxEconomyPanel space=\{spaceUi\} station=\{stationUi\} genre=\{stationGenre\} worldStationKinds=\{worldStationKinds\} onClose=\{\(\) => setShowEconomy\(false\)\} \/>/,
+    /<WorldBoxEconomyPanel\s+space=\{spaceUi\}\s+station=\{stationUi\}\s+genre=\{stationGenre\}\s+worldStationKinds=\{worldStationKinds\}\s+onClose=\{\(\) => setShowEconomy\(false\)\}\s*\/>/,
   );
   const panel = fs.readFileSync(
     path.join(rootDir, "app/games/worldbox/WorldBoxEconomyPanel.tsx"),
@@ -382,7 +382,7 @@ test("売買・合成・送金は施設の前でのみ開く（クライアン�
   assert.match(panel, /space === "lobby"/);
   // タブは「ロビーにいる」だけでは出ない。対応する施設の前にいる時だけ
   assert.match(panel, /station === "shop"/);
-  assert.match(panel, /atShop && shopItems\.length > 0 && tabBtn\("shop"/);
+  assert.match(panel, /atShop &&\s*shopItems\.length > 0 &&\s*tabBtn\("shop"/);
   assert.match(panel, /station === "smith"/);
   assert.match(panel, /atWorkbench && tabBtn\("craft"/);
   assert.match(panel, /station === "bank"/);

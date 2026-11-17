@@ -33,15 +33,15 @@ test("経済パネル: onClose を受け取り全状態に閉じるボタンが�
   // 読込中・ゲスト・利用不可の早期 return でも閉じられる（panelHead 経由）
   assert.match(economy, /panelHead\("読み込み中…"\)/);
   assert.ok(
-    near(client, "{showEconomy &&", "onClose={() => setShowEconomy(false)}", 200),
+    near(client, "{showEconomy &&", "onClose={() => setShowEconomy(false)}", 400),
     "クライアントが経済パネルへ onClose を渡していない",
   );
 });
 
 test("≡ メニューはパネルより手前に出る（開閉の一本化ルートを塞がない）", () => {
   // パネルは zIndex 6。≡ ボタン 7 / メニュー 8 で常に届く。
-  assert.match(client, /minWidth: 44, zIndex: 7/);
-  assert.match(client, /color: "#fff", zIndex: 8/);
+  assert.match(client, /minWidth: 44,\s*zIndex: 7/);
+  assert.match(client, /color: "#fff",\s*zIndex: 8/);
 });
 
 test("Esc で開いているパネルとメニューを全部閉じる", () => {

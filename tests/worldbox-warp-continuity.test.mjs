@@ -262,8 +262,9 @@ test("WS 中継: 登録されていないジャンプは依然として却下さ
 test("遺跡の転移罠: サーバーがプレゼンス/セーブを転移先へそろえる配線がある", () => {
   const route = fs.readFileSync(path.join(rootDir, "app/api/worldbox/instances/route.ts"), "utf8");
   assert.ok(route.includes("putPresence"), "転移時にプレゼンスをそろえていない");
-  assert.ok(
-    route.includes("serializeSave({ space, x: teleport.x"),
+  assert.match(
+    route,
+    /serializeSave\(\{\s*space,\s*x: teleport\.x/,
     "転移時にセーブをそろえていない",
   );
 });

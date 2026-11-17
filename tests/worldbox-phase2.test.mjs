@@ -138,8 +138,9 @@ test("配線: トークン発行・relay 集約・クライアントの停止条
   );
   assert.ok(tokenTs.includes("ok: sessionOwnerKey(session)"), "トークンに所有者キーが無い");
   const server = readFileSync(new URL("../realtime-server.js", import.meta.url), "utf8");
-  assert.ok(
-    server.includes('botkv.kvSet(kvCfg, "worldbox_presence", info.ok'),
+  assert.match(
+    server,
+    /kvSet\(kvCfg,\s*"worldbox_presence",\s*info\.ok/,
     "relay が bot_kv プレゼンスへ書いていない",
   );
   assert.ok(server.includes('t: "hello", now: Date.now(), agg: 1'), "集約の合図が無い");

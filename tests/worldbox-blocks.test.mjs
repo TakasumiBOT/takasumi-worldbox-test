@@ -916,8 +916,9 @@ test("クライアント: 全パネルはステージ内オーバーレイで、
   assert.ok(panel.includes('position: "absolute"'), "経済パネルがオーバーレイでない");
   // スロットはスプライトのみ（名前テキストを出さない）
   assert.ok(client.includes("SlotContent"), "スロット描画が無い");
-  assert.ok(
-    client.includes("<SlotContent slot={slot} durFrac="),
+  assert.match(
+    client,
+    /<SlotContent\s+slot=\{slot\}\s+durFrac=/,
     "ホットバーがスプライト表示でない",
   );
   // インベントリ整理: 1グリッドに両ゾーン + move アクション + 持ち上げ状態

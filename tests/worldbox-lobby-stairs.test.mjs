@@ -364,19 +364,27 @@ test("client: 階データが indoorData / 境界 / 描画へ配線され、階�
   );
   assert.match(
     client,
-    /space === "lobby2" \? buildLobby2\(\) : space === "lobby3" \? buildLobby3\(\)/,
+    /space === "lobby2"\s*\? buildLobby2\(\)\s*: space === "lobby3"\s*\? buildLobby3\(\)/,
     "indoorData が 2F/3F を返していない",
   );
-  assert.match(client, /space === "lobby2" \? rectBounds\(LOBBY2_W, LOBBY2_H\)/, "2F の境界が無い");
-  assert.match(client, /space === "lobby3" \? rectBounds\(LOBBY3_W, LOBBY3_H\)/, "3F の境界が無い");
   assert.match(
     client,
-    /space === "lobby2" \? lobby2TileAt\(indoor\.tiles, tx, ty\)/,
+    /space === "lobby2"\s*\? rectBounds\(LOBBY2_W,\s*LOBBY2_H\)/,
+    "2F の境界が無い",
+  );
+  assert.match(
+    client,
+    /space === "lobby3"\s*\? rectBounds\(LOBBY3_W,\s*LOBBY3_H\)/,
+    "3F の境界が無い",
+  );
+  assert.match(
+    client,
+    /space === "lobby2"\s*\? lobby2TileAt\(indoor\.tiles,\s*tx,\s*ty\)/,
     "2F の床描画が lobbyTileAt のまま",
   );
   assert.match(
     client,
-    /space === "lobby3" \? lobby3TileAt\(indoor\.tiles, tx, ty\)/,
+    /space === "lobby3"\s*\? lobby3TileAt\(indoor\.tiles,\s*tx,\s*ty\)/,
     "3F の床描画が lobbyTileAt のまま",
   );
   assert.match(client, /floorWarpAt\(space, tx, ty\)/, "階段判定（floorWarpAt）が配線されていない");
@@ -390,7 +398,7 @@ test("client: 階データが indoorData / 境界 / 描画へ配線され、階�
   const start = client.indexOf("const doFloorWarp");
   const body = client.slice(start, start + 900);
   assert.ok(
-    body.includes("beginTransition(() => {"),
+    body.includes("beginTransition(() => {") || body.includes("beginTransition(() =>\n"),
     "doFloorWarp が beginTransition を使っていない（ハードカットになる）",
   );
   assert.ok(body.includes("setSpaceUi(target)"), "doFloorWarp が空間 state を切り替えていない");
@@ -398,7 +406,7 @@ test("client: 階データが indoorData / 境界 / 描画へ配線され、階�
   // 復帰時のステータス文言が階を持つ
   assert.match(
     client,
-    /space === "lobby2" \? "ロビー 2F" : space === "lobby3" \? "ロビー 3F"/,
+    /space === "lobby2"\s*\? "ロビー 2F"\s*: space === "lobby3"\s*\? "ロビー 3F"/,
     "復帰時の階の文言が無い",
   );
   // 1F の従来導線（ワープパッド・擬似2F）は 1F 限定に絞られている

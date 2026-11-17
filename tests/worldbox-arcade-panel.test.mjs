@@ -126,7 +126,7 @@ test("panel: パネルはゲームページへ遷移せず、ゲーム本体を�
   // 画面（body）はサイト標準の文字色・背景に切り替えて白文字化を防ぐ
   assert.match(
     src,
-    /background: "var\(--bg\)", color: "var\(--text\)"/,
+    /background: "var\(--bg\)",\s*color: "var\(--text\)"/,
     "筐体画面が明色の面＋標準文字色になっていない（白文字で読めなくなる）",
   );
 });

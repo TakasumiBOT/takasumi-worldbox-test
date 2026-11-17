@@ -982,11 +982,10 @@ test("クライアント: 旧プレハブ建物（家・畑・塔）は廃止さ
     panel.includes("prosperity - a.prosperity") || panel.includes("b.prosperity - a.prosperity"),
     "国リストが繁栄度順でない",
   );
-  // 移動の当たり判定は空間でマップと固体集合を切り替える（固体は設置ブロック＋モブ占有）
-  assert.ok(
-    client.includes(
-      'stepMove(activeMap(), player, vel, sdt, activeBlocked(), { swim: space === "world" })',
-    ),
+  // 移動の当たり判定は空間でマップと固体集合を切り替える（固体は設置ブロック）
+  assert.match(
+    client,
+    /stepMove\(\s*activeMap\(\),\s*player,\s*vel,\s*sdt,\s*activeBlocked\(\),\s*\{\s*swim: space === "world"/,
     "当たり判定の配線が無い",
   );
   assert.ok(client.includes("blockedRef"), "ワールドの固体集合が無い");
