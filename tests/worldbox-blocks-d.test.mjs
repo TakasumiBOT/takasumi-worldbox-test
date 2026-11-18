@@ -1,8 +1,3 @@
-// AGO WORLD BOX 設置物の動作D（看板・棚・給水設備と水）のテスト。
-// - 看板テキスト: 所有者だけ・整形（制御文字/長さ）・空で消去・parse 往復
-// - 棚の展示: 消費して展示・回収で返却・展示中は差し替え不可
-// - 給水設備と水: バケツ→水入りバケツ、飲むとバケツに戻る（containerReturn）
-// - ルートとクライアントの配線（ソース確認）
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -127,13 +122,11 @@ test("看板: 所有者だけが書け、整形され、空で消え、parse を
   );
   assert.equal(written.ok, true);
   assert.equal(written.override.signText, "ようこそ 店");
-  // 他人は書けない
   assert.equal(
     T.applySetSign(placed.override, placed.profile, map, OTHER_KEY, grassAt.x, grassAt.y, "x", NOW)
       .ok,
     false,
   );
-  // 長すぎる文字は切れる
   const long = T.applySetSign(
     placed.override,
     placed.profile,
@@ -145,7 +138,6 @@ test("看板: 所有者だけが書け、整形され、空で消え、parse を
     NOW,
   );
   assert.equal([...long.override.signText].length, 40);
-  // 空文字で消去
   const cleared = T.applySetSign(
     written.override,
     written.profile,
@@ -157,10 +149,8 @@ test("看板: 所有者だけが書け、整形され、空で消え、parse を
     NOW,
   );
   assert.equal(cleared.override.signText, undefined);
-  // parse の往復
   const parsed = T.parseTileOverride(JSON.stringify(written.override));
   assert.equal(parsed.signText, "ようこそ 店");
-  // 看板でないタイルには書けない
   const dirt = place(withItems({ dirt_block: 1 }), grassAt, "dirt_block");
   assert.equal(
     T.applySetSign(dirt.override, dirt.profile, map, ME_KEY, grassAt.x, grassAt.y, "x", NOW).ok,
@@ -186,7 +176,6 @@ test("棚: 展示は消費、回収は返却、展示中は差し替え不可、
   assert.equal(shown.ok, true);
   assert.equal(shown.override.display, "bread");
   assert.equal(inv.countItem(shown.profile, "bread"), 1);
-  // 展示中は差し替え不可
   assert.equal(
     T.applyDisplayAction(
       shown.override,
@@ -201,7 +190,6 @@ test("棚: 展示は消費、回収は返却、展示中は差し替え不可、
     ).ok,
     false,
   );
-  // 他人は回収できない
   assert.equal(
     T.applyDisplayAction(
       shown.override,
@@ -216,7 +204,6 @@ test("棚: 展示は消費、回収は返却、展示中は差し替え不可、
     ).ok,
     false,
   );
-  // 回収で戻る
   const back = T.applyDisplayAction(
     shown.override,
     shown.profile,
@@ -231,14 +218,12 @@ test("棚: 展示は消費、回収は返却、展示中は差し替え不可、
   assert.equal(back.ok, true);
   assert.equal(back.override.display, undefined);
   assert.equal(inv.countItem(back.profile, "bread"), 2);
-  // parse の往復
   assert.equal(T.parseTileOverride(JSON.stringify(shown.override)).display, "bread");
 });
 
 test("給水設備と水: バケツで汲め、飲むとバケツに戻る", () => {
   const placed = place(withItems({ well: 1 }), grassAt, "well");
   assert.equal(placed.ok, true);
-  // バケツが無ければ汲めない
   assert.equal(
     T.applyDrawWater(placed.override, placed.profile, map, ME_KEY, grassAt.x, grassAt.y, NOW).ok,
     false,
@@ -256,13 +241,11 @@ test("給水設備と水: バケツで汲め、飲むとバケツに戻る", () 
   assert.equal(drawn.ok, true);
   assert.equal(inv.countItem(drawn.profile, "bucket"), 0);
   assert.equal(inv.countItem(drawn.profile, "water_bucket"), 1);
-  // 飲む（空腹が満タンでない状態で）とバケツが戻る
   const hungry = { ...drawn.profile, hunger: 10 };
   const drank = eco.eatItem(hungry, "water_bucket", NOW);
   assert.equal(drank.ok, true);
   assert.equal(eco.countItem(drank.profile, "water_bucket"), 0);
   assert.equal(eco.countItem(drank.profile, "bucket"), 1);
-  // 水入りバケツは売却リスト（ショップ）に入っていない想定の価格であること
   assert.ok(inv.itemById("water_bucket").price <= 100);
 });
 
@@ -315,6 +298,5 @@ test("配線: ルートの分岐とクライアントの看板/棚/給水設備/
   );
   assert.match(stallsRoute, /kind: "transfer"/);
   assert.match(stallsRoute, /readUserBalance/);
-  // 出品中の屋台はタイルルートで掘れない
   assert.match(route, /loadStall/);
 });

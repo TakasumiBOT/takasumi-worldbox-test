@@ -4,12 +4,6 @@ import { userAvatarUrl } from "@/lib/dashboard-core";
 
 export const runtime = "nodejs";
 
-// ヘッダー用のログイン中ユーザー情報。セッション Cookie を読むだけで、
-// 未ログインなら user: null を返す（エラーにはしない）。
-// avatarUrl: Discord はアバターハッシュから CDN URL を組み立て（無ければ
-// 既定アバター）、Google はプロフィール画像の完全な URL をそのまま使う。
-// Google で画像が無い場合とゲストは null（ゲストの id は UUID で、Discord
-// CDN の URL を組み立てても実在しない。クライアントが代替表示する）。
 const NO_STORE = { "Cache-Control": "no-store, max-age=0" };
 
 export async function GET(request: Request) {

@@ -1,6 +1,3 @@
-// WORLD BOX: ロビーのピアノ（弾ける＋音がロビー全員に届く）の検証。
-// - 配置ピンは lobby の station、共有の検証は relay-core の純粋関数で、
-//   中継サーバーとクライアントの配線はソースで固定する。
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -77,7 +74,7 @@ test("ピアノ: 中継の検証は半音配列だけを通す（範囲・個数
   assert.equal(relay.sanitizePianoNotes([-25]), null);
   assert.equal(relay.sanitizePianoNotes([1.5]), null);
   assert.equal(relay.sanitizePianoNotes(["0"]), null);
-  assert.equal(relay.sanitizePianoNotes([0, 1, 2, 3, 4, 5, 6, 7, 8]), null); // 9音は多い
+  assert.equal(relay.sanitizePianoNotes([0, 1, 2, 3, 4, 5, 6, 7, 8]), null);
   assert.equal(relay.sanitizePianoNotes("0"), null);
   assert.equal(relay.sanitizePianoNotes(null), null);
 });

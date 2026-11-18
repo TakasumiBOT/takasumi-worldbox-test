@@ -1,7 +1,3 @@
-// AGO WORLD BOX プレゼンス同期のテスト。
-// - サーバー/クライアント間の時計ずれ推定と、それを使った外挿の誤差
-// - 外挿キャップ
-// - API ルートとクライアントの配線（now 返却・補正・適応ハートビート・欠落グレース）
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -60,23 +56,18 @@ const url = bundleModule(
   ],
 );
 const wb = await import(url);
-// 境界は CoordBounds 形式（{minX, maxX, minY, maxY}）が現行仕様
 const bounds = { minX: 0, maxX: 1024, minY: 0, maxY: 1024 };
 
 test("clockOffsetEstimate: 往復中点との差でずれを推定する", () => {
-  // クライアントがサーバーより 3000ms 進んでいる（往復 100ms）
   const serverNow = 1_000_000;
   const before = serverNow + 3000 - 50;
   const after = serverNow + 3000 + 50;
   const offset = wb.clockOffsetEstimate(serverNow, before, after);
   assert.ok(Math.abs(offset - -3000) < 1e-9, `offset=${offset}`);
-  // ずれゼロなら 0
   assert.equal(wb.clockOffsetEstimate(5000, 4900, 5100), 0);
 });
 
 test("時計ずれ補正で外挿誤差が消える（補正なしでは速度ぶんずれる）", () => {
-  // サーバー時刻 1,000,000 に x=100, vx=4 で記録されたエントリ。
-  // 受信側の時計は +3000ms 進んでいて、実時刻ではエントリは 800ms 前のもの。
   const entry = {
     id: "a",
     name: "n",
@@ -91,11 +82,9 @@ test("時計ずれ補正で外挿誤差が消える（補正なしでは速度�
   const serverNowAtReceipt = 1_000_800;
   const clientNow = serverNowAtReceipt + 3000;
   const truth = 100 + 4 * 0.8;
-  // 補正なし: dt = 実経過0.8s + ずれ3.0s が上限2sに張り付き、行き過ぎる（誤差4.8タイル）
   const raw = wb.predictPosition(entry, clientNow, bounds);
   assert.ok(Math.abs(raw.x - 108) < 1e-9, `raw=${raw.x}`);
   assert.ok(Math.abs(raw.x - truth) > 3);
-  // 補正あり: 真の位置に一致
   const offset = wb.clockOffsetEstimate(serverNowAtReceipt, clientNow - 40, clientNow + 40);
   const fixed = wb.predictPosition(entry, clientNow + offset, bounds);
   assert.ok(Math.abs(fixed.x - truth) < 1e-9, `fixed=${fixed.x}`);
@@ -110,21 +99,17 @@ test("外挿キャップは2秒（ポーリング間隔の尾を覆う）", () =
 
 test("移動連続性: 正規移動は通り、瞬間移動は却下される", () => {
   const base = { x: 0, y: 0, space: "world", ts: 1_000_000 };
-  // ダッシュ 7タイル/秒: 1秒で 7 タイルは許容（10×1+3=13）
   assert.equal(
     wb.checkMovementContinuity(base, { x: 7, y: 0, space: "world" }, 1_001_000).ok,
     true,
   );
-  // 100タイルの跳びは却下
   const jumped = wb.checkMovementContinuity(base, { x: 100, y: 0, space: "world" }, 1_001_000);
   assert.equal(jumped.ok, false);
   assert.equal(jumped.reason, "position_jump");
-  // ノックバック程度（2タイル・即時）は余裕 3 で通る
   assert.equal(
     wb.checkMovementContinuity(base, { x: 2, y: 0, space: "world" }, 1_000_000).ok,
     true,
   );
-  // 境界ちょうど（13タイル・1秒）は通り、14タイルは却下
   assert.equal(
     wb.checkMovementContinuity(base, { x: 13, y: 0, space: "world" }, 1_001_000).ok,
     true,
@@ -137,12 +122,10 @@ test("移動連続性: 正規移動は通り、瞬間移動は却下される", 
 
 test("移動連続性: 空間変更・古い保管・基準なしは受け入れる", () => {
   const base = { x: 0, y: 0, space: "world", ts: 1_000_000 };
-  // ロビー階段・テント・インスタンス入室は空間が変わるので常に許可
   assert.equal(
     wb.checkMovementContinuity(base, { x: 500, y: 500, space: "lobby" }, 1_000_100).ok,
     true,
   );
-  // 保管が 30 秒より古ければ新規入室として受け入れる
   assert.equal(
     wb.checkMovementContinuity(
       base,
@@ -159,7 +142,6 @@ test("移動連続性: 空間変更・古い保管・基準なしは受け入れ
     ).ok,
     false,
   );
-  // 基準なし（初回）は受け入れる
   assert.equal(
     wb.checkMovementContinuity(null, { x: 500, y: 500, space: "world" }, 1_000_000).ok,
     true,

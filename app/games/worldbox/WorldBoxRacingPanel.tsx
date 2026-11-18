@@ -1,7 +1,4 @@
 "use client";
-// AGO WORLD BOX の競馬パネル（ロビー競馬場の馬券カウンター/掲示板）。
-// 出走表・オッズ・結果はサーバーが決定的ロジックから返す。ここは表示と
-// 購入の入力だけ。購入はカウンター前でのみサーバーが受け付ける。
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPollGuard, type PollGuard } from "@/lib/poll-guard";
 import { onEconomyApplied } from "@/lib/worldbox/economy/economy-push";
@@ -126,7 +123,6 @@ export default function WorldBoxRacingPanel({ onClose }: { onClose: () => void }
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
   const [nowTick, setNowTick] = useState(() => Date.now());
-  /** 最後に受け取ったサーバー時刻と、その時点の端末時刻（カウントダウン補正用）。 */
   const serverClockRef = useRef<{ serverNow: number; clientNow: number } | null>(null);
   const aliveRef = useRef(true);
   const guardRef = useRef<PollGuard>(createPollGuard());
@@ -239,7 +235,6 @@ export default function WorldBoxRacingPanel({ onClose }: { onClose: () => void }
   }
 
   const { next, last } = state;
-  // サーバー時刻ベースでカウントダウンを引く（端末時計のズレ対策）。
   const clock = serverClockRef.current;
   const estServerNow = clock ? clock.serverNow + (nowTick - clock.clientNow) : nowTick;
   const countdownMs = next.closesAtMs - estServerNow;

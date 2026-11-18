@@ -1,17 +1,3 @@
-// WORLD BOX（Takasumi 版）株式の保存と送金（サーバー専用）。
-// 保存先は bot_kv（名前空間 "worldbox_stock"):
-//   キー = 所有者キー（"discord:<id>"） → StockAccount（保有・配当履歴）
-// 株価そのものは保存しない（stock.ts の決定的系列から時刻で引く）。
-// 個人残高との金の出入りは経済ブリッジのオプ経由だけ:
-//   購入: spend オプ（対価は国庫へ、理由 "stock_buy"）
-//   売却: earn オプ（売却税10%控除後の額、理由 "stock_sell"）
-//   配当: earn オプ（理由 "stock_dividend"、日次 Cron）
-// お金が動いたことを確認してから台帳（保有）を書き換える
-// （購入は課金が done になってから株を増やし、売却は払い出しが
-// done になってから株を減らす。会社システムの設立と同じ原則）。
-// ゲストは submitEconomyOp の入口で guest_not_allowed として終端
-// するため、株式経由でもゲストへ金が渡ることはない（ルート側でも
-// ゲストの取引を 403 で弾く）。
 import { isBotApiConfigured, kvGet, kvList, kvSet } from "../../bot-api";
 import { buildEconomyOp, ECONOMY_AMOUNT_MAX, type EconomyOp } from "./economy-bridge";
 import {
@@ -74,7 +60,6 @@ export interface StockMoneyResult {
   op?: EconomyOp;
 }
 
-/** 個人 → 国庫の支払い（購入の対価）。会社システムの chargeUser と同じ手順。 */
 async function chargeUser(
   ownerKey: string,
   discordId: string,
@@ -95,7 +80,6 @@ async function chargeUser(
   return { state: waited.status === "done" ? "done" : waited.status, op: waited };
 }
 
-/** 国庫 → 個人の払い出し（売却代金・配当）。 */
 async function payOutToUser(
   ownerKey: string,
   discordId: string,
@@ -125,7 +109,6 @@ export interface StockBuyResult {
   error?: string;
 }
 
-/** 株の購入: 課金（spend）が確定してから保有を増やす。 */
 export async function buyShares(
   ownerKey: string,
   discordId: string,
@@ -157,7 +140,6 @@ export interface StockSellResult {
   error?: string;
 }
 
-/** 株の売却: 払い出し（earn、税引後）が確定してから保有を減らす。 */
 export async function sellShares(
   ownerKey: string,
   discordId: string,
@@ -194,8 +176,6 @@ export async function sellShares(
   };
 }
 
-// ---- 配当 Cron（日次） ----
-
 export interface StockDividendCronResult {
   accounts: number;
   paidUsers: number;
@@ -203,14 +183,6 @@ export interface StockDividendCronResult {
   skipped: number;
 }
 
-/**
- * 配当の日次処理（JST 0:00 の Cron から呼ぶ）。
- * 冪等化はアカウントごとの lastDividendDate（日付キー）が担保する:
- * 同じ日付で処理済みのアカウントは触らない。払い出しオプも決定的 ID
- * なので、途中で落ちて翌回に再実行されても二重払いにならない。
- * 配当総額がオプ上限を超える場合は分割して運ぶ（全分割が受け付け
- * られたときだけ処理済みとして記録する）。
- */
 export async function runStockDividendCron(now: number): Promise<StockDividendCronResult> {
   const result: StockDividendCronResult = { accounts: 0, paidUsers: 0, totalPaid: 0, skipped: 0 };
   if (!isBotApiConfigured()) return result;

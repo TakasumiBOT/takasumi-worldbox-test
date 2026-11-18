@@ -63,34 +63,8 @@ import { isPresenceEnabled, loadMyPresence } from "@/lib/worldbox/player/presenc
 
 export const runtime = "nodejs";
 
-// AGO WORLD BOX のカジノ（ロビー右翼のカジノルーム）。
-// 遊べるのは、プレゼンス（サーバーが持つ現在位置）がロビーの
-// カジノ機器（スロットマシン / カジノテーブル）に隣接しているときだけ。
-// 位置はクライアントの自己申告ではなくプレゼンスで検証する。
-// 抽選はこのサーバー側で行い、お金の移動はすべて経済ブリッジの
-// オプ経由（Web が残高を直接動かすことはない。案B / Plan A）:
-// - 単発ゲーム（スロット/ルーレット/ダイス）: 1プレイ = gamble オプ1件。
-// - セッション型（セブンスロット/ダブルアップ/ブラックジャック）:
-//   開始時に spend オプでベットを先払いし、終了時に prepaid の
-//   gamble オプ1件で精算する。精算オプは先払いが done になってから
-//   作る（先払い失敗のセッションは無効化され、配当も発生しない）。
-// GET: { balance, effectiveBalance, machine, ops, session, userState }
-// POST: { action: "play", game, bet, pick?, maxValue?, number? }
-//       { action: "slot7_start", bet } / { action: "slot7_spin" }
-//       { action: "double_start", bet } / { action: "double_go" } /
-//       { action: "double_cashout" }
-//       { action: "bj_start", bet } / { action: "bj_hit" } /
-//       { action: "bj_stand" } / { action: "bj_double" }
-// Bot API 未設定なら 503。
-
 const NO_STORE = { "Cache-Control": "no-store, max-age=0" };
 
-// 同一ユーザーのカジノリクエストを直列化する（プロセス内ロック）。
-// パネルは GET を3秒間隔でポーリングし、各 GET/POST がセッションの
-// 精算（tryFinishSession）を走らせるため、並行リクエストが同じ
-// セッションを二重に精算しうる（精算オプが2件積まれて二重に払われる）。
-// 精算オプの決定的 ID（settle-<先払いオプID>）と合わせて
-// 「1セッション = 精算オプ1件」を保証する。
 const userLocks = new Map<string, Promise<void>>();
 
 async function withUserLock<T>(userKey: string, fn: () => Promise<T>): Promise<T> {
@@ -141,7 +115,6 @@ async function currentMachine(ownerKey: string) {
   return casinoMachineNear(buildLobby().objects, Math.floor(presence.x), Math.floor(presence.y));
 }
 
-/** 処理中のカジノ関係オプ（gamble のベット + カジノ spend）の合計。 */
 function pendingCasinoTotal(ops: readonly EconomyOp[]): number {
   return ops
     .filter(
@@ -160,14 +133,8 @@ async function spendStatus(userKey: string, opId: string): Promise<OpStatus> {
   return op.status;
 }
 
-/** GET（パネルが3秒ごとに叩く）の server-side wait 予算。POST より短くする。 */
 const GET_WAIT_MS = 1_000;
 
-/**
- * 先払いオプ群の状態を読む。pending があれば server-side wait で
- * done をその場で待ち（予算 waitMs、未指定は共通既定）、最終状態を
- * 返す。予算を超えても pending なら従来どおり「次回に回す」。
- */
 async function spendStatuses(
   userKey: string,
   ids: readonly string[],
@@ -186,7 +153,6 @@ async function spendStatuses(
   return statuses;
 }
 
-/** 単一の先払い状態を、pending なら done を待ってから返す。 */
 async function spendStatusWaited(userKey: string, opId: string): Promise<OpStatus> {
   const first = await spendStatus(userKey, opId);
   if (first !== "pending") return first;
@@ -194,11 +160,6 @@ async function spendStatusWaited(userKey: string, opId: string): Promise<OpStatu
   return op ? op.status : "missing";
 }
 
-/**
- * 先払いが done と確定するまで遊ばせない（double_cashout / bj_double と
- * 同じ規約）。pending は待っても確定しなければ bet_pending、失敗・喪失は
- * セッションを破棄して bet_failed。null は「進めてよい」。
- */
 async function prepayGateError(userKey: string, opId: string) {
   const status = await spendStatusWaited(userKey, opId);
   if (status === "pending") return errorResponse("bet_pending", 409);
@@ -236,20 +197,9 @@ async function enqueue(
   );
   if (!op) return null;
   const stored = await enqueueEconomyOp(op);
-  // カジノ大会のスコアはここでは加えない。gamble オプは登録時点では
-  // pending で、ワーカー側で後から failed になりうるため、スコアは
-  // done 確定後の照合（reconcileCasinoTournamentScores）でだけ加える。
   return stored ? op : null;
 }
 
-/**
- * セッションの先払い spend の提出（直接適用が正、キューは
- * フォールバック）。spend は常時直接適用の対象なので通常は
- * done / failed がその場で確定し、failed なら開始自体を止められる。
- * pending は直接適用が使えなかった場合のみで、その間は従来どおり
- * 各プレイのゲート（prepayGateError 等）が done を待つ。
- * null は直接もキューも使えなかった（economy_failed）。
- */
 async function submitSpend(
   userKey: string,
   discordId: string,
@@ -269,11 +219,6 @@ async function submitSpend(
   return { op: submitted.op, state: submitted.state };
 }
 
-/**
- * 精算オプの冪等な登録。決定的 ID で積み、同 ID のオプが既にあれば
- * （pending / done / failed を問わず）作り直さない。セッションの
- * 後片付けが再試行されても精算は1回だけになる。
- */
 async function enqueueSettleOnce(
   ctx: Ctx,
   id: string,
@@ -293,7 +238,6 @@ async function enqueueSettleOnce(
 
 type Ctx = { userKey: string; discordId: string };
 
-/** セブンスロットの精算（集計払い戻し + 未使用スピン返金 + ペナルティ）。 */
 async function settleSlot7(
   ctx: Ctx,
   session: Extract<CasinoSession, { kind: "slot7" }>,
@@ -305,9 +249,6 @@ async function settleSlot7(
     kind: "gamble",
     amount: prepayTotal,
     reason: CASINO_SESSION_REASONS.slot7Settle,
-    // 超JACKPOT（ベット×100000）では配当が GAMBLE_PAYOUT_MAX を超えて
-    // オプが作れず、精算が永遠に失敗してセッションが固着する。
-    // 上限で丸めてでも精算を通し、セッションを必ず終わらせる。
     payout: Math.min(Math.max(0, netReturn), GAMBLE_PAYOUT_MAX),
     prepaid: true,
   });
@@ -323,7 +264,6 @@ async function settleSlot7(
   return true;
 }
 
-/** ダブルアップの精算（バーストは 0、キャッシュアウトは確定額、期限切れは返金）。 */
 async function settleDouble(
   ctx: Ctx,
   session: Extract<CasinoSession, { kind: "double" }>,
@@ -333,7 +273,6 @@ async function settleDouble(
     kind: "gamble",
     amount: session.bet,
     reason: CASINO_SESSION_REASONS.doubleSettle,
-    // 連勝で配当が上限を超えても精算オプが作れるよう丸める（slot7 と同じ）。
     payout: Math.min(payout, GAMBLE_PAYOUT_MAX),
     prepaid: true,
   });
@@ -342,7 +281,6 @@ async function settleDouble(
   return true;
 }
 
-/** ブラックジャックの精算（bj.bet はダブル込みの総ベット）。 */
 async function settleBlackjack(
   ctx: Ctx,
   session: Extract<CasinoSession, { kind: "blackjack" }>,
@@ -362,12 +300,6 @@ async function settleBlackjack(
   return true;
 }
 
-/**
- * 終了済みセッションの精算を試みる。先払いが全て done のときだけ精算し、
- * failed があれば無効化（配当なしで閉じる）。pending は server-side
- * wait の予算内ではその場で done を待ち、超えた分だけ次回に回す。
- * 戻り値: 精算/無効化したら null、それ以外はセッションそのまま。
- */
 async function tryFinishSession(
   ctx: Ctx,
   session: CasinoSession,
@@ -391,7 +323,6 @@ async function tryFinishSession(
   return (await settleBlackjack(ctx, session)) ? null : session;
 }
 
-/** 期限切れセッションの後片付け（未使用分の返金つき）。 */
 async function expireSessionIfNeeded(
   ctx: Ctx,
   session: CasinoSession | null,
@@ -417,7 +348,6 @@ async function expireSessionIfNeeded(
   if (session.bj.phase === "settled") {
     return (await settleBlackjack(ctx, session)) ? null : session;
   }
-  // プレイ中のブラックジャックは払った分だけ返金する。
   const paid = session.bet * session.spendOpIds.length;
   const ok = await enqueueSettleOnce(ctx, `refund-${session.spendOpIds[0]}`, {
     kind: "gamble",
@@ -455,7 +385,6 @@ async function handleGet(session: AuthedSession) {
     loadSessionFor(ctx, GET_WAIT_MS),
     loadCasinoUserState(ctx.userKey),
   ]);
-  // カジノ大会のスコア照合（確定した gamble オプだけが数えられる）
   await reconcileCasinoTournamentScores(ctx.userKey, ctx.discordId, ops);
   if (balance === null) return errorResponse("economy_unavailable", 503);
   const gambleOps = ops.filter((op) => op.kind === "gamble");
@@ -499,7 +428,6 @@ async function handlePost(request: Request, session: AuthedSession) {
     loadMyEconomyOps(ctx.userKey),
   ]);
   if (balance === null) return errorResponse("economy_unavailable", 503);
-  // カジノ大会のスコア照合（前回までのプレイの確定分を反映する）
   await reconcileCasinoTournamentScores(ctx.userKey, ctx.discordId, ops);
   const effectiveBalance = balance - pendingCasinoTotal(ops);
   const activeSession = await loadSessionFor(ctx);
@@ -516,7 +444,6 @@ async function handlePost(request: Request, session: AuthedSession) {
     return { session: activeSession as Extract<CasinoSession, { kind: K }>, error: null };
   };
 
-  // ------------------------------------------------------------ 単発プレイ
   if (action === "play") {
     const game: CasinoGame | null =
       fields.game === "slot" || fields.game === "roulette" || fields.game === "dice"
@@ -576,7 +503,6 @@ async function handlePost(request: Request, session: AuthedSession) {
     );
   }
 
-  // ------------------------------------------------------------ セブンスロット
   if (action === "slot7_start") {
     const machineError = requireMachine("slot7");
     if (machineError) return machineError;
@@ -584,7 +510,6 @@ async function handlePost(request: Request, session: AuthedSession) {
     if (noSession) return noSession;
     const bet = validateCasinoBet(fields.bet);
     if (bet === null) return errorResponse("invalid_bet", 400);
-    // 回数指定は廃止（2026-11-17 ユーザー指示）: 開始は常に1回分だけ先払いする。
     const total = bet;
     if (total > ECONOMY_AMOUNT_MAX) return errorResponse("invalid_bet", 400);
     if (total > effectiveBalance) return errorResponse("not_enough_coins", 409);
@@ -616,8 +541,6 @@ async function handlePost(request: Request, session: AuthedSession) {
     const { session: s7, error } = requireSession("slot7");
     if (error || !s7) return error ?? errorResponse("no_session", 409);
     if (s7.remaining <= 0) return errorResponse("no_spins_left", 409);
-    // 先払い（全スピン分）が確定してから回す。未確定のまま遊べると
-    // 後から failed になった場合に無料で回せてしまう。
     const prepayError = await prepayGateError(ctx.userKey, s7.prepayOpId);
     if (prepayError) return prepayError;
     const userState = await loadCasinoUserState(ctx.userKey);
@@ -645,7 +568,6 @@ async function handlePost(request: Request, session: AuthedSession) {
     return NextResponse.json({ ok: true, spin, session: sessionJson(next) }, { headers: NO_STORE });
   }
 
-  // ------------------------------------------------------------ ダブルアップ
   if (action === "double_start") {
     const machineError = requireMachine("double");
     if (machineError) return machineError;
@@ -678,7 +600,6 @@ async function handlePost(request: Request, session: AuthedSession) {
     const { session: dbl, error } = requireSession("double");
     if (error || !dbl) return error ?? errorResponse("no_session", 409);
     if (dbl.busted) return errorResponse("session_finished", 409);
-    // 先払いが確定してから進める（double_cashout と同じ確認を開始側にも）。
     const prepayError = await prepayGateError(ctx.userKey, dbl.prepayOpId);
     if (prepayError) return prepayError;
     const userState = await loadCasinoUserState(ctx.userKey);
@@ -726,7 +647,6 @@ async function handlePost(request: Request, session: AuthedSession) {
     return NextResponse.json({ ok: true, payout, session: null }, { headers: NO_STORE });
   }
 
-  // ------------------------------------------------------------ ブラックジャック
   if (action === "bj_start") {
     const machineError = requireMachine("blackjack");
     if (machineError) return machineError;
@@ -766,10 +686,6 @@ async function handlePost(request: Request, session: AuthedSession) {
     const { session: bjs, error } = requireSession("blackjack");
     if (error || !bjs) return error ?? errorResponse("no_session", 409);
     if (bjs.bj.phase !== "player") return errorResponse("not_in_play", 409);
-    // 先払いが done と確定してから手を進める（slot7/double と同じ
-    // 規約）。未確定のまま打てると、後から failed になった場合に
-    // ベットの無い勝負が成立してしまう。pending は予算内で待ち、
-    // 失敗・喪失はセッションを破棄する。
     const bjStatuses = await spendStatuses(ctx.userKey, bjs.spendOpIds);
     if (bjStatuses.some((s) => s === "pending")) return errorResponse("bet_pending", 409);
     if (bjStatuses.some((s) => s !== "done")) {
@@ -805,9 +721,6 @@ async function handlePost(request: Request, session: AuthedSession) {
       return errorResponse("bet_failed", 409);
     }
     if (bjs.bet > effectiveBalance) return errorResponse("not_enough_coins", 409);
-    // ダブル後の総ベットが ECONOMY_AMOUNT_MAX を超えると精算オプも
-    // 返金オプも作れずセッションが固着する。総ベットが上限に収まる
-    // ときだけダブルを許可する。
     if (bjs.bet * 2 > ECONOMY_AMOUNT_MAX) return errorResponse("bet_too_large_to_double", 409);
     const second = await submitSpend(ctx.userKey, ctx.discordId, {
       amount: bjs.bet,

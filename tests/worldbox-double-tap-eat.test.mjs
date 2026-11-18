@@ -1,6 +1,3 @@
-// WORLD BOX: インベントリの食べ物ダブルタップで食べる配線の検証。
-// サーバー側の eat（profile route / economy.eatItem）は既存で正。
-// ここではクライアントの二重タップ判定と eat 呼び出しの配線を固定する。
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -13,7 +10,6 @@ const client = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxCl
 test("ダブルタップで食べる: スロット（ストレージ/ホットバー共通ハンドラ）に判定がある", () => {
   assert.match(client, /lastSlotTapRef/);
   assert.match(client, /tapAt - lastTap\.at < 350/);
-  // 食べられる条件は経済パネルの「食べる」ボタンと同じ（hunger / buff）
   assert.match(client, /def\.hunger \|\| def\.buff/);
 });
 

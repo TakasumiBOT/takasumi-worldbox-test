@@ -1,9 +1,3 @@
-// AGO WORLD BOX 経済の検証:
-// - アイテムカタログの母数と整合性（ID一意・価格・レシピ参照・合成の利益）
-// - 経済の状態遷移（売買・食事・労働・合成）。コインはプロフィールでなく
-//   ブリッジのオプ（coin）として表現され、残高検証は実残高の引数で行う
-// - steal の規則（成功/失敗・保護・クールダウン・特殊アイテム）
-// - プロフィール（かばん）の検証とクライアント配線
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -108,8 +102,7 @@ test("レシピの参照がすべて実在し、合成品は売ると素材代�
       assert.ok(input, `${recipe.id}:${id}`);
       inputCost += input.price * n;
     }
-    if (recipe.id === "bread") continue; // パンは利便性レシピ（小麦をまとめて食べやすくする）
-    // 精錬・織りの変換レシピも利便性レシピ（素材を中間材に変えるだけ。売却益でなく用途が価値）
+    if (recipe.id === "bread") continue;
     if (recipe.kind === "smelt" || recipe.kind === "weave") continue;
     assert.ok(
       eco.sellPrice(output) * recipe.outputCount > inputCost,
@@ -128,7 +121,6 @@ test("売買: 買うと spend オプが出てかばんに入り、売ると earn
   assert.deepEqual(sold.coin, { kind: "earn", amount: 48, reason: "shop_sale" });
   assert.equal(eco.countItem(sold.profile, "wood"), 1);
   assert.equal(eco.sellItem(fresh(), "wood").error, "not_enough_items");
-  // 残高は引数（実残高）で検証する
   assert.equal(eco.buyItem(fresh(), "wood", 1, 30).error, "not_enough_coins");
   assert.equal(eco.buyItem(fresh(), "wood", 1, 80).ok, true);
 });
@@ -179,7 +171,6 @@ test("自由セット合成: 完全一致は成果物と hint exact、不一致�
 });
 
 test("自由セット合成: near は素材種の半分超を共有するレシピがある時", () => {
-  // potion は herb×2 + glass×1（2種）。herb×1 + glass×1 は種は一致するが数が違う
   const near = eco.craftFromInputs(
     { ...fresh(), items: { herb: 1, glass: 1 } },
     { herb: 1, glass: 1 },
@@ -198,7 +189,6 @@ test("自由セット合成: 素材不足は消費せずエラー、不正入力
   assert.equal(lack.ok, false);
   assert.equal(lack.error, "not_enough_items");
   assert.equal(eco.countItem(before, "herb"), 1, "失敗時に素材を消費しない");
-  // 完全一致レシピでも素材が足りなければ not_enough_items
   assert.equal(
     eco.craftFromInputs({ ...fresh(), items: { wood: 2 } }, { wood: 3 }).error,
     "not_enough_items",
@@ -216,7 +206,6 @@ test("自由セット合成: 素材不足は消費せずエラー、不正入力
   assert.equal(eco.craftFromInputs(rich, {}).error, "invalid_request", "空は不可");
   assert.equal(eco.craftFromInputs(rich, null).error, "invalid_request");
   assert.equal(eco.craftFromInputs(rich, ["wood"]).error, "invalid_request");
-  // 失敗作はレシピの材料になっていない（どのレシピの inputs にも無い）
   for (const recipe of eco.RECIPES) assert.ok(!("mystery_lump" in recipe.inputs), recipe.id);
   const lump = eco.itemById("mystery_lump");
   assert.equal(lump.category, "material");
@@ -259,7 +248,6 @@ test("steal 成功: 対象の実残高の5%（上限つき）を奪い、両者�
   assert.equal(result.success, true);
   assert.equal(result.amount, 20);
   assert.equal(result.coin, undefined, "成功時の移動は steal オプ（ルート側で積む）");
-  // プロフィールの coins は両者とも触らない。変わるのは時刻だけ
   assert.equal(result.actor.coins, 100);
   assert.equal(result.target.coins, 400);
   assert.equal(result.actor.stealActorAt, 100_000_000);
@@ -316,7 +304,6 @@ test("steal の保護: 少額の相手・防犯チャーム・クールダウン
 test("目出しマスクで成功率が上がる（素の成功率では失敗する目でも成功）", () => {
   const masked = { ...fresh(), items: { thief_mask: 1 } };
   const balances = { actorCoins: 100, targetCoins: 400 };
-  // 素の成功率 0.40 では失敗する 0.5 の目が、マスク (+0.15) では成功する
   assert.equal(eco.resolveSteal(fresh(), fresh(), 100_000_000, () => 0.5, balances).success, false);
   assert.equal(eco.resolveSteal(masked, fresh(), 100_000_000, () => 0.5, balances).success, true);
 });
@@ -349,17 +336,14 @@ test("クライアント配線: 経済パネルと API がつながっている"
   for (const action of ["buy", "sell", "eat", "craft"]) {
     assert.ok(panel.includes(`"${action}"`) || panel.includes(action), action);
   }
-  // steal は一旦廃止（2026-11-16）: パネルにタブが無く、ルートは拒否する
   assert.ok(!panel.includes('tabBtn("steal"'), "steal タブが残っている");
   const route = fs.readFileSync(path.join(rootDir, "app/api/worldbox/profile/route.ts"), "utf8");
   assert.match(route, /steal_disabled/);
   assert.ok(!route.includes("resolveSteal"), "ルートが steal を解決している");
-  // 労働は廃止（2026-11-16）: パネルにボタンが無く、ルートは拒否する
   assert.ok(!panel.includes("労働する"), "労働ボタンが残っている");
   assert.ok(!panel.includes('action: "work"'), "パネルが労働アクションを送っている");
   assert.match(route, /work_disabled/);
   assert.ok(!route.includes("doWork"), "ルートが労働を解決している");
-  // コインはブリッジのオプとして積み、残高表示はブリッジ側が正
   assert.match(route, /buildEconomyOp/);
   assert.match(route, /economy-bridge/);
   assert.ok(!panel.includes("profile.coins"), "残高表示にプロフィールの coins を使わない");
@@ -380,14 +364,12 @@ test("売買・合成・送金は施設の前でのみ開く（クライアン�
     "utf8",
   );
   assert.match(panel, /space === "lobby"/);
-  // タブは「ロビーにいる」だけでは出ない。対応する施設の前にいる時だけ
   assert.match(panel, /station === "shop"/);
   assert.match(panel, /atShop &&\s*shopItems\.length > 0 &&\s*tabBtn\("shop"/);
   assert.match(panel, /station === "smith"/);
   assert.match(panel, /atWorkbench && tabBtn\("craft"/);
   assert.match(panel, /station === "bank"/);
   assert.match(panel, /atBank && tabBtn\("bank"/);
-  // サーバー側もプレゼンスで位置検証する（表示だけの制限にしない）
   const profileRoute = fs.readFileSync(
     path.join(rootDir, "app/api/worldbox/profile/route.ts"),
     "utf8",
@@ -401,6 +383,5 @@ test("売買・合成・送金は施設の前でのみ開く（クライアン�
   );
   assert.match(economyRoute, /loadMyLobbyStation/);
   assert.match(economyRoute, /not_at_bank/);
-  // 共有ノートの方針: 画面内に説明文を置かない（制限の案内文も置かない）
   assert.ok(!panel.includes("ショップ（売買）はロビーでのみ利用できます"), "説明文が残っている");
 });

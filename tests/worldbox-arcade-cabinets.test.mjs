@@ -1,10 +1,3 @@
-// AGO WORLD BOX ロビーのアーケード筐体配置（L3・データ先行）の検証:
-// - 第1弾6台（ARCADE_FIRST_WAVE）が 2F ラウンジ北弧に 1タイル1ゲームで並ぶ
-// - 筐体はラウンジのカーペットの床の上にあり重ならず、固体で blocked に載る
-// - 南側の前列（y=10）に立て、入口から届く。列の隙間も歩行可（北踊り場への動線を塞がない）
-// - 筐体スプライトは 64x64 RGBA の PNG として存在し、textures.ts に登録済み
-// - station "arcade" とゲーム ID が付く（L4 で配線済み）
-// - 第1弾以外のアーケード筐体は 2F 南弧の第2弾6台だけ（3F の14台は cabinets-2 で検証）
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -87,7 +80,6 @@ test("cabinets: 2F に第1弾6台が ARCADE_FIRST_WAVE の順に北弧へ並ぶ"
   assert.equal(cabs.length, 6, `筐体が6台でない: ${cabs.map((o) => o.sprite).join(",")}`);
   const ids = cabs.map((o) => o.sprite.slice("arcade_".length));
   assert.deepEqual(ids, [...arcade.ARCADE_FIRST_WAVE], "筐体の並びが第1弾の順と違う");
-  // 左から右へ 1 マス空けで並ぶ（カジノの機器列と同じ間隔）
   assert.deepEqual(
     cabs.map((o) => o.x),
     [15, 17, 19, 21, 23, 25],
@@ -132,7 +124,6 @@ test("cabinets: 南側の前列（y=10）に立て、入口から届く。列の
     assert.ok(walk.has(front), `${o.sprite} の前 (${front}) に立てない`);
     assert.ok(reach.has(front), `${o.sprite} の前 (${front}) に入口から行けない`);
   }
-  // 隙間（x=16,18,20,22,24）は通路として歩行可で、北踊り場への動線を塞がない
   for (const x of [16, 18, 20, 22, 24]) {
     assert.ok(walk.has(`${x},9`), `筐体列の隙間 (${x},9) が歩行不可`);
     assert.ok(reach.has(`${x},9`), `筐体列の隙間 (${x},9) に入口から行けない`);

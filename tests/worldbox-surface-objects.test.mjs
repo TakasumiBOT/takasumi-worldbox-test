@@ -1,6 +1,3 @@
-// WORLD BOX 修正4: 地表オブジェクト接続（描画・タップ・採取API・
-// 枯渇共有・衝突・釣りの再出現同期）のテスト。
-// ロジックは objects.ts の純粋関数を、配線はソースの実在で裏付ける。
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -76,8 +73,6 @@ const O = await loadBundle(
 );
 
 function scanObjects() {
-  // ワールド全域（64×64チャンク）。highland が希少なため cave_chest 等は
-  // 全域で数個しか出ない（定義由来）ので、狭い範囲では見つからない。
   const found = new Map();
   for (let cy = -32; cy < 32; cy++) {
     for (let cx = -32; cx < 32; cx++) {
@@ -127,7 +122,6 @@ test("surface-objects: 全種が地表に配置され、座標から逆引きで
     assert.ok(back, `${id} が座標から引けない`);
     assert.equal(back.objectId, id);
   }
-  // オブジェクトの無い座標は null（原点付近に何も無いことは釣りテストでも前提）
   assert.equal(O.surfaceObjectAt(O.MAP_SEED, 0, 0), null);
 });
 
@@ -169,18 +163,15 @@ test("surface-objects: 固体集合は solid 定義だけを含み、範囲で�
   const ext = 32 * O.CHUNK_SIZE;
   const all = O.surfaceSolidTilesInRect(O.MAP_SEED, -ext, -ext, ext - 1, ext - 1);
   assert.ok(all.size > 0);
-  // 固体のはずの種が含まれる
   const found = scanObjects();
   for (const id of ["copper_vein", "beehive", "ruins_chest", "ancient_pillar", "fallen_log"]) {
     const p = found.get(id);
     assert.ok(all.has(`${p.x},${p.y}`), `${id} が固体集合に無い`);
   }
-  // 固体でない種は含まれない
   for (const id of ["berry_bush", "hot_spring", "driftwood", "fishing_spot", "bird_nest"]) {
     const p = found.get(id);
     assert.ok(!all.has(`${p.x},${p.y}`), `${id} が固体集合に入っている`);
   }
-  // 狭い範囲は広い範囲の部分集合
   const narrow = O.surfaceSolidTilesInRect(O.MAP_SEED, 0, 0, 31, 31);
   for (const k of narrow) assert.ok(all.has(k));
 });
@@ -198,8 +189,6 @@ test("surface-objects: 枯渇状態のパースは不正値を捨てる", () => 
   );
   assert.deepEqual(parsed, { "3,4": 1700000000000, "-5,6": 1700000000001 });
 });
-
-// ---- 配線（ソースの実在） -------------------------------------------------
 
 const routeSrc = fs.readFileSync(path.join(rootDir, "app/api/worldbox/objects/route.ts"), "utf8");
 const fishingRouteSrc = fs.readFileSync(
@@ -232,7 +221,6 @@ test("surface-objects wiring: 採取APIが検証と永続化を持つ", () => {
   ]) {
     assert.ok(routeSrc.includes(needle), `objects route に ${needle} が無い`);
   }
-  // 魚影は釣り専用ルートの担当（地表APIでは弾く）
   assert.ok(routeSrc.includes('placed.objectId === "fishing_spot"'));
 });
 

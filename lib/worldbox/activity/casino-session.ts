@@ -1,8 +1,3 @@
-// WORLD BOX カジノのセッション状態（純粋型と整形）。
-// セッションはユーザーごとに最大1つ（原典ギャンブルと同じ）。
-// お金はセッション開始時に spend オプで先払いし、終了時に prepaid の
-// gamble オプ1件で精算する。精算オプは先払いオプが done になるまで作らない
-// （先払いが失敗したセッションは無効化され、配当もペナルティも発生しない）。
 import type { BjState } from "../../games/blackjack";
 import {
   cleanCasinoUserState,
@@ -17,7 +12,6 @@ export type CasinoSession =
       total: number;
       remaining: number;
       prepayOpId: string;
-      /** 集計中の払い戻し・ペナルティ（精算オプはセッション終了時に1件だけ）。 */
       pendingReward: number;
       pendingPenalty: number;
       lastReels: number[] | null;
@@ -30,20 +24,17 @@ export type CasinoSession =
       multiplier: number;
       streak: number;
       prepayOpId: string;
-      /** バースト済み（精算オプの作成待ち）か。 */
       busted?: boolean;
       createdAt: number;
     }
   | {
       kind: "blackjack";
       bet: number;
-      /** 先払い spend オプ（ダブルダウン時は2件目が増える）。 */
       spendOpIds: string[];
       bj: BjState;
       createdAt: number;
     };
 
-/** セッションの有効期限。これを超えたら次回アクセス時に精算/返金して閉じる。 */
 export const CASINO_SESSION_TTL_MS = 30 * 60 * 1000;
 
 function isRecord(v: unknown): v is Record<string, unknown> {
@@ -54,7 +45,6 @@ function posInt(v: unknown): number | null {
   return typeof v === "number" && Number.isInteger(v) && v > 0 ? v : null;
 }
 
-/** 保存値からセッションを復元する（壊れた値は null）。 */
 export function cleanCasinoSession(raw: unknown): CasinoSession | null {
   if (!isRecord(raw)) return null;
   const createdAt = typeof raw.createdAt === "number" && raw.createdAt > 0 ? raw.createdAt : 0;
@@ -114,7 +104,6 @@ export function cleanCasinoSession(raw: unknown): CasinoSession | null {
   return null;
 }
 
-/** クライアントへ見せるセッション形（ブラックジャックのディーラー伏せ札と山札は隠す）。 */
 export function publicSessionView(session: CasinoSession): Record<string, unknown> {
   if (session.kind === "slot7") {
     return {

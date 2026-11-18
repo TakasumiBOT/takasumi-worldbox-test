@@ -1,11 +1,3 @@
-// AGO WORLD BOX カジノ大会（バッチ7c）の検証:
-// - 順位表（純益の降順、同点は先に参加した方を上位に）
-// - 賞金の配分（50%/30%/20%、純益プラスだけ、端数はハウスへ）
-// - スコアの記録（対局時間中の参加者だけ、加算される）
-// - 募集の締め切りと対局時間の終了（不成立は2人未満）
-// - 賞金・参加費・返金の決定的 ID
-// - 保存→復元の往復（壊れた値は落とす）
-// - クライアント表示（他者の Discord ID は出さない、上位5件まで）
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -49,8 +41,6 @@ function tournament(entrants, status = "entry", scores = {}) {
   };
 }
 
-// ---------- 順位表 ----------
-
 test("casino-tournament: 順位は純益の降順、同点は先に参加した方", () => {
   const t = tournament([A, B, D], "running", {
     [A]: { bet: 100, payout: 300 },
@@ -80,8 +70,6 @@ test("casino-tournament: 未プレイは純益 0", () => {
   );
 });
 
-// ---------- 賞金の配分 ----------
-
 test("casino-tournament: プラス上位3人が 50%/30%/20% で分ける", () => {
   const t = tournament([A, B, D, E5], "running", {
     [A]: { bet: 100, payout: 400 },
@@ -89,7 +77,6 @@ test("casino-tournament: プラス上位3人が 50%/30%/20% で分ける", () =>
     [D]: { bet: 100, payout: 150 },
     [E5]: { bet: 100, payout: 0 },
   });
-  // 総額 800（4人×200）→ 400 / 240 / 160
   assert.deepEqual(C.casinoPrizeSplit(t), [
     { rank: 1, discordId: A, amount: 400 },
     { rank: 2, discordId: B, amount: 240 },
@@ -113,20 +100,15 @@ test("casino-tournament: プラスが誰もいなければ配分なし", () => {
   assert.deepEqual(C.casinoPrizeSplit(t), []);
 });
 
-// ---------- スコアの記録 ----------
-
 test("casino-tournament: 対局時間中の参加者のスコアだけ加算される", () => {
   const t = tournament([A, B], "running");
   const scored = C.recordScore(t, A, 100, 350);
   assert.deepEqual(scored.scores[A], { bet: 100, payout: 350 });
   const again = C.recordScore(scored, A, 50, 0);
   assert.deepEqual(again.scores[A], { bet: 150, payout: 350 });
-  // 参加者でない人・募集中の大会は記録されない
   assert.equal(C.recordScore(t, D, 100, 300), t);
   assert.equal(C.recordScore(tournament([A, B], "entry"), A, 100, 300).scores[A], undefined);
 });
-
-// ---------- 進行 ----------
 
 test("casino-tournament: 期限前・満員でなければ募集は続く", () => {
   const t = tournament([A, B]);
@@ -138,7 +120,6 @@ test("casino-tournament: 募集期限を過ぎたら対局時間へ入る", () =
   const closed = C.closeCasinoEntry(t, NOW + C.CASINO_TOURNAMENT_ENTRY_MS + 1);
   assert.equal(closed.status, "running");
   assert.equal(closed.closedAt, null);
-  // 対局開始時刻が記録される（スコアに数えるオプの時刻の下限）
   assert.equal(closed.playStartedAt, NOW + C.CASINO_TOURNAMENT_ENTRY_MS + 1);
 });
 
@@ -168,8 +149,6 @@ test("casino-tournament: 対局時間を過ぎたら終了する", () => {
   assert.equal(closed.status, "done");
 });
 
-// ---------- ID ----------
-
 test("casino-tournament: 賞金・参加費・返金の ID は決定的", () => {
   assert.equal(C.casinoTournamentPrizePool(tournament([A, B, D])), 600);
   assert.equal(C.casinoTournamentPrizeOpId(`ct-${NOW}`, 1), `ct-prize-ct-${NOW}-1`);
@@ -183,8 +162,6 @@ test("casino-tournament: 賞金・参加費・返金の ID は決定的", () => 
   }
 });
 
-// ---------- 保存→復元 ----------
-
 test("casino-tournament: 保存→復元の往復で形が残り、壊れた値は落とす", () => {
   const t = tournament([A, B], "running", { [A]: { bet: 100, payout: 300 } });
   const back = C.parseCasinoTournament(JSON.parse(JSON.stringify(t)));
@@ -192,15 +169,12 @@ test("casino-tournament: 保存→復元の往復で形が残り、壊れた値�
   assert.equal(C.parseCasinoTournament(null), null);
   assert.equal(C.parseCasinoTournament({ ...t, status: "bogus" }), null);
   assert.equal(C.parseCasinoTournament({ ...t, scores: { [A]: { bet: "x", payout: 0 } } }), null);
-  // playStartedAt の無い旧データは null として読む
   const legacy = { ...t };
   delete legacy.playStartedAt;
   assert.equal(C.parseCasinoTournament(legacy).playStartedAt, null);
   const started = { ...t, playStartedAt: NOW + 1000 };
   assert.equal(C.parseCasinoTournament(started).playStartedAt, NOW + 1000);
 });
-
-// ---------- クライアント表示 ----------
 
 test("casino-tournament: 表示に他者の Discord ID は出ない", () => {
   const t = tournament([A, B, D], "running", {

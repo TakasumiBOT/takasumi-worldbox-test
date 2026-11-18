@@ -1,14 +1,7 @@
-// ブラックジャックの純粋ロジック（UI 非依存・シード決定的）。
-// チップは端末内だけの遊び用ポイントで、実在の通貨とは無関係。
-// 状態は JSON 化可能な値のみ。遷移関数は状態を破壊せず新しい状態を返す。
-// ディーラーは 17 以上でスタンド（ソフト17でもスタンド）。
-// ブラックジャック（最初の2枚で21）の配当は 3:2。
-
 export type Suit = "spade" | "heart" | "diamond" | "club";
 
 export type Card = {
   suit: Suit;
-  /** 1=A, 11=J, 12=Q, 13=K。 */
   rank: number;
 };
 
@@ -18,17 +11,14 @@ export type BjOutcome = "blackjack" | "dealer_blackjack" | "win" | "lose" | "pus
 
 export type BjResult = {
   outcome: BjOutcome;
-  /** このラウンドのチップ収支（戻し額 − 賭け総額）。 */
   delta: number;
   message: string;
 };
 
 export type BjState = {
   chips: number;
-  /** 現在の賭け総額（ダブル後は2倍になった後の額）。 */
   bet: number;
   doubled: boolean;
-  /** 山札。先頭（index 0）から配る。 */
   deck: Card[];
   playerHand: Card[];
   dealerHand: Card[];
@@ -43,7 +33,6 @@ export const BJ_MIN_BET = 10;
 
 const SUITS: Suit[] = ["spade", "heart", "diamond", "club"];
 
-/** mulberry32。状態を数値で持ち回り、決定的に再現できるようにする。 */
 function nextRandom(rng: number): { value: number; rng: number } {
   let t = (rng + 0x6d2b79f5) | 0;
   t = Math.imul(t ^ (t >>> 15), t | 1);
@@ -88,7 +77,6 @@ export function createBlackjackGame(seed: number, chips: number = BJ_INITIAL_CHI
   };
 }
 
-/** 手札の合計。A は合計が21を超えない範囲で 11 として数える。 */
 export function handValue(hand: Card[]): { total: number; soft: boolean } {
   let total = 0;
   let aces = 0;
@@ -126,7 +114,6 @@ function settle(state: BjState, outcome: BjOutcome, message: string): BjState {
   };
 }
 
-/** ディーラーが 17 以上になるまで引き、勝敗を確定させる（内部用）。 */
 function dealerPlayAndSettle(state: BjState): BjState {
   let deck = state.deck;
   let dealerHand = state.dealerHand;
@@ -143,7 +130,6 @@ function dealerPlayAndSettle(state: BjState): BjState {
   return settle(s, "push", `${player} 対 ${dealer}。引き分け（プッシュ）で賭け金が戻ります。`);
 }
 
-/** ベットして配り直す。phase が "betting" か "settled" のときだけ有効。 */
 export function startRound(state: BjState, bet: number): BjState {
   if (state.phase === "player") return state;
   const amount = Math.floor(bet);
@@ -156,7 +142,6 @@ export function startRound(state: BjState, bet: number): BjState {
     deck = shuffled.deck;
     rng = shuffled.rng;
   }
-  // 配る順: プレイヤー、ディーラー、プレイヤー、ディーラー
   const playerHand = [deck[0], deck[2]];
   const dealerHand = [deck[1], deck[3]];
   const s: BjState = {
@@ -197,7 +182,6 @@ export function stand(state: BjState): BjState {
   return dealerPlayAndSettle(state);
 }
 
-/** 最初の2枚のときだけ、賭け金を倍にして1枚だけ引いてスタンドする。 */
 export function doubleDown(state: BjState): BjState {
   if (state.phase !== "player") return state;
   if (state.doubled || state.playerHand.length !== 2) return state;
@@ -216,7 +200,6 @@ export function doubleDown(state: BjState): BjState {
   return dealerPlayAndSettle(s);
 }
 
-/** ダブルダウン可能な状態かどうか（UI のボタン活性判定用）。 */
 export function canDouble(state: BjState): boolean {
   return (
     state.phase === "player" &&
@@ -226,7 +209,6 @@ export function canDouble(state: BjState): boolean {
   );
 }
 
-/** 次のラウンドへ。チップが最小ベット未満なら初期チップを再支給する。 */
 export function nextRound(state: BjState): BjState {
   const chips = state.chips < BJ_MIN_BET ? BJ_INITIAL_CHIPS : state.chips;
   return {
@@ -241,7 +223,6 @@ export function nextRound(state: BjState): BjState {
   };
 }
 
-/** チップ再支給のみを行う（最小ベット未満まで減ったとき）。ゲーム中は無効。 */
 export function refillChips(state: BjState): BjState {
   if (state.phase === "player" || state.chips >= BJ_MIN_BET) return state;
   return { ...state, chips: BJ_INITIAL_CHIPS };

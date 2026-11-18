@@ -1,11 +1,3 @@
-// WORLD BOX: テレポーター役職 + ユニオンポーター + 転職コストの検証。
-// - 純粋ロジック: 役職定義（porter は戦闘技として返さない）、転職コスト
-//   （初回無料 / 以降 100,000 / 同一役職は無料）、ポーターの設置検証
-//   （距離・通行可否・解釈）と着地点、warp 演出プリセット
-// - ブリッジ: spend 理由 "role_change" は TS / Python 両側でホワイトリスト
-//   無しに通ること（earn / gamble の集合は両側で一致すること）
-// - API: roles ルートの設置分岐（所属必須・距離・通行不能・上書きで1つ）と
-//   set_role の課金、warp ルートの利用検証（他ユニオン不可・ロビー不可）
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -110,7 +102,6 @@ function profileWith(role, over = {}) {
   return { ...p, ...over };
 }
 
-/** 決定的マップから指定タイル種の座標を探す（テストの足場）。 */
 function findTile(kind, cx = 0, cy = 0, radius = 200) {
   for (let y = cy - radius; y <= cy + radius; y++) {
     for (let x = cx - radius; x <= cx + radius; x++) {
@@ -119,8 +110,6 @@ function findTile(kind, cx = 0, cy = 0, radius = 200) {
   }
   throw new Error("tile not found");
 }
-
-// ---------- 役職定義 ----------
 
 test("teleporter: 役職一覧に含まれ、定義はポーター設置", () => {
   assert.ok(L.ADVENTURE_ROLE_IDS.includes("teleporter"));
@@ -146,7 +135,6 @@ test("teleporter: activeSkillFor は porter を戦闘技として返さない", 
   assert.equal(L.activeSkillFor(profileWith("teleporter")), null);
   const r5 = profileWith("teleporter", { mastery: { teleporter: { xp: 300 } } });
   assert.equal(L.activeSkillFor(r5), null);
-  // 戦闘技は存在しない: 他役職にも発動技は無い
   assert.equal(L.activeSkillFor(profileWith("blade")), null);
   assert.equal(L.activeSkillFor(profileWith("medic")), null);
 });
@@ -157,7 +145,6 @@ test("teleporter: 熟練は既存役職と同じ仕組みで保持される", ()
   assert.equal(L.masteryRankOf(p, "teleporter"), 2);
   p = { ...p, role: "blade" };
   assert.equal(L.masteryRankOf(p, "teleporter"), 2, "転職しても熟練は残る");
-  // クールダウンは skillAt が正
   const now = 1_000_000;
   const cast = { ...profileWith("teleporter"), skillAt: { porter: now } };
   assert.equal(L.skillCooldownLeft(cast, "porter", now + 1000), 29_000);
@@ -173,8 +160,6 @@ test("teleporter: warp 演出は段階を持ち、粒が出る", () => {
   L.spawnSkillFx(sys, eff, 1);
   assert.ok(sys.particles.length > 0, "warp の粒が出る");
 });
-
-// ---------- プロフィール保存互換 ----------
 
 test("profile: teleporter と rolePicked が往復で保持される", () => {
   const p = profileWith("teleporter", { rolePicked: true });
@@ -200,8 +185,6 @@ test("profile: 旧データ（フラグなし）で役職持ちは「選んだ�
   assert.equal(legacyFree.rolePicked, false);
 });
 
-// ---------- 転職コスト ----------
-
 test("転職: 初めての選択は無料で、選んだフラグが立つ", () => {
   const fresh = L.parseProfile(null);
   assert.equal(L.roleChangeCost(fresh, "blade"), 0);
@@ -219,20 +202,15 @@ test("転職: 2回目以降は 100,000、同じ役職は無料 no-op", () => {
   const same = L.applyRoleChange(blade, "blade");
   assert.equal(same.cost, 0);
   assert.equal(same.profile, blade, "同一役職はプロフィールを変えない");
-  // 旧データ（rolePicked が false でも役職持ち）は課金対象
   const legacy = { ...L.parseProfile(null), role: "guard", rolePicked: false };
   assert.equal(L.roleChangeCost(legacy, "scout"), 100_000);
-  // 一度選んで自由人へ戻った人も、次は初回扱いにならない
   const returned = profileWith("free", { rolePicked: true });
   assert.equal(L.roleChangeCost(returned, "medic"), 100_000);
-  // 未選択の自由人が自由人を選ぶのは no-op でフラグも立たない
   const fresh = L.parseProfile(null);
   const noop = L.applyRoleChange(fresh, "free");
   assert.equal(noop.cost, 0);
   assert.equal(noop.profile.rolePicked, false);
 });
-
-// ---------- ポーター純粋ロジック ----------
 
 test("porter: 保存値の解釈（壊れた値は null）", () => {
   assert.deepEqual(L.parsePorter({ x: 12, y: -34, by: "discord:1", at: 123.9 }), {
@@ -272,7 +250,7 @@ test("porter: 設置距離はチェビシェフ 8 タイルまで", () => {
 test("porter: 水・固体・ブロック設置済みのタイルには置けない", () => {
   const water = findTile(L.T_WATER);
   assert.equal(L.porterTileError(L.tileAt(water.x, water.y, L.MAP_SEED), false), "blocked_tile");
-  const grass = findTile(L.T_GRASS, 0, 400); // 草は雪原帯より南
+  const grass = findTile(L.T_GRASS, 0, 400);
   assert.equal(L.porterTileError(L.tileAt(grass.x, grass.y, L.MAP_SEED), false), null);
   assert.equal(L.porterTileError(L.tileAt(grass.x, grass.y, L.MAP_SEED), true), "blocked_tile");
 });
@@ -299,8 +277,6 @@ test("presence: テレポーターは REST / WS 中継の役職許可リスト�
   const relay = fs.readFileSync(path.join(rootDir, "realtime", "relay-core.js"), "utf8");
   assert.match(relay, /ROLE_IDS = \[[^\]]*"teleporter"[^\]]*\]/);
 });
-
-// ---------- ブリッジ理由の TS / Python 一致 ----------
 
 test("bridge: spend の role_change は作れる（earn では作れない）", () => {
   assert.equal(L.ROLE_CHANGE_REASON, "role_change");
@@ -335,12 +311,8 @@ test("bridge: spend の role_change は作れる（earn では作れない）", 
 test("bridge: earn / gamble には理由集合があり、spend に理由ホワイトリストは無い", () => {
   assert.ok(new Set(L.EARN_REASONS).size > 0);
   assert.ok(new Set(L.GAMBLE_REASONS).size > 0);
-  // spend の適用は理由をホワイトリスト照合しない。だから role_change の
-  // spend は Web 側で積めばそのまま適用される（上のテストで検証済み）。
   assert.equal(L.SPEND_REASONS, undefined);
 });
-
-// ---------- API（roles ルート / warp ルート） ----------
 
 const botApiStubUrl = dataUrl(`
 const store = new Map();
@@ -666,7 +638,6 @@ function guildStandTile() {
   }
   throw new Error("guild stand tile not found");
 }
-/** プレイヤー位置と設置先に使える草タイルの組（チェビシェフ 8 以内）。 */
 function grassPair() {
   const base = findTile(L.T_GRASS, 0, 400, 60);
   for (let dy = -8; dy <= 8; dy++) {
@@ -683,8 +654,6 @@ function reset() {
   users.clear();
   seedNations();
 }
-
-// ---------- roles: ポーター設置 ----------
 
 test("API(porter): 設置でき、置き直しは上書きで1つだけ", async () => {
   reset();
@@ -712,7 +681,6 @@ test("API(porter): 設置でき、置き直しは上書きで1つだけ", async 
   assert.equal(stored.y, target.y);
   assert.equal(readProfile(MY_KEY).skillAt.porter > 0, true, "クールダウンが刻まれる");
 
-  // 置き直し（クールダウンを外してから）: 同じキーへの上書きで件数は1つ
   seedProfile(MY_KEY, "teleporter");
   const res2 = await rolesRoute.POST(
     apiRequest(URL_R, "POST", cookieMe, {
@@ -744,7 +712,6 @@ test("API(porter): 所属必須・距離・通行不能・空間・役職で弾�
     px: at.x + 0.5,
     py: at.y + 0.5,
   };
-  // 無所属は not_in_union
   seedProfile(LONE_KEY, "teleporter");
   setPresence(LONE_KEY, at.x + 0.5, at.y + 0.5, "world");
   let res = await post(cookieLone, base);
@@ -753,10 +720,8 @@ test("API(porter): 所属必須・距離・通行不能・空間・役職で弾�
 
   seedProfile(MY_KEY, "teleporter");
   setPresence(MY_KEY, at.x + 0.5, at.y + 0.5, "world");
-  // 遠すぎる
   res = await post(cookieMe, { ...base, tx: at.x + 40.5, ty: at.y + 0.5 });
   assert.equal((await res.json()).error, "too_far");
-  // 水タイル（自分のタイルとして申告しても地形で弾かれる）
   const water = findTile(L.T_WATER, 0, 0, 60);
   setPresence(MY_KEY, water.x + 0.5, water.y + 0.5, "world");
   res = await post(cookieMe, {
@@ -767,7 +732,6 @@ test("API(porter): 所属必須・距離・通行不能・空間・役職で弾�
     py: water.y + 0.5,
   });
   assert.equal((await res.json()).error, "blocked_tile");
-  // ブロック設置済みタイル
   setPresence(MY_KEY, at.x + 0.5, at.y + 0.5, "world");
   store.set(
     `worldbox_tiles ${target.x},${target.y}`,
@@ -779,16 +743,12 @@ test("API(porter): 所属必須・距離・通行不能・空間・役職で弾�
   res = await post(cookieMe, base);
   assert.equal((await res.json()).error, "blocked_tile");
   store.delete(`worldbox_tiles ${target.x},${target.y}`);
-  // ロビー空間では設置できない
   res = await post(cookieMe, { ...base, space: "lobby" });
   assert.equal((await res.json()).error, "not_in_world");
-  // テレポーターでなければ skill_locked
   seedProfile(MY_KEY, "blade");
   res = await post(cookieMe, base);
   assert.equal((await res.json()).error, "skill_locked");
 });
-
-// ---------- roles: 転職コスト ----------
 
 test("API(set_role): 初回無料、2回目は残高不足で不変・十分なら spend が積まれる", async () => {
   reset();
@@ -800,14 +760,12 @@ test("API(set_role): 初回無料、2回目は残高不足で不変・十分な�
   const post = (role) =>
     rolesRoute.POST(apiRequest(URL_R, "POST", cookieMe, { action: "set_role", role }));
 
-  // 初回は残高 0 でも無料
   let res = await post("blade");
   assert.equal(res.status, 200);
   assert.equal((await res.json()).cost, 0);
   assert.equal(readProfile(MY_KEY).role, "blade");
   assert.equal(findOps(() => true).length, 0, "無料ではオプを作らない");
 
-  // 2回目: 残高不足は 409 で役職は変わらない
   users.set(ME, 50_000);
   res = await post("miner");
   assert.equal(res.status, 409);
@@ -815,7 +773,6 @@ test("API(set_role): 初回無料、2回目は残高不足で不変・十分な�
   assert.equal(readProfile(MY_KEY).role, "blade");
   assert.equal(findOps(() => true).length, 0);
 
-  // 残高が足りれば spend role_change 100,000 が1件積まれて変わる
   users.set(ME, 150_000);
   res = await post("miner");
   assert.equal(res.status, 200);
@@ -826,21 +783,17 @@ test("API(set_role): 初回無料、2回目は残高不足で不変・十分な�
   assert.equal(ops[0].amount, 100_000);
   assert.equal(ops[0].discordId, ME);
 
-  // 同じ役職の再選択は無料 no-op
   res = await post("miner");
   assert.equal(res.status, 200);
   assert.equal((await res.json()).cost, 0);
   assert.equal(findOps(() => true).length, 1, "オプは増えない");
 
-  // ギルドボードの前でなければ変更できない
   setPresence(MY_KEY, 0.5, 0.5, "world");
   res = await post("scout");
   assert.equal(res.status, 409);
   assert.equal((await res.json()).error, "not_at_guild_board");
   assert.equal(readProfile(MY_KEY).role, "miner");
 });
-
-// ---------- warp ルート ----------
 
 test("API(warp): GET は自ユニオンのポーターだけを返す", async () => {
   reset();
@@ -867,7 +820,6 @@ test("API(warp): テレポートはワールドでのみ、所属ユニオンの
   const post = (cookie) =>
     warpRoute.POST(apiRequest(URL_W, "POST", cookie, { action: "teleport" }));
 
-  // ワールドにいる所属員はポーターへ移動し、セーブとプレゼンスが追随する
   setSave(MY_KEY, "world", 0.5, 0.5);
   let res = await post(cookieMe);
   assert.equal(res.status, 200);
@@ -881,13 +833,11 @@ test("API(warp): テレポートはワールドでのみ、所属ユニオンの
   assert.equal(presence.x, target.x + 0.5);
   assert.equal(presence.space, "world");
 
-  // ロビーからは使えない
   setSave(MY_KEY, "lobby", 20.5, 20.5);
   res = await post(cookieMe);
   assert.equal(res.status, 409);
   assert.equal((await res.json()).error, "not_in_world");
 
-  // 他ユニオン（ポーター未設置）は no_porter、無所属は not_in_union
   setSave(OTHER_KEY, "world", 0.5, 0.5);
   res = await post(cookieOther);
   assert.equal((await res.json()).error, "no_porter");

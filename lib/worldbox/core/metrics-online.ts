@@ -1,8 +1,3 @@
-// AGO WORLD BOX の計測の保存（bot_kv）と記録ヘルパー（サーバー専用）。
-// 名前空間: worldbox_metrics（キー = 日付）/ worldbox_metrics_users
-// （キー = 所有者キー）。記録はベストエフォート: 失敗しても呼び出し元の
-// ゲーム処理は止めない。read-modify-write はプロセス内ロックで直列化する
-// （Web は単一プロセス前提、他の状態と同じ）。
 import { isBotApiConfigured, kvGet, kvSet } from "../../bot-api";
 import {
   dayKeyOf,
@@ -41,7 +36,6 @@ async function updateDay(now: number, fn: (day: DayMetrics) => void): Promise<vo
   }
 }
 
-/** プレゼンスのハートビートから DAU・同時接続ピークを記録する。 */
 export async function recordPresenceMetric(
   ownerKey: string,
   onlineCount: number,
@@ -71,7 +65,6 @@ export async function bumpMetric(
   });
 }
 
-/** 初回ステップ（seen/gather/place/lobby）を記録する。既存は上書きしない。 */
 export async function recordFirstStep(
   ownerKey: string,
   step: "seen" | "gather" | "place" | "lobby",

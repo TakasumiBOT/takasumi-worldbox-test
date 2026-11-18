@@ -1,9 +1,3 @@
-// ダッシュボードの純粋ロジック（環境変数・fetch に触れない。tests/dashboard.test.mjs で検証する）
-//
-// Discord の ID（snowflake）は 64bit 整数で、JavaScript の Number では正確に表せない。
-// そのため API との受け渡しでは、大きな整数を "#int:<digits>" という番兵文字列で運び、
-// 送受信の境界（parseJsonPreservingInts / stringifyWithInts）でだけ生の JSON 数値に変換する。
-
 export const INT_TOKEN_PREFIX = "#int:";
 
 export function intToken(digits: string): string {
@@ -18,7 +12,6 @@ export function isIntToken(value: unknown): value is string {
   );
 }
 
-/** 表示用に、番兵文字列・数値・文字列を ID の数字文字列へ寄せる。 */
 export function unwrapId(value: unknown): string {
   if (isIntToken(value)) return value.slice(INT_TOKEN_PREFIX.length);
   if (typeof value === "number" && Number.isFinite(value)) return String(Math.trunc(value));
@@ -26,9 +19,6 @@ export function unwrapId(value: unknown): string {
   return "";
 }
 
-// ---------------------------------------------------------------- JSON 境界
-
-/** JSON テキストを読み、安全範囲を超える整数リテラルを番兵文字列にして返す。 */
 export function parseJsonPreservingInts(text: string): unknown {
   let pos = 0;
   const len = text.length;
@@ -152,7 +142,6 @@ export function parseJsonPreservingInts(text: string): unknown {
   return value;
 }
 
-/** 番兵文字列を生の JSON 数値として書き出す JSON 化。 */
 export function stringifyWithInts(value: unknown): string {
   if (value === null || value === undefined) return "null";
   if (typeof value === "boolean") return value ? "true" : "false";
@@ -174,8 +163,6 @@ export function stringifyWithInts(value: unknown): string {
   throw new Error(`cannot serialize ${typeof value}`);
 }
 
-// ---------------------------------------------------------------- Discord 権限
-
 export type OAuthGuild = {
   id: string;
   name: string;
@@ -184,10 +171,9 @@ export type OAuthGuild = {
   permissions: string;
 };
 
-const ADMINISTRATOR = 1n << 3n; // 0x8
-const MANAGE_GUILD = 1n << 5n; // 0x20
+const ADMINISTRATOR = 1n << 3n;
+const MANAGE_GUILD = 1n << 5n;
 
-/** Bot 内 has_manage_permission と同じ基準（管理者 または サーバーの管理）。 */
 export function hasManageGuild(permissions: string): boolean {
   try {
     const bits = BigInt(permissions);
@@ -201,13 +187,6 @@ export function manageableGuilds(guilds: OAuthGuild[]): OAuthGuild[] {
   return guilds.filter((guild) => guild.owner || hasManageGuild(guild.permissions));
 }
 
-/**
- * Discord の partial guild 1件を OAuthGuild へ寄せる。想定形式でなければ null。
- * permissions は API v8+ では文字列だが、旧形式（数値の permissions /
- * 文字列の permissions_new）でも管理権限を取りこぼさないよう両方受理する。
- * ここで落とすと「参加しているのに管理できるサーバーが無い」表示になるため、
- * 呼び出し側は落とした件数をログに残すこと。
- */
 export function normalizeOAuthGuild(item: unknown): OAuthGuild | null {
   if (typeof item !== "object" || item === null) return null;
   const guild = item as Record<string, unknown>;
@@ -236,9 +215,6 @@ export function normalizeOAuthGuild(item: unknown): OAuthGuild | null {
   };
 }
 
-// ---------------------------------------------------------------- Discord CDN
-
-/** ユーザーアバターのURL。ハッシュが無ければ ID から決まるデフォルトアバター。 */
 export function userAvatarUrl(userId: string, avatarHash: string | null | undefined): string {
   if (avatarHash) {
     const ext = avatarHash.startsWith("a_") ? "gif" : "png";
@@ -253,14 +229,11 @@ export function userAvatarUrl(userId: string, avatarHash: string | null | undefi
   return `https://cdn.discordapp.com/embed/avatars/${index}.png`;
 }
 
-/** ギルドアイコンのURL。ハッシュが無ければ null（呼び出し側で頭文字表示にする）。 */
 export function guildIconUrl(guildId: string, iconHash: string | null | undefined): string | null {
   if (!iconHash) return null;
   const ext = iconHash.startsWith("a_") ? "gif" : "png";
   return `https://cdn.discordapp.com/icons/${guildId}/${iconHash}.${ext}?size=64`;
 }
-
-// ---------------------------------------------------------------- 検証
 
 const SNOWFLAKE = /^\d{17,20}$/;
 
@@ -292,7 +265,6 @@ export type FieldSpec = {
   label: string;
   type: FieldType;
   description?: string;
-  /** Bot側のデフォルト値（未設定のときにフォームが初期表示する値） */
   default?: boolean | number | string;
   multiline?: boolean;
   maxLength?: number;
@@ -300,24 +272,16 @@ export type FieldSpec = {
   max?: number;
   maxItems?: number;
   options?: { value: string | number; label: string }[];
-  /** type="preset" のとき: プリセット名 → 実際に保存する複数フィールドの値 */
   presetValues?: Record<string, Record<string, unknown>>;
-  /** type="text_list" のとき: 1件あたりの最大文字数（既定100） */
   itemMaxLength?: number;
-  /** type="text_list" のとき: 各要素が満たすべき正規表現（文字列） */
   itemPattern?: string;
-  /** type="text_list" のとき: 保存時に黙って除く値（Bot側 normalize と同じ扱いのもの） */
   excludeValues?: string[];
-  /** type="channel" のとき: セレクタ表示で候補にするチャンネル種別（既定はテキスト系） */
   channelKind?: "text" | "voice" | "category";
 };
 
 export type SectionGuard = {
-  /** このフィールドが true のときだけ効くガード */
   flag: string;
-  /** すべて非空でなければならないフィールド */
   needs?: string[];
-  /** いずれか1つが非空でなければならないフィールド */
   needsAny?: string[];
   message: string;
 };
@@ -328,13 +292,10 @@ export type SectionSpec = {
   description: string;
   fields: FieldSpec[];
   guards?: SectionGuard[];
-  /** true のとき: セクション全体が1つの対応表（bot_control 等）。単一フィールドの解析結果でセクションを置き換える */
   mapSection?: boolean;
-  /** guild_settings 以外の保存先（Bot 本体と同じテーブルを Bot API 経由で読み書きする） */
   external?: "bump_rta";
 };
 
-/** v1 で編集できるセクション（Bot 側の検証規則に合わせる）。 */
 export const SETTING_SECTIONS: SectionSpec[] = [
   {
     section: "assist_welcome",
@@ -1091,14 +1052,11 @@ export type SanitizeResult =
   | { ok: true; values: Record<string, unknown> }
   | { ok: false; errors: string[] };
 
-// BOT fixer のレート検証範囲（Bot側 core/support/command_control.py と
-// パネルのモーダル検証に一致させる: 回数 1〜1000、期間 60〜604800 秒）
 const RATE_MAX_COUNT = 1000;
 const RATE_MIN_WINDOW_SECONDS = 60;
 const RATE_MAX_WINDOW_SECONDS = 604800;
 const ACTION_ID_PATTERN = /^[a-z0-9_]+:[a-z0-9_]+(:[a-z0-9_]+)?$/;
 const COMMAND_CONTROL_SELF_ACTION = "support:bot_fixer";
-/** AGO BOT 自身のアプリケーションID（他ボット制限の対象にできない） */
 const OWN_BOT_ID = "1476636487784337428";
 const BOT_RULE_MAX_ENTRIES = 50;
 
@@ -1116,12 +1074,6 @@ function parseRateParts(
   return { count, window_seconds: window };
 }
 
-/**
- * レート制限の対応表を検証・変換する。
- * 入力は「アクションID 回数 期間（秒）」を1行に1件書いた文字列、
- * または既に {action: {count, window_seconds}} の形のオブジェクト。
- * 空なら null（= レート制限なし）。BOT fixer 自体は Bot 側 normalize と同じく黙って除く。
- */
 export function parseRateMap(
   raw: unknown,
 ): ParseResult<Record<string, { count: number; window_seconds: number }> | null> {
@@ -1177,13 +1129,6 @@ export function parseRateMap(
   return { ok: true, value: Object.keys(result).length > 0 ? result : null };
 }
 
-/**
- * 他ボット制限（bot_control セクション全体）の対応表を検証・変換する。
- * 入力は1行に「ボットID 許可チャンネルID（カンマ区切り） [回数 期間（秒）]」と書いた文字列、
- * または既に {bot_id: {allowed_channel_ids, rate}} の形のオブジェクト。
- * 許可チャンネルが無いエントリは Bot 側 normalize と同じく成立しないためエラーにする
- * （Web では黙って落とすと事故に気付けないため）。空なら null（= セクション削除）。
- */
 export function parseBotRuleMap(
   raw: unknown,
 ): ParseResult<Record<
@@ -1291,11 +1236,6 @@ const LEVEL_ROLE_MAX = 10;
 const SCHEDULE_MAX = 10;
 const SCHEDULE_TIME = /^([01]?\d|2[0-3]):([0-5]\d)$/;
 
-/**
- * リアクションロールの対応表（絵文字→ロールID）を検証・変換する。
- * 入力は「絵文字=ロールID」を1行に1件書いた文字列（Bot のモーダルと同じく
- * 区切りは改行/カンマ、= が無ければ : でもよい）、または保存済みオブジェクト。
- */
 export function parseEmojiRoleMap(raw: unknown): ParseResult<Record<string, string> | null> {
   const result: Record<string, string> = {};
   const errors: string[] = [];
@@ -1342,11 +1282,6 @@ export function parseEmojiRoleMap(raw: unknown): ParseResult<Record<string, stri
   return { ok: true, value: Object.keys(result).length > 0 ? result : null };
 }
 
-/**
- * レベル報酬の対応表（レベル→ロールID）を検証・変換する。
- * 入力は「レベル=ロールID」を1行に1件書いた文字列（Bot のモーダルと同じ形式）。
- * レベルは 2〜1000、最大10件。キーはレベル文字列（Bot の保存形式と同じ）。
- */
 export function parseLevelRoleMap(raw: unknown): ParseResult<Record<string, string> | null> {
   const result: Record<string, string> = {};
   const errors: string[] = [];
@@ -1394,11 +1329,6 @@ export function parseLevelRoleMap(raw: unknown): ParseResult<Record<string, stri
 
 export type ScheduleEntry = { time: string; message: string };
 
-/**
- * タイマー告知スケジュール（時刻＋本文）を検証・変換する。
- * 入力は「HH:MM メッセージ」を1行に1件書いた文字列、または保存済み相当の配列。
- * id / last_sent はここでは付けない（reconcileSchedules で既存分を引き継ぐ）。
- */
 export function parseScheduleList(raw: unknown): ParseResult<ScheduleEntry[] | null> {
   const result: ScheduleEntry[] = [];
   const errors: string[] = [];
@@ -1457,11 +1387,6 @@ export function parseScheduleList(raw: unknown): ParseResult<ScheduleEntry[] | n
   return { ok: true, value: result.length > 0 ? result : null };
 }
 
-/**
- * 新しいスケジュール一覧に、既存エントリの id / last_sent を引き継ぐ。
- * (time, message) が一致する既存エントリがあればその id を再利用し、
- * 二重送信防止（last_sent）を壊さない。一致しないものは新規 id を採番する。
- */
 export function reconcileSchedules(
   entries: ScheduleEntry[],
   existingRaw: unknown,
@@ -1506,13 +1431,6 @@ function normalizedMappings(value: unknown): [string, string][] {
     .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
 }
 
-/**
- * リアクションロールの連動リセットを Discord パネルと同じ意味で適用する。
- * チャンネル変更時は対象メッセージと対応表をリセットし、メッセージ変更時は
- * 対応表をリセットする。ただし今回の送信で新しい値が明示されている項目は
- * そのまま使う（Web はセクション全体を一括送信するため、保存値との比較で
- * 「変更されたかどうか」を判定する）。
- */
 export function applyReactionRolesCoupling(
   values: Record<string, unknown>,
   existingSection: unknown,
@@ -1544,10 +1462,6 @@ export function applyReactionRolesCoupling(
   return result;
 }
 
-/**
- * クライアントから来た1セクション分の入力を、Bot の保存形式へ検証・変換する。
- * 値が null のキーは「その項目を消す」（Bot の GuildSettings.update と同じ意味）。
- */
 export function sanitizeSectionInput(spec: SectionSpec, input: unknown): SanitizeResult {
   if (typeof input !== "object" || input === null || Array.isArray(input)) {
     return { ok: false, errors: ["入力の形式が正しくありません"] };
@@ -1840,7 +1754,6 @@ function isEmptySettingValue(value: unknown): boolean {
   );
 }
 
-/** マージ後のセクションに対して、有効化の前提条件（Discordパネルと同じガード）を確かめる。 */
 export function validateSectionGuards(spec: SectionSpec, mergedSection: unknown): string[] {
   const section =
     typeof mergedSection === "object" && mergedSection !== null && !Array.isArray(mergedSection)
@@ -1858,10 +1771,6 @@ export function validateSectionGuards(spec: SectionSpec, mergedSection: unknown)
   return errors;
 }
 
-/**
- * Bot の GuildSettings.update と同じ意味でセクションをマージする。
- * 戻り値が null のときはギルド行そのものを削除する。
- */
 export function mergeGuildSettings(
   current: unknown,
   section: string,
@@ -1885,11 +1794,6 @@ export function mergeGuildSettings(
   return Object.keys(guild).length > 0 ? guild : null;
 }
 
-/**
- * 検証済みの入力をギルド設定全体へ反映する。
- * 通常セクションは mergeGuildSettings と同じキー単位マージ、
- * mapSection（bot_control のような対応表セクション）は解析結果で置き換える。
- */
 export function applySectionValues(
   current: unknown,
   spec: SectionSpec,
@@ -1913,8 +1817,6 @@ export function applySectionValues(
   }
   return Object.keys(guild).length > 0 ? guild : null;
 }
-
-// ==== サイドバー構成（/support のジャンル分けに合わせたカテゴリ） ====
 
 export interface SectionCategory {
   id: string;
@@ -1966,7 +1868,6 @@ export function categoryOf(section: string): SectionCategory | undefined {
   return SECTION_CATEGORIES.find((category) => category.sections.includes(section));
 }
 
-/** モジュールの主トグル（ヘッダーに大きく出す bool フィールド）。無ければ null。 */
 export function primaryToggleField(spec: SectionSpec): FieldSpec | null {
   return (
     spec.fields.find(
@@ -1987,10 +1888,6 @@ function sentinelCount(value: unknown): number {
   return Array.isArray(value) ? value.length : 0;
 }
 
-/**
- * 概要ページ用の「有効なモジュール」判定。
- * 主トグルがあるモジュールはその値、無いモジュールは設定済みかどうかで判定する。
- */
 export function moduleEnabled(spec: SectionSpec, raw: unknown): boolean {
   const values: Record<string, unknown> = isRecord(raw) ? raw : {};
   if (spec.external === "bump_rta") return values.notifications_enabled !== false;

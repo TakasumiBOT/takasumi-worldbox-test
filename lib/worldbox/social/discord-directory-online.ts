@@ -1,7 +1,3 @@
-// Discord チャンネルディレクトリの読み取り（bot_kv）。
-// 書き手は本家側 Bot の役目で、このコピーには書き手がいない
-// （ディレクトリは空のまま = Phase 1 の劣化）。Web は読むだけ。
-// 未公開のギルドは null（= Discord 側の準備待ち）。
 import { kvGet } from "../../bot-api";
 import { parseDiscordDirectory, type DiscordDirectory } from "./discord-directory";
 

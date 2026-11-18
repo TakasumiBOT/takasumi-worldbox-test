@@ -1,4 +1,3 @@
-// WORLD BOX バッチ6: チャットとプレゼンス間引きの純粋ロジックテスト。
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";

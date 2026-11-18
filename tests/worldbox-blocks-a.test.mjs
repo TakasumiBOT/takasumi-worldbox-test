@@ -1,10 +1,3 @@
-// AGO WORLD BOX ブロック動作A（未実装だった設置物の動作 第1弾）の検証:
-// - 木箱・収納箱のコンテナ化は worldbox-containers.test.mjs 側で検証
-// - 植木鉢・プランターへの花の植え付け（サーバー検証つき純粋ロジック）
-// - 設置物の光源半径（発光ブロック・マグマ・溶岩を含む）
-// - プレゼンスの sit 申告（座りの見た目）の整形
-// - クライアント配線（ピアノ・座る・花・じゅうたん・噴水・夜の明かり穴）
-// - SE「note」（ピアノの単音）の定義
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -96,8 +89,6 @@ const I = await import(instUrl);
 
 const presenceUrl = bundleModule(["worldbox/player/presence.ts"], ["sanitizeHeartbeat"]);
 const P = await import(presenceUrl);
-
-// ---------- 花の植え付け ----------
 
 const map = T.worldTileSource();
 function findGrass() {
@@ -314,7 +305,6 @@ test("花: 鉢を壊すと deco ごと消える", () => {
     "plant_flower",
     NOW,
   );
-  // HP を削り切るまで掘る（道具ダメージで複数回かかる場合がある）
   let cur = r1.override;
   let prof = r1.profile;
   for (let i = 0; i < 20 && cur?.block; i++) {
@@ -327,8 +317,6 @@ test("花: 鉢を壊すと deco ごと消える", () => {
   assert.equal(cur?.deco, undefined, "花も一緒に消えた");
 });
 
-// ---------- 座れる家具 ----------
-
 test("座る: ベンチ・椅子・ソファだけが座れる家具", () => {
   assert.equal(T.isSeatItem("bench"), true);
   assert.equal(T.isSeatItem("chair"), true);
@@ -337,8 +325,6 @@ test("座る: ベンチ・椅子・ソファだけが座れる家具", () => {
   assert.equal(T.isSeatItem("piano"), false);
   assert.equal(T.isSeatItem(undefined), false);
 });
-
-// ---------- 設置物の光 ----------
 
 test("光: 設置物の光源半径（発光ブロック・マグマ・溶岩を含む）", () => {
   assert.equal(I.placedLightRadiusTiles("lamp"), 9);
@@ -352,8 +338,6 @@ test("光: 設置物の光源半径（発光ブロック・マグマ・溶岩を
   assert.equal(I.placedLightRadiusTiles(null), 0);
   assert.equal(I.placedLightRadiusTiles("nope"), 0);
 });
-
-// ---------- プレゼンスの座り申告 ----------
 
 test("プレゼンス: sit は true のときだけ残る", () => {
   const bounds = { minX: -1024, maxX: 1024, minY: -1024, maxY: 1024 };
@@ -373,8 +357,6 @@ test("プレゼンス: sit は true のときだけ残る", () => {
   );
   assert.equal(fake.sit, undefined, "文字列の sit は通さない");
 });
-
-// ---------- クライアント配線・SE ----------
 
 const clientSrc = fs.readFileSync(
   path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),

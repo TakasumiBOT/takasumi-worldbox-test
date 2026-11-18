@@ -1,5 +1,3 @@
-// ダッシュボードのサーバー側処理（セッションレコード、ギルド権限の再検証、設定の読み書き）
-// アクセストークンは bot_kv の web_sessions 名前空間（Pi上のDB）だけに置き、クライアントへ出さない。
 import crypto from "node:crypto";
 import type { SessionInfo } from "./auth";
 import {
@@ -50,8 +48,6 @@ export async function createWebSession(
     await kvSet(WEB_SESSIONS_NAMESPACE, sid, record);
     return sid;
   } catch (error) {
-    // 保存に失敗すると Cookie だけのログインになり、ダッシュボードで再ログインを
-    // 求められる。原因を追えるよう、失敗は必ずサーバーログに残す（トークンは出さない）。
     console.error("[Dashboard] web_sessions へのセッション保存に失敗しました", error);
     return null;
   }
@@ -94,7 +90,6 @@ const guildCache = new Map<string, { at: number; guilds: OAuthGuild[]; totalGuil
 export async function fetchDiscordGuilds(accessToken: string): Promise<OAuthGuild[] | null> {
   let res: Response;
   try {
-    // バージョン無しURLは返却形式（permissions の型など）が保証されないため v10 に固定する
     res = await fetch("https://discord.com/api/v10/users/@me/guilds", {
       headers: { Authorization: `Bearer ${accessToken}` },
       cache: "no-store",
@@ -136,8 +131,6 @@ export async function fetchDiscordGuilds(accessToken: string): Promise<OAuthGuil
     else dropped += 1;
   }
   if (dropped > 0) {
-    // 形式の想定違いで全件落ちると「管理できるサーバーがありません」になる。
-    // 件数だけは必ず残し、黙って落とさない。
     console.error(
       `[Dashboard] Discord ギルド一覧の ${data.length} 件中 ${dropped} 件を形式不一致で除外しました`,
     );
@@ -147,13 +140,10 @@ export async function fetchDiscordGuilds(accessToken: string): Promise<OAuthGuil
 
 export type DashboardContext = {
   user: { id: string; username: string; avatar: string | null };
-  /** ログイン中ユーザーが管理できるギルド（Discordから再取得した最新状態） */
   guilds: OAuthGuild[];
-  /** 権限で絞り込む前の参加ギルド総数（空表示の切り分け用） */
   totalGuilds: number;
 };
 
-/** Cookieのセッションから、権限再検証済みのダッシュボード文脈を作る。失敗したら null。 */
 export async function getDashboardContext(session: SessionInfo): Promise<DashboardContext | null> {
   if (!session.sid) return null;
   const record = await loadWebSession(session.sid);
@@ -226,7 +216,6 @@ function stringList(value: unknown): Record<string, unknown>[] {
   );
 }
 
-/** Bot が guild_registry に記録したサーバー構造スナップショット（セレクタ用）。 */
 export async function loadGuildStructure(guildId: string): Promise<GuildStructure | null> {
   const raw = await kvGet(GUILD_REGISTRY_NAMESPACE, guildId);
   if (typeof raw !== "object" || raw === null) return null;
@@ -260,7 +249,6 @@ export type BumpRtaSettings = {
 
 const BUMP_RTA_TABLE = "bump_rta_settings";
 
-/** bump/up RTA 通知設定（Bot 本体と同じテーブルを Bot API 経由で読み書きする）。 */
 export async function loadBumpRtaSettings(guildId: string): Promise<BumpRtaSettings> {
   const rows = await tableSelect<Record<string, unknown>>(
     BUMP_RTA_TABLE,
@@ -300,7 +288,6 @@ export async function loadGuildSettings(guildId: string): Promise<Record<string,
   return {};
 }
 
-/** マージ済みのギルド設定全体を保存する（null なら行を消す）。 */
 export async function saveGuildSettingsObject(
   guildId: string,
   merged: Record<string, unknown> | null,
@@ -312,7 +299,6 @@ export async function saveGuildSettingsObject(
   }
 }
 
-/** Bot の GuildSettings.update と同じ意味で1セクションを保存する。 */
 export async function saveGuildSection(
   guildId: string,
   section: string,

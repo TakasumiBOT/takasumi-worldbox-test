@@ -1,8 +1,3 @@
-// AGO WORLD BOX のインスタンス空間（洞窟など別枠マップ）の純粋ロジック。
-// 空間 ID は "cave:<入口x>,<入口y>:<層>" の文字列で、セーブ/プレゼンスの
-// space にそのまま乗る（入口タイルのワールド座標がインスタンスの識別子）。
-// 中身はワールドシード + 入口座標 + 層から決定的に生成され、保存しない。
-// 枯渇状態（鉱脈・宝箱）だけをサーバーが持つ（instances ルート）。
 import {
   L_DARK,
   L_MARBLE,
@@ -52,8 +47,6 @@ export function isInstanceSpace(space: unknown): boolean {
   return parseInstanceSpace(space) !== null;
 }
 
-// ---------------------------------------------------------------- 明かり
-/** 明かりの半径（タイル）。松明 6 / ランプ 9 が基準、無しは足元のみ。 */
 export function lightRadiusTiles(
   inventory: Readonly<Record<string, number>> | null | undefined,
 ): number {
@@ -63,7 +56,6 @@ export function lightRadiusTiles(
   return 2.5;
 }
 
-/** 設置物が周りを照らす半径（タイル）。0 は光らない。 */
 export const PLACED_LIGHT_RADIUS: Readonly<Record<string, number>> = {
   lamp: 9,
   glowstone_block: 7,
@@ -78,13 +70,11 @@ export function placedLightRadiusTiles(itemId: unknown): number {
   return PLACED_LIGHT_RADIUS[itemId] ?? 0;
 }
 
-// ---------------------------------------------------------------- 洞窟
 export const CAVE_W = 64;
 export const CAVE_H = 64;
 export const CAVE_LAYERS = 3;
 
 export type CaveVein = {
-  /** 枯渇状態のキー（層内で一意）。 */
   key: string;
   objectId: string;
   x: number;
@@ -93,17 +83,14 @@ export type CaveVein = {
 
 export type CaveLayer = {
   data: LobbyData;
-  /** 帰還ポータル（入口）タイル。出現位置でもある。 */
   portal: { x: number; y: number };
   stairsUp: { x: number; y: number } | null;
   stairsDown: { x: number; y: number } | null;
-  /** 温泉タイル（踏むと休憩）。1層目のみ。 */
   onsen: readonly { x: number; y: number }[];
   veins: readonly CaveVein[];
   chest: { x: number; y: number } | null;
 };
 
-/** 層ごとの鉱脈プール（浅い=石炭/銅、深い=希少、水晶、最深=ミスリル）。 */
 const CAVE_VEIN_POOLS: readonly (readonly { objectId: string; count: number }[])[] = [
   [
     { objectId: "coal_vein", count: 6 },
@@ -122,7 +109,6 @@ const CAVE_VEIN_POOLS: readonly (readonly { objectId: string; count: number }[])
   ],
 ];
 
-/** 宝箱の再出現（共有マップなので有限にし、6時間で戻る）。 */
 export const CAVE_CHEST_RESPAWN_MS = 6 * 60 * 60 * 1000;
 
 function hashSeed(seed: number, ex: number, ey: number, layer: number): number {
@@ -136,7 +122,6 @@ function hashSeed(seed: number, ex: number, ey: number, layer: number): number {
 
 const caveCache = new Map<string, CaveLayer>();
 
-/** 洞窟の1層を決定的に生成する（結果はキャッシュ）。 */
 export function buildCaveLayer(
   seed: number,
   entranceX: number,
@@ -156,7 +141,6 @@ export function buildCaveLayer(
     floor.add(`${x},${y}`);
   };
 
-  // 入口（ポータル）は南寄り中央。ランダムウォークで通路を掘り、部屋を繋ぐ。
   const portal = { x: 32, y: CAVE_H - 6 };
   for (let dy = 0; dy < 3; dy++)
     for (let dx = -1; dx <= 1; dx++) carve(portal.x + dx, portal.y + dy - 1);
@@ -176,7 +160,6 @@ export function buildCaveLayer(
       x = Math.max(2, Math.min(CAVE_W - 3, x));
       y = Math.max(2, Math.min(CAVE_H - 3, y));
       if (s % 90 === 89) {
-        // 部屋を掘って中心を記録（階段・宝箱・温泉の置き場候補）
         const rw = 3 + Math.floor(rng() * 3);
         const rh = 3 + Math.floor(rng() * 3);
         for (let dy = 0; dy < rh; dy++)
@@ -201,12 +184,10 @@ export function buildCaveLayer(
   };
   const used = new Set<string>([`${portal.x},${portal.y}`]);
 
-  // 階段: 下りは入口から遠く、上りは入口の隣。
   const stairsDown = layer < CAVE_LAYERS - 1 ? pickFar(portal, 24, used) : null;
   const stairsUp = layer > 0 ? { x: portal.x + 2, y: portal.y } : null;
   if (stairsUp) used.add(`${stairsUp.x},${stairsUp.y}`);
 
-  // 温泉（1層目のみ、入口近くの小部屋タイルを砂地にして目印にする）
   const onsen: { x: number; y: number }[] = [];
   if (layer === 0) {
     const base = { x: portal.x - 3, y: portal.y - 1 };
@@ -222,10 +203,8 @@ export function buildCaveLayer(
     }
   }
 
-  // 宝箱は最深の部屋へ。
   const chest = pickFar(portal, 18, used);
 
-  // 鉱脈: 床に隣接する壁タイルへ貼る。
   const veins: CaveVein[] = [];
   const wallUsed = new Set<string>();
   const pool = CAVE_VEIN_POOLS[layer] ?? CAVE_VEIN_POOLS[0];
@@ -255,7 +234,6 @@ export function buildCaveLayer(
     }
   }
 
-  // LobbyData として組み立てる（ロビー描画・移動をそのまま使う）。
   const objects: LobbyObject[] = [
     { sprite: "warp_pad", x: portal.x, y: portal.y, w: 1, h: 1, solid: false },
   ];
@@ -286,18 +264,15 @@ export function buildCaveLayer(
   return result;
 }
 
-/** 入口・階段まわりの安全圏か（階段・ポータルの近接判定に使う）。 */
 export function isCaveSafeTile(cave: CaveLayer, x: number, y: number): boolean {
   const near = (p: { x: number; y: number } | null) =>
     p !== null && Math.hypot(x - p.x, y - p.y) <= 1.5;
   return near(cave.portal) || near(cave.stairsUp) || near(cave.stairsDown);
 }
 
-// ---------------------------------------------------------------- 遺跡
 export const RUINS_W = 48;
 export const RUINS_H = 48;
 
-/** 罠の種類（転移のみ）。 */
 export type RuinsTrapKind = "teleport";
 export const RUINS_TRAP_KINDS: readonly RuinsTrapKind[] = ["teleport"];
 
@@ -305,9 +280,7 @@ export type RuinsChest = {
   idx: number;
   x: number;
   y: number;
-  /** 主宝箱（最奥）。 */
   main: boolean;
-  /** 金の鍵の扉の先にある（扉を開けた者だけ開けられる）。 */
   requiresKey: boolean;
 };
 
@@ -320,11 +293,9 @@ export type RuinsMap = {
   chests: readonly RuinsChest[];
   doors: readonly RuinsDoor[];
   traps: readonly RuinsTrap[];
-  /** 部屋の中心（転移罠の行き先候補）。 */
   roomCenters: readonly { x: number; y: number }[];
 };
 
-/** 主宝箱のルート（遺物・星の地図の確率を上げた ruins_chest 派生）。 */
 export const RUINS_MAIN_CHEST_LOOT = [
   { itemId: "ancient_coin", min: 2, max: 3, chance: 1 },
   { itemId: "gold_ingot", min: 1, max: 2, chance: 0.6 },
@@ -332,32 +303,21 @@ export const RUINS_MAIN_CHEST_LOOT = [
   { itemId: "star_map", min: 1, max: 1, chance: 0.4 },
 ] as const;
 
-/** ruins_complete の earn 額（暫定。Plan A の原資範囲内）。 */
 export const RUINS_COMPLETE_EARN = 300;
 
-/**
- * ruins_complete の earn オプの決定的 ID（入口座標＋プレイヤー）。
- * 主宝箱の初回開封はその遺跡につき1人1回だけ（completed フラグは
- * 週次リセットを跨いで残る）なので、オプ ID も1回きりの形にして
- * 冪等登録（enqueueEconomyOpOnce）と組み合わせる。再試行や並行
- * リクエストでも earn は最大1件しか積まれない。
- * 形式はブリッジの OP_ID_RE（[A-Za-z0-9-]{8,64}）に収める。
- */
 export function ruinsCompleteOpId(entranceX: number, entranceY: number, discordId: string): string {
   return `ruins-done-${entranceX}-${entranceY}-${discordId}`;
 }
 
-/** 週キー（月曜始まり、サーバー時刻=UTC 基準）。個人状態の週次リセット判定。 */
 export function weekKeyOf(now: number): string {
   const d = new Date(now);
-  const day = (d.getUTCDay() + 6) % 7; // 月曜=0
+  const day = (d.getUTCDay() + 6) % 7;
   const monday = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() - day));
   return monday.toISOString().slice(0, 10);
 }
 
 const ruinsCache = new Map<string, RuinsMap>();
 
-/** 遺跡を決定的に生成する（部屋＋通路型、48×48、結果はキャッシュ）。 */
 export function buildRuins(seed: number, entranceX: number, entranceY: number): RuinsMap {
   const cacheKey = `ruins:${seed}:${entranceX},${entranceY}`;
   const cached = ruinsCache.get(cacheKey);
@@ -372,7 +332,6 @@ export function buildRuins(seed: number, entranceX: number, entranceY: number): 
     floor.add(`${x},${y}`);
   };
 
-  // 部屋をグリッド状に置き、隣接部屋を通路で繋ぐ。
   const COLS = 3;
   const ROWS = 3;
   const rooms: { x: number; y: number; w: number; h: number; cx: number; cy: number }[] = [];
@@ -411,7 +370,6 @@ export function buildRuins(seed: number, entranceX: number, entranceY: number): 
     }
   }
 
-  // 入口は最南の部屋。最奥は入口から BFS 最遠の部屋。
   const entranceRoom = rooms[(ROWS - 1) * COLS + 1];
   const portal = { x: entranceRoom.cx, y: entranceRoom.cy + 2 };
   carve(portal.x, portal.y);
@@ -438,7 +396,6 @@ export function buildRuins(seed: number, entranceX: number, entranceY: number): 
   const deepestIdx = roomDist.indexOf(Math.max(...roomDist));
   const deepest = rooms[deepestIdx];
 
-  // 金の鍵の扉: 最奥の部屋への通路の入口タイル（最奥部屋の境界に接する通路タイル）。
   const doors: RuinsDoor[] = [];
   {
     const candidates: { x: number; y: number }[] = [];
@@ -470,7 +427,6 @@ export function buildRuins(seed: number, entranceX: number, entranceY: number): 
   }
   const doorSet = new Set(doors.map((d) => `${d.x},${d.y}`));
 
-  // 宝箱: 主宝箱は最奥（扉の先）、小宝箱は各部屋に最大1つ。
   const chests: RuinsChest[] = [];
   chests.push({ idx: 0, x: deepest.cx, y: deepest.cy, main: true, requiresKey: doors.length > 0 });
   let chestIdx = 1;
@@ -486,7 +442,6 @@ export function buildRuins(seed: number, entranceX: number, entranceY: number): 
     });
   }
 
-  // 床罠: 通路と部屋の床から、入口まわりを避けて決定的に選ぶ。
   const traps: RuinsTrap[] = [];
   const floorList = [...floor]
     .map((k) => {
@@ -528,18 +483,9 @@ export function buildRuins(seed: number, entranceX: number, entranceY: number): 
   return result;
 }
 
-/* ================= ダンジョン（バッチ5） =================
- * パーティ別インスタンス。マップ自体は入口ごとに決定的生成（52×52、部屋＋通路）。
- * パーティ分離は状態キー（"#<partyKey>"）とプレゼンスの party フィールドで担保し、
- * 空間 ID は cave/ruins と同じ `dungeon:<入口x>,<入口y>:<フロア>` 形式を使う。
- * フロア 1〜3 + フロア 4 が最奥フロア。各フロアの最奥の部屋に階段と
- * 宝箱があり、最奥フロアの主宝箱を開けるとクリア（週1回の earn）。
- */
-
 export const DUNGEON_W = 52;
 export const DUNGEON_H = 52;
 export const DUNGEON_FLOORS = 4;
-/** dungeon_clear の earn 額（暫定。Plan A の原資範囲内、週1回）。 */
 export const DUNGEON_CLEAR_EARN = 500;
 export type DungeonChest = { idx: number; x: number; y: number; main: boolean };
 export type DungeonFloorData = {
@@ -558,7 +504,6 @@ export function buildDungeonFloor(
   entranceY: number,
   layer: number,
 ): DungeonFloorData {
-  // layer は空間 ID の層（0 始まり。洞窟と同じ）。フロア番号は layer+1。
   const f = Math.max(1, Math.min(DUNGEON_FLOORS, (Math.floor(layer) || 0) + 1));
   const cacheKey = `dungeon:${seed}:${entranceX},${entranceY}:${f}`;
   const cached = dungeonCache.get(cacheKey);

@@ -1,8 +1,3 @@
-// AGO WORLD BOX のパーティ保存（サーバー専用）。
-// 保存先は bot_kv（名前空間 "worldbox_party"）:
-//   キー = パーティ ID → Party 本体
-//   キー = "member:<ownerKey>" → パーティ ID（所属索引）
-//   キー = "invite:<ownerKey>" → パーティ ID（招待索引）
 import { isBotApiConfigured, kvDelete, kvGet, kvSet } from "../../bot-api";
 import { parseParty, type Party } from "./party";
 
@@ -79,7 +74,6 @@ export async function clearMemberIndex(ownerKey: string): Promise<void> {
   }
 }
 
-/** 自分が所属するパーティ（索引→本体）。索引が腐っていたら掃除する。 */
 export async function loadPartyOf(ownerKey: string): Promise<Party | null> {
   if (!isBotApiConfigured()) return null;
   try {
@@ -96,7 +90,6 @@ export async function loadPartyOf(ownerKey: string): Promise<Party | null> {
   }
 }
 
-/** 自分宛てに招待が来ているパーティ。 */
 export async function loadInvitedParty(ownerKey: string): Promise<Party | null> {
   if (!isBotApiConfigured()) return null;
   try {

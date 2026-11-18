@@ -1,4 +1,3 @@
-// WORLD BOX バッチ5: パーティ編成とダンジョン生成の純粋ロジックテスト。
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -155,7 +154,6 @@ test("dungeon: every floor has portal, stairs rules and chests (no mobs, no door
       );
     } else {
       assert.equal(f.stairsDown, null);
-      // 最深層は主宝箱がちょうど1つ（クリア条件）
       assert.equal(f.chests.filter((c) => c.main).length, 1);
       assert.equal(f.chests.length, 1);
     }
@@ -166,7 +164,6 @@ test("dungeon: tiles are inside the 52x52 bounds and blocked covers walls", () =
   const f = T.buildDungeonFloor(5, 0, 0, 3);
   for (const c of f.chests) {
     assert.ok(c.x >= 0 && c.x < 52 && c.y >= 0 && c.y < 52);
-    // 固体はオブジェクト（宝箱）だけ。壁は moveMap 側で塞ぐ
     assert.ok(f.data.blocked.has(`${c.x},${c.y}`));
   }
   assert.equal(f.data.blocked.has(`${f.portal.x},${f.portal.y}`), false);

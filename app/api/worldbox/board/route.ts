@@ -10,18 +10,8 @@ import { loadMyLobbyStation } from "@/lib/worldbox/world/station-online";
 
 export const runtime = "nodejs";
 
-// AGO WORLD BOX ロビーのグローバル掲示板。
-// GET: { posts, loggedIn }（誰でも読める。posts は新しい順・最大30件）
-// POST { text }: 投稿（ログイン中のみ。本文は最大120文字）
-//   場所制約: ロビーの掲示板の前にいること（サーバー側でプレゼンス検証）。
-// 保存先は bot_kv（名前空間 worldbox_board、キー "messages"）。
-// 表示名はセッションの username を正とする。
-// Bot API 未設定なら 503（クライアントは掲示板なしで遊び続ける）。
-
 const NO_STORE = { "Cache-Control": "no-store, max-age=0" };
-/** 連投制限の最小間隔（チャットの CHAT_MIN_INTERVAL_MS と同じ 1.5 秒）。 */
 const BOARD_MIN_INTERVAL_MS = 1_500;
-/** 連投制限の最終投稿時刻。プロセス内メモリで十分。 */
 const lastPostAt = new Map<string, number>();
 
 function sameOrigin(request: Request) {
@@ -64,7 +54,6 @@ export async function POST(request: Request) {
   if (now - (lastPostAt.get(ownerKey) ?? 0) < BOARD_MIN_INTERVAL_MS) {
     return NextResponse.json({ error: "too_fast" }, { status: 429, headers: NO_STORE });
   }
-  // 場所制約: 投稿は掲示板の前でのみ（本文の検証を通った後に位置を確かめる）
   if ((await loadMyLobbyStation(ownerKey)) !== "board") {
     return NextResponse.json({ error: "not_at_board" }, { status: 409, headers: NO_STORE });
   }

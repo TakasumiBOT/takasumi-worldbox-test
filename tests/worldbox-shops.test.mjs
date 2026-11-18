@@ -1,13 +1,3 @@
-// AGO WORLD BOX ショップのジャンル分けの検証:
-// - ジャンル定義: 全アイテムカテゴリがちょうど1ジャンルに割り当たる
-// - 販売は入口だけのホワイトリスト86品のみ（種カテゴリ全種＋明示60品）。
-//   itemsForGenre の和集合 = ホワイトリストちょうど
-// - 購入の在庫検証（純粋関数 checkBuySold: リスト外は not_sold）
-// - ロビーの全 shop オブジェクトに genre が付き、5ジャンルが揃う
-// - カウンター前のタイルから stationGenreNear で店のジャンルが引ける
-// - 購入のジャンル検証（純粋関数 checkBuyGenre: 不一致は wrong_shop）
-// - 配線: クライアントが genre を経済パネルへ渡し、パネルは品目を選別し、
-//   API はサーバー側で genre を検証する
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -123,10 +113,7 @@ test("shops: ジャンル定義は想定の6種（製造・R&D拠点含む）", 
   assert.equal(shops.genreById(null), null);
 });
 
-// 店で売る品目（ユーザー決定 2026-11-16、案C）: 入口だけのホワイトリスト86品
-// = 種カテゴリ全26種 ＋ ジャンル別の明示60品。鍛冶屋ジャンルは販売ゼロ。
 const STOCK_IDS = [
-  // 種（カテゴリで一括許可されるが、集合の検証用に全種挙げる）
   "wheat_seed",
   "carrot_seed",
   "potato_seed",
@@ -153,7 +140,6 @@ const STOCK_IDS = [
   "apple_seed",
   "peach_seed",
   "cotton_seed",
-  // 道具屋
   "wooden_axe",
   "wooden_pickaxe",
   "wooden_hoe",
@@ -164,7 +150,6 @@ const STOCK_IDS = [
   "iron_pickaxe",
   "iron_hoe",
   "explorer_compass",
-  // 建築屋
   "dirt_block",
   "sand_block",
   "snow_block",
@@ -188,21 +173,18 @@ const STOCK_IDS = [
   "autumn_log",
   "dead_log",
   "log_block",
-  // 家具屋
   "torch",
   "workbench",
   "furnace",
   "storage_chest",
   "chest_box",
   "bed",
-  // 食料屋
   "onigiri",
   "energy_drink",
   "meal",
   "cake",
   "bento",
   "feast",
-  // 種・素材屋の基礎素材
   "wood",
   "stone",
   "stick",
@@ -222,7 +204,6 @@ test("shops: 販売ホワイトリストはちょうど83品", () => {
   assert.equal(new Set(STOCK_IDS).size, 83, "ホワイトリストに重複がある");
   const buyable = shops.ITEMS.filter((item) => !shops.isShopExcluded(item)).map((item) => item.id);
   assert.deepEqual([...buyable].sort(), [...STOCK_IDS].sort());
-  // リスト外の代表例: 合成品・調理済み・作物・宝石/貴金属・鉱石ブロック・採取素材・特殊
   for (const id of [
     "carving",
     "potion",
@@ -247,7 +228,6 @@ test("shops: 販売ホワイトリストはちょうど83品", () => {
     assert.ok(item, `${id} がカタログに無い`);
     assert.equal(shops.isShopExcluded(item), true, `${id} が販売されている`);
   }
-  // 鍛冶屋ジャンルは販売品目ゼロ（合成・強化専用の施設）
   assert.deepEqual(shops.itemsForGenre("smith"), []);
 });
 
@@ -261,7 +241,6 @@ test("shops: 買えるのはホワイトリストの品目だけ", () => {
   assert.deepEqual(buyable.map((i) => i.id).sort(), [...STOCK_IDS].sort());
   for (const item of shops.ITEMS) {
     assert.ok(shops.genreOfItem(item.id), `${item.id} のジャンルが無い`);
-    // どのジャンルの品目にもリスト外は含まれない
     for (const g of shops.SHOP_GENRES) {
       assert.ok(
         !shops.itemsForGenre(g.id).some((i) => i.id === item.id && shops.isShopExcluded(i)),
@@ -269,37 +248,33 @@ test("shops: 買えるのはホワイトリストの品目だけ", () => {
       );
     }
   }
-  // 代表例: 木材は種・素材屋、斧は道具屋、合成品は鍛冶屋
   assert.equal(shops.genreOfItem("wood"), "farm");
   assert.equal(shops.genreOfItem("wooden_axe"), "tools");
   assert.equal(shops.genreOfItem("carving"), "smith");
   assert.equal(shops.genreOfItem("no-such-item"), null);
-  // ジャンル割当て自体は不変（リスト外もカテゴリ上のジャンルは持つ）
   assert.equal(shops.genreOfItem("star_shard"), "smith");
   assert.equal(shops.genreOfItem("mithril_axe"), "tools");
   assert.equal(shops.genreOfItem("diamond_block"), "blocks");
 });
 
 test("shops: checkBuySold はホワイトリスト外を not_sold にする", () => {
-  assert.equal(shops.checkBuySold("star_shard"), "not_sold"); // 特殊
-  assert.equal(shops.checkBuySold("mithril_axe"), "not_sold"); // tier 4
-  assert.equal(shops.checkBuySold("ruby_block"), "not_sold"); // 宝石ブロック
-  assert.equal(shops.checkBuySold("ruby"), "not_sold"); // 宝石の素材も売らない
-  assert.equal(shops.checkBuySold("diamond_ore_block"), "not_sold"); // 鉱石ブロックも売らない
-  assert.equal(shops.checkBuySold("carving"), "not_sold"); // 合成品は作るもの
+  assert.equal(shops.checkBuySold("star_shard"), "not_sold");
+  assert.equal(shops.checkBuySold("mithril_axe"), "not_sold");
+  assert.equal(shops.checkBuySold("ruby_block"), "not_sold");
+  assert.equal(shops.checkBuySold("ruby"), "not_sold");
+  assert.equal(shops.checkBuySold("diamond_ore_block"), "not_sold");
+  assert.equal(shops.checkBuySold("carving"), "not_sold");
   assert.equal(shops.checkBuySold("wood"), null);
-  assert.equal(shops.checkBuySold("wheat_seed"), null); // 種は全種売る
+  assert.equal(shops.checkBuySold("wheat_seed"), null);
   assert.equal(shops.checkBuySold("iron_axe"), null);
-  // 未知のアイテムは buyItem 側の unknown_item に委ねる
   assert.equal(shops.checkBuySold("no-such-item"), null);
 });
 
 test("shops: checkBuyGenre はジャンル不一致を wrong_shop にする", () => {
-  assert.equal(shops.checkBuyGenre("tools", "wood"), "wrong_shop"); // 素材は道具屋で買えない
+  assert.equal(shops.checkBuyGenre("tools", "wood"), "wrong_shop");
   assert.equal(shops.checkBuyGenre("farm", "wood"), null);
   assert.equal(shops.checkBuyGenre("smith", "carving"), null);
   assert.equal(shops.checkBuyGenre("smith", "wooden_axe"), "wrong_shop");
-  // 店がジャンルを持たなければ制限しない／未知のアイテムは buyItem 側に委ねる
   assert.equal(shops.checkBuyGenre(null, "wood"), null);
   assert.equal(shops.checkBuyGenre("tools", "no-such-item"), null);
 });
@@ -326,7 +301,6 @@ test("lobby: カウンター前のタイルから店のジャンルが引ける"
     assert.equal(wb.stationNear(wb.LOBBY_OBJECTS, x, y), "shop", `${genre} の前が shop でない`);
     assert.equal(wb.stationGenreNear(wb.LOBBY_OBJECTS, x, y), genre, `${genre} が引けない`);
   }
-  // 店から離れた場所・鍛冶屋ではジャンルは引けない（鍛冶屋は station から決まる）
   assert.equal(wb.stationGenreNear(wb.LOBBY_OBJECTS, 28, 28), null);
   assert.equal(wb.stationGenreNear(wb.LOBBY_OBJECTS, 28, 37), null);
 });

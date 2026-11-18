@@ -1,10 +1,3 @@
-// AGO WORLD BOX 感覚面 B2: アフォーダンスの検証:
-// - 使える物の輪は鉱脈と同じ脈動（0.10〜0.60、金色）
-// - 輪はフットプリント端から 2 タイル以内で出る（斜めも同じ）
-// - 初回誘導バウンスは 900ms で収束し、輪は通常より強い
-// - 無効操作は 260ms の赤い輪＋小刻みな揺れ（過ぎたら消える）
-// - スティックのノブは掴んだら大きくなる
-// - クライアント配線（施設の輪・無効フィードバック・押下感・初回誘導）
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -80,13 +73,11 @@ const af = await loadBundle(
 
 test("affordance: 輪は 2 タイル以内で出る（斜めも同じ・遠いものには出ない）", () => {
   assert.equal(af.AFFORDANCE_RANGE_TILES, 2);
-  // 1×1 の施設 (10, 10)。端からのチェビシェフ距離で測る
   assert.equal(af.isWithinAffordanceRange(10.5, 10.5, 10, 10, 1, 1), true);
   assert.equal(af.isWithinAffordanceRange(12.5, 10.5, 10, 10, 1, 1), true, "横 2 タイル");
   assert.equal(af.isWithinAffordanceRange(13.5, 10.5, 10, 10, 1, 1), false, "横 3 タイルは出ない");
   assert.equal(af.isWithinAffordanceRange(13, 13, 10, 10, 1, 1), true, "斜め 2 タイル");
   assert.equal(af.isWithinAffordanceRange(14, 14, 10, 10, 1, 1), false, "斜め 3 タイルは出ない");
-  // 2×1 の施設 (10, 10, w=2, h=1): 本体はタイル 10・11、右端は 12
   assert.equal(
     af.isWithinAffordanceRange(13.5, 10.5, 10, 10, 2, 1),
     true,
@@ -106,7 +97,6 @@ test("affordance: 脈動は 0.10〜0.60（鉱脈と同じ周期・同じ色味�
     const a = af.affordancePulseAlpha(t);
     assert.ok(a >= 0.1 && a <= 0.6, `t=${t} alpha=${a}`);
   }
-  // 1 周期（2π×240ms）で同じ値に戻る
   const period = Math.PI * 2 * 240;
   assert.ok(Math.abs(af.affordancePulseAlpha(100) - af.affordancePulseAlpha(100 + period)) < 1e-9);
 });
@@ -120,11 +110,9 @@ test("affordance: 初回誘導バウンスは 900ms で収束する", () => {
   assert.equal(af.nudgeBobPx(0), 0);
   assert.equal(af.nudgeBobPx(900), 0);
   assert.equal(af.nudgeBobPx(5000), 0);
-  // 途中で跳ねる（上向き＝負のオフセット）
   let bobbed = false;
   for (let t = 50; t < 900; t += 50) if (af.nudgeBobPx(t) < -0.5) bobbed = true;
   assert.ok(bobbed, "誘導中は上に跳ねる");
-  // 誘導中の輪は通常より強い
   assert.ok(af.nudgeRingAlpha(0, 0) > af.affordancePulseAlpha(0));
   assert.equal(af.nudgeRingAlpha(0, 900), af.affordancePulseAlpha(0));
   assert.ok(af.nudgeRingAlpha(0, 0) <= 0.85);

@@ -1,11 +1,3 @@
-// AGO WORLD BOX 拡充（物量・特殊オブジェクト・マップロジック）の検証:
-// - アイテムカタログ 250種以上（ブロック60種以上・作物20種以上・道具4種×4段）、
-//   レシピ/作物の参照整合、アイコン実在
-// - バイオーム分類（生成地形との一致・雪原・水域）
-// - チャンク座標系（往復・負座標）とスーパーセル方式の構造物配置
-// - 決定的ランダムスポーン
-// - 特殊オブジェクト（定義整合・決定的配置・ルート・再出現）
-// - モブ（定義整合・時間帯/バイオームで決まる決定的出現・サイズ規定 1〜20 マス）
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -106,7 +98,6 @@ const ob = await loadBundle(
   ],
 );
 
-// ---------------------------------------------------------------- カタログ
 test("カタログ: 250種以上・ID一意・価格と説明が揃う", () => {
   assert.ok(cat.ITEMS.length >= 250, `items=${cat.ITEMS.length}`);
   const ids = new Set(cat.ITEMS.map((i) => i.id));
@@ -181,12 +172,11 @@ test("カタログ: アイコン ID は全て実在し PNG が置かれている
   }
 });
 
-// ---------------------------------------------------------------- バイオーム
 test("バイオーム: 分類の基本形（水=湖・砂=浜・岩=岩場・雪）", () => {
   assert.equal(ml.classifyBiome(0.2, 0.5, false, ml.T_WATER), "lake");
-  assert.equal(ml.classifyBiome(0.9, 0.5, false, 4), "highland"); // T_ROCK
+  assert.equal(ml.classifyBiome(0.9, 0.5, false, 4), "highland");
   assert.equal(ml.classifyBiome(0.5, 0.5, true, ml.T_SNOW), "snowfield");
-  assert.equal(ml.classifyBiome(0.5, 0.9, false, 3), "dense_forest"); // T_TREE + 高湿度
+  assert.equal(ml.classifyBiome(0.5, 0.9, false, 3), "dense_forest");
   assert.equal(ml.classifyBiome(0.5, 0.2, false, 0), "dryland");
 });
 
@@ -229,7 +219,6 @@ test("バイオーム: 生成マップと一致する（水タイルは湖、北
   }
 });
 
-// ---------------------------------------------------------------- チャンク/構造物
 test("チャンク: 座標の往復（負座標含む）", () => {
   for (const [x, y] of [
     [0, 0],
@@ -275,7 +264,6 @@ test("構造物: 決定的・チャンク内・バイオーム一致・セル内
   assert.deepEqual(entrances.map((s) => s.targetSpace).sort(), ["cave", "dungeon", "ruins"]);
 });
 
-// ---------------------------------------------------------------- 特殊オブジェクト
 test("特殊オブジェクト: 20種以上・定義整合（ルートは実在アイテム）", () => {
   assert.ok(ob.SPECIAL_OBJECTS.length >= 20, `objects=${ob.SPECIAL_OBJECTS.length}`);
   const ids = new Set(ob.SPECIAL_OBJECTS.map((o) => o.id));

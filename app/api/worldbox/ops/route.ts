@@ -15,13 +15,6 @@ import { parseTileKey } from "@/lib/worldbox/world/tiles";
 
 export const runtime = "nodejs";
 
-// AGO WORLD BOX の運用（荒らし対策）。
-// GET: 凍結状態（全員）+ 通報と凍結の詳細（運営のみ）。
-// POST { action: "report", text, x?, y? }: 通報の受付（ログイン中なら誰でも）。
-// POST { action: "freeze", on }: ワールドのタイル書き換えを凍結/解除（運営のみ）。
-// POST { action: "rollback_tile", x, y, toAt }: ジャーナルからそのタイルを
-// 指定時刻の状態へ巻き戻す（運営のみ）。
-
 const NO_STORE = { "Cache-Control": "no-store, max-age=0" };
 
 function err(error: string, status: number) {
@@ -104,7 +97,6 @@ export async function POST(request: Request) {
     }
     const key = `${x},${y}`;
     if (!parseTileKey(key)) return err("invalid_tile", 400);
-    // 当日と前日のジャーナルから探す（巻き戻しは直近の荒らしへの対処が主）
     const dates = [dayKeyOf(toAt), dayKeyOf(toAt - 86_400_000), dayKeyOf(Date.now())];
     let target: ReturnType<typeof stateAtTime> = undefined;
     for (const date of [...new Set(dates)]) {

@@ -1,15 +1,5 @@
-// サイト共通の定数と、販促計測まわりの純粋ロジック（環境変数・fetch に触れない）
-//
-// 招待URLはポータルの Install Link として設定済みのものが唯一の正。
-// パラメータ（permissions 等）を推測で変えず、ここ1か所だけに置く。
-
-/** サイトの公開オリジン（metadataBase・canonical・sitemap 等の唯一の正）。 */
-// このインスタンスの公開 URL。優先順位: NEXT_PUBLIC_SITE_URL 環境変数 →
-// リクエストのオリジン → 空文字（相対 URL で足りる箇所だけが使う）。
-// 独立環境では AGO の agobot.app を既定値にしない。
 export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? "").replace(/\/+$/, "");
 
-/** サーバー側で現在のリクエストからサイトのオリジンを解決する。 */
 export function resolveSiteUrl(request?: Request): string {
   if (SITE_URL) return SITE_URL;
   if (request) {
@@ -33,7 +23,6 @@ export const BOT_INVITE_URL =
 
 export const SUPPORT_SERVER_URL = "https://discord.gg/dCAQzJUaa9";
 
-/** 流入計測（/invite?src=）で受け付ける媒体名。これ以外は "direct" として記録する。 */
 export const INVITE_SOURCES = [
   "topgg",
   "botsgg",
@@ -54,10 +43,8 @@ export function normalizeInviteSource(raw: string | null | undefined): string {
   return (INVITE_SOURCES as readonly string[]).includes(src) ? src : DEFAULT_INVITE_SOURCE;
 }
 
-/** /invite のクリック記録を置く bot_kv の名前空間。 */
 export const INVITE_CLICKS_NAMESPACE = "invite_clicks";
 
-/** 公開ランキングのスナップショットを置く bot_kv の名前空間とキー。 */
 export const PUBLIC_RANKING_NAMESPACE = "public_ranking";
 export const PUBLIC_RANKING_KEY = "snapshot";
 
@@ -71,17 +58,12 @@ export type PublicRankingSnapshot = {
   updated_at: string;
   exp: RankingEntry[];
   coin: RankingEntry[];
-  /** bump RTA（全サーバー・速い順）。value は elapsed_ms。旧形式スナップショット用。 */
   bump: RankingEntry[];
-  /** up RTA（全サーバー・速い順）。value は elapsed_ms。旧形式スナップショット用。 */
   up: RankingEntry[];
-  /** bump系RTA の単一ボード（全サービスの記録を種類別エントリで pooled）。 */
   rta: RtaBoardSet;
-  /** サーバー対抗ランキング（期間別）。旧スナップショットでは空になる。 */
   servers: ServerBoardSet;
 };
 
-/** サーバー対抗ランキングの1行。icon はサーバーアイコンの CDN URL。 */
 export type ServerRankingEntry = {
   name: string;
   icon?: string;
@@ -91,7 +73,6 @@ export type ServerRankingEntry = {
   vc_seconds: number;
 };
 
-/** サーバー対抗ランキングの期間別ボード。キーは Discord 側の期間と一致。 */
 export type ServerBoardSet = {
   today: ServerRankingEntry[];
   week: ServerRankingEntry[];
@@ -104,12 +85,10 @@ export const SERVER_PERIODS: { key: keyof ServerBoardSet; label: string }[] = [
   { key: "month", label: "30日" },
 ];
 
-/** RTA の記録エントリ。at は記録日時 (ISO)、service は記録したサービス。 */
 export type RtaEntry = RankingEntry & { at?: string; service?: string };
 
 export type RtaBoardSet = { fast: RtaEntry[]; slow: RtaEntry[] };
 
-/** bump系RTA のサービス一覧（キーと表示名）。エントリのラベル表示用。 */
 export const RTA_SERVICES: { key: string; label: string }[] = [
   { key: "bump", label: "bump" },
   { key: "up", label: "up" },
@@ -173,17 +152,14 @@ function cleanRtaBoard(
     typeof raw === "object" && raw !== null && !Array.isArray(raw)
       ? (raw as Record<string, unknown>)
       : {};
-  // 現行形式: rta 自体が {fast, slow} の単一ボード
   if (Array.isArray(source.fast) || Array.isArray(source.slow)) {
     return { fast: cleanRtaEntries(source.fast), slow: cleanRtaEntries(source.slow) };
   }
-  // 移行期の旧形式（サービス別＋総合の Record）: 総合ボードを流用する
   const all = source.all;
   if (typeof all === "object" && all !== null) {
     const set = all as Record<string, unknown>;
     return { fast: cleanRtaEntries(set.fast), slow: cleanRtaEntries(set.slow) };
   }
-  // rta キーなしの旧形式: bump / up の最速をサービス名タグつきで寄せる
   if (Object.keys(source).length === 0) {
     const fast = [
       ...legacy.bump.map((e) => ({ ...e, service: "bump" })),
@@ -226,7 +202,6 @@ function cleanServerBoards(raw: unknown): ServerBoardSet {
   };
 }
 
-/** Bot が書いた生スナップショットを、表示に使える形へ検証して寄せる。 */
 export function parseRankingSnapshot(raw: unknown): PublicRankingSnapshot | null {
   if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return null;
   const record = raw as Record<string, unknown>;
@@ -244,11 +219,9 @@ export function parseRankingSnapshot(raw: unknown): PublicRankingSnapshot | null
   };
 }
 
-/** Bot の稼働スナップショットを置く bot_kv の名前空間とキー。 */
 export const BOT_STATUS_NAMESPACE = "bot_status";
 export const BOT_STATUS_KEY = "snapshot";
 
-/** Bot の書き出し周期は5分。その3周期分までを「新鮮（稼働中）」とみなす。 */
 export const BOT_STATUS_FRESH_MS = 15 * 60 * 1000;
 
 export type BotStatusSnapshot = {
@@ -271,7 +244,6 @@ function cleanIsoString(raw: unknown): string | null {
   return typeof raw === "string" && raw !== "" && !Number.isNaN(Date.parse(raw)) ? raw : null;
 }
 
-/** Bot が書いた生スナップショットを、表示に使える形へ検証して寄せる。 */
 export function parseBotStatusSnapshot(raw: unknown): BotStatusSnapshot | null {
   if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return null;
   const record = raw as Record<string, unknown>;
@@ -286,7 +258,6 @@ export function parseBotStatusSnapshot(raw: unknown): BotStatusSnapshot | null {
   };
 }
 
-/** Bot の履歴ドキュメント（稼働率・推移グラフ用）を置く bot_kv のキー。 */
 export const BOT_STATUS_HISTORY_KEY = "history";
 
 export type BotStatusDay = {
@@ -304,7 +275,6 @@ export type BotStatusHistory = {
 const BOT_STATUS_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const BOT_STATUS_HOUR_RE = /^\d{4}-\d{2}-\d{2}T\d{2}$/;
 
-/** Bot が書いた生の履歴を、表示に使える形へ検証して寄せる。 */
 export function parseBotStatusHistory(raw: unknown): BotStatusHistory | null {
   if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return null;
   const record = raw as Record<string, unknown>;
@@ -339,21 +309,14 @@ export function parseBotStatusHistory(raw: unknown): BotStatusHistory | null {
   return { days, cmdHours };
 }
 
-/** スナップショットが新鮮（Bot が生きている証拠として扱える）かどうか。 */
 export function isBotStatusFresh(snapshot: BotStatusSnapshot, now: Date = new Date()): boolean {
   const updatedMs = Date.parse(snapshot.updated_at);
   if (Number.isNaN(updatedMs)) return false;
   return now.getTime() - updatedMs <= BOT_STATUS_FRESH_MS;
 }
 
-/** 共通レイアウトの導線定義（ヘッダー／フッターの唯一の正）。
- * 規則: 公開ページへの入り口は共通レイアウト内の1か所だけに置く。
- * 同じ行き先を複数か所に置く場合は名称を完全に一致させる（現状は外部の
- * サポートサーバーだけが、ヘッダーの補助導線とフッターのサポート群に同名で載る）。
- * ヘッダー主導線＝探索、ヘッダー補助導線＝運用・支援、フッター＝補完、と役割で分ける。 */
 export type SiteLink = { href: string; label: string; external?: boolean };
 
-/** ヘッダー主導線（探索系）。左の塊に固定する。 */
 export const PRIMARY_NAV: SiteLink[] = [
   { href: "/features", label: "機能紹介" },
   { href: "/commands", label: "コマンド" },
@@ -361,13 +324,11 @@ export const PRIMARY_NAV: SiteLink[] = [
   { href: "/ranking", label: "ランキング" },
 ];
 
-/** ヘッダー補助導線（運用・支援系）。主導線とは別の塊に分け、右に固定する。 */
 export const UTILITY_NAV: SiteLink[] = [
   { href: SUPPORT_SERVER_URL, label: "サポートサーバー", external: true },
   { href: "/dashboard", label: "ダッシュボード" },
 ];
 
-/** フッター（補完専用）。主導線の複写は置かず、役割ごとの群に分ける。 */
 export const FOOTER_GROUPS: { label: string; links: SiteLink[] }[] = [
   {
     label: "ツール",
@@ -400,7 +361,6 @@ export const FOOTER_GROUPS: { label: string; links: SiteLink[] }[] = [
   },
 ];
 
-/** 現在地判定。配下のページ（/commands/… など）でも親の導線を現在地とする。 */
 export function isNavActive(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
 }

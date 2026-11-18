@@ -1,19 +1,3 @@
-// WORLD BOX（Takasumi 版）会社システムの保存と送金（サーバー専用）。
-// 保存先は bot_kv（名前空間 "worldbox_company"):
-//   キー = 会社 ID（10文字）        → Company 本体
-//   キー = "member:<ownerKey>"     → 会社 ID（所属索引。1人1社の担保）
-//   キー = "invite:<コード>"       → CompanyInvite（使い切り・1時間）
-//   キー = "product:<商品ID>"      → CompanyProduct 本体
-//   キー = "history:<会社ID>"      → CompanyHistoryEntry[]（新しい順）
-//   キー = "duty:<ownerKey>"       → CompanyDuty（Phase 4: 勤務中状態）
-//   キー = "sign:<x>,<y>"          → 店舗看板の登録（Phase 4: ワールドの
-//                                    看板タイル → 会社 ID と設置者 ID）
-// 個人残高との金の出入りは経済ブリッジのオプ経由だけ:
-//   個人 → 会社（資本金・商品購入）: spend オプ（国庫へ払い込み）
-//   会社 → 個人（給料・ボーナス・解散返還）: earn オプ（国庫から払い出し）
-// 会社資産は台帳上の数字で、オプの適用と対で増減させる。ゲストは
-// submitEconomyOp の入口で guest_not_allowed として終端するため、
-// 会社経由でもゲストへ金が渡ることはない（所属自体も Discord 必須）。
 import { isBotApiConfigured, kvDelete, kvGet, kvList, kvSet } from "../../bot-api";
 import { parseSave } from "../core/save";
 import { loadWorldBoxSave } from "../core/save-online";
@@ -104,7 +88,6 @@ export async function storeCompany(company: Company): Promise<boolean> {
   }
 }
 
-/** 会社の全レコード（本体・所属索引・招待・商品・履歴）を消す。解散用。 */
 export async function deleteCompanyAll(company: Company): Promise<void> {
   if (!isBotApiConfigured()) return;
   try {
@@ -145,7 +128,6 @@ export async function clearMemberIndex(ownerKey: string): Promise<void> {
   }
 }
 
-/** 自分が所属する会社（索引→本体）。索引が腐っていたら掃除する。 */
 export async function loadCompanyOf(ownerKey: string): Promise<Company | null> {
   if (!isBotApiConfigured()) return null;
   try {
@@ -162,7 +144,6 @@ export async function loadCompanyOf(ownerKey: string): Promise<Company | null> {
   }
 }
 
-/** 全会社（Cron と会社一覧用）。 */
 export async function loadAllCompanies(): Promise<Company[]> {
   if (!isBotApiConfigured()) return [];
   try {
@@ -190,7 +171,6 @@ export async function loadCompanyHistory(companyId: string): Promise<CompanyHist
   }
 }
 
-/** 履歴へ追記して保存する。失敗しても台帳の適用は覆さない（表示が正）。 */
 export async function appendCompanyHistory(
   companyId: string,
   entries: readonly CompanyHistoryEntry[],
@@ -218,7 +198,6 @@ export async function storeInvite(invite: CompanyInvite): Promise<boolean> {
   }
 }
 
-/** 招待コードを引く。失効していたら消して null（読み取り時の失効）。 */
 export async function loadInvite(code: string, now: number): Promise<CompanyInvite | null> {
   if (!isBotApiConfigured() || !code) return null;
   try {
@@ -275,10 +254,6 @@ export async function deleteProduct(productId: string): Promise<void> {
   }
 }
 
-/**
- * 会社の出品中商品（寿命切れは読み取り時に落とす）。
- * 戻り値の expired は呼び出し側が会社の productIds から除いて保存する。
- */
 export async function loadLiveProducts(
   company: Company,
   now: number,
@@ -301,13 +276,10 @@ export async function loadLiveProducts(
   return { products, expiredIds };
 }
 
-// ---- 経済ブリッジへの送金ヘルパー ----
-
 export type CompanyMoneyResult =
   | { state: "done"; op: EconomyOp }
   | { state: "failed" | "pending" | "unavailable"; op?: EconomyOp };
 
-/** 個人 → 国庫の支払い（資本金・商品購入）。終端まで待って結果を返す。 */
 export async function chargeUser(
   ownerKey: string,
   discordId: string,
@@ -328,7 +300,6 @@ export async function chargeUser(
   return { state: waited.status === "done" ? "done" : waited.status, op: waited };
 }
 
-/** 国庫 → 個人の払い出し（給料・ボーナス・解散返還）。 */
 export async function payOutToUser(
   ownerKey: string,
   discordId: string,
@@ -349,9 +320,6 @@ export async function payOutToUser(
   return { state: waited.status === "done" ? "done" : waited.status, op: waited };
 }
 
-// ---- Phase 4: 本社・勤務・店舗看板の保存と位置 ----
-
-/** 本人の現在位置（空間＋タイル座標）。プレゼンス（鮮度内）→ セーブの順。 */
 export async function loadActorPosition(
   ownerKey: string,
 ): Promise<{ space: string; tx: number; ty: number } | null> {
@@ -420,7 +388,6 @@ export async function deleteSignCompany(x: number, y: number): Promise<void> {
   }
 }
 
-/** 指定した空間に本社を置く会社の一覧（ワールド表示のマーカー用）。 */
 export async function loadHqList(
   space: string,
 ): Promise<{ id: string; name: string; x: number; y: number }[]> {
@@ -434,8 +401,6 @@ export async function loadHqList(
   return out;
 }
 
-// ---- Cron（給料・法人税・失効掃除） ----
-
 export interface CompanyCronResult {
   companies: number;
   salariesPaid: number;
@@ -445,15 +410,6 @@ export interface CompanyCronResult {
   invitesExpired: number;
 }
 
-/**
- * 会社 Cron の1回分（Vercel Cron が毎時呼ぶ）。
- * - 給料: JST 8〜20時台に、その時間のキーが未処理の会社へ支給する。
- *   資産不足の会社は全員スキップ（v3 仕様）。冪等キーは結果によらず
- *   立てる（同じ時間帯の二重支給を防ぐ。翌時は新しいキーになる）。
- * - 法人税: JST 3時間ごとの時間帯に、直近3時間の利益へ累進課税する。
- * - 失効掃除: 期限切れの招待コードと商品を消し、商品は会社の
- *   出品一覧からも落とす。
- */
 export async function runCompanyCron(now: number): Promise<CompanyCronResult> {
   const result: CompanyCronResult = {
     companies: 0,
@@ -465,7 +421,6 @@ export async function runCompanyCron(now: number): Promise<CompanyCronResult> {
   };
   if (!isBotApiConfigured()) return result;
 
-  // 失効した招待コードの掃除（名前空間を1回だけ走査する）。
   try {
     const all = await kvList(WORLDBOX_COMPANY_NAMESPACE);
     for (const [key, raw] of all) {
@@ -492,7 +447,6 @@ export async function runCompanyCron(now: number): Promise<CompanyCronResult> {
     const historyEntries: CompanyHistoryEntry[] = [];
     let dirty = false;
 
-    // 寿命切れ商品の掃除。
     const live = await loadLiveProducts(company, now);
     if (live.expiredIds.length > 0) {
       company = {
@@ -503,7 +457,6 @@ export async function runCompanyCron(now: number): Promise<CompanyCronResult> {
       dirty = true;
     }
 
-    // 給料（台帳を先に確定させてから earn オプで払い出す）。
     let payouts: { ownerKey: string; discordId: string; net: number }[] = [];
     if (doSalary && company.lastSalaryKey !== salaryKey) {
       const plan = planSalaryRun(company, now);
@@ -523,7 +476,6 @@ export async function runCompanyCron(now: number): Promise<CompanyCronResult> {
       }
     }
 
-    // 法人税（直近3時間の利益。資本金の追加は利益に数えない）。
     if (doTax && company.lastTaxKey !== taxKey) {
       const history = await loadCompanyHistory(company.id);
       const profit = taxableProfit(history, now - COMPANY_TAX_WINDOW_MS);

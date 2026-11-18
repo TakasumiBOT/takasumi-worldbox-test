@@ -1,8 +1,3 @@
-// AGO WORLD BOX 望遠鏡の検証:
-// - ロビー1F（競馬場北スタンド）と 3F 展望デッキに station "telescope" で配置される
-// - スプライトが textures.ts に登録され、実ファイルが存在する
-// - 望遠鏡の隣では stationNear が "telescope" を返す
-// - クライアント配線: 開いている間は入力が視点へ回り、ドラッグでも視点が動く
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -67,7 +62,6 @@ test("望遠鏡: ロビー1Fの競馬場北スタンドと中央広場に配置�
   const stand = scopes.find((o) => o.x === 93 && o.y === 6);
   assert.ok(stand);
   assert.equal(stand.station, "telescope");
-  // 望遠鏡の南隣（スタンド側）に立つと station "telescope"
   assert.equal(wb.stationNear(lobby.objects, 93, 7), "telescope");
   const plaza = scopes.find((o) => o.x === 28 && o.y === 27);
   assert.ok(plaza);

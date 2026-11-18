@@ -1,7 +1,3 @@
-// AGO WORLD BOX: プレゼンスポーリング間引き（Phase 0）のテスト。
-// - isWsHealthy: 接続中かつ生存窓内の応答がある間だけ健全
-// - presencePollDue: 健全時は 15 秒セーフティ、不健全時は 1 秒
-// - 配線: relay の定期 tick / クライアントの pollTick / 中継コアは不変
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -61,7 +57,6 @@ const {
 test("realtime-poll: 間隔定数が設計どおり", () => {
   assert.equal(PRESENCE_POLL_MS, 1_000);
   assert.equal(PRESENCE_SAFETY_POLL_MS, 15_000);
-  // relay の tick（15秒）より広く、ping/pong 検知（30秒）より狭い
   assert.ok(WS_ALIVE_WINDOW_MS > PRESENCE_SAFETY_POLL_MS);
   assert.ok(WS_ALIVE_WINDOW_MS < 30_000);
 });
@@ -77,13 +72,10 @@ test("realtime-poll: WS 健全判定は接続と生存窓の両方を見る", ()
 
 test("realtime-poll: 健全時は15秒、不健全時は1秒で due になる", () => {
   const t0 = 500_000;
-  // 不健全: 1 秒未満は未了、1 秒で due
   assert.equal(presencePollDue({ now: t0 + 999, lastPollAt: t0, wsHealthy: false }), false);
   assert.equal(presencePollDue({ now: t0 + 1_000, lastPollAt: t0, wsHealthy: false }), true);
-  // 健全: 14.9 秒では due にならず、15 秒で due
   assert.equal(presencePollDue({ now: t0 + 14_999, lastPollAt: t0, wsHealthy: true }), false);
   assert.equal(presencePollDue({ now: t0 + 15_000, lastPollAt: t0, wsHealthy: true }), true);
-  // 初回（lastPollAt=0）はどちらでも即 due
   assert.equal(presencePollDue({ now: t0, lastPollAt: 0, wsHealthy: true }), true);
 });
 

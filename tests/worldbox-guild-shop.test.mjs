@@ -1,4 +1,3 @@
-// WORLD BOX バッチ7残件: ギルドショップの純粋ロジックテスト。
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -105,7 +104,6 @@ test("guild-shop: state parse keeps valid plots/listings only", () => {
   assert.equal(G.plotOfGuild(state, "g1").idx, 2);
   assert.equal(G.plotOfGuild(state, "nope"), null);
   assert.deepEqual(G.parseGuildShopState("junk"), G.emptyGuildShopState());
-  // JSON 文字列からも復元できる
   const back = G.parseGuildShopState(JSON.stringify(state));
   assert.deepEqual(back, state);
 });

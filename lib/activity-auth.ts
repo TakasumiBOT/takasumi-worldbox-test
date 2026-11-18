@@ -9,12 +9,6 @@ export type DiscordOAuthUser = {
   avatar?: string | null;
 };
 
-/**
- * Activity の OAuth コード交換（PKCE）＋ /users/@me 取得。
- * ゲーム側（games-auth ルート）が使う。音楽 Activity 画面の廃止
- * （2026-11-14）に伴い、Activity トークンの発行・検証は撤去した。
- * 失敗は Error を投げる（呼び出し側で HTTP 応答に変換する）。
- */
 export async function exchangeDiscordActivityCode(args: {
   clientId: string;
   clientSecret: string;

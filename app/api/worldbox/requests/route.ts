@@ -27,17 +27,6 @@ import { loadMyLobbyStation } from "@/lib/worldbox/world/station-online";
 
 export const runtime = "nodejs";
 
-// AGO WORLD BOX のギルド依頼（ロビーのギルドボード）。
-// 依頼はユニオン（国 = Discord サーバー）単位: 投稿・納品・取消の規則は
-// lib/worldbox/social/requests、保存は bot_kv（名前空間 worldbox_requests）。
-// コインの正は AGO コイン本体: 投稿時の預かりは spend オプ、納品の報酬と
-// 取消の返金は earn オプとして経済ブリッジへ積むだけ（案B）。
-// GET: { loggedIn, me: { guildId, guildName, role } | null, requests }
-// POST { action: "post", itemId, count, reward }: 依頼を出す（預かり金を spend）
-// POST { action: "fulfill", requestId }: 所持アイテムを納品して報酬を受け取る
-// POST { action: "cancel", requestId }: 自分の依頼を取り消す（預かり金を返金）
-// Bot API 未設定なら 503（GET は空で返す）。
-
 const NO_STORE = { "Cache-Control": "no-store, max-age=0" };
 
 const BAD_REQUEST_ERRORS = new Set([
@@ -63,26 +52,10 @@ function sameOrigin(request: Request) {
   return !origin || origin === publicOrigin(request);
 }
 
-/** 自分の依頼かどうかを付けた一覧ビュー。 */
 function view(state: Parameters<typeof requestsForGuild>[0], guildId: string, ownerKey: string) {
   return requestsForGuild(state, guildId).map((r) => ({ ...r, mine: r.posterKey === ownerKey }));
 }
 
-/**
- * coin をブリッジのオプとして積む。積めたら true。
- * オプ ID は依頼 ID から決定的に導く（escrow-/reward-/refund-<依頼ID>）+
- * 冪等登録（enqueueEconomyOpOnce）: 依頼1件につき各オプは最大1件しか
- * 積まれず、再試行や並行リクエストで預かり・報酬・返金が二重に
- * 動くことはない（カジノの精算オプと同じ規則、PR #943）。
- */
-/**
- * 預かり（escrow）オプの状態。報酬・返金は escrow が done のときだけ動かす
- * （カジノ・アリーナの「先払い done ゲート」と同じ規則）。
- * これが無いと、投稿直後に残高を抜いて escrow を failed にしたうえで
- * 取消/納品すると、預けていない金の返金・報酬がプールから出てしまう。
- * pending の間はクライアントに待たせ、failed の依頼は返金なしで
- * 取り消すだけにする（納品は不可）。
- */
 async function escrowStatus(
   posterKey: string,
   requestId: string,
@@ -140,11 +113,6 @@ export async function POST(request: Request) {
   if (session.provider !== "discord") return statusError("discord_required", 403);
   if (!isRequestsEnabled() || !isProfileEnabled()) return statusError("requests_unavailable", 503);
   if (!isEconomyEnabled()) return statusError("economy_unavailable", 503);
-  // 依頼の状態は全ユーザー共有の1ドキュメント（read-modify-write）。
-  // 投稿者と納品者が別人同士でも競合するため、ユーザー単位でなく
-  // 依頼全体を固定キーで直列化する（カジノ #943 と同型の対策）。
-  // これがないと 納品×2 や 納品×取消 が同時に通って報酬と返金が
-  // 両方払われうる。決定的なオプ ID と合わせて二重払いを防ぐ。
   return withUserLock("worldbox:requests", () => handlePost(request, session));
 }
 
@@ -171,7 +139,6 @@ async function handlePost(request: Request, session: AuthedSession) {
   const mine = nations.members[ownerKey];
   if (!mine) return errorResponse("not_in_nation");
   const guildId = mine.nationId;
-  // 場所制約: 依頼の操作はギルドボードの前でのみ（場所検証の共通方式）
   if ((await loadMyLobbyStation(ownerKey)) !== "guild") {
     return errorResponse("not_at_guild_board");
   }
@@ -246,10 +213,6 @@ async function handlePost(request: Request, session: AuthedSession) {
         await storeRequestsState(state);
         return statusError("economy_failed", 503);
       }
-      // 報酬の決済が server-side wait のうちに failed になったら納品
-      // 自体を巻き戻す（構造問題#4と同型: アイテムだけ渡って報酬が出ない
-      // 状態を作らない）。pending のままなら従来どおり返し、クライアントの
-      // ポーリングに引き継ぐ。
       const settled = await waitForOpDone(ownerKey, `reward-${data.requestId}`);
       if (settled && settled.status === "failed") {
         await storeProfile(ownerKey, fulfillerProfile);
@@ -273,8 +236,6 @@ async function handlePost(request: Request, session: AuthedSession) {
       if (typeof data.requestId !== "string") return statusError("invalid_request", 400);
       const result = cancelRequest(state, data.requestId, ownerKey);
       if (!result.ok) return errorResponse(result.error);
-      // 取消も escrow の確定が前提: pending は待たせ、failed（残高不足で
-      // 預かれなかった）依頼は返金オプなしで取り消す。
       const esc = await escrowStatus(ownerKey, data.requestId);
       if (esc === "pending") return errorResponse("escrow_pending");
       if (!(await storeRequestsState(result.state))) return statusError("store_failed", 503);
@@ -283,8 +244,6 @@ async function handlePost(request: Request, session: AuthedSession) {
           await storeRequestsState(state);
           return statusError("economy_failed", 503);
         }
-        // 返金の決済が failed なら取消自体を巻き戻す（預かり金が戻らない
-        // まま依頼だけ消える状態を作らない）。
         const refundSettled = await waitForOpDone(ownerKey, `refund-${data.requestId}`);
         if (refundSettled && refundSettled.status === "failed") {
           await storeRequestsState(state);

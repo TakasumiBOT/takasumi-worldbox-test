@@ -1,13 +1,3 @@
-// 設定のリポジトリ内蔵化（Vercel 環境変数を触れない運用）の検証:
-// - Discord 設定: env が優先、無ければ lib/deploy-config.ts にフォールバック。
-//   deploy-config に値が入れば isDiscordConfigured が立つ。セッション秘密も
-//   同じ解決順（env SESSION_SECRET → env CLIENT_SECRET → deploy-config）。
-// - bot-api: BOT_API_* 未設定でも DATABASE_URL があればプロセス内で
-//   lib/botapi-server.ts のハンドラを直接呼び、HTTP 経路と同じ値の形で
-//   往復する。BOT_API_* があれば従来どおり HTTP を使う。どちらも無ければ
-//   未設定として弾く。公開ルートは BOT_API_KEY 未設定なら常に 401。
-// - 遅延実行（lazy-jobs）: 間隔内は再実行されず、経過後に 1 回だけ走る。
-//   Cron 側の markLazyJobRun とタイムスタンプを共有し、二重に走らない。
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -47,8 +37,6 @@ function restoreEnv() {
   }
 }
 
-// ------------------------------------------------------------ auth / deploy-config
-
 const subdomainUrl = dataUrl(transpile("subdomain.ts"));
 const headersStubUrl = dataUrl(
   "export async function cookies() { throw new Error('tests do not use cookies()'); }",
@@ -81,11 +69,7 @@ test("deploy-config: 値が入っていれば env 無しで Discord 設定済み
     assert.equal(authFilled.isDiscordConfigured(), true);
     assert.equal(authFilled.discordClientId(), "111222333");
     assert.equal(authFilled.discordClientSecret(), "deploy-secret");
-    assert.equal(
-      authFilled.discordRedirectUri(),
-      "https://example.test/api/auth/discord/callback",
-    );
-    // 公開オリジンは deploy-config の redirect_uri から決まる
+    assert.equal(authFilled.discordRedirectUri(), "https://example.test/api/auth/discord/callback");
     assert.equal(authFilled.publicOrigin(fakeRequest), "https://example.test");
   } finally {
     restoreEnv();
@@ -125,11 +109,9 @@ test("deploy-config: 実ファイルは ID/SECRET 未記入（redirect のみ）
 test("deploy-config: セッション秘密は deploy-config の secret でも署名でき、env が優先される", () => {
   clearEnv();
   try {
-    // env 無し: deploy-config の secret で Discord セッションが作れて往復する
     const user = { id: "123456789", username: "tester", provider: "discord" };
     const token = authFilled.createSession(user);
     assert.equal(authFilled.readSession(token)?.id, "123456789");
-    // env のセッション秘密を立てると、deploy-config secret で署名した token は受理されない
     process.env.DISCORD_SESSION_SECRET = "env-session-secret";
     assert.equal(authFilled.readSession(token), null);
     const envToken = authFilled.createSession(user);
@@ -139,15 +121,12 @@ test("deploy-config: セッション秘密は deploy-config の secret でも署
   }
 });
 
-// ------------------------------------------------------------ bot-api プロセス内経路
-
-// bot_kv と economy_pool_state だけを解釈する最小 fake DB。
 function makeFakeExecutor() {
-  const kv = new Map(); // `${namespace}\0${key}` -> JSON 文字列
+  const kv = new Map();
   const pool = { pool: "0", treasury: "0", total_recycled: "0", total_house_paid: "0" };
   const executor = {
     async query(sql, params = []) {
-      if (sql.startsWith('SELECT') && sql.includes('"bot_kv"')) {
+      if (sql.startsWith("SELECT") && sql.includes('"bot_kv"')) {
         const [namespace, key] = params;
         const raw = kv.get(`${namespace}\0${key}`);
         return raw === undefined ? [] : [{ key, value: raw }];
@@ -158,7 +137,7 @@ function makeFakeExecutor() {
         return [{ namespace, key, value: raw, updated_at: new Date() }];
       }
       if (sql.startsWith('INSERT INTO "economy_pool_state"')) return [];
-      if (sql.startsWith('SELECT') && sql.includes('"economy_pool_state"')) {
+      if (sql.startsWith("SELECT") && sql.includes('"economy_pool_state"')) {
         return [{ ...pool }];
       }
       if (sql.startsWith('UPDATE "economy_pool_state"')) {
@@ -213,8 +192,6 @@ test("bot-api: BOT_API_* 未設定 + DATABASE_URL でプロセス内経路が通
       n: 42,
     });
     assert.equal(await botApi.kvGet("worldbox_test_ns", "missing"), null);
-    // RPC もプロセス内で通り、戻り値は HTTP 往復と同じ形になる
-    // （安全な整数は数値、安全でない大きな整数は番兵文字列 "#int:..."）
     const rows = await botApi.rpc("economy_pool_add_loss", { p_amount: 1000 });
     assert.equal(rows[0].pool_part, 700);
     assert.equal(rows[0].treasury_part, 300);
@@ -276,7 +253,6 @@ test("bot-api: 公開ルートは BOT_API_KEY 未設定なら正しい形式で�
       filters: [{ column: "namespace", op: "eq", value: "ns" }],
       limit: 1,
     });
-    // 鍵未設定: Bearer を付けても付けなくても 401
     const noKey = await botapiServer.processBotApiRequest("query", body, null, fakeExecutor);
     assert.equal(noKey.status, 401);
     const someKey = await botapiServer.processBotApiRequest(
@@ -286,7 +262,6 @@ test("bot-api: 公開ルートは BOT_API_KEY 未設定なら正しい形式で�
       fakeExecutor,
     );
     assert.equal(someKey.status, 401);
-    // 鍵設定 + 一致する Bearer なら通る
     process.env.BOT_API_KEY = "route-key";
     const ok = await botapiServer.processBotApiRequest(
       "query",
@@ -299,8 +274,6 @@ test("bot-api: 公開ルートは BOT_API_KEY 未設定なら正しい形式で�
     restoreEnv();
   }
 });
-
-// ------------------------------------------------------------ 遅延実行（lazy-jobs）
 
 const lazyKv = new Map();
 const lazyCounts = { sweep: 0, company: 0, stock: 0 };
@@ -353,24 +326,20 @@ test("lazy: 初回は全ジョブが走り、間隔内は再実行されず、�
   await flushLazy();
   assert.deepEqual({ ...lazyCounts }, { sweep: 1, company: 1, stock: 1 });
 
-  // 間隔内（+1 秒）: 何も走らない
   lazyJobs.maybeRunLazyJobs(T0 + 1_000);
   await flushLazy();
   assert.deepEqual({ ...lazyCounts }, { sweep: 1, company: 1, stock: 1 });
 
-  // sweep の間隔（55 秒）だけ経過: sweep だけ走る
   lazyJobs.maybeRunLazyJobs(T0 + 56_000);
   await flushLazy();
   assert.deepEqual({ ...lazyCounts }, { sweep: 2, company: 1, stock: 1 });
 
-  // company の間隔（10 分）も経過: company も走る（stock はまだ）
   lazyJobs.maybeRunLazyJobs(T0 + 11 * 60_000);
   await flushLazy();
   assert.deepEqual({ ...lazyCounts }, { sweep: 3, company: 2, stock: 1 });
 });
 
 test("lazy: Cron 側の markLazyJobRun とタイムスタンプを共有し二重に走らない", async () => {
-  // Cron が T0 に処理したことにする（全ジョブ分のタイムスタンプを進める）
   await lazyJobs.markLazyJobRun("economy_sweep", T0);
   await lazyJobs.markLazyJobRun("company_cron", T0);
   await lazyJobs.markLazyJobRun("stock_dividend", T0);
@@ -384,7 +353,7 @@ test("lazy: 実行中の多重キックは二重実行にならない", async ()
   lazyKv.clear();
   const before = { ...lazyCounts };
   lazyJobs.maybeRunLazyJobs(T0);
-  lazyJobs.maybeRunLazyJobs(T0); // running 中なので即座に弾かれる
+  lazyJobs.maybeRunLazyJobs(T0);
   await flushLazy();
   assert.equal(lazyCounts.sweep, before.sweep + 1);
   assert.equal(lazyCounts.company, before.company + 1);

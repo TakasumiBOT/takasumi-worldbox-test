@@ -1,8 +1,3 @@
-// AGO WORLD BOX 移動の手触りの検証:
-// - スタミナ（消費・回復遅延・空封じ・帰還後の下限）
-// - ダッシュ入力（スティックの強い倒し / キー2度押し）
-// - 泳ぎ（swim オプションで水に入れる。他の固体は従来通り）
-// - 他プレイヤー描画（バネ追従で飛ばない・ワープ時だけ即合わせ・外挿は頭打ち）
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -104,8 +99,6 @@ const rm = await loadBundle(
   ],
 );
 
-// ---------- スタミナ ----------
-
 test("stamina: 初期状態は満タンでダッシュ可、ゲージは隠れる", () => {
   const s = st.createStamina();
   assert.equal(s.value, st.STAMINA_MAX);
@@ -138,7 +131,6 @@ test("stamina: 空になった瞬間に emptied が立ち、ダッシュ封じ�
   assert.equal(r2.state.value, 0);
   assert.equal(r2.state.exhausted, true);
   assert.equal(st.canDash(r2.state), false);
-  // 泳ぎで空にしても同じく封じられる
   const r3 = st.stepStamina({ value: 3, exhausted: false, idleSec: 0 }, "swim", 1);
   assert.equal(r3.emptied, true);
   assert.equal(r3.state.exhausted, true);
@@ -187,8 +179,6 @@ test("stamina: ゲージは減っている間と使った直後だけ出る", ()
   );
 });
 
-// ---------- ダッシュ入力 ----------
-
 test("dash入力: スティックは閾値を超えた倒しだけダッシュ", () => {
   assert.equal(st.isStickDash(0.86, 0), true);
   assert.equal(st.isStickDash(0.85, 0), false);
@@ -215,8 +205,6 @@ test("dash入力: 同じキーの2度押し（300ms以内）だけダッシュ",
   r = st.registerKeyTap(tr, "a", 2300);
   assert.equal(r.doubleTapped, true);
 });
-
-// ---------- 泳ぎ（移動） ----------
 
 function tinyMap() {
   const tiles = new Uint8Array(36).fill(mv.T_GRASS);
@@ -268,8 +256,6 @@ test("swim: findFreeNear は泳ぎ可なら水上をそのまま認める", () =
   assert.equal(mv.isWaterAt(map, rescued.x, rescued.y), false);
 });
 
-// ---------- 他プレイヤーの描画補間 ----------
-
 const BOUNDS = { minX: 0, maxX: 1024, minY: 0, maxY: 1024 };
 const entry = (x, y, vx, vy, ts, face = 1) => ({
   id: "a",
@@ -299,13 +285,10 @@ test("remote: 歩行中の更新では描画位置が飛ばず、なめらかに
     prevX = tr.rx;
   }
   assert.ok(maxStep < 0.35, `1フレームで飛びすぎ: ${maxStep}`);
-  // 外挿は2秒で頭打ち → 目標は 10 + 4.4*2 = 18.8（目標が動き続けるため寄せは緩めに見る）
   assert.ok(Math.abs(tr.rx - 18.8) < 0.9, `外挿目標へ寄っていない: ${tr.rx}`);
-  // 新しいスナップショット（2秒時点で 18.8）を受けても描画位置はその場で動かない
   const before = tr.rx;
   tr = rm.updateRemoteTrack(tr, entry(18.8, 10, 4.4, 0, 2000), 2000, BOUNDS);
   assert.equal(tr.rx, before);
-  // その後もなめらかに追い続ける
   for (let t = 2000; t <= 3000; t += 1000 / 60) {
     tr = rm.stepRemoteTrack(tr, t, 1 / 60, BOUNDS);
     assert.ok(Math.abs(tr.rx - prevX) < 0.35, "更新後も飛ばない");
@@ -339,8 +322,6 @@ test("remote: 向きはスナップショットの face がそのまま使われ
   tr = rm.updateRemoteTrack(tr, entry(11, 10, 1, 0, 100, 1), 100, BOUNDS);
   assert.equal(tr.entry.face, 1);
 });
-
-// ---------- クライアント配線 ----------
 
 test("クライアント: スタミナ・ダッシュ・泳ぎ・補間が配線されている", () => {
   const client = fs.readFileSync(

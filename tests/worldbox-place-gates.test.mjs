@@ -1,9 +1,3 @@
-// AGO WORLD BOX の場所制約（施設ゲート）の検証:
-// - 純粋ロジック: 固定式スティック（基点・当たり判定・倒し量）
-// - サーバー検証: 売買=ショップ前、合成=作業台（鍛冶屋）前、送金=銀行前、
-//   掲示板投稿=掲示板前。位置の正はプレゼンス（ロビーの実配置で判定し、
-//   ワールド・広場・別の施設・プレゼンス無しはすべて 409）
-// - クライアント配線: 経済パネルへステーションを渡す、スティックは固定式
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -23,14 +17,11 @@ function dataUrl(js) {
   return "data:text/javascript;base64," + Buffer.from(js).toString("base64");
 }
 
-// ---------- 固定式スティック（純粋ロジック） ----------
-
 const stick = await import(dataUrl(transpile("worldbox/player/stick.ts")));
 
 test("stick: 基点はキャンバス左下の固定位置（タッチした場所に出ない）", () => {
   assert.deepEqual(stick.stickBase(800, 600), { x: 78, y: 522 });
   assert.deepEqual(stick.stickBase(390, 700), { x: 78, y: 622 });
-  // 小さいキャンバスでも基点が上端より上へ出ない
   assert.equal(stick.stickBase(300, 100).y, 78);
 });
 
@@ -38,7 +29,6 @@ test("stick: スティックになるのは基点の円の中から始まった�
   const base = stick.stickBase(800, 600);
   assert.equal(stick.isStickTouch(base.x, base.y, base), true);
   assert.equal(stick.isStickTouch(base.x + stick.STICK_HIT_RADIUS, base.y, base), true);
-  // 画面中央や右側のタッチ（ブロック設置・採掘のタップ）はスティックにならない
   assert.equal(stick.isStickTouch(400, 300, base), false);
   assert.equal(stick.isStickTouch(700, 100, base), false);
   assert.equal(stick.isStickTouch(base.x, 100, base), false);
@@ -54,8 +44,6 @@ test("stick: 倒し量は基点からの相対量で、長さ1でクランプさ
   assert.equal(over.dx, 1);
   assert.equal(over.dy, 0);
 });
-
-// ---------- API（実モジュール配線: プレゼンス→ステーション判定→各ルート） ----------
 
 const botApiStubUrl = dataUrl(`
 const store = new Map();
@@ -123,7 +111,6 @@ const itemsUrl = dataUrl(transpile("worldbox/economy/items.ts"));
 const shopsRealUrl = dataUrl(
   transpile("worldbox/economy/shops.ts").replaceAll('"./items"', JSON.stringify(itemsUrl)),
 );
-// 日次ローテーションは日付依存なので、この場所ゲートテストでは中立化する。
 const shopsUrl = dataUrl(`
 import * as real from ${JSON.stringify(shopsRealUrl)};
 export const checkBuyGenre = real.checkBuyGenre;
@@ -319,12 +306,11 @@ function economyOpCount() {
   return n;
 }
 
-// ロビーの実配置での立つ位置（stationNear がその施設を返す座標）
-const AT_SHOP = { x: 5.5, y: 21.5 }; // ショップカウンターの前
-const AT_SMITH = { x: 25.5, y: 37.5 }; // 鍛冶屋の作業台の前
-const AT_BANK = { x: 34.5, y: 18.5 }; // 銀行カウンターの前
-const AT_BOARD = { x: 28.5, y: 16.5 }; // 掲示板の前
-const AT_PLAZA = { x: 28.5, y: 28.5 }; // 広場（どの施設の前でもない）
+const AT_SHOP = { x: 5.5, y: 21.5 };
+const AT_SMITH = { x: 25.5, y: 37.5 };
+const AT_BANK = { x: 34.5, y: 18.5 };
+const AT_BOARD = { x: 28.5, y: 16.5 };
+const AT_PLAZA = { x: 28.5, y: 28.5 };
 
 const URL_P = "http://localhost/api/worldbox/profile";
 const URL_E = "http://localhost/api/worldbox/economy";
@@ -334,7 +320,6 @@ test("API(place): buy はショップの前でのみ通る", async () => {
   globalThis.__wbGateUsers.set(ME, 1000);
   seedProfile({});
   setPresence(AT_SHOP.x, AT_SHOP.y);
-  // AT_SHOP は道具屋のカウンター前なので、買えるのは道具ジャンル
   const ok = await profileRoute.POST(
     apiRequest(URL_P, "POST", { action: "buy", itemId: "wooden_axe" }),
   );
@@ -376,20 +361,16 @@ test("API(place): sell はショップの前でのみ通る", async () => {
 test("API(place): buy は店のジャンルと合う品目だけ買える（wrong_shop）", async () => {
   globalThis.__wbGateUsers.set(ME, 1000);
   seedProfile({});
-  // 道具屋の前で素材（種・素材屋の品目）は買えない
   setPresence(AT_SHOP.x, AT_SHOP.y);
   const wrong = await profileRoute.POST(
     apiRequest(URL_P, "POST", { action: "buy", itemId: "wood" }),
   );
   assert.equal(wrong.status, 409);
   assert.equal((await wrong.json()).error, "wrong_shop");
-  // 種・素材屋の前では買える
   setPresence(13.5, 26.5);
   const ok = await profileRoute.POST(apiRequest(URL_P, "POST", { action: "buy", itemId: "wood" }));
   assert.equal(ok.status, 200);
   assert.equal((await ok.json()).profile.items.wood, 1);
-  // 鍛冶屋は販売品目ゼロ（案C）: ジャンルが合う合成品でも not_sold、
-  // ジャンル違いは wrong_shop が優先し、売却はジャンル不問で通る
   seedProfile({ wood: 1 });
   setPresence(AT_SMITH.x, AT_SMITH.y);
   const smithOk = await profileRoute.POST(
@@ -411,35 +392,30 @@ test("API(place): buy は店のジャンルと合う品目だけ買える（wron
 test("API(place): ホワイトリスト外はジャンルが合っても買えない（not_sold）が、売却はできる", async () => {
   globalThis.__wbGateUsers.set(ME, 5000);
   seedProfile({});
-  // 鍛冶屋で特殊（ジャンルは合う）を買おうとしても not_sold
   setPresence(AT_SMITH.x, AT_SMITH.y);
   const special = await profileRoute.POST(
     apiRequest(URL_P, "POST", { action: "buy", itemId: "star_shard" }),
   );
   assert.equal(special.status, 409);
   assert.equal((await special.json()).error, "not_sold");
-  // 道具屋でミスリル tier4（ジャンルは合う）も not_sold
   setPresence(AT_SHOP.x, AT_SHOP.y);
   const mithril = await profileRoute.POST(
     apiRequest(URL_P, "POST", { action: "buy", itemId: "mithril_axe" }),
   );
   assert.equal(mithril.status, 409);
   assert.equal((await mithril.json()).error, "not_sold");
-  // 建築屋カウンター前で宝石ブロックも not_sold
   setPresence(9.5, 21.5);
   const gem = await profileRoute.POST(
     apiRequest(URL_P, "POST", { action: "buy", itemId: "diamond_block" }),
   );
   assert.equal(gem.status, 409);
   assert.equal((await gem.json()).error, "not_sold");
-  // ジャンルも合わないレア品は wrong_shop が優先される
   setPresence(AT_SHOP.x, AT_SHOP.y);
   const both = await profileRoute.POST(
     apiRequest(URL_P, "POST", { action: "buy", itemId: "star_shard" }),
   );
   assert.equal(both.status, 409);
   assert.equal((await both.json()).error, "wrong_shop");
-  // レア品の売却はジャンル不問で通る
   seedProfile({ star_shard: 1 });
   setPresence(AT_SMITH.x, AT_SMITH.y);
   const sold = await profileRoute.POST(
@@ -496,8 +472,6 @@ test("API(place): 掲示板の投稿は掲示板の前でのみ通り、閲覧�
   assert.equal(list.posts[0].text, "掲示板から投稿");
 });
 
-// ---------- クライアント配線 ----------
-
 test("クライアント: スティックは固定式で、タイルタップと分離されている", () => {
   const client = fs.readFileSync(
     path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
@@ -521,9 +495,7 @@ test("クライアント: 施設パネルは離れたら閉じる（掲示板・
     client.includes('if (stationUi !== "guild") setGuildBoardOpen(false);'),
     "ギルドボードが自動で閉じない",
   );
-  // 役職操作の場所エラーに専用ラベルがある
   assert.ok(client.includes('not_at_guild_board: "ギルドボードの前で操作してください"'));
-  // サーバー側も役職の操作をギルドボード前で検証する
   const nationsRoute = fs.readFileSync(
     path.join(rootDir, "app/api/worldbox/nations/route.ts"),
     "utf8",

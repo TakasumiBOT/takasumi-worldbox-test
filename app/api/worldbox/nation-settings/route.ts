@@ -21,16 +21,6 @@ import { loadMyLobbyStation } from "@/lib/worldbox/world/station-online";
 
 export const runtime = "nodejs";
 
-// AGO WORLD BOX の国家設定（税率・公開/非公開・大臣の任命）。
-// GET: 自分の国の設定と国民一覧（所属員なら誰でも読める読み取り表示）。
-// POST: 変更は王のみ + ギルドボードの前（station "guild"）でのみ。
-//   { action: "set_tax", taxRate } 税率は 0〜0.10。
-//   { action: "set_visibility", visibility: "open" | "private" }
-//   { action: "set_minister", targetKey, minister } 任命/解除。対象は
-//   現在の国民のみで、Discord 由来の大臣はここでは外せない（任命一覧
-//   に載っていないため、解除は任命分だけに効く）。
-// 保存先は bot_kv（名前空間 worldbox_nation_settings、キー = ギルド ID）。
-
 const NO_STORE = { "Cache-Control": "no-store, max-age=0" };
 
 function err(error: string, status: number) {
@@ -42,7 +32,6 @@ function sameOrigin(request: Request) {
   return !origin || origin === publicOrigin(request);
 }
 
-/** 所有者キーから表示名を作る: プレゼンスに居ればその名前、無ければ #末尾4桁。 */
 function displayName(
   ownerKey: string,
   presenceNames: Map<string, string>,

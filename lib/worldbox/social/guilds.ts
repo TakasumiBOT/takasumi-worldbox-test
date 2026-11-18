@@ -1,35 +1,16 @@
-// AGO WORLD BOX の Discord ギルド検証（サーバー専用 + 純粋ヘルパー）。
-// 国 = Discord サーバーなので、建国・参加の可否と役職は、本人の参加ギルド
-// 一覧（Discord API /users/@me/guilds）で都度検証する。
-//
-// アクセストークンの置き場は既存の仕組みをそのまま使う: OAuth スコープは
-// 認可ルートが "identify guilds" を既に要求しており、コールバックが
-// lib/dashboard の createWebSession で bot_kv "web_sessions" にトークンを
-// 保存し、セッション Cookie にはその sid だけが入る。ここでは sid から
-// loadWebSession でトークンを引き、fetchDiscordGuilds で一覧を取る。
-// sid の無いセッション（トークン保存が始まる前のログイン、Bot API 未設定時の
-// ログイン、Google ログイン）では一覧を引けないため guilds_scope_required
-// を返し、クライアントは Discord 再ログインを促す。
 import { isBotApiConfigured, kvGet, kvSet } from "../../bot-api";
 import { fetchDiscordGuilds, loadWebSession } from "../../dashboard";
 import { sessionOwnerKey, type SessionInfo } from "../../auth";
 import type { OAuthGuild } from "../../dashboard-core";
 import type { MyGuildView, NationRole, NationsState } from "./nations";
 
-/** ギルドキャッシュの保存先（bot_kv）。キーは所有者キー。 */
 export const WORLDBOX_AUTH_NAMESPACE = "worldbox_auth";
-/** ギルド一覧キャッシュの TTL（約5分）。 */
 export const GUILD_CACHE_TTL_MS = 5 * 60 * 1000;
 
-/** WORLD BOX が使うギルドの最小形（dashboard-core の OAuthGuild から抜粋）。 */
 export type UserGuild = Pick<OAuthGuild, "id" | "name" | "owner" | "permissions">;
 
-const ADMINISTRATOR_BIT = 1n << 3n; // 0x8
+const ADMINISTRATOR_BIT = 1n << 3n;
 
-/**
- * Discord 権限から役職を導く: オーナー → 王、ADMINISTRATOR（bit 3）→ 大臣、
- * それ以外 → 国民。permissions は Discord が返す10進文字列を BigInt で読む。
- */
 export function roleInGuild(guild: { owner: boolean; permissions: string }): NationRole {
   if (guild.owner) return "king";
   try {
@@ -39,7 +20,6 @@ export function roleInGuild(guild: { owner: boolean; permissions: string }): Nat
   }
 }
 
-/** 自分の参加ギルド一覧に、国の有無と自分の役職を注釈した表示用リスト。 */
 export function annotateMyGuilds(guilds: UserGuild[], state: NationsState): MyGuildView[] {
   return guilds.map((g) => ({
     guildId: g.id,
@@ -61,7 +41,6 @@ function asUserGuild(raw: unknown): UserGuild | null {
   return { id: v.id, name: v.name, owner: v.owner === true, permissions: v.permissions };
 }
 
-/** キャッシュの保存値を検証し、TTL 内ならギルド一覧を返す。期限切れ・破損は null。 */
 export function parseGuildCache(raw: unknown, now: number): UserGuild[] | null {
   let data: unknown = raw;
   if (typeof raw === "string") {
@@ -89,11 +68,6 @@ export type UserGuildsResult =
   | { ok: true; guilds: UserGuild[] }
   | { ok: false; error: "guilds_scope_required" | "guilds_unavailable" };
 
-/**
- * セッション中ユーザーの参加ギルド一覧を返す（bot_kv に約5分キャッシュ）。
- * トークンを引けないセッションは guilds_scope_required（一覧の権限ではなく
- * 保存済みトークンの有無の問題なので、再ログインで解消する）。
- */
 export async function getUserGuilds(session: SessionInfo): Promise<UserGuildsResult> {
   if (session.provider !== "discord" || !session.sid || !isBotApiConfigured()) {
     return { ok: false, error: "guilds_scope_required" };

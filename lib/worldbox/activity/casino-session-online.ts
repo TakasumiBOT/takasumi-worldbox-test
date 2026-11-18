@@ -1,5 +1,3 @@
-// WORLD BOX カジノのセッション永続化（bot_kv "worldbox_casino"）。
-// キー: session:<ownerKey> / state:<ownerKey>。値は JSON 文字列。
 import { kvDelete, kvGet, kvSet } from "../../bot-api";
 import { cleanCasinoSession, type CasinoSession } from "./casino-session";
 import { cleanCasinoUserState, emptyCasinoUserState, type CasinoUserState } from "./casino-games";

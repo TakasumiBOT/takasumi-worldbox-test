@@ -1,12 +1,3 @@
-// AGO WORLD BOX ロビー階段遷移（L2b）の検証:
-// - 1F の新階段（LOBBY_STAIRS_2F、ギルドショップ区画の東の階段室の続き）は
-//   歩行可能で、擬似2F の着地点から歩いて届く
-// - floorWarpAt が 1F⇄2F⇄3F の対応を返し、着地点は行き先の階段の前で
-//   階段タイル自身ではない（着地で再発火しない）
-// - 往復の各ステップでセーブ（v6）が空間と座標をそのまま保持する（復帰が壊れない）
-// - relay-core.js が lobby2/lobby3 を潰さず、階の境界で丸め、空間ごとに分離する
-// - クライアント（WorldBoxClient.tsx）が階データを indoorData / 境界 / 描画へ配線し、
-//   階段判定をフェード遷移（beginTransition 経由の doFloorWarp）で実行する
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -56,8 +47,6 @@ const saveUrl = dataUrl(
 );
 const save = await import(saveUrl);
 
-// ---------- 到達可能性の道具（floors テストと同じ歩行可能定義） ----------
-
 function walkableTiles(data) {
   const out = new Set();
   for (let y = 0; y < data.height; y++) {
@@ -92,21 +81,17 @@ function reachableFrom(data, sx, sy) {
 const tileOf = (p) => ({ x: Math.floor(p.x), y: Math.floor(p.y) });
 const keyOf = (p) => `${p.x},${p.y}`;
 
-// ---------- 1F の新階段 ----------
-
 test("stairs: 1F の 2F への階段はギルドショップ区画にあり、歩行可能で着地点と対になる", () => {
   const data = lobby.buildLobby();
   const walk = walkableTiles(data);
   for (const s of lobby.LOBBY_STAIRS_2F) {
     assert.ok(walk.has(keyOf(s)), `1F の階段 ${keyOf(s)} が歩行不可`);
-    // 階段オブジェクトは通過可（solid でない）の stairs スプライト
     const obj = data.objects.find((o) => o.x === s.x && o.y === s.y);
     assert.ok(
       obj && obj.sprite === "stairs" && obj.solid === false,
       `1F の階段 ${keyOf(s)} のオブジェクトが無い/固体`,
     );
   }
-  // 擬似2F の着地点（1F 階段を上がった先）から歩いて届く（階段室の続きとして成立する）
   const reach = reachableFrom(
     data,
     tileOf(lobby.LOBBY_UP_LANDING).x,
@@ -114,7 +99,6 @@ test("stairs: 1F の 2F への階段はギルドショップ区画にあり、�
   );
   for (const s of lobby.LOBBY_STAIRS_2F)
     assert.ok(reach.has(keyOf(s)), `階段 ${keyOf(s)} に着地点から行けない`);
-  // 2F から下りてくる着地点は階段の南隣で、階段タイル自身ではない（再発火しない）
   const landing = tileOf(lobby.LOBBY_2F_LANDING);
   assert.ok(walk.has(keyOf(landing)), "1F の着地点が歩行不可");
   assert.ok(reach.has(keyOf(landing)), "1F の着地点に着地点群から行けない");
@@ -123,7 +107,6 @@ test("stairs: 1F の 2F への階段はギルドショップ区画にあり、�
     !lobby.LOBBY_STAIRS_2F.some((s) => s.x === landing.x && s.y === landing.y),
     "着地点が階段タイルと重なる",
   );
-  // 既存の導線と重ならない（擬似2F の階段・ワープパッド）
   for (const s of lobby.LOBBY_STAIRS_2F) {
     assert.ok(
       !lobby.LOBBY_STAIRS_UP.some((t) => t.x === s.x && t.y === s.y),
@@ -140,17 +123,13 @@ test("stairs: 1F の 2F への階段はギルドショップ区画にあり、�
   }
 });
 
-// ---------- floorWarpAt: 対応表 ----------
-
 test("stairs: floorWarpAt は 1F⇄2F⇄3F の階段だけを対応付け、他は null", () => {
-  // 1F → 2F
   for (const s of lobby.LOBBY_STAIRS_2F) {
     assert.deepEqual(floors.floorWarpAt("lobby", s.x, s.y), {
       to: "lobby2",
       entry: floors.LOBBY2_ENTRY,
     });
   }
-  // 2F → 1F / 3F
   for (const s of floors.LOBBY2_STAIRS_DOWN) {
     assert.deepEqual(floors.floorWarpAt("lobby2", s.x, s.y), {
       to: "lobby",
@@ -163,14 +142,12 @@ test("stairs: floorWarpAt は 1F⇄2F⇄3F の階段だけを対応付け、他�
       entry: floors.LOBBY3_ENTRY,
     });
   }
-  // 3F → 2F
   for (const s of floors.LOBBY3_STAIRS_DOWN) {
     assert.deepEqual(floors.floorWarpAt("lobby3", s.x, s.y), {
       to: "lobby2",
       entry: floors.LOBBY2_UP_LANDING,
     });
   }
-  // 階段でないタイル・別空間では発火しない（擬似2F の階段とワープパッドは対象外）
   assert.equal(floors.floorWarpAt("lobby", lobby.LOBBY_ENTRY.x, lobby.LOBBY_ENTRY.y), null);
   for (const s of lobby.LOBBY_STAIRS_UP)
     assert.equal(floors.floorWarpAt("lobby", s.x, s.y), null, "擬似2F の階段が階移動になっている");
@@ -223,10 +200,8 @@ test("stairs: 着地点は行き先の階段の前で歩行可能、かつその
       !stairsOf[warp.to].some((s) => s.x === landing.x && s.y === landing.y),
       `${warp.to} の着地点がその階の階段タイルと重なる（着地で再発火する）`,
     );
-    // 着地点から行き先の全階段へ歩いて戻れる（往復が成立する）
     const reach = reachableFrom(dest, landing.x, landing.y);
     for (const s of stairsOf[warp.to]) {
-      // 1F の階段群は擬似2F で分断されるため、1F では 2F への階段だけを見る
       if (
         warp.to === "lobby" &&
         !(s.x === lobby.LOBBY_STAIRS_2F[0].x || s.x === lobby.LOBBY_STAIRS_2F[1].x)
@@ -238,13 +213,10 @@ test("stairs: 着地点は行き先の階段の前で歩行可能、かつその
   }
 });
 
-// ---------- セーブ往復（保存・復帰が壊れない） ----------
-
 test("stairs: 1F→2F→3F→2F→1F の往復でセーブが空間と座標を保持する", () => {
   const worldReturn = { x: 512.5, y: 512.5 };
   const roundTrip = (space, x, y) =>
     save.parseSave(save.serializeSave({ space, x, y, worldReturn }));
-  // 往路: 1F の階段を踏む → 2F 入口 → 2F の上り階段 → 3F 入口
   let state = {
     space: "lobby",
     x: lobby.LOBBY_STAIRS_2F[0].x + 0.5,
@@ -270,7 +242,6 @@ test("stairs: 1F→2F→3F→2F→1F の往復でセーブが空間と座標を�
     [restored.space, restored.x, restored.y],
     ["lobby3", floors.LOBBY3_ENTRY.x, floors.LOBBY3_ENTRY.y],
   );
-  // 復路: 3F の下り階段 → 2F 南踊り場 → 2F の下り階段 → 1F 着地点
   state = {
     space: "lobby3",
     x: floors.LOBBY3_STAIRS_DOWN[0].x + 0.5,
@@ -297,8 +268,6 @@ test("stairs: 1F→2F→3F→2F→1F の往復でセーブが空間と座標を�
   );
   assert.deepEqual(restored.worldReturn, worldReturn, "往復で worldReturn が壊れた");
 });
-
-// ---------- 中継（relay-core.js） ----------
 
 test("relay: lobby2/lobby3 を空間として保持し、未知の階はワールドに寄せる", () => {
   assert.equal(relay.sanitizeSpace("lobby2"), "lobby2");
@@ -337,7 +306,6 @@ test("relay: 2F/3F のハートビートは階の範囲へ丸められ、空間�
     ["p3"],
   );
   assert.deepEqual(relay.snapshot(room, "lobby", "self", now), []);
-  // 階を移動したら旧空間の表から消える
   relay.acceptHeartbeat(
     room,
     "p2",
@@ -354,8 +322,6 @@ test("relay: 2F/3F のハートビートは階の範囲へ丸められ、空間�
     ["p2", "p3"],
   );
 });
-
-// ---------- クライアント配線 ----------
 
 test("client: 階データが indoorData / 境界 / 描画へ配線され、階段はフェード遷移で実行される", () => {
   const client = fs.readFileSync(
@@ -394,7 +360,6 @@ test("client: 階データが indoorData / 境界 / 描画へ配線され、階�
     /doFloorWarp\(floorWarp\.to, floorWarp\.entry\)/,
     "階段判定の結果が実行へ渡っていない",
   );
-  // フェード遷移（B1）経由であること: doFloorWarp は beginTransition の中で空間を切り替える
   const start = client.indexOf("const doFloorWarp");
   const body = client.slice(start, start + 900);
   assert.ok(
@@ -403,12 +368,10 @@ test("client: 階データが indoorData / 境界 / 描画へ配線され、階�
   );
   assert.ok(body.includes("setSpaceUi(target)"), "doFloorWarp が空間 state を切り替えていない");
   assert.ok(body.includes("placePlayer(entry.x, entry.y)"), "doFloorWarp が着地点へ置いていない");
-  // 復帰時のステータス文言が階を持つ
   assert.match(
     client,
     /space === "lobby2"\s*\? "ラウンジ"\s*: space === "lobby3"\s*\? "展望デッキ"/,
     "復帰時の階の文言が無い",
   );
-  // 1F の従来導線（ワープパッド・擬似2F）は 1F 限定に絞られている
   assert.match(client, /if \(space !== "lobby"\) return;/, "1F 導線が他階でも発火しうる");
 });

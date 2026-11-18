@@ -43,16 +43,6 @@ import { bumpMetric } from "@/lib/worldbox/core/metrics-online";
 
 export const runtime = "nodejs";
 
-// AGO WORLD BOX のギルドショップ。
-// GET: 全区画と出品、自分の所属・役職を返す。
-// POST: register（国王/大臣、区画料は spend guild_plot_fee）/
-// unregister（出品は売り手へ返却）/ list（所属員が出品、アイテムは
-// エスクローでプロフィールから引く）/ unlist（返却）/
-// buy（区画カウンター近くでのみ。購入 spend guild_shop_buy + 売り手 earn
-// guild_shop_sale（区画の国の税率を差し引き、税分はシンク+累計へ記録）、
-// オプ ID は決定的で冪等）。役職は国家設定込みで解決する（任命大臣も可）。
-// 状態の read-modify-write は全体ロックで直列化する。
-
 const NO_STORE = { "Cache-Control": "no-store, max-age=0" };
 const BUY_RANGE = 3.5;
 
@@ -98,8 +88,6 @@ function view(
               name: itemById(l.itemId)?.name ?? l.itemId,
               available: listingAvailable(l),
               price: l.price,
-              // 閲覧者本人の出品か（売り手の生キーは出さない）。
-              // 「下げる」の表示条件をサーバーの unlist 権限と一致させる用。
               mine: l.sellerKey === viewerKey,
             })),
           }
@@ -109,7 +97,6 @@ function view(
   };
 }
 
-/** 国家設定込みの実効役職（任命大臣を含む）。 */
 async function resolvedRole(
   nations: Awaited<ReturnType<typeof loadNationsState>>,
   ownerKey: string,
@@ -176,9 +163,6 @@ export async function POST(request: Request) {
     const myRole = await resolvedRole(nations, ownerKey);
     const isLeader = myRole === "king" || myRole === "minister";
     const respond = async (next: GuildShopState) => {
-      // 完売した出品は保存前に取り除く。残しておくとパネルからは
-      // 到達できず（在庫 0 は表示されない）state に溜まり続ける。
-      // 完売時点で売り手への入金は済んでおり、返却すべき在庫も無い。
       const pruned: GuildShopState = {
         ...next,
         plots: next.plots.map((p) =>
@@ -230,7 +214,6 @@ export async function POST(request: Request) {
       if (!myGuild || !isLeader) return err("leader_only", 403);
       const plot = plotOfGuild(state, myGuild);
       if (!plot) return err("no_plot", 409);
-      // 残っている出品は各売り手へ返却する
       for (const listing of plot.listings) {
         const left = listingAvailable(listing);
         if (left <= 0) continue;
@@ -309,7 +292,6 @@ export async function POST(request: Request) {
       if (count <= 0 || count > listingAvailable(found.listing))
         return err("not_enough_stock", 409);
       if (found.listing.sellerKey === ownerKey) return err("own_listing", 409);
-      // 区画カウンターの近くにいること（プレゼンス/セーブで検証）
       const pos = await lobbyPosition(ownerKey);
       if (!pos) return err("position_unknown", 409);
       const anchor = GUILD_PLOT_ANCHORS[found.plot.idx];
@@ -330,13 +312,9 @@ export async function POST(request: Request) {
         Date.now(),
       );
       if (!buyOp) return err("economy_failed", 503);
-      // 直接適用で確定失敗（残高不足・CAS 枯渇）した買い手には
-      // アイテムを渡さない。done / pending（キュー経路）は従来どおり進める。
       const buySubmitted = await submitEconomyOp(buyOp);
       if (buySubmitted.state === "unavailable") return err("economy_failed", 503);
       if (buySubmitted.state === "failed") return err("economy_failed", 409);
-      // 売り手への入金（区画の国の税率を引いた額）。税分はシンクし、
-      // 累計税収へ表示用に加算する。売り手が Discord 連携でない場合は積まない
       const plotSettings = await loadNationSettings(found.plot.guildId);
       const taxRate = taxRateOf(plotSettings);
       const sellerDiscord = found.listing.sellerKey.startsWith("discord:")

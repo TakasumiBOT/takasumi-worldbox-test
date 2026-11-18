@@ -1,7 +1,3 @@
-// AGO WORLD BOX の国家データ保存（サーバー専用）。
-// 保存先は bot_kv（名前空間 "worldbox_nations"）。国と所属は相互参照する
-// （人数集計・解散時の所属一括削除）ため、独立したプレゼンスと違い
-// "nations" / "members" の2キーを read-modify-write でまとめて扱う。
 import { isBotApiConfigured, kvGet, kvSet } from "../../bot-api";
 import {
   NATIONS_STATE_VERSION,
@@ -18,7 +14,6 @@ export function isNationsEnabled(): boolean {
   return isBotApiConfigured();
 }
 
-/** 保存済みの国家状態を読む。無い・読めない・未設定なら空の状態。 */
 export async function loadNationsState(): Promise<NationsState> {
   if (!isBotApiConfigured()) return emptyNationsState();
   try {
@@ -32,7 +27,6 @@ export async function loadNationsState(): Promise<NationsState> {
   }
 }
 
-/** 国家状態を保存する。成功したら true。nations 側は版の包み付きで保存する。 */
 export async function storeNationsState(state: NationsState): Promise<boolean> {
   if (!isBotApiConfigured()) return false;
   try {

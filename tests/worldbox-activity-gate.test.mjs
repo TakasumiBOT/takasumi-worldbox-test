@@ -1,10 +1,3 @@
-// AGO WORLD BOX の Discord Activity 入場の検証:
-// - games-auth（Activity の SDK 認証のコード交換）が通常ログインと同じ
-//   セッション Cookie を張ること
-// - そのセッションで WORLD BOX の入場ゲートが通ること（Activity 内で
-//   ゲートのログインリンクを押して白画面で詰まる問題の回帰防止）
-// - クライアント配線（Activity 内では OAuth リンクを出さず、認証完了で
-//   ゲートを引き直す）
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -30,7 +23,6 @@ process.env.DISCORD_CLIENT_SECRET = ["unit", "test", "secret"].join("-");
 
 const ME = "611111111111111111";
 
-// next/server スタブ（cookies jar つき）
 const nextServerStubUrl = dataUrl(`
 class CookieJar {
   constructor() { this.map = new Map(); }
@@ -154,10 +146,6 @@ test("activity: クライアントは Activity 内で OAuth リンクを出さ�
 });
 
 test("activity: SDK 認証の本人情報が届いたらセッション確認を待たずにゲートを通す", () => {
-  // ユーザー指示（2026-11-16）: Activity 経由では Discord ログイン済みが
-  // 前提なので認証は要らないはず。この分岐が消えると、Cookie が保持
-  // されない Activity の iframe で「ログインが必要」のまま詰まる
-  // （2026-11-17 に実害が再発したため、文言ごと固定する）。
   const client = fs.readFileSync(path.join(appDir, "games/worldbox/WorldBoxClient.tsx"), "utf8");
   assert.ok(
     client.includes('if (embedded && identityId) setGate("ok")'),
@@ -168,8 +156,6 @@ test("activity: SDK 認証の本人情報が届いたらセッション確認を
   assert.ok(shell.includes("retryIdentity"), "GamesShell が本人確認の再実行を提供していない");
 });
 
-// SDK 認証クライアント（lib/discord-activity-client.ts）を実物で読み、
-// モック SDK + fetch で authorize のフォールバックを検証する。
 const activityClient = await import(
   dataUrl(
     transpile("discord-activity-client.ts").replaceAll(

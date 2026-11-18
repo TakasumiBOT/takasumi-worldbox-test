@@ -3,13 +3,6 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import { runCompanyCron } from "@/lib/worldbox/social/company-online";
 import { markLazyJobRun } from "@/lib/worldbox/core/lazy-jobs";
 
-// 会社システムの定期処理（給料・法人税・失効掃除）の内部ルート。
-// Vercel Cron が毎時 GET する（vercel.json の crons 参照）。時間帯の
-// 判定は JST で行い（給料は 8〜20 時台、法人税は 3 時間ごと）、
-// 会社ごとの冪等キーで同じ時間帯の二重処理を防ぐ。
-// CRON_SECRET 未設定なら fail closed（401）で何もしない
-// （economy-sweep と同じ規則）。主経路は遅延実行（lazy-jobs）で、
-// ここが処理したときは遅延実行側のタイムスタンプも進める。
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 

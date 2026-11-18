@@ -1,13 +1,7 @@
 "use client";
-// AGO WORLD BOX のアイテムスロット共通部品（§8: スロット統一と深さ）。
-// 第1層はスロット: アイコン + 個数バッジ + その画面の主情報1つ（badge）だけ。
-// 名前・説明・効果・アクションは第2層の注釈（ItemAnnotation）に置き、
-// スロットをタップした時だけ開く。ホットバー/コンテナの SlotContent と
-// 同じ文法（ピクセル絵・右下の個数・選択時は金枠）に揃える。
 import type { ReactNode } from "react";
 import { itemById } from "@/lib/worldbox/economy/items";
 
-/** アイテムのドット絵アイコン（無いアイテムは名前ラベルのみで出す）。 */
 export function ItemIcon({ id, size = 24 }: { id: string; size?: number }) {
   const def = itemById(id);
   if (!def?.icon) return null;
@@ -47,11 +41,6 @@ const slotStyle: React.CSSProperties = {
   WebkitTouchCallout: "none",
 };
 
-/**
- * 第1層のスロット。表示はアイコン + 右下の個数バッジ（count）+
- * 主情報1つ（badge、例: 価格）+ 選択枠だけ。名前・説明は出さない
- * （識別は aria-label と注釈が担う）。
- */
 export function ItemSlot({
   itemId,
   count,
@@ -134,16 +123,10 @@ export function ItemSlot({
   );
 }
 
-/** スロットを flex-wrap で並べるだけのグリッド。 */
 export function ItemSlotGrid({ children }: { children: ReactNode }) {
   return <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>{children}</div>;
 }
 
-/**
- * 第2層の注釈カード。アイテム名 + desc を出し、children
- * （効果行・アクションボタン群）を続ける。同時に開くのは1つだけ
- * （開く側が選択状態を1つに保つ）。
- */
 export function ItemAnnotation({ itemId, children }: { itemId: string; children?: ReactNode }) {
   const def = itemById(itemId);
   if (!def) return null;

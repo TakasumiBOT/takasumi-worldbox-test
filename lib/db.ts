@@ -1,13 +1,6 @@
-// 独立環境の DB アクセス層（Neon Postgres、サーバー専用）。
-//
-// @neondatabase/serverless の Pool を使う。HTTP ドライバ（neon()）では
-// 複数文にまたがるトランザクションが組めないため、経済 RPC の原子性は
-// Pool（WebSocket 接続 + BEGIN/COMMIT）で担保する。
-// 接続文字列は DATABASE_URL env のみ（コードに埋め込まない）。
 import { Pool, neonConfig } from "@neondatabase/serverless";
 import { createRequire } from "node:module";
 
-// Node < 22 にはグローバル WebSocket が無いため、ある環境では ws で補う。
 if (typeof (globalThis as { WebSocket?: unknown }).WebSocket === "undefined") {
   try {
     const require = createRequire(import.meta.url);
@@ -17,11 +10,6 @@ if (typeof (globalThis as { WebSocket?: unknown }).WebSocket === "undefined") {
   }
 }
 
-/**
- * SQL 実行の最小インターフェース。botapi-server はこれにだけ依存し、
- * テストではフェイクを注入できる。query は行配列を返し、DB エラーは
- * sqlstate を持つ例外（pg 互換の .code）としてそのまま投げる。
- */
 export interface SqlExecutor {
   query(text: string, params?: unknown[]): Promise<Record<string, unknown>[]>;
   transaction<T>(fn: (tx: SqlExecutor) => Promise<T>): Promise<T>;
@@ -55,7 +43,6 @@ class PoolExecutor implements SqlExecutor {
       await client.query("BEGIN");
       const tx: SqlExecutor = {
         query: async (text, params = []) => (await client.query(text, params)).rows,
-        // 入れ子は同一トランザクションで実行する（呼び出し側は入れ子にしない）。
         transaction: async (f) => f(tx),
       };
       const out = await fn(tx);
@@ -72,7 +59,6 @@ class PoolExecutor implements SqlExecutor {
 
 let sharedPool: Pool | null = null;
 
-/** DATABASE_URL から共有 Pool を作る（遅延生成）。未設定なら例外。 */
 export function getDbPool(): Pool {
   if (sharedPool) return sharedPool;
   const url = process.env.DATABASE_URL?.trim();
@@ -81,14 +67,12 @@ export function getDbPool(): Pool {
   return sharedPool;
 }
 
-/** 任意の Pool（互換クライアント）から SqlExecutor を作る。 */
 export function createSqlExecutor(pool: PgPool): SqlExecutor {
   return new PoolExecutor(pool);
 }
 
 let sharedExecutor: SqlExecutor | null = null;
 
-/** 既定の SqlExecutor（DATABASE_URL の Pool に接続）。 */
 export function getSqlExecutor(): SqlExecutor {
   if (!sharedExecutor) sharedExecutor = createSqlExecutor(getDbPool() as unknown as PgPool);
   return sharedExecutor;

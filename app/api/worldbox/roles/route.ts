@@ -36,16 +36,6 @@ import { parseInstanceSpace } from "@/lib/worldbox/world/instances";
 
 export const runtime = "nodejs";
 
-// AGO WORLD BOX の冒険役職。
-// POST { action: "set_role", role }: ギルドボード前でのみ変更可（インスタンス内は不可）。
-//   初めての選択は無料、それ以降の変更は 100,000 コイン（spend role_change、
-//   残高不足は 409 not_enough_coins で役職は変わらない）。
-// POST { action: "skill", skill, tx, ty, space, px, py }: ダブルタップ技。
-//   役職・ランク・クールタイム・対象はすべてサーバーが再計算して検証する。
-//   現在の技はテレポーターの porter（ポーター設置）のみで、ダブルタップ
-//   地点へのユニオンポーター設置として分岐する（利用は /api/worldbox/warp）。
-// GET: 自分の役職情報。
-
 const NO_STORE = { "Cache-Control": "no-store, max-age=0" };
 
 function sameOrigin(request: Request) {
@@ -80,7 +70,6 @@ export async function GET(request: Request) {
   const ownerKey = sessionOwnerKey(session);
   const profile = await loadProfile(ownerKey);
   if (!profile) return err("roles_unavailable", 503);
-  // テレポーターの発動技はポーター設置（activeSkillFor は設置技として返さない）
   const skill = profile.role === "teleporter" ? SKILLS.porter : activeSkillFor(profile);
   return NextResponse.json(
     {
@@ -127,8 +116,6 @@ export async function POST(request: Request) {
     if (saved && parseInstanceSpace(saved.space)) return err("in_instance", 409);
     if ((await loadMyLobbyStation(ownerKey)) !== "guild") return err("not_at_guild_board", 409);
     const targetRole = fields.role;
-    // 転職は課金を伴うため、プロフィールの RMW とオプ登録をユーザー単位
-    // ロックで直列化し、ロック内で読み直してから判定する。
     return withUserLock(ownerKey, async () => {
       const current = await loadProfile(ownerKey);
       if (!current) return err("roles_unavailable", 503);
@@ -137,8 +124,6 @@ export async function POST(request: Request) {
         if (!(await storeProfile(ownerKey, next))) return err("store_failed", 503);
         return NextResponse.json({ ok: true, profile: next, cost: 0 }, { headers: NO_STORE });
       }
-      // 課金: 残高を確認し、プロフィールを先に保存してから spend オプを積む。
-      // オプを積めなければプロフィールを戻す（購入フローと同じ原子性）。
       const discordId = session.provider === "discord" ? session.id : null;
       if (!discordId) return err("discord_required", 403);
       if (!isEconomyEnabled()) return err("economy_unavailable", 503);
@@ -152,17 +137,11 @@ export async function POST(request: Request) {
       );
       if (!op) return err("economy_failed", 503);
       if (!(await storeProfile(ownerKey, next))) return err("store_failed", 503);
-      // 提出は直接適用が正（submitEconomyOp）: spend はその場で終端する。
-      // 直接適用できずキューへ寄せた（pending）ときだけ従来どおり待つ。
       const submitted = await submitEconomyOp(op);
       if (submitted.state === "unavailable") {
         await storeProfile(ownerKey, current);
         return err("economy_failed", 503);
       }
-      // 決済が failed になったら役職を元へ戻す（構造問題#4「即時 spend
-      // の無担保交付」の是正: 役職だけ変わって課金されない状態を
-      // 作らない）。pending のままなら従来どおり返し、クライアントの
-      // ポーリングに引き継ぐ。
       const settled =
         submitted.state === "pending" ? await waitForOpDone(ownerKey, op.id) : submitted.op;
       if (settled && settled.status === "failed") {
@@ -185,9 +164,6 @@ export async function POST(request: Request) {
   if (!pos) return err("position_unknown", 409);
 
   if (fields.action === "skill") {
-    // 技は自分のプロフィール（skillAt・熟練）を書き換えるため、ユーザー
-    // 単位ロックで直列化し、ロック内で読み直したプロフィールで検証・
-    // 適用する（set_role と同じ型）。
     return withUserLock(ownerKey, async () => {
       const profile = await loadProfile(ownerKey);
       if (!profile) return err("roles_unavailable", 503);
@@ -195,7 +171,6 @@ export async function POST(request: Request) {
       if (!skillId || !(skillId in SKILLS)) return err("invalid_request", 400);
       const skill = SKILLS[skillId];
       const rank = masteryRankOf(profile, profile.role);
-      // 現在の技はテレポーターのポーター設置のみ（設置専用）。
       const isPorter = skillId === "porter" && profile.role === "teleporter";
       if (!isPorter) return err("skill_locked", 409);
       if (rank < SKILLS.porter.minRank) return err("skill_locked", 409);
@@ -209,9 +184,6 @@ export async function POST(request: Request) {
         skillAt: { ...profile.skillAt, [skillId]: now },
       };
 
-      // ポーター設置: ワールド空間・ユニオン所属が前提。設置先は自分の
-      // タイルから PORTER_PLACE_RANGE 以内で、通行できるタイルのみ。
-      // 保存はギルド ID キーで1件だけ（置き直し = 移動）。
       if (space !== "world") return err("not_in_world", 409);
       if (!isNationsEnabled()) return err("warp_unavailable", 503);
       const nationsState = await loadNationsState();

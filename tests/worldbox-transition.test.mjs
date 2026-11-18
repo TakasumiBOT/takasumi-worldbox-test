@@ -1,9 +1,3 @@
-// AGO WORLD BOX シームレスローディング（B1）の検証:
-// - ワープフェード: 140ms で暗転→頂点で切替→220ms で明ける、合計 360ms 以内
-// - 初回入場は暗転から明けるだけ、再接続は薄いパルスだけ（暗転しない）
-// - 先読み: 全枚成功・一部失敗・全体タイムアウトのいずれでも必ず解決する
-// - クライアント配線（ワープ/テレポート/リスポーンのフェード経由・
-//   入場前スプライト先読み・再接続パルス・描画ループの暗幕）
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -113,7 +107,6 @@ test("transition: 暗幕の色はシェル背景と同一（継ぎ目を消す�
 });
 
 function fakeImage(behavior) {
-  // behavior: "ok" | "fail" | "hang"
   return () => {
     const img = { src: "", onload: null, onerror: null };
     if (behavior === "ok") {

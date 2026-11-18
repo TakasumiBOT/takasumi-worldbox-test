@@ -1,22 +1,3 @@
-// bot-api 互換サーバー実装（サーバー専用）。AGO の api/app.py（FastAPI）の
-// 許可リスト・検証・エラー意味論を TS に移植したもの。以後の正はここ。
-//
-// 契約（lib/bot-api.ts / realtime/botkv.js が依存する形を維持する）:
-// - POST /v1/query {table, action, columns, filters, order, values,
-//   on_conflict, limit, offset} → {data: 行配列}
-// - POST /v1/rpc {name, params} → {data: 行配列 | スカラー}
-// - 認証は Authorization: Bearer <BOT_API_KEY>（定数時間比較）。
-//   未設定・不一致は常に 401（fail-closed）。
-// - エラーは {detail: {code, message}}。DB エラーは sqlstate を code にし、
-//   22xxx / 23xxx / P0001 は 400、それ以外は 500（app.py の _database_error）。
-// - 許可テーブルは bot_kv / users / transaction_history /
-//   economy_pool_state のみ。bump_rta_settings 等の AGO 残存物は入れない。
-// - RPC は経済4本のみ。意味論は docs/sql/economy_pool.sql /
-//   proposed_transfer_coins.sql の定義と一致させ、SQL 関数は作らず
-//   トランザクション + 行ロック（SELECT ... FOR UPDATE）で実装する。
-// - 大きな整数は dashboard-core の番兵文字列規約で往復させる
-//   （リクエストは parseJsonPreservingInts、レスポンスは
-//   serializeBotApiJson が生リテラルで書き出す）。
 import { createHash, timingSafeEqual } from "node:crypto";
 import {
   INT_TOKEN_PREFIX,
@@ -26,13 +7,9 @@ import {
 } from "./dashboard-core";
 import type { SqlExecutor } from "./db";
 
-// ------------------------------------------------------------------ errors
-
-/** HTTP 意味論を持つエラー（app.py の HTTPException 相当）。 */
 export class BotApiHttpError extends Error {
   status: number;
   code: string;
-  /** FastAPI の 422 のような、{detail:{code,message}} 以外の形を返す場合に使う。 */
   detailBody?: unknown;
   constructor(status: number, code: string, message: string, detailBody?: unknown) {
     super(message);
@@ -42,7 +19,6 @@ export class BotApiHttpError extends Error {
   }
 }
 
-/** DB エラー（sqlstate を保持。app.py の _database_error が状態を決める）。 */
 export class BotApiDbError extends Error {
   sqlstate: string;
   constructor(sqlstate: string, message: string) {
@@ -69,9 +45,6 @@ function asDbError(error: unknown): unknown {
   return error;
 }
 
-// -------------------------------------------------------------------- auth
-
-/** Bearer 認証。app.py の _unauthorized と同じ規則（鍵未設定なら常に拒否）。 */
 export function authorizeBotApi(authorization: string | null | undefined): void {
   const expected = process.env.BOT_API_KEY ?? "";
   const provided = authorization ?? "";
@@ -84,15 +57,8 @@ export function authorizeBotApi(authorization: string | null | undefined): void 
   if (!ok) throw new BotApiHttpError(401, "UNAUTHORIZED", "Invalid API credentials");
 }
 
-// ------------------------------------------------------------------ schema
-
 type ColumnType = "text" | "int8" | "int2" | "jsonb" | "timestamptz";
 
-/**
- * 許可テーブルと列（db/schema.sql の定義が正。app.py は
- * information_schema から読むが、ここではスキーマと一致する固定表で
- * fail-closed に検証する）。列の並びは schema.sql の定義順。
- */
 export const BOTAPI_TABLE_COLUMNS: Record<string, Record<string, ColumnType>> = {
   bot_kv: { namespace: "text", key: "text", value: "jsonb", updated_at: "timestamptz" },
   users: { user_id: "text", balance: "int8", debt: "int8" },
@@ -142,8 +108,6 @@ const FILTER_OPERATORS = new Set([
 const MAX_LIMIT = 10_000;
 const DEFAULT_LIMIT = 1_000;
 
-// ------------------------------------------------------- body の構造検証
-
 export interface BotApiFilter {
   column: string;
   op: string;
@@ -177,7 +141,6 @@ function checkKeys(obj: Record<string, unknown>, allowed: string[], where: strin
   }
 }
 
-/** QueryRequest（pydantic）の構造検証。意味論の検証は execute 側。 */
 export function validateQueryBody(raw: unknown): QueryBody {
   if (!isPlainObject(raw)) throw validationError("query body must be an object");
   checkKeys(
@@ -267,7 +230,6 @@ export function validateQueryBody(raw: unknown): QueryBody {
   };
 }
 
-/** RPCRequest（pydantic）の構造検証。 */
 export function validateRpcBody(raw: unknown): RpcBody {
   if (!isPlainObject(raw)) throw validationError("rpc body must be an object");
   checkKeys(raw, ["name", "params"], "rpc");
@@ -276,8 +238,6 @@ export function validateRpcBody(raw: unknown): RpcBody {
   if (!isPlainObject(params)) throw validationError("params must be an object");
   return { name: raw.name, params };
 }
-
-// ------------------------------------------------------------- SQL 構築
 
 class ParamBag {
   values: unknown[] = [];
@@ -299,7 +259,6 @@ function identifier(table: string, name: string): string {
   return quoteIdent(name);
 }
 
-/** 列の型に合わせてパラメータを適応させる（app.py の _adapt 相当）。 */
 function adaptParam(table: string, column: string, value: unknown, bag: ParamBag): string {
   const type = BOTAPI_TABLE_COLUMNS[table][column];
   if (type === "jsonb") {
@@ -370,7 +329,6 @@ function buildWhere(table: string, filters: BotApiFilter[], bag: ParamBag): stri
   return clauses.length > 0 ? ` WHERE ${clauses.join(" AND ")}` : "";
 }
 
-/** SELECT / RETURNING 用の列式。jsonb は ::text で取り、番兵規約で復元する。 */
 function columnExpr(table: string, name: string): string {
   const type = BOTAPI_TABLE_COLUMNS[table][name];
   return type === "jsonb" ? `${quoteIdent(name)}::text AS ${quoteIdent(name)}` : quoteIdent(name);
@@ -395,17 +353,10 @@ function allColumnExprs(table: string): string {
     .join(", ");
 }
 
-// ------------------------------------------------------------- 行の復元
-
 function isoPlus(date: Date): string {
   return date.toISOString().replace("Z", "+00:00");
 }
 
-/**
- * ドライバの行を API の JSON 形へ寄せる（psycopg + FastAPI の出力相当）。
- * int8 は BigInt（シリアライザが生リテラルで出す）、jsonb は ::text を
- * 番兵規約でパース、timestamptz は ISO 文字列にする。
- */
 function postProcessRows(
   table: string,
   rows: Record<string, unknown>[],
@@ -433,8 +384,6 @@ function postProcessRows(
   });
 }
 
-// ---------------------------------------------------------- query 実行
-
 async function executeQuery(
   executor: SqlExecutor,
   body: QueryBody,
@@ -444,7 +393,6 @@ async function executeQuery(
     throw new BotApiHttpError(404, "TABLE_NOT_ALLOWED", "Table is not available through this API");
   }
   const tableSql = `"public".${quoteIdent(body.table)}`;
-  // app.py と同じ検証順: WHERE（フィルタ）を先に構築して検証する。
   const validateBag = new ParamBag();
   buildWhere(body.table, body.filters, validateBag);
 
@@ -496,7 +444,6 @@ async function executeQuery(
     return postProcessRows(body.table, rows);
   }
 
-  // insert / upsert
   const records = Array.isArray(body.values) ? body.values : [body.values];
   if (
     records.length === 0 ||
@@ -552,7 +499,6 @@ async function executeQuery(
   return postProcessRows(body.table, await executor.query(sql, bag.values));
 }
 
-/** /v1/query の本体（app.py と同じく1リクエスト=1トランザクション）。 */
 export async function handleBotApiQuery(
   body: QueryBody,
   executor: SqlExecutor,
@@ -564,9 +510,6 @@ export async function handleBotApiQuery(
   }
 }
 
-// ---------------------------------------------------------------- RPC
-
-/** 許可 RPC と引数（app.py の RPC_ARGUMENTS から経済4本のみ）。 */
 export const BOTAPI_RPC_ARGUMENTS: Record<string, string[]> = {
   economy_pool_pay_house: ["p_amount"],
   economy_pool_refund_house: ["p_pool_part", "p_treasury_part"],
@@ -574,7 +517,6 @@ export const BOTAPI_RPC_ARGUMENTS: Record<string, string[]> = {
   transfer_coins: ["p_sender_id", "p_receiver_id", "p_amount", "p_new_user_balance"],
 };
 
-/** RPC の bigint 引数。SQL の coalesce 前の NULL は null として返す。 */
 function rpcInt(value: unknown): bigint | null {
   if (value === null || value === undefined) return null;
   if (typeof value === "bigint") return value;
@@ -584,7 +526,6 @@ function rpcInt(value: unknown): bigint | null {
   throw new BotApiDbError("22P02", `invalid input syntax for type bigint: "${String(value)}"`);
 }
 
-/** 原資系の引数（greatest(coalesce(x, 0), 0)）。 */
 function poolAmount(value: unknown): bigint {
   const v = rpcInt(value);
   return v === null || v < 0n ? 0n : v;
@@ -643,7 +584,6 @@ async function updatePool(tx: SqlExecutor, next: PoolRow): Promise<void> {
   );
 }
 
-/** economy_pool_pay_house: プール→国庫の順に払い、内訳を返す（行配列）。 */
 async function rpcPayHouse(tx: SqlExecutor, params: Record<string, unknown>): Promise<unknown> {
   const amount = poolAmount(params.p_amount);
   await ensurePoolRow(tx);
@@ -663,7 +603,6 @@ async function rpcPayHouse(tx: SqlExecutor, params: Record<string, unknown>): Pr
   return [{ paid, pool_part: poolPart, treasury_part: treasuryPart }];
 }
 
-/** economy_pool_refund_house: 内訳どおりに戻し、戻し後の total_house_paid を返す（スカラー）。 */
 async function rpcRefundHouse(tx: SqlExecutor, params: Record<string, unknown>): Promise<unknown> {
   const poolPart = poolAmount(params.p_pool_part);
   const treasuryPart = poolAmount(params.p_treasury_part);
@@ -680,7 +619,6 @@ async function rpcRefundHouse(tx: SqlExecutor, params: Record<string, unknown>):
   return totalHousePaid;
 }
 
-/** economy_pool_add_loss: 70% をプール、端数込みの残りを国庫へ（行配列）。 */
 async function rpcAddLoss(tx: SqlExecutor, params: Record<string, unknown>): Promise<unknown> {
   const amount = poolAmount(params.p_amount);
   const poolPart = (amount * 7n) / 10n;
@@ -698,7 +636,6 @@ async function rpcAddLoss(tx: SqlExecutor, params: Record<string, unknown>): Pro
   return [{ pool_part: poolPart, treasury_part: treasuryPart }];
 }
 
-/** transfer_coins: DB 内で原子的なユーザー間送金。送金後の送り手残高を返す（スカラー）。 */
 async function rpcTransferCoins(
   tx: SqlExecutor,
   params: Record<string, unknown>,
@@ -762,7 +699,6 @@ const RPC_IMPLS: Record<
   transfer_coins: rpcTransferCoins,
 };
 
-/** /v1/rpc の本体。 */
 export async function handleBotApiRpc(body: RpcBody, executor: SqlExecutor): Promise<unknown> {
   const allowed = BOTAPI_RPC_ARGUMENTS[body.name];
   if (!allowed) {
@@ -780,12 +716,6 @@ export async function handleBotApiRpc(body: RpcBody, executor: SqlExecutor): Pro
   }
 }
 
-// ------------------------------------------------------- レスポンス整形
-
-/**
- * レスポンス JSON の書き出し。番兵文字列と BigInt を生の数値リテラルで
- * 出力する（クライアントの parseJsonPreservingInts と対になる）。
- */
 export function serializeBotApiJson(value: unknown): string {
   if (value === null || value === undefined) return "null";
   if (typeof value === "bigint") return value.toString();
@@ -835,10 +765,6 @@ function toErrorResponse(error: unknown): { status: number; body: string } {
   };
 }
 
-/**
- * ルートからの入口。FastAPI と同じ順序で処理する:
- * JSON 解釈（失敗は 422）→ 構造検証（422）→ 認証（401）→ 実行（意味論エラー）。
- */
 export async function processBotApiRequest(
   kind: "query" | "rpc",
   rawText: string,

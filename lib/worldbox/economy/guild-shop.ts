@@ -1,19 +1,8 @@
-// AGO WORLD BOX のギルドショップ（バッチ7 残件）。
-// ロビー2階の屋台グリッド（6区画）をユニオンが借りて、所属員が出品し、
-// 誰でも買える。区画の登録/撤去は国王・大臣のみ。売上は earn の
-// guild_shop_sale で売り手へ（手数料 5% は国庫シンク = 残りは積まない）。
-// 状態は bot_kv `worldbox_guild_shop` に一括保持し、検証と遷移はここが担う。
-
 export const GUILD_PLOT_COUNT = 6;
-/** 区画の登録料（シンク、暫定）。 */
 export const GUILD_PLOT_FEE = 500;
-/** 売上の手数料率の既定値（シンク、暫定 5%）。実際の率は国の税率
- * （nation-settings.ts）が正で、未設定国はこの値になる。 */
 export const GUILD_SHOP_FEE_RATE = 0.05;
-/** 1区画あたりの出品上限。 */
 export const GUILD_LISTING_MAX = 12;
 
-/** 区画カウンターの中心タイル（ロビー地図の屋台グリッドと一致させる）。 */
 export const GUILD_PLOT_ANCHORS: readonly { x: number; y: number }[] = [
   { x: 4, y: 51 },
   { x: 9, y: 51 },
@@ -27,11 +16,8 @@ export interface GuildListing {
   id: string;
   sellerKey: string;
   itemId: string;
-  /** 出品総数。 */
   count: number;
-  /** 売れた数。 */
   sold: number;
-  /** 1個の価格（出品者が決める）。 */
   price: number;
 }
 
@@ -43,9 +29,7 @@ export interface GuildPlot {
 
 export interface GuildShopState {
   plots: (GuildPlot | null)[];
-  /** 出品 ID の採番（決定的 ID の元）。 */
   listingSeq: number;
-  /** 登録料オプの採番（冪等 ID の元）。 */
   feeSeq: number;
 }
 
@@ -100,7 +84,6 @@ export function listingAvailable(listing: GuildListing): number {
   return Math.max(0, listing.count - listing.sold);
 }
 
-/** 売り手の取り分（手数料を引いた額、切り捨て）。率は国の税率が正。 */
 export function sellerProceeds(
   price: number,
   count: number,
@@ -110,7 +93,6 @@ export function sellerProceeds(
   return Math.floor(price * count * (1 - rate));
 }
 
-/** 売上から差し引かれる税額（= 売上総額 − 売り手取り分、シンク分）。 */
 export function saleTaxAmount(
   price: number,
   count: number,

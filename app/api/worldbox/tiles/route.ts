@@ -39,24 +39,9 @@ import {
 
 export const runtime = "nodejs";
 
-// AGO WORLD BOX のタイル行為（伐採・採掘・耕作・作付け・収穫・
-// ブロック設置/採掘＝自由建築）。設置はユニオンマーク（首都）を避け、
-// 採掘は設置者だけが行える。
-// 地形の真値は生成マップ＋bot_kv の上書き（名前空間 worldbox_tiles、
-// キー "x,y"）で、行為の可否はすべてサーバー側で検証する。
-// 収納コンテナ（樽・宝箱）は中身が入っている間は掘れない（not_empty）。
-// 隣接検証: サーバーが知る本人の位置（プレゼンス優先、無ければ
-// オンラインセーブ）がある場合だけタイルとの距離を確かめる。
-// GET ?x0&y0&x1&y1: その範囲（各辺128まで）の上書きだけを返す
-// POST { action, x, y, seedId? }: 行為を適用し、更新後のタイルと
-// プロフィール（収穫・種の消費を反映）を返す。
-// Bot API 未設定なら 503（クライアントは上書きなしで遊び続ける）。
-
 const NO_STORE = { "Cache-Control": "no-store, max-age=0" };
 
-/** GET で返す範囲の上限（1辺のタイル数）。 */
 const MAX_RECT_SPAN = 128;
-/** 行為できるタイルと本人位置のチェビシェフ距離の上限（保存の遅れを許容）。 */
 const MAX_ACTION_DISTANCE = 2;
 
 const BAD_REQUEST_ERRORS = new Set([
@@ -83,7 +68,6 @@ function intParam(raw: string | null, fallback: number): number {
   return Math.max(-WORLD_COORD_LIMIT, Math.min(WORLD_COORD_LIMIT, Math.floor(n)));
 }
 
-/** サーバーが知る本人のワールド位置（プレゼンス → セーブの順）。無ければ null。 */
 async function actorWorldPosition(ownerKey: string): Promise<{ x: number; y: number } | null> {
   const selfId = presenceIdFor(ownerKey);
   const entries = await listPresence();
@@ -101,8 +85,6 @@ export async function GET(request: Request) {
   }
   const session = getRequestSession(request);
   const url = new URL(request.url);
-  // ワールドに境界は無い: 旧マップの外（負座標含む）でも範囲を返せる。
-  // 1リクエストの上限面積（各辺 MAX_RECT_SPAN）だけは維持する。
   const x0 = intParam(url.searchParams.get("x0"), 0);
   const y0 = intParam(url.searchParams.get("y0"), 0);
   const x1 = Math.min(
@@ -122,14 +104,13 @@ export async function GET(request: Request) {
     const x = Number(m[1]);
     const y = Number(m[2]);
     if (x < x0 || x > x1 || y < y0 || y > y1) continue;
-    if (!isOverrideActive(ov, now)) continue; // 失効分は地形どおり
+    if (!isOverrideActive(ov, now)) continue;
     overrides[key] = ov;
   }
   return NextResponse.json(
     {
       overrides,
       loggedIn: session !== null,
-      // 自分のブロック判定用に、本人の不透明 ID（プレゼンス ID）を返す
       selfId: session ? presenceIdFor(sessionOwnerKey(session)) : null,
     },
     { headers: NO_STORE },
@@ -162,14 +143,10 @@ export async function POST(request: Request) {
     text?: unknown;
   };
   const ownerKey = sessionOwnerKey(session);
-  // 運用凍結中はタイルの書き換えを止める（荒らし対策）
   if (await loadFrozen()) {
     return NextResponse.json({ error: "world_frozen" }, { status: 423, headers: NO_STORE });
   }
 
-  // 隣接検証。位置がサーバー側で分からない場合は検証を素通りさせず
-  // 拒否する（釣り・マシンと同じ規則）。素通しだと、セーブの空間を
-  // world 以外にしておくだけで距離検証が消え、遠隔で掘る/置けた。
   if (typeof fields.x === "number" && typeof fields.y === "number") {
     const pos = await actorWorldPosition(ownerKey);
     if (!pos) {
@@ -188,23 +165,15 @@ export async function POST(request: Request) {
   const ty = typeof fields.y === "number" ? Math.floor(fields.y) : -1;
   const hasCoord = typeof fields.x === "number" && typeof fields.y === "number";
 
-  // 同一タイル・同一ユーザーへの並行リクエストを直列化する（S4）。
-  // ロック無しだと二重タップ/リトライで同じブロックを2回掘って
-  // 2回分の獲得を返したり、プロフィールの lost update が起きる。
-  // タイル単位（他者との同タイル競合）とユーザー単位（自分の
-  // プロフィール RMW）の二重で直列化する。
   return withUserLock(`tile:${tx},${ty}`, () =>
     withUserLock(ownerKey, async () => {
       const current = hasCoord ? await loadTileOverride(tx, ty) : null;
       const profile = await loadProfile(ownerKey);
       const map = worldTileSource();
       let result: TileActionResult;
-      /** 掘り出す対象が収納コンテナなら、そのアイテム ID（回収後に状態を消す）。 */
       let minedContainerItem: string | null = null;
-      /** 掘り出す対象が装置なら true（回収後に状態を消す）。 */
       let minedMachine = false;
       if (fields.action === "place_block") {
-        // ユニオンマーク（首都）の保護はルート側の真値で判定する
         const nationsState = await loadNationsState();
         const capitals = Object.values(nationsState.nations).map((n) => n.capital);
         result = applyPlaceBlock(
@@ -221,7 +190,6 @@ export async function POST(request: Request) {
           },
         );
       } else if (fields.action === "mine_block") {
-        // 収納コンテナ（樽・宝箱）は中身が入っている間は回収できない
         const blockItemId =
           current && isOverrideActive(current, Date.now()) ? current.block?.itemId : undefined;
         if (blockItemId && isContainerItem(blockItemId)) {
@@ -231,7 +199,6 @@ export async function POST(request: Request) {
           }
           minedContainerItem = blockItemId;
         }
-        // 装置（自動収穫機）はバッファに作物が残っている間は回収できない
         if (blockItemId && isMachineItem(blockItemId)) {
           const machineState = await loadMachine(tx, ty);
           if (machineState && machineBufferCount(machineState) > 0) {
@@ -239,7 +206,6 @@ export async function POST(request: Request) {
           }
           minedMachine = true;
         }
-        // 屋台は出品が残っている間は回収できない（預かり品の消失防止）
         if (blockItemId && isStallItem(blockItemId)) {
           const stallState = await loadStall(tx, ty);
           if (stallState && stallState.count > 0) {
@@ -247,12 +213,9 @@ export async function POST(request: Request) {
           }
         }
         result = applyMineBlock(current, profile, map, ownerKey, fields.x, fields.y, Date.now(), {
-          // 収納コンテナは中身が全員共有の仕様に合わせ、回収も誰でも可
-          // （中身が空のときだけ、は上の not_empty 検証が担保する）
           containerBreakAllowed: Boolean(blockItemId && isContainerItem(blockItemId)),
         });
       } else if (fields.action === "set_sign") {
-        // 看板テキストの設定（所有者だけ、サーバー検証）
         result = applySetSign(
           current,
           profile,
@@ -264,7 +227,6 @@ export async function POST(request: Request) {
           Date.now(),
         );
       } else if (fields.action === "set_display" || fields.action === "clear_display") {
-        // 棚への展示/回収（所有者だけ、サーバー検証）
         result = applyDisplayAction(
           current,
           profile,
@@ -277,10 +239,8 @@ export async function POST(request: Request) {
           Date.now(),
         );
       } else if (fields.action === "draw_water") {
-        // 井戸で水を汲む（バケツ→水入りバケツ）
         result = applyDrawWater(current, profile, map, ownerKey, fields.x, fields.y, Date.now());
       } else if (fields.action === "plant_flower" || fields.action === "remove_flower") {
-        // 植木鉢・プランターへの花の植え付け/取り除き（所有者だけ、サーバー検証）
         result = applyFlowerAction(
           current,
           profile,
@@ -292,7 +252,6 @@ export async function POST(request: Request) {
           Date.now(),
         );
       } else if (fields.action === "toggle_gate") {
-        // 門の開閉（誰でもできる。出入り口のため所有者制限は付けない）
         result = applyToggleGate(current, profile, map, ownerKey, fields.x, fields.y, Date.now());
       } else {
         result = applyTileAction(
@@ -316,7 +275,6 @@ export async function POST(request: Request) {
       if (!(await storeTileOverride(tx, ty, result.override))) {
         return NextResponse.json({ error: "tiles_failed" }, { status: 500, headers: NO_STORE });
       }
-      // 差分ジャーナル（巻き戻し用、ベストエフォート）
       void appendTileJournal({
         key: tileKey(tx, ty),
         prev: current,
@@ -327,7 +285,6 @@ export async function POST(request: Request) {
       if (!(await storeProfile(ownerKey, result.profile))) {
         return NextResponse.json({ error: "tiles_failed" }, { status: 500, headers: NO_STORE });
       }
-      // 計測（ベストエフォート）: 設置数・収穫数・初回ステップ
       if (fields.action === "place_block") {
         void bumpMetric("blocksPlaced", 1, Date.now());
         void recordFirstStep(ownerKey, "place", Date.now());
@@ -336,11 +293,8 @@ export async function POST(request: Request) {
         void bumpMetric("harvests", 1, Date.now());
         void recordFirstStep(ownerKey, "gather", Date.now());
       }
-      // コンテナ/装置の状態は、ブロックが壊れて回収されたときだけ消す
-      // （HP制のヒットではブロックが残るので状態も残す）
       const blockBroken = fields.action === "mine_block" && !result.override?.block;
       if (minedContainerItem && blockBroken) await storeContainer("world", tx, ty, null);
-      // 装置を回収したら状態も消す
       if (minedMachine && blockBroken) await deleteMachine(tx, ty);
       return NextResponse.json(
         {

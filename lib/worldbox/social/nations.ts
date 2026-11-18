@@ -1,52 +1,32 @@
-// AGO WORLD BOX の国家レイヤー（純粋ロジック、DOM 非依存）。
-// 国 = Discord サーバーそのもの: 建国できるのはサーバーのオーナーだけ、
-// 国名はサーバー名、国民はサーバーのメンバー、役職は Discord 権限から決まる
-// （オーナー=王、ADMINISTRATOR=大臣、メンバー=国民。判定は guilds.ts）。
-// 国はあくまで所属区分: 1ユーザー = 最大1国まで所属する。建国するとマップ
-// 中央から渦巻き状（チェビシェフリング）に空き地を探して首都を置く。首都
-// 同士は一定の間隔を空けるが、所属が建築などの行動を制限することはない。
-// 状態遷移（建国・参加・離脱・解散）はここに集約し、API ルートは保存・認証・
-// Discord 検証だけを担う。地形は lib/worldbox/world/mapgen の決定的マップを参照する。
 import { WORLD_COORD_LIMIT, isSolidMapTile, mapTileAt, type TopDownMap } from "../world/mapgen";
 import { findFreeNear } from "../player/move";
 import { presenceIdFor } from "../player/presence";
 
-/** 首都同士の最小間隔の基準（チェビシェフ距離）。首都はこの2倍より離して置く。 */
 export const TERRITORY_RADIUS = 6;
 
-/** 保存形式の版。旧（プレイヤー建国）形式は読み込み時に破棄する。 */
 export const NATIONS_STATE_VERSION = 2;
 
 export type NationRole = "king" | "minister" | "citizen";
 
 export type Nation = {
-  /** 国 = Discord サーバー。ギルド ID がそのまま国の ID。 */
   guildId: string;
-  /** サーバー名（建国時点の Discord 側の名前。そのまま使う）。 */
   name: string;
-  /** NATION_PALETTE のいずれか。 */
   color: string;
-  /** 建国者（サーバーオーナー）の所有者キー（API では表に出さず kingId に変換する）。 */
   kingKey: string;
-  /** 首都タイル（整数座標）。 */
   capital: { x: number; y: number };
   createdAt: number;
 };
 
 export type Membership = {
-  /** 所属先のギルド ID（= 国 ID）。 */
   nationId: string;
   role: NationRole;
 };
 
 export type NationsState = {
-  /** ギルド ID → 国。 */
   nations: Record<string, Nation>;
-  /** 所有者キー → 所属。未所属はキー自体が無い。 */
   members: Record<string, Membership>;
 };
 
-/** 国カラーの固定パレット。空きが多い色から自動で割り当てる。 */
 export const NATION_PALETTE = [
   "#e5484d",
   "#f76b15",
@@ -64,7 +44,6 @@ export function emptyNationsState(): NationsState {
   return { nations: {}, members: {} };
 }
 
-/** 使用数が最も少ないパレット色（同数ならパレット順）。 */
 export function pickNationColor(state: NationsState): string {
   const used = new Map<string, number>();
   for (const n of Object.values(state.nations)) used.set(n.color, (used.get(n.color) ?? 0) + 1);
@@ -84,11 +63,6 @@ function chebyshev(ax: number, ay: number, bx: number, by: number): number {
   return Math.max(Math.abs(ax - bx), Math.abs(ay - by));
 }
 
-/**
- * (x, y) に首都を置けるか: 首都タイルが固体（水・木・岩）でなく、
- * どの国の首都とも近すぎない。ワールドに境界は無いため範囲は問わない
- * （座標の健全上限だけは守る）。
- */
 export function capitalFits(map: TopDownMap, x: number, y: number, nations: Nation[]): boolean {
   const r = TERRITORY_RADIUS;
   if (Math.abs(x) > WORLD_COORD_LIMIT - r || Math.abs(y) > WORLD_COORD_LIMIT - r) return false;
@@ -99,15 +73,9 @@ export function capitalFits(map: TopDownMap, x: number, y: number, nations: Nati
   return true;
 }
 
-/** 首都探索の中心（既存の首都が集まる原点近傍の基準点）。 */
 export const CAPITAL_SEARCH_CENTER = { x: 512, y: 512 };
-/** 首都探索の最大リング。これ以上は「空き地なし」とする。 */
 const CAPITAL_SEARCH_MAX_RING = 1024;
 
-/**
- * 首都候補を探索中心からチェビシェフリング状に外側へ探す（渦巻き配置）。
- * 置ける最初のタイルを返し、無ければ null。
- */
 export function findCapitalTile(
   map: TopDownMap,
   nations: Nation[],
@@ -126,7 +94,6 @@ export function findCapitalTile(
   return null;
 }
 
-/** 国ごとの所属人数。 */
 export function memberCounts(state: NationsState): Record<string, number> {
   const counts: Record<string, number> = {};
   for (const m of Object.values(state.members)) {
@@ -135,20 +102,12 @@ export function memberCounts(state: NationsState): Record<string, number> {
   return counts;
 }
 
-// ---------- 状態遷移 ----------
-
 export type NationActionResult =
   | { ok: true; state: NationsState; nation?: Nation; disbanded?: boolean }
   | { ok: false; error: string };
 
-/** 建国に使うギルドの最小情報（Discord 検証済みのものだけが渡ってくる）。 */
 export type FoundGuild = { id: string; name: string };
 
-/**
- * 建国: サーバーオーナーが自分のサーバーを国にする。国名はサーバー名を
- * そのまま使い、首都は渦巻き探索で決める。建国者は王として所属する。
- * オーナー検証そのものは呼び出し側（API ルート）が guilds で行う。
- */
 export function applyFound(
   state: NationsState,
   ownerKey: string,
@@ -178,7 +137,6 @@ export function applyFound(
   return { ok: true, state: next, nation };
 }
 
-/** 参加: 役職は Discord 権限から導いたものを呼び出し側が渡す。 */
 export function applyJoin(
   state: NationsState,
   ownerKey: string,
@@ -195,10 +153,6 @@ export function applyJoin(
   return { ok: true, state: next, nation: state.nations[guildId] };
 }
 
-/**
- * 離脱: 市民・大臣はそのまま抜ける。王（サーバーオーナー）は国民が残っている
- * 間は抜けられず、一人だけなら解散（国と所属を消し、首都を空ける）。
- */
 export function applyLeave(state: NationsState, ownerKey: string): NationActionResult {
   const mine = state.members[ownerKey];
   if (!mine) return { ok: false, error: "not_in_nation" };
@@ -217,24 +171,13 @@ export function applyLeave(state: NationsState, ownerKey: string): NationActionR
   return { ok: true, state: { nations: state.nations, members }, disbanded: false };
 }
 
-// ---------- ファストトラベル ----------
-
-/** 所属国への移動料金（アゴコイン）。当面は無料。 */
 export const FAST_TRAVEL_COST = 0;
-/** 所属国への移動のクールダウン（ミリ秒）。当面はなし。 */
 export const FAST_TRAVEL_COOLDOWN_MS = 0;
 
 export type FastTravelResult =
   | { ok: true; nationId: string; x: number; y: number }
   | { ok: false; error: string };
 
-/**
- * 所属国へのファストトラベル先: 自分の国のユニオンマーク（首都）タイルの
- * 中心。所属の検証はこの関数が正（状態に所属が無ければ not_in_nation）。
- * 首都タイルは建国時点で固体でないことが保証されるが、周囲の変化に備えて
- * 立てる場所へ寄せる。料金・クールダウンは定数（現状どちらも 0）で、
- * 課金・制限を入れる場合はここを起点にする。
- */
 export function fastTravelDestination(
   state: NationsState,
   ownerKey: string,
@@ -250,20 +193,11 @@ export function fastTravelDestination(
   return { ok: true, nationId: nation.guildId, x: free.x, y: free.y };
 }
 
-// ---------- 繁栄度 ----------
-
-/** 国民1人あたりの繁栄度。 */
 export const PROSPERITY_PER_MEMBER = 5;
 
-/**
- * 繁栄度（所属の指標）: 国民数 × PROSPERITY_PER_MEMBER のみ。
- * 旧プレハブ建物（家・畑・塔）の算入は建物システムの廃止に伴い撤去した。
- */
 export function prosperityOf(state: NationsState, nationId: string): number {
   return PROSPERITY_PER_MEMBER * (memberCounts(state)[nationId] ?? 0);
 }
-
-// ---------- 保存形式 ----------
 
 function asRecord(raw: unknown): Record<string, unknown> | null {
   let data: unknown = raw;
@@ -303,12 +237,6 @@ function parseNation(raw: unknown): Nation | null {
   };
 }
 
-/**
- * bot_kv の2値（nations マップと members マップ）から状態を復元する。
- * nations 側は { v: NATIONS_STATE_VERSION, nations } の包みが必須で、版が
- * 合わない保存（旧プレイヤー建国形式を含む）は丸ごと破棄する（首都は空く）。
- * 壊れた要素は落とす。
- */
 export function parseNationsState(rawNations: unknown, rawMembers: unknown): NationsState {
   const state = emptyNationsState();
   const wrapped = asRecord(rawNations);
@@ -333,44 +261,32 @@ export function parseNationsState(rawNations: unknown, rawMembers: unknown): Nat
   return state;
 }
 
-// ---------- API 表示用 ----------
-
 export type NationView = {
-  /** 国 ID = ギルド ID。 */
   id: string;
   guildId: string;
   name: string;
   color: string;
   capital: { x: number; y: number };
   members: number;
-  /** 繁栄度（国民数から算出する所属指標）。 */
   prosperity: number;
-  /** 王の不透明 ID（presenceIdFor と同じ方式）。 */
   kingId: string;
   createdAt: number;
 };
 
-/** 自分が参加しているサーバー1件分の表示（建国・参加の入口）。 */
 export type MyGuildView = {
   guildId: string;
   name: string;
-  /** サーバーのオーナーか（= 建国できるか）。 */
   owner: boolean;
-  /** そのサーバーの国が既にあるか。 */
   hasNation: boolean;
-  /** Discord 権限から導いた、そのサーバーでの自分の役職。 */
   myRole: NationRole;
 };
 
 export type NationsResponse = {
   nations: NationView[];
   me: { nationId: string; role: NationRole } | null;
-  /** プレゼンス ID → 所属国の色（他プレイヤーの名前表示に色ドットを付ける用）。 */
   playerNations: Record<string, { nationId: string; color: string }>;
   loggedIn: boolean;
-  /** ログイン中ユーザーの参加サーバー（建国・参加の候補）。ゲストは空。 */
   myGuilds: MyGuildView[];
-  /** セッションに Discord トークンが無く、サーバー一覧を引けない（再ログインが必要）。 */
   guildsScopeRequired: boolean;
 };
 

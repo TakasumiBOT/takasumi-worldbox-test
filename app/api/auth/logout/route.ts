@@ -15,7 +15,6 @@ export async function POST(request: Request) {
   if (session?.sid) {
     await deleteWebSession(session.sid);
   }
-  // ログアウト後の戻り先（同一サイト内のパスだけ許可）。未指定は従来どおりトップ。
   const next = resolveOAuthNext(new URL(request.url).searchParams.get("next"), "/");
   const response = NextResponse.redirect(new URL(next, publicOrigin(request)), { status: 303 });
   response.cookies.set(SESSION_COOKIE, "", sessionCookieOptions(request, 0));

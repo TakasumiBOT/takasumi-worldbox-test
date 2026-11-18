@@ -1,13 +1,3 @@
-// BOT自前API（/v1/query）への薄いクライアント（サーバー専用。BOT_API_KEYをクライアントへ出さない）
-// 大きな整数（DiscordのID等）は dashboard-core の番兵文字列で受け渡し、精度を落とさない。
-//
-// 経路は2つ:
-// - HTTP: BOT_API_BASE_URL / BOT_API_KEY が設定されていれば、従来どおり
-//   その向こうの bot-api（自前ルート /botapi や外部）を叩く。
-// - プロセス内: HTTP の設定が無く DATABASE_URL がある場合は、同じ
-//   プロセスの lib/botapi-server.ts のハンドラを直接呼ぶ（Vercel の
-//   環境変数を触れないデプロイでも DB が成立するようにするため）。
-//   結果は HTTP 経路と同じシリアライズ往復を通し、値の形を完全一致させる。
 import {
   BotApiDbError,
   BotApiHttpError,
@@ -32,7 +22,6 @@ type QueryBody = {
   limit?: number;
 };
 
-/** bot-api がエラーを返したときに投げる。status と API 側コードを保持する。 */
 export class BotApiError extends Error {
   status: number;
   code?: string;
@@ -57,10 +46,6 @@ export function isBotApiConfigured() {
   return httpBotApi() !== null || inProcessAvailable();
 }
 
-// 遅延実行（lib/worldbox/core/lazy-jobs）のキック。Cron が無い環境でも
-// 経済スイープ・時給・配当が通常トラフィックに相乗りして進むようにする。
-// 動的 import で循環参照を避け、インスタンス内では 15 秒に 1 回までしか
-// 見に行かない（実間隔の担保は bot_kv 側のタイムスタンプ）。
 let lastLazyKickAt = 0;
 let lazyJobsModule: Promise<typeof import("./worldbox/core/lazy-jobs")> | null = null;
 function kickLazyJobs() {
@@ -72,7 +57,6 @@ function kickLazyJobs() {
   void lazyJobsModule.then((m) => m.maybeRunLazyJobs(now)).catch(() => undefined);
 }
 
-/** botapi-server のエラーを HTTP 経路のステータスへ写す（toErrorResponse と同じ規則）。 */
 function inProcessStatus(error: unknown): number | null {
   if (error instanceof BotApiHttpError) return error.status;
   if (error instanceof BotApiDbError) {
@@ -82,7 +66,6 @@ function inProcessStatus(error: unknown): number | null {
   return null;
 }
 
-/** HTTP 経路の往復（serialize → parse）と同じ値の形へ寄せる。 */
 function roundTrip<T>(value: unknown): T {
   return parseJsonPreservingInts(serializeBotApiJson(value)) as T;
 }
@@ -128,7 +111,6 @@ async function query<T>(body: QueryBody): Promise<T[]> {
   return Array.isArray(result.data) ? result.data : [];
 }
 
-/** 許可テーブルへの汎用 select（Bot 本体が db_api 経由で使うのと同じ経路）。 */
 export async function tableSelect<T>(
   table: string,
   columns: string,
@@ -138,7 +120,6 @@ export async function tableSelect<T>(
   return query<T>({ table, action: "select", columns, filters, limit });
 }
 
-/** 許可テーブルへの汎用 upsert。 */
 export async function tableUpsert(
   table: string,
   values: unknown,
@@ -147,12 +128,10 @@ export async function tableUpsert(
   await query({ table, action: "upsert", values, on_conflict: onConflict });
 }
 
-/** 許可テーブルへの汎用 insert。 */
 export async function tableInsert(table: string, values: unknown): Promise<void> {
   await query({ table, action: "insert", values });
 }
 
-/** 許可テーブルへの条件付き update。更新された行（RETURNING）を返す。 */
 export async function tableUpdate<T>(
   table: string,
   values: unknown,
@@ -161,11 +140,6 @@ export async function tableUpdate<T>(
   return query<T>({ table, action: "update", values, filters });
 }
 
-/**
- * 許可 RPC の呼び出し（/v1/rpc）。戻り値は API の data そのまま
- * （スカラー関数は値、表関数は行配列）。エラー時は BotApiError
- * （status と API のエラーコード付き）を投げる。
- */
 async function rpcInProcess<T>(name: string, params: Record<string, unknown>): Promise<T> {
   let data: unknown;
   try {

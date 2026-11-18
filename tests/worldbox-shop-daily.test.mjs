@@ -1,4 +1,3 @@
-// WORLD BOX バッチ7a: 日次ローテーション・ショップの純粋ロジックテスト。
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";

@@ -1,14 +1,7 @@
-// Discord Activity 連携の純粋ロジック（環境・fetch・SDK に触れない）。
-// クライアント（GamesShell / OnlineShell / BALKU）とサーバー
-// （games-auth ルート）、middleware の3か所から共通で使う。
-// 招待リンクの正は公開オリジン（lib/site.ts の SITE_URL）で、
-// Discord プロキシ配下でも共有先が壊れない URL を作る。
 import { SITE_URL } from "./site";
 
-/** オンライン対戦で使う Discord 本人の表示情報。 */
 export type DiscordIdentity = {
   id: string;
-  /** 表示名（global_name 優先、2〜24文字に丸める）。 */
   name: string;
   avatarUrl: string;
 };
@@ -17,12 +10,10 @@ const SNOWFLAKE = /^\d{1,30}$/;
 const ROOM_CODE_PATTERN = /^[A-Z2-9]{6}$/;
 const GAME_ID_PATTERN = /^[a-z0-9][a-z0-9-]{0,40}$/;
 
-/** Discord のアバター CDN URL。ハッシュが無ければデフォルトアバター。 */
 export function discordAvatarUrl(userId: string, avatarHash?: string | null): string {
   if (avatarHash) {
     return `https://cdn.discordapp.com/avatars/${userId}/${avatarHash}.png?size=64`;
   }
-  // デフォルトアバターの番号は (user_id >> 22) % 6（新ユーザー名制の仕様）。
   let index = 0;
   try {
     index = Number((BigInt(userId) >> 22n) % 6n);
@@ -39,11 +30,6 @@ export type DiscordUserLike = {
   avatar?: unknown;
 };
 
-/**
- * SDK の authenticate 応答 / Discord API の /users/@me から
- * オンライン対戦の既定プロフィールを作る。不正な形は null。
- * 名前はオンライン基盤の入力規則（2〜24文字）に合わせて丸める。
- */
 export function buildDiscordIdentity(
   user: DiscordUserLike | null | undefined,
 ): DiscordIdentity | null {
@@ -57,30 +43,22 @@ export function buildDiscordIdentity(
   return { id: user.id, name, avatarUrl: discordAvatarUrl(user.id, avatarHash) };
 }
 
-/** ルームコードを正規形（大文字6文字）にする。不正は null。 */
 export function normalizeRoomCode(raw: unknown): string | null {
   if (typeof raw !== "string") return null;
   const code = raw.trim().toUpperCase();
   return ROOM_CODE_PATTERN.test(code) ? code : null;
 }
 
-/** ゲーム ID として妥当なスラッグか。 */
 export function isGameSlug(raw: unknown): raw is string {
   return typeof raw === "string" && GAME_ID_PATTERN.test(raw);
 }
 
-/**
- * 招待リンク（公開 URL）。開くとそのまま参加フローに入る。
- * Discord プロキシ配下のオリジンではなく SITE_URL を使うので、
- * チャットに貼ってもブラウザでも Discord 内でも同じ形になる。
- */
 export function inviteUrlForGame(gameId: string, code: string): string | null {
   const normalized = normalizeRoomCode(code);
   if (!normalized || !isGameSlug(gameId)) return null;
   return `${SITE_URL}/games/${gameId}?room=${normalized}`;
 }
 
-/** URL クエリ（?room=）から招待コードを取り出す。無ければ null。 */
 export function roomCodeFromSearch(search: string): string | null {
   try {
     return normalizeRoomCode(new URLSearchParams(search).get("room"));
@@ -89,17 +67,12 @@ export function roomCodeFromSearch(search: string): string | null {
   }
 }
 
-/**
- * SDK の shareLink に渡す custom_id。共有リンクを開いた側の
- * Activity 起動パラメータに同名で届く前提で、ルーム宛先を運ぶ。
- */
 export function shareCustomIdForRoom(gameId: string, code: string): string | null {
   const normalized = normalizeRoomCode(code);
   if (!normalized || !isGameSlug(gameId)) return null;
   return `room:${gameId}:${normalized}`;
 }
 
-/** shareLink の custom_id をルーム宛先に戻す。不正は null。 */
 export function roomFromShareCustomId(
   raw: string | null | undefined,
 ): { gameId: string; code: string } | null {
@@ -111,12 +84,6 @@ export function roomFromShareCustomId(
   return { gameId: parts[1], code };
 }
 
-/**
- * Activity 起動（ルート＋ frame_id / instance_id）の着地先。
- * 音楽 Activity 画面の廃止（2026-11-14）により、起動パラメータに
- * よらずゲーム（/games）へ一本化した。
- * Activity 起動でなければ null（通常表示）。
- */
 export function activityLandingPath(args: {
   frameId: string | null | undefined;
   instanceId: string | null | undefined;
@@ -125,15 +92,6 @@ export function activityLandingPath(args: {
   return "/games";
 }
 
-/**
- * Activity 着地リダイレクトの絶対 URL。公開オリジン（SITE_URL）で
- * 組み立てる。Cloudflare Tunnel 配下では nextUrl のオリジンが内部
- * アドレス（localhost:3000）になり、そのままリダイレクトすると
- * 外部クライアントも discordsays プロキシも到達できない（実際に
- * 「discordsays.com が拒否されました」で着地できなかった）。
- * クエリ（frame_id / instance_id / custom_id 等）は着地後の
- * GamesShell が読むので、そのまま引き継ぐ。
- */
 export function activityLandingUrl(args: {
   frameId: string | null | undefined;
   instanceId: string | null | undefined;

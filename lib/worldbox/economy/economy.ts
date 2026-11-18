@@ -1,12 +1,3 @@
-// AGO WORLD BOX の経済の状態遷移（純粋ロジック）。
-// Discord ボット側の経済機能（アイテム売買・合成・steal・労働）の規則を
-// ワールドボックス向けに写したもの。保存は呼び出し側（API ルート）が行う。
-//
-// コインの正は AGO コイン本体（案B ブリッジ）: このモジュールは
-// プロフィールの coins を読み書きしない。コインが動く遷移は、動かすべき
-// 額を `coin`（spend / earn オプの材料）として返し、API ルートが
-// economy-bridge 経由で Bot 本体へ依頼する。残高の検証は、ルートが
-// 読み取った実残高を引数で渡す。
 import {
   STEAL_ACTOR_COOLDOWN_SECONDS,
   STEAL_BALANCE_RATE,
@@ -42,7 +33,6 @@ export type EconomyError =
   | "target_recently_stolen"
   | "self_target";
 
-/** 遷移に伴うコインの移動（ブリッジのオプとして積む材料）。 */
 export type CoinMovement =
   | { kind: "spend"; amount: number; reason: string }
   | { kind: "earn"; amount: number; reason: string };
@@ -58,7 +48,6 @@ function clampCount(v: unknown): number | null {
   return n >= 1 && n <= 99 ? n : null;
 }
 
-/** ショップで買う（かばんに入る）。残高は実残高（引数）を検証する。 */
 export function buyItem(
   profile: PlayerProfile,
   itemId: unknown,
@@ -83,7 +72,6 @@ export function buyItem(
   };
 }
 
-/** かばんのアイテムを売る（対価は earn オプ。pay_house の上限で減ることがある）。 */
 export function sellItem(profile: PlayerProfile, itemId: unknown, countRaw?: unknown): Transition {
   const item = itemById(itemId);
   if (!item) return { ok: false, error: "unknown_item" };
@@ -91,7 +79,6 @@ export function sellItem(profile: PlayerProfile, itemId: unknown, countRaw?: unk
   if (count === null) return { ok: false, error: "invalid_count" };
   const removed = removeItem(profile, item.id, count);
   if (!removed) return { ok: false, error: "not_enough_items" };
-  // 金のアクセサリーを持っていると売却額が1割増える（装飾品の持続効果）
   const bonus =
     (removed.items["accessory"] ?? 0) > 0 || (profile.items["accessory"] ?? 0) > 0 ? 1.1 : 1;
   return {
@@ -105,11 +92,6 @@ export function sellItem(profile: PlayerProfile, itemId: unknown, countRaw?: unk
   };
 }
 
-/**
- * かばんの食事・飲み物を消費して空腹度を回復する。
- * 効果の数式（hunger / バフ）は vitals.consumeEffect が正で、
- * ここは消費・容器返却・満腹ゲートだけを持つ（二重実装にしない）。
- */
 export function eatItem(
   profile: PlayerProfile,
   itemId: unknown,
@@ -124,14 +106,12 @@ export function eatItem(
   if (!removed) return { ok: false, error: "not_enough_items" };
   const effected = consumeEffect(removed, item.id, now);
   if (!effected) return { ok: false, error: "unknown_item" };
-  // 容器入りの飲食物は、飲み終えた容器が手元に戻る（水入りバケツ→バケツ）
   const withContainer = item.containerReturn
     ? addItem(effected.profile, item.containerReturn, 1)
     : effected.profile;
   return { ok: true, item, profile: withContainer };
 }
 
-/** 労働する（空腹度を消費する。報酬は earn オプ）。 */
 export function doWork(profile: PlayerProfile): Transition {
   if (profile.hunger < WORK_HUNGER_COST) return { ok: false, error: "too_tired" };
   return {
@@ -141,9 +121,6 @@ export function doWork(profile: PlayerProfile): Transition {
   };
 }
 
-/** 合成する（素材を消費して成果物を得る。レア結果つき）。
- * レシピにコインコストは無い（items.ts の Recipe は素材のみ）ため、
- * コインは動かない。 */
 export function craftItem(
   profile: PlayerProfile,
   recipeId: unknown,
@@ -166,23 +143,12 @@ export function craftItem(
   return { ok: true, recipe, rare, profile: next };
 }
 
-/** 合成の気配（結果そのものは出さず、近いかどうかだけを匂わせる）。 */
 export type CraftHint = "exact" | "near" | "far";
 
-/** 自由セット式の合成で失敗したときに残る失敗作のアイテム ID。 */
 export const CRAFT_FAILURE_ITEM_ID = "mystery_lump";
-/** 台にセットできる素材の種類数と、1種あたりの個数の上限。 */
 export const CRAFT_MAX_KINDS = 4;
 export const CRAFT_MAX_PER_KIND = 6;
 
-/**
- * 自由セット式の合成（§6: レシピはサーバー側の照合表としてだけ使う）。
- * プレイヤーが台にセットした素材（アイテムID → 個数）を受け取り、
- * RECIPES と完全一致すればその成果物、不一致なら素材を消費して
- * 失敗作（mystery_lump）が残る。結果・確率・レア名は事前に返さず、
- * 気配（hint）だけを返す: exact=完全一致、near=あるレシピと素材種の
- * 半分超を共有、far=それ以外。コインは動かない（craftItem と同じ）。
- */
 export function craftFromInputs(
   profile: PlayerProfile,
   inputsRaw: unknown,
@@ -214,7 +180,6 @@ export function craftFromInputs(
     }
     inputs[id] = countRaw;
   }
-  // 完全一致（キー集合と数が一致）するレシピを探す
   const matched = RECIPES.find((recipe) => {
     const keys = Object.keys(recipe.inputs);
     return keys.length === entries.length && keys.every((k) => inputs[k] === recipe.inputs[k]);
@@ -232,7 +197,6 @@ export function craftFromInputs(
       matched: true,
     };
   }
-  // 不一致: 先に所持を全部確かめてから消費する（途中失敗で消費しない）
   for (const [id, need] of Object.entries(inputs)) {
     if (countItem(profile, id) < need) return { ok: false, error: "not_enough_items" };
   }
@@ -260,36 +224,22 @@ export function craftFromInputs(
   };
 }
 
-// ---------------------------------------------------------------- steal
 export type StealOutcome =
   | {
       ok: true;
       success: boolean;
-      /** 成功時は奪う額、失敗時は罰金の額。 */
       amount: number;
       actor: PlayerProfile;
       target: PlayerProfile;
-      /** 失敗時の罰金（spend オプ）。成功時・罰金0のときは undefined で、
-       * 成功時の移動はルートが steal オプとして別途積む。 */
       coin?: CoinMovement;
     }
   | { ok: false; error: EconomyError };
 
-/** steal の検証に使う両者の実残高（ルートが users から読み取って渡す）。 */
 export interface StealBalances {
   actorCoins: number;
   targetCoins: number;
 }
 
-/**
- * steal の解決（ボット側と同じ規則）。
- * - 実行者はクールダウン中は実行できない
- * - 対象は実残高が下限未満なら保護、防犯チャーム所持でも保護、
- *   直近に盗まれたばかりでも保護
- * - 成功: 対象の実残高の割合（上限つき）を奪う（移動は steal オプ）
- * - 失敗: 実行者が罰金を払う（spend オプ。自分の実残高が上限）
- * プロフィール側で変わるのはクールダウン時刻だけで、コインは触らない。
- */
 export function resolveSteal(
   actor: PlayerProfile,
   target: PlayerProfile,

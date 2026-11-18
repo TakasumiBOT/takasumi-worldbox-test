@@ -1,17 +1,6 @@
-// AGO WORLD BOX の機械基盤（バッチ10a）。
-// 統一されたアイテム/ブロック構造の上に載る「プログラム可能な装置」の土台。
-// 装置 = 設置ブロック（facility）に紐づく DeviceProgram（トリガー+動作+
-// パラメータ）と、その実行状態（バッファ等）。プログラムは共有コードとして
-// 書き出し/読み込みでき、他人の作った装置設定をそのまま使える（共有基盤）。
-// 最小の実働装置として「自動収穫機」を実装する: 隣接する自分の畑で作物が
-// 育ち切ったら自動で収穫し、装置内バッファに貯める（回収は所有者がタップ）。
-// 評価は遅延式（読み取り/操作のタイミングで経過分を解決する）で、
-// サーバー側の常駐ループは持たない。
-
 import { cropById } from "./items";
 import type { TileOverride } from "../world/tiles";
 
-/** 装置として扱う施設アイテム。 */
 export const MACHINE_ITEM_ID = "auto_harvester";
 export function isMachineItem(itemId: string): boolean {
   return itemId === MACHINE_ITEM_ID;
@@ -24,7 +13,6 @@ export interface DeviceProgram {
   version: 1;
   trigger: DeviceTrigger;
   action: DeviceAction;
-  /** 評価の最小間隔（秒）。これより細かくは動かない。 */
   intervalSec: number;
   enabled: boolean;
 }
@@ -50,7 +38,6 @@ export function parseProgram(raw: unknown): DeviceProgram {
   };
 }
 
-/** 共有コード: "WB1." + base64url(JSON)。他人のプログラムを取り込める。 */
 export function encodeProgram(program: DeviceProgram): string {
   const json = JSON.stringify(parseProgram(program));
   return "WB1." + Buffer.from(json, "utf8").toString("base64url");
@@ -67,7 +54,6 @@ export function decodeProgram(code: unknown): DeviceProgram | null {
   }
 }
 
-/** 組み込みプリセット（共有の出発点）。 */
 export const DEVICE_PRESETS: readonly { id: string; name: string; program: DeviceProgram }[] = [
   { id: "standard", name: "標準収穫", program: defaultProgram() },
   { id: "swift", name: "こまめ収穫", program: { ...defaultProgram(), intervalSec: 30 } },
@@ -75,10 +61,8 @@ export const DEVICE_PRESETS: readonly { id: string; name: string; program: Devic
 ];
 
 export interface MachineState {
-  /** 設置者の不透明 ID（presenceId 形式）。 */
   ownerId: string;
   program: DeviceProgram;
-  /** 収穫済みで未回収の作物。 */
   buffer: Record<string, number>;
   lastEvalAt: number;
   updatedAt: number;
@@ -120,18 +104,11 @@ export function machineBufferCount(state: MachineState): number {
 
 export interface MachineEvalResult {
   state: MachineState;
-  /** 変更が必要な隣接タイル（キー → 新しい上書き）。 */
   changed: Map<string, TileOverride>;
-  /** 今回収穫した数。 */
   harvested: number;
-  /** 評価が走ったか（間隔未満なら false で状態は不変）。 */
   evaluated: boolean;
 }
 
-/**
- * 装置を評価する。neighbors は装置タイルの周囲8タイルの上書き（キー付き）。
- * 所有者が同じで、育ち切った作物があれば収穫してバッファへ移す。
- */
 export function evaluateMachine(
   state: MachineState,
   neighbors: ReadonlyMap<string, TileOverride>,

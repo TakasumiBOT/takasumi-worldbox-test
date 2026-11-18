@@ -21,11 +21,9 @@ export function GET(request: Request) {
     );
   }
 
-  // 別ホスト（専用サブドメイン等）から始まった場合は正規ホストへ寄せる（Discord と同じ理由）。
   const canonical = canonicalAuthorizeRedirect(request, "/api/auth/google/authorize", redirectUri);
   if (canonical) return NextResponse.redirect(canonical);
 
-  // ログイン後に戻る先（同一サイト内のパスだけ許可）。未指定は One Prompter へ。
   const next = resolveOAuthNext(new URL(request.url).searchParams.get("next"), "/one-prompter");
 
   const state = crypto.randomBytes(24).toString("hex");
@@ -33,7 +31,6 @@ export function GET(request: Request) {
   url.searchParams.set("client_id", clientId);
   url.searchParams.set("redirect_uri", redirectUri);
   url.searchParams.set("response_type", "code");
-  // 取得するのは識別子・名前・アイコン程度の最小スコープに絞る
   url.searchParams.set("scope", "openid profile email");
   url.searchParams.set("state", state);
 

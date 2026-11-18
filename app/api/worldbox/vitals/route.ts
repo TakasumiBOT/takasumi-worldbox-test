@@ -11,17 +11,6 @@ import { activityForWindow, stepVitals } from "@/lib/worldbox/player/vitals";
 
 export const runtime = "nodejs";
 
-// AGO WORLD BOX のプレイヤーバイタル（空腹・食事バフ）。
-// 状態の正は profile（bot_kv worldbox_profiles）で、遷移規則は vitals.ts。
-// POST { action: "sync", px?, py?, space? }: 時間経過の精算（空腹）。
-//   空腹の活動クラスは現在位置と前回精算位置の平均速度からサーバー側で判定する。
-//   pendingTeleport（パーティ集合などの移動予約）があれば、プレゼンスと
-//   セーブを移動先へそろえてから配送する。
-// REST ハートビートには触らない（サーバー検証の正はプレゼンス側）。
-// プロフィールの書き込みはユーザー単位ロック（素の ownerKey、他ルートと
-// 同じ鍵）で直列化する（B3）: ロック外で読んだスナップショットで保存
-// すると、並走する他ルートの書き込みと上書きし合う。
-
 const NO_STORE = { "Cache-Control": "no-store, max-age=0" };
 
 function sameOrigin(request: Request) {
@@ -33,7 +22,6 @@ function errorResponse(error: string, status = 409) {
   return NextResponse.json({ error }, { status, headers: NO_STORE });
 }
 
-/** 距離検証に使う本人のワールド位置（プレゼンス→申告→セーブの優先順）。 */
 async function actorWorldPosition(
   ownerKey: string,
   reported?: { x: number; y: number } | null,
@@ -50,12 +38,6 @@ async function actorWorldPosition(
   return null;
 }
 
-/**
- * 移動予約の移動先へプレゼンスとセーブをそろえる（B4）。
- * ワープと同じく、サーバー側の移動は両方を目的地へ更新する（移動先が
- * 新しい連続性の基準になる）。worldReturn は従来の値を維持する。
- * どちらかが失敗したら false を返し、呼び出し側が再送・再試行を決める。
- */
 async function movePresenceAndSave(
   ownerKey: string,
   dest: { space: string; x: number; y: number },
@@ -109,13 +91,8 @@ export async function POST(request: Request) {
   const now = Date.now();
 
   if (data.action === "sync") {
-    // プロフィールの読み書きはユーザー単位で直列化し、ロック内で読み直す。
     return withUserLock(ownerKey, async () => {
       const current = await loadProfile(ownerKey);
-      // 空腹の活動クラスはサーバー側で判定する（クライアント申告の活動は使わない）。
-      // 本人の現在位置（プレゼンス→申告→セーブ）と profile に残した
-      // 前回精算位置との平均速度で idle / move / dash に分類し、
-      // 現在位置は次回の判定用に profile へ残す。
       const reported =
         typeof data.px === "number" &&
         typeof data.py === "number" &&
@@ -143,9 +120,6 @@ export async function POST(request: Request) {
         : settled.profile;
       if (profile.pendingTeleport) {
         const teleport = profile.pendingTeleport;
-        // 移動先へプレゼンスとセーブをそろえてから配送する。失敗したら
-        // 残して次回 sync で再送する（更新しないまま配送すると、次回
-        // ハートビートが保管位置への戻しを食らう）。
         if (!(await movePresenceAndSave(ownerKey, teleport, now, session.username ?? ""))) {
           if (!(await storeProfile(ownerKey, profile))) return errorResponse("store_failed", 503);
           return NextResponse.json({ profile }, { headers: NO_STORE });

@@ -1,6 +1,3 @@
-// AGO WORLD BOX のインスタンス枯渇状態の保存（サーバー専用）。
-// 保存先は bot_kv（名前空間 "worldbox_instances"、キー = 空間 ID）。
-// 値: { veins: { veinKey: 採取時刻 }, chest: 宝箱を開けた時刻 }。
 import { isBotApiConfigured, kvDelete, kvGet, kvSet } from "../../bot-api";
 
 export const WORLDBOX_INSTANCES_NAMESPACE = "worldbox_instances";
@@ -51,12 +48,10 @@ export function isInstancesEnabled(): boolean {
 }
 
 export type RuinsPersonalState = {
-  /** 週キー（月曜）。違う週なら宝箱・罠・扉はリセットされる。 */
   week: string;
   chests: Record<string, boolean>;
   traps: Record<string, boolean>;
   doors: Record<string, boolean>;
-  /** 主宝箱の初回開封（ruins_complete 済み）。週次リセット対象外。 */
   completed: boolean;
 };
 
@@ -125,20 +120,12 @@ export async function storeRuinsPersonal(
   }
 }
 
-/* ================= ダンジョンのセッション（バッチ5） =================
- * パーティ別インスタンスの進行状態。キーは "<フロア1の空間ID>#<partyKey>"。
- * 全員離脱で削除する（インスタンスが閉じる）。クリア週の記録は
- * "dungeonclear:<ownerKey>" に週キーを残す（週1回の earn 判定）。
- */
-
 export type DungeonSession = {
   partyKey: string;
   entrance: { x: number; y: number };
-  /** 入場時点のパーティ人数。 */
   size: number;
   members: string[];
   departed: string[];
-  /** 宝箱の開封記録: "<ownerKey>:<floor>:<idx>" → 開封時刻。 */
   chests: Record<string, number>;
   startedAt: number;
 };
@@ -219,7 +206,6 @@ export async function deleteDungeonSession(spaceFloor1: string, partyKey: string
   }
 }
 
-/** 全員が離脱したらインスタンスは閉じる。 */
 export function dungeonSessionClosed(session: DungeonSession): boolean {
   return session.members.every((m) => session.departed.includes(m));
 }

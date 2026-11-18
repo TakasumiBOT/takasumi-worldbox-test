@@ -1,11 +1,3 @@
-// AGO WORLD BOX の場所検証（サーバー専用）。
-// 行動の場所制約（購入=店、合成=作業台、送金=銀行、掲示板=掲示板前）は
-// クライアントの表示制限だけでなく、サーバー側でも本人の現在位置で
-// 検証する。位置の正はプレゼンス（サーバーが受け取ったハートビート）で、
-// クライアントの自己申告は使わない。カジノ（casino ルート）と同じ方式。
-// 室内（ロビー・テント）外・プレゼンス未送信・鮮度切れはすべて null
-// （=どの施設の前でもない）。プレゼンスが無い/古い場合は、ワープ時に
-// 保存されるセーブ（空間と入口位置）で代替する。
 import {
   buildLobby,
   stationGenreNear,
@@ -23,7 +15,6 @@ import { loadWorldBoxSave } from "../core/save-online";
 import { placedStationKinds, type StationKind } from "./tiles";
 import { loadTileOverride } from "./tiles-online";
 
-/** 本人の現在位置（室内オブジェクト一覧＋タイル座標）。室内にいなければ null。 */
 async function loadMyIndoorPosition(
   ownerKey: string,
 ): Promise<{ objects: readonly LobbyObject[]; tx: number; ty: number } | null> {
@@ -83,17 +74,12 @@ async function loadMyIndoorPosition(
   return null;
 }
 
-/** 本人が今隣接している室内のステーション。無ければ null。 */
 export async function loadMyLobbyStation(ownerKey: string): Promise<LobbyStation | null> {
   const pos = await loadMyIndoorPosition(ownerKey);
   if (!pos) return null;
   return stationNear(pos.objects, pos.tx, pos.ty);
 }
 
-/**
- * 本人が今いる店の品目ジャンル（shops.ts）。鍛冶屋（station "smith"）は
- * ジャンル "smith"。店の前にいない／接した店がジャンルを持たなければ null。
- */
 export async function loadMyLobbyShopGenre(ownerKey: string): Promise<ShopGenreId | null> {
   const pos = await loadMyIndoorPosition(ownerKey);
   if (!pos) return null;
@@ -103,14 +89,8 @@ export async function loadMyLobbyShopGenre(ownerKey: string): Promise<ShopGenreI
   return stationGenreNear(pos.objects, pos.tx, pos.ty);
 }
 
-/** 設置した作業施設の探索半径（タイル、チェビシェフ）。ベッド検証と同じ 2。 */
 export const WORLD_STATION_RADIUS = 2;
 
-/**
- * 本人がワールドで今隣接している設置施設の作業種別（作業台・かまど等）。
- * 位置の正は室内と同じくプレゼンス（無ければセーブの保存位置）。
- * 周囲のタイル上書きをサーバー保存の真値で走査する（クライアント申告は使わない）。
- */
 export async function loadMyWorldStationKinds(ownerKey: string): Promise<ReadonlySet<StationKind>> {
   const kinds = new Set<StationKind>();
   if (!isPresenceEnabled()) return kinds;

@@ -1,12 +1,5 @@
 "use strict";
-// AGO WORLD BOX リアルタイム中継（relay）専用の bot_kv クライアント。
-// relay は Next の外側で動く素の Node プロセスのため、lib/bot-api.ts
-// （TS）を直接使えない。代わりに同じ BOT 自前 API（/v1/query）を同じ
-// 環境変数（BOT_API_BASE_URL / BOT_API_KEY）・同じリクエスト形式で叩く。
-// これにより watch（読み）と Phase 2 のプレゼンス集約書き込みが、
-// Next 側の *-online.ts と同じ bot_kv レコードを触れる。
 
-/** bot-api の設定（未設定なら null = relay の kv 機能は無効）。 */
 function botKvConfig(env = process.env) {
   const base = String(env.BOT_API_BASE_URL || "").replace(/\/$/, "");
   const key = env.BOT_API_KEY || "";
@@ -29,7 +22,6 @@ async function kvQuery(cfg, body, fetchImpl = fetch) {
   return Array.isArray(result?.data) ? result.data : [];
 }
 
-/** 名前空間を全件読む（bot-api.ts の kvList と同じ。Map で返す）。 */
 async function kvList(cfg, namespace, fetchImpl = fetch) {
   const rows = await kvQuery(
     cfg,
@@ -47,7 +39,6 @@ async function kvList(cfg, namespace, fetchImpl = fetch) {
   return map;
 }
 
-/** 1件読む（bot-api.ts の kvGet と同じ。無ければ null）。 */
 async function kvGet(cfg, namespace, key, fetchImpl = fetch) {
   const rows = await kvQuery(
     cfg,
@@ -67,7 +58,6 @@ async function kvGet(cfg, namespace, key, fetchImpl = fetch) {
   return rows[0].value ?? null;
 }
 
-/** 1件書く（bot-api.ts の kvSet と同じ upsert）。 */
 async function kvSet(cfg, namespace, key, value, fetchImpl = fetch) {
   await kvQuery(
     cfg,
@@ -81,7 +71,6 @@ async function kvSet(cfg, namespace, key, value, fetchImpl = fetch) {
   );
 }
 
-/** 1件消す（bot-api.ts の kvDelete と同じ）。 */
 async function kvDelete(cfg, namespace, key, fetchImpl = fetch) {
   await kvQuery(
     cfg,

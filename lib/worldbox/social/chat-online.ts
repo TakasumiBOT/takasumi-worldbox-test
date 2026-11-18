@@ -1,9 +1,3 @@
-// AGO WORLD BOX チャットの保存（bot_kv）。
-// 近距離/全体は worldbox_chat 名前空間にチャンネル+空間ごとの配列で持ち、
-// 保持期間を過ぎたものは読み書きのついでに落とす（揮発）。
-// ユニオンはギルドごとの掲示として worldbox_union_board に保持し、
-// Discord チャンネル連携が設定されていれば worldbox_chat_outbox へ積む
-// （Bot 側ワーカーがチャンネルへ投稿する）。
 import { isBotApiConfigured, kvGet, kvSet } from "../../bot-api";
 import {
   parseChatMessage,
@@ -58,7 +52,6 @@ async function storeList(
   }
 }
 
-/** チャンネルのメッセージ一覧（保持期間で間引いた新しい順）。 */
 export async function loadChatMessages(
   channel: ChatChannel,
   space: string,
@@ -69,22 +62,15 @@ export async function loadChatMessages(
   return pruneChatMessages(all, channel, Date.now());
 }
 
-/** 投稿を追記し、間引き後の配列で保存する。保存できたら true。 */
 export async function appendChatMessage(message: ChatMessage): Promise<boolean> {
   const key = listKey(message.channel, message.space, message.guildId);
-  // 読み→追記→書きはリスト単位で直列化する（同時投稿の後勝ちで
-  // 先の投稿が消える lost-update を防ぐ）。Bot 側の受信リレーも同じ
-  // キーを書くが、bot_kv に CAS が無いためプロセスをまたぐ同時書きは
-  // 原理的に残る（ワーカー側もギルド単位ロックで自プロセス内は直列化）。
   return withUserLock(`chat-list:${namespaceFor(message.channel)}:${key}`, async () => {
     const all = await loadList(message.channel, key);
     const next = pruneChatMessages([...all, message], message.channel, message.at);
-    // prune は新しい順。保存もその順でよい（読み側で再整形する）
     return storeList(message.channel, key, next);
   });
 }
 
-/** ユニオンの Discord 連携設定（mode 形式。旧 chatChannelId は移行読込）。 */
 export type { UnionChatSettings } from "./chat";
 
 export async function loadUnionChatSettings(guildId: string): Promise<UnionChatSettings> {
@@ -111,7 +97,6 @@ export async function storeUnionChatSettings(
   }
 }
 
-/** Discord 連携の送信箱（Bot ワーカーが読んで投稿し、status を sent にする）。 */
 export type ChatOutboxEntry = {
   id: string;
   guildId: string;

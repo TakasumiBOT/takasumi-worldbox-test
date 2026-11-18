@@ -1,8 +1,3 @@
-// AGO WORLD BOX タイル読み込みの高速化と埋没救済の検証:
-// - tiles-online の短TTLキャッシュ（kvList の全件スキャン頻度を落とす）
-// - 書き込みのキャッシュ即時反映（自分の設置が次回読みで必ず見える）
-// - 埋没判定（半径半分では深い重なりだけ拾い、壁への密着では発火しない）
-// - クライアント配線（先読み再取得・スポーン時取得・埋没救済ループ）
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -56,7 +51,6 @@ const tilesUrl = bundleModule(
   ["tileKey", "parseTileOverride", "parseTileOverrides"],
 );
 
-// bot-api スタブ（kvList の呼び出し回数を数える）
 const botApiStubUrl = dataUrl(`
 const store = new Map();
 let listCalls = 0;
@@ -79,8 +73,6 @@ const online = await import(tilesOnlineUrl);
 
 const OV = { block: { itemId: "dirt_block", ownerId: "abc" }, ownerId: "abc" };
 
-// ---------- キャッシュ ----------
-
 test("tiles-online: キャッシュが TTL 内の全件スキャンを抑え、TTL 後に取り直す", async () => {
   botApi.__seed("3,4", JSON.stringify(OV));
   const realNow = Date.now;
@@ -102,7 +94,7 @@ test("tiles-online: キャッシュが TTL 内の全件スキャンを抑え、T
 });
 
 test("tiles-online: 書き込みはキャッシュへ即時反映される（自分の設置が見える）", async () => {
-  await online.loadTileOverrides(); // 実時刻でキャッシュを温める
+  await online.loadTileOverrides();
   const before = botApi.__listCalls();
   assert.equal(await online.storeTileOverride(7, 8, OV), true);
   const map = await online.loadTileOverrides();
@@ -112,8 +104,6 @@ test("tiles-online: 書き込みはキャッシュへ即時反映される（自
   const after = await online.loadTileOverrides();
   assert.equal(after["7,8"], undefined, "削除も即時反映される");
 });
-
-// ---------- 埋没判定 ----------
 
 const moveUrl = bundleModule(
   ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/player/move.ts"],
@@ -131,7 +121,6 @@ const MV = await import(moveUrl);
 
 test("move: 埋没判定は深い重なりだけを拾い、壁への密着では発火しない", () => {
   const map = MV.worldTileSource();
-  // 草タイルを探して、そのタイルを設置ブロックで固体化した状況を作る
   let gx = 0;
   let gy = 0;
   outer: for (let y = -20; y < 20; y++) {
@@ -145,21 +134,15 @@ test("move: 埋没判定は深い重なりだけを拾い、壁への密着で�
   }
   const blocked = new Set([`${gx},${gy}`]);
   const half = MV.PLAYER_RADIUS * 0.5;
-  // 壁タイルの中心にいる = 深く埋まっている → 救済が発火する
   assert.equal(MV.circleHitsSolid(map, gx + 0.5, gy + 0.5, half, blocked, { swim: true }), true);
   assert.equal(MV.canStandAt(map, gx + 0.5, gy + 0.5, blocked, { swim: true }), false);
-  // 壁に密着（円がちょうど接する位置）では発火しない
   const touchX = gx - MV.PLAYER_RADIUS;
   assert.equal(MV.circleHitsSolid(map, touchX, gy + 0.5, half, blocked, { swim: true }), false);
   assert.equal(MV.canStandAt(map, touchX, gy + 0.5, blocked, { swim: true }), true);
-  // 救済先は立てる場所
   const free = MV.findFreeNear(map, gx + 0.5, gy + 0.5, blocked, { swim: true });
   assert.equal(MV.canStandAt(map, free.x, free.y, blocked, { swim: true }), true);
 });
 
-// ---------- S4: スキャン中の書き込み競合（epoch ガード） ----------
-
-// kvList を遅延させられる別スタブ（スキャン開始→書き込み→完了を再現する）
 const raceBotApiStubUrl = dataUrl(`
 const store = new Map();
 let listCalls = 0;
@@ -194,22 +177,19 @@ test("tiles-online(S4): スキャン中の書き込みは古いスナップシ�
   let now = 2_000_000;
   Date.now = () => now;
   try {
-    await raceOnline.loadTileOverrides(); // キャッシュを温める（空）
+    await raceOnline.loadTileOverrides();
     assert.equal(raceBotApi.__listCalls(), 1);
-    now += 3_001; // TTL を過ぎさせる
+    now += 3_001;
     raceBotApi.__holdLists(true);
-    const loading = raceOnline.loadTileOverrides(); // スキャン開始（遅延中）
-    // スキャンが kvList に到達するまで1ティック待つ
+    const loading = raceOnline.loadTileOverrides();
     for (let i = 0; i < 10 && raceBotApi.__pendingLists() === 0; i++)
       await new Promise((r) => setTimeout(r, 0));
     assert.equal(raceBotApi.__pendingLists(), 1, "スキャンが走っている");
-    // スキャン中に書き込む（キャッシュへ即時反映されるはず）
     assert.equal(await raceOnline.storeTileOverride(9, 9, OV), true);
-    raceBotApi.__releaseLists(); // スキャン完了（書き込み前のスナップショット）
+    raceBotApi.__releaseLists();
     raceBotApi.__holdLists(false);
     const map = await loading;
     assert.deepEqual(map["9,9"], OV, "書き込みがスキャン結果に残る");
-    // 次回読み（キャッシュ）でも残る
     const cached = await raceOnline.loadTileOverrides();
     assert.deepEqual(cached["9,9"], OV);
     assert.equal(raceBotApi.__listCalls(), 2, "余計な再スキャンをしていない");
@@ -217,8 +197,6 @@ test("tiles-online(S4): スキャン中の書き込みは古いスナップシ�
     Date.now = realNow;
   }
 });
-
-// ---------- S4: withUserLock の直列化 ----------
 
 const userLockUrl = dataUrl(transpile("worldbox/core/user-lock.ts"));
 const userLock = await import(userLockUrl);
@@ -233,13 +211,10 @@ test("user-lock(S4): 同じキーの並行呼び出しは直列化され、違�
     });
   };
   await Promise.all([job("k", "a", 10), job("k", "b", 0), job("other", "c", 0)]);
-  // a と b は同じキーなので a が出てから b が入る。c は別キーで並走する。
   assert.ok(order.indexOf("a:out") < order.indexOf("b:in"), `直列化されていない: ${order}`);
   assert.equal(order.filter((e) => e.endsWith(":in")).length, 3);
   assert.equal(order.filter((e) => e.endsWith(":out")).length, 3);
 });
-
-// ---------- クライアント配線 ----------
 
 test("tiles-load: ルート GET はキャッシュつき読み取りを使い、クライアントは先読みと救済を持つ", () => {
   const route = fs.readFileSync(path.join(rootDir, "app/api/worldbox/tiles/route.ts"), "utf8");

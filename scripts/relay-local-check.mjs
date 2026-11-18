@@ -1,9 +1,3 @@
-// Vercel 用 WS 中継ハブ（realtime/hub.js）のローカル動作確認。
-// upgradeWebSocket は Vercel 上でしか動かないため、ここでは素の ws サーバーで
-// アップグレードだけを肩代わりし、トークン検証以降の配線（hub）が本番と
-// 同じであることを確かめる。bot-api は無効（kvCfg: null）で回すので、
-// 検証範囲は中継そのもの（snap / up / bye / ピアノ音 / 401）になる。
-// 使い方: node scripts/relay-local-check.mjs（リポジトリルートで実行）
 import http from "node:http";
 import { createRequire } from "node:module";
 
@@ -77,7 +71,7 @@ function connect(pid, name, tok = token(pid, name)) {
           }),
         send: async (obj) => {
           ws.send(JSON.stringify(obj));
-          await sleep(60); // ハブの 25 msg/秒制限に当たらない間隔
+          await sleep(60);
         },
       }),
     );
@@ -92,7 +86,6 @@ const check = (label, ok) => {
 };
 
 try {
-  // 1) 壊れたトークンは 401
   const badStatus = await new Promise((resolve) => {
     const ws = new WebSocket(`ws://127.0.0.1:${port}/api/worldbox/realtime?t=bad.token.here`);
     ws.once("error", (err) => resolve(String(err && err.message)));
@@ -100,13 +93,11 @@ try {
   });
   check("bad token rejected (401)", badStatus.includes("401"));
 
-  // 2) A が world に入る → snap（自分以外は空）
   const a = await connect("u1", "Alice");
   await a.send({ t: "hb", x: 10, y: 10, vx: 0, vy: 0, face: 1, space: "world" });
   const snapA = await a.waitFor((m) => m.t === "snap", "A snap");
   check("A snap with no other players", Array.isArray(snapA.players) && snapA.players.length === 0);
 
-  // 3) B が world に入る → B の snap に A、A に B の up
   const b = await connect("u2", "Bob");
   await b.send({ t: "hb", x: 11, y: 10, vx: 0, vy: 0, face: 1, space: "world" });
   const snapB = await b.waitFor((m) => m.t === "snap", "B snap");
@@ -117,16 +108,13 @@ try {
   const upForA = await a.waitFor((m) => m.t === "up" && m.p && m.p.id === "u2", "A sees B up");
   check("A receives B presence up", upForA.p.space === "world");
 
-  // 4) A が lobby へ移動 → B に bye（world から消える）
   await a.send({ t: "hb", x: 28, y: 30, vx: 0, vy: 0, face: 1, space: "lobby" });
   await b.waitFor((m) => m.t === "bye" && m.id === "u1", "B sees A bye");
   check("B receives A bye on space change", true);
 
-  // 5) B も lobby へ → B の snap に A
   await b.send({ t: "hb", x: 29, y: 30, vx: 0, vy: 0, face: 1, space: "lobby" });
   check("B in lobby, A still tracked", true);
 
-  // 6) A のピアノ音がロビーの B に届く
   await a.send({ t: "note", notes: [0, 4, 7] });
   const note = await b.waitFor((m) => m.t === "note", "B hears piano");
   check(
@@ -134,7 +122,6 @@ try {
     note.id === "u1" && JSON.stringify(note.notes) === "[0,4,7]",
   );
 
-  // 7) B 切断 → A に bye
   b.ws.close();
   await a.waitFor((m) => m.t === "bye" && m.id === "u2", "A sees B bye");
   check("A receives B bye on disconnect", true);

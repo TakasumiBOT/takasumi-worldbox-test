@@ -1,10 +1,3 @@
-// AGO WORLD BOX ロビーのアーケード筐体パネル・ルーム起動（L4/L4b）の検証:
-// - 全26筐体に station "arcade" とゲーム ID が付き、ARCADE_GAMES と一致する
-// - 筐体の前に立つと stationNear が "arcade"、stationArcadeNear がそのゲームを返す
-// - 全タイトルがカタログで playable、かつ /games/<id> の振り分けに存在する
-// - パネルはゲームページへ遷移せず、ゲーム本体の部品を WORLD BOX の筐体画面に
-//   埋め込んでそのまま遊べる（L4b）。部品は全タイトル分が遅延読み込みで登録され、
-//   実ファイルが props 無しの default export であることまで確認する
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -68,8 +61,6 @@ test("panel: 全26筐体に station arcade とゲーム ID が付き、ARCADE_GA
 test("panel: 筐体の前に立つと stationNear=arcade / stationArcadeNear=そのゲームを返す", () => {
   for (const data of [floors.buildLobby2(), floors.buildLobby3()]) {
     for (const o of data.objects.filter((x) => x.sprite.startsWith("arcade_"))) {
-      // 筐体の周囲（チェビシェフ距離1）で歩行可能なマスのうち、少なくとも
-      // 1マスは「この筐体の前」として判定されること
       let found = null;
       for (let ty = o.y - 1; ty <= o.y + o.h && !found; ty++) {
         for (let tx = o.x - 1; tx <= o.x + o.w && !found; tx++) {
@@ -85,7 +76,6 @@ test("panel: 筐体の前に立つと stationNear=arcade / stationArcadeNear=そ
         `${o.sprite} の前で stationNear が arcade でない`,
       );
     }
-    // 入口（階段の着地点）はどの筐体の前でもない
     const entry = data === floors.buildLobby2() ? floors.LOBBY2_ENTRY : floors.LOBBY3_ENTRY;
     assert.equal(
       lobby.stationArcadeNear(data.objects, Math.floor(entry.x), Math.floor(entry.y)),
@@ -122,8 +112,6 @@ test("panel: パネルはゲームページへ遷移せず、ゲーム本体を�
     /\/api\/online\//,
     "パネルが独自に online API を叩いている（本体の OnlineShell に任せる）",
   );
-  // 本体は明色テーマ前提の部品（文字色を継承に頼る）: 筐体の枠はダーク（#fff）でも、
-  // 画面（body）はサイト標準の文字色・背景に切り替えて白文字化を防ぐ
   assert.match(
     src,
     /background: "var\(--bg\)",\s*color: "var\(--text\)"/,
@@ -177,6 +165,5 @@ test("panel: クライアント配線（チップの名前札・遊ぶボタン�
     "パネル描画の条件が 2F/3F になっていない",
   );
   assert.match(src, /<WorldBoxArcadePanel/, "WorldBoxArcadePanel が描画されていない");
-  // 筐体で遊んでいる間はワールド側の移動キーを受けない（ゲーム側のキー入力と競合するため）
   assert.match(src, /if \(arcadeOpenRef\.current\) return;/, "筐体プレイ中のキー入力ガードが無い");
 });

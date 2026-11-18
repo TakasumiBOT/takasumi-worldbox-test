@@ -1,8 +1,3 @@
-// WORLD BOX アバター = ユーザーアイコン（Discord アバター）のテスト。
-// - avatar はサーバーがセッションから付与する（クライアント申告は通さない）
-// - REST: プレゼンスルートが付与 → bot_kv → parsePresenceEntry が復元
-// - WS: 中継トークンの av クレーム → relay がエントリへ付与 → snap/up/集約書き込み
-// - クライアント: 自分は /api/auth/me、他者は entry.avatar で円形アイコン描画
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -130,7 +125,6 @@ test("acceptHeartbeat + snapshot + presenceKvValue: avatar がエントリと集
   assert.equal(snap[0].avatar, AV);
   const kv = JSON.parse(core.presenceKvValue(entry));
   assert.equal(kv.avatar, AV);
-  // avatar 無しでは載らない
   const room2 = core.createRoom();
   const plain = core.acceptHeartbeat(
     room2,
@@ -161,7 +155,6 @@ test("配線: ルート/トークン/ラッパー/クライアント", () => {
   assert.match(client, /iconFor\(o\.track\.entry\.avatar\)/);
   assert.match(client, /iconFor\(myIconUrl\)/);
   assert.match(client, /fetch\("\/api\/auth\/me"\)/);
-  // NPC の描画はアイコン無し（従来キャラのまま）
   assert.match(
     client,
     /draw: \(\) =>\s*drawAvatar\(\s*ctx,\s*Math\.round\(lobbyOx \+ \(n\.x \+ 0\.5\) \* TILE\),\s*Math\.round\(lobbyOy \+ \(n\.y \+ 1\) \* TILE\),\s*1,\s*0,\s*0,\s*null,?\s*\)/,

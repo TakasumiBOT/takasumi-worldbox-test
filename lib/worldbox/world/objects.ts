@@ -1,30 +1,14 @@
-// AGO WORLD BOX の特殊オブジェクト（純粋ロジック、DOM 非依存）。
-// マップ上に点在する「触ると何か起きる」対象の定義と、決定的配置・
-// ルート（入手物）ロール・再出現の規則。定義はデータ駆動で、
-// 追加はこの表への1行で済む。配置はチャンク単位で決定的に決まるため、
-// サーバーに全オブジェクトを保存しなくても全クライアントで一致する。
-// 入口系（洞窟/ダンジョン/遺跡）は構造物配置（maplogic.ts の STRUCTURES）
-// が担うため、ここには定義を持たない（旧 cave_mouth/dungeon_gate/
-// ruins_gate は density 0 で配置されず、実体と二重管理になるため除去）。
 import { itemById } from "../economy/items";
 import { biomeAt, chunkHash, type BiomeId } from "./maplogic";
 import { CHUNK_SIZE } from "./mapgen";
 import { makeRng } from "../core/rng";
 
-export type ObjectInteraction =
-  | "harvest" // 採取（茂み・群生・巣）
-  | "mine" // 採掘（鉱脈・クラスター）
-  | "open" // 開ける（宝箱。罠の可能性あり）
-  | "enter" // 入る（別枠マップへの入口）
-  | "rest" // 休む（温泉・祠: 回復）
-  | "search" // 調べる（倒木・野営地・石柱）
-  | "fish"; // 釣る（魚影）
+export type ObjectInteraction = "harvest" | "mine" | "open" | "enter" | "rest" | "search" | "fish";
 
 export type LootEntry = {
   itemId: string;
   min: number;
   max: number;
-  /** 0〜1。このエントリが出る確率。 */
   chance: number;
 };
 
@@ -32,21 +16,13 @@ export type SpecialObjectDef = {
   id: string;
   name: string;
   interaction: ObjectInteraction;
-  /** 出現しうるバイオーム。 */
   biomes: readonly BiomeId[];
-  /** 1チャンクあたりの平均出現数（小数可。決定的ロールで使う）。 */
   density: number;
-  /** 採取・開封後に再出現するまでの時間（ミリ秒）。0 は再出現しない。 */
   respawnMs: number;
-  /** 移動の当たり判定を持つか（入口・石柱は固体、茂み・魚影は通過可）。 */
   solid: boolean;
-  /** 必要な道具の種類（無ければ素手でよい）。 */
   tool?: "axe" | "pickaxe";
-  /** 必要な道具の最低段位。 */
   minTier?: number;
-  /** 入口系の遷移先スペース。 */
   targetSpace?: "cave" | "dungeon" | "ruins" | "lobby";
-  /** 宝箱の罠が発動する確率（0〜1）。 */
   trapChance?: number;
   loot: readonly LootEntry[];
 };
@@ -54,7 +30,6 @@ export type SpecialObjectDef = {
 const HOUR = 3600 * 1000;
 
 export const SPECIAL_OBJECTS: readonly SpecialObjectDef[] = [
-  // ---- 採取系（自然の恵み） ---------------------------------------------
   {
     id: "berry_bush",
     name: "木の実の茂み",
@@ -131,7 +106,6 @@ export const SPECIAL_OBJECTS: readonly SpecialObjectDef[] = [
       { itemId: "feather", min: 1, max: 3, chance: 1 },
     ],
   },
-  // ---- 採掘系（鉱脈） -----------------------------------------------------
   {
     id: "copper_vein",
     name: "銅の鉱脈",
@@ -219,7 +193,6 @@ export const SPECIAL_OBJECTS: readonly SpecialObjectDef[] = [
     solid: false,
     loot: [{ itemId: "sulfur", min: 1, max: 3, chance: 1 }],
   },
-  // ---- 宝箱系（遺跡・洞窟・ダンジョンの中身の性格を地表の宝箱にも） -------
   {
     id: "ruins_chest",
     name: "旧市街の保管箱",
@@ -267,7 +240,6 @@ export const SPECIAL_OBJECTS: readonly SpecialObjectDef[] = [
       { itemId: "mithril", min: 1, max: 2, chance: 0.45 },
     ],
   },
-  // ---- 回復・探索系 ---------------------------------------------------------
   {
     id: "hot_spring",
     name: "温泉",
@@ -339,7 +311,6 @@ export function specialObjectById(id: unknown): SpecialObjectDef | null {
   return typeof id === "string" ? (OBJECT_BY_ID.get(id) ?? null) : null;
 }
 
-/** ルート定義の整合性（全エントリが実在アイテムを指すか）。 */
 export function validateSpecialObjects(): string[] {
   const errors: string[] = [];
   for (const def of SPECIAL_OBJECTS) {
@@ -354,7 +325,6 @@ export function validateSpecialObjects(): string[] {
   return errors;
 }
 
-// ---------------------------------------------------------------- 配置
 export type PlacedObject = {
   objectId: string;
   x: number;
@@ -362,13 +332,6 @@ export type PlacedObject = {
   biome: BiomeId;
 };
 
-/**
- * チャンク内の特殊オブジェクト配置を決定的に返す。
- * density は「チャンクあたり平均個数」: 整数部は確定枠、小数部は確率枠。
- * 位置はチャンク内ハッシュから決め、同じタイルの重複は避ける。
- * 入口系（density 0）は構造物配置（maplogic の STRUCTURES）が担うため
- * ここでは出さない。
- */
 export function objectsForChunk(seed: number, cx: number, cy: number): PlacedObject[] {
   const out: PlacedObject[] = [];
   const used = new Set<string>();
@@ -395,14 +358,11 @@ export function objectsForChunk(seed: number, cx: number, cy: number): PlacedObj
   return out;
 }
 
-// ---------------------------------------------------------------- ルート
 export type LootResult = {
   gained: Record<string, number>;
-  /** 罠が発動したか（宝箱系のみ）。 */
   trapped: boolean;
 };
 
-/** ルートをロールする。rng は呼び出し側がシード付きで渡す（決定的に再現可能）。 */
 export function rollObjectLoot(def: SpecialObjectDef, rng: () => number): LootResult {
   const gained: Record<string, number> = {};
   for (const entry of def.loot) {
@@ -414,7 +374,6 @@ export function rollObjectLoot(def: SpecialObjectDef, rng: () => number): LootRe
   return { gained, trapped };
 }
 
-/** 座標とオブジェクト ID から決定的にルートを引く（サーバー/クライアント一致用）。 */
 export function lootForObjectAt(
   seed: number,
   objectId: string,
@@ -435,7 +394,6 @@ export function lootForObjectAt(
   return rollObjectLoot(def, rng);
 }
 
-/** 採取後に再出現しているか。respawnMs=0 の一回きりオブジェクトは常に false。 */
 export function objectRespawned(
   def: SpecialObjectDef,
   harvestedAt: number | null,
@@ -446,7 +404,6 @@ export function objectRespawned(
   return now - harvestedAt >= def.respawnMs;
 }
 
-/** 座標にある地表オブジェクトを決定的配置から逆引きする。無ければ null。 */
 export function surfaceObjectAt(seed: number, x: number, y: number): PlacedObject | null {
   const cx = Math.floor(x / CHUNK_SIZE);
   const cy = Math.floor(y / CHUNK_SIZE);
@@ -456,11 +413,6 @@ export function surfaceObjectAt(seed: number, x: number, y: number): PlacedObjec
   return null;
 }
 
-/**
- * 範囲 [x0..x1]×[y0..y1] 内の固体オブジェクトのタイルキー集合
- * （ワールド側の移動衝突判定用）。枯渇しても岩・巣・倒木そのものは
- * 残るため、採取状態には依存しない。
- */
 export function surfaceSolidTilesInRect(
   seed: number,
   x0: number,
@@ -484,10 +436,6 @@ export function surfaceSolidTilesInRect(
   return out;
 }
 
-/**
- * bot_kv の枯渇状態（キー "x,y" → 採取時刻の文字列/数値）を
- * { "x,y": 時刻 } の辞書へ正規化する。不正なキーは捨てる。
- */
 export function parseObjectStates(entries: Map<string, unknown>): Record<string, number> {
   const out: Record<string, number> = {};
   for (const [key, raw] of entries) {

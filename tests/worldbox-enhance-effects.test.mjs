@@ -1,4 +1,3 @@
-// WORLD BOX バッチ8b-1: 道具強化と食事/装飾品の効果差のテスト。
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -86,13 +85,12 @@ function baseProfile(overrides = {}) {
 }
 
 test("buffs: warm slows hunger drain (alert は存在しない)", () => {
-  const now = 1_000_000 + 600_000; // 10分後
+  const now = 1_000_000 + 600_000;
   const plain = V.stepVitals(baseProfile(), now).profile;
-  assert.equal(plain.hunger, 95.833); // 放置レート: 100 - (100/14400)*600（端数は保持）
+  assert.equal(plain.hunger, 95.833);
   const buffed = V.applyBuff(baseProfile(), "warm", 1_000_000);
   const warmed = V.stepVitals(buffed, now).profile;
-  assert.equal(warmed.hunger, 97.5); // ドレイン ×0.6
-  // バフ自体は窓の途中まで残っている（終端ちょうどで掃除される）
+  assert.equal(warmed.hunger, 97.5);
   const mid = V.stepVitals(buffed, 1_300_000).profile;
   assert.ok(mid.status.some((e) => e.kind === "warm"));
   assert.deepEqual(Object.keys(V.BUFF_DURATION_MS), ["warm"]);
@@ -129,6 +127,6 @@ test("effects: holding the golden accessory boosts sell proceeds by 10%", () => 
   const r1 = E.sellItem(plain, "wood", 10);
   const withAcc = { ...E.parseProfile(null), items: { wood: 10, accessory: 1 } };
   const r2 = E.sellItem(withAcc, "wood", 10);
-  assert.equal(r1.coin.amount, 480); // wood sellPrice 48 × 10
+  assert.equal(r1.coin.amount, 480);
   assert.equal(r2.coin.amount, 528);
 });

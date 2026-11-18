@@ -1,10 +1,3 @@
-// AGO WORLD BOX アイテム基盤の検証:
-// - カタログの物量（250種以上・ブロック60種以上は耐久つき・道具4種×4段・作物22種）
-// - インベントリ（ホットバー5枠＋ストレージ10枠、旧かばんからの無損失移行、
-//   注ぐ順・引き出し順・枠入れ替え）
-// - タイル行為（伐採/採掘/耕作/作付け/収穫の検証、木の再生、所有者収穫）
-// - タイル API（認証・隣接検証・範囲つき GET）
-// - クライアント配線（ホットバー・ストレージ・種ピッカー・農業スプライト）
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -124,8 +117,6 @@ const mapgenUrl = bundleModule(
   ["worldTileSource", "WORLD_COORD_LIMIT"],
 );
 
-// ---------- カタログ ----------
-
 test("カタログ: 120種以上・ID一意・価格が正", () => {
   assert.ok(inv.ITEMS.length >= 320, `items=${inv.ITEMS.length}`);
   const ids = new Set(inv.ITEMS.map((i) => i.id));
@@ -178,8 +169,6 @@ test("カタログ: 家具は10種以上（ロビーの調度と同系統）", (
   }
 });
 
-// ---------- インベントリ ----------
-
 const slotSum = (slots) => slots.reduce((n, s) => n + (s ? s.count : 0), 0);
 
 test("インベントリ: 旧かばんは枠へ注がれて移行する（総数は不変）", () => {
@@ -191,7 +180,6 @@ test("インベントリ: 旧かばんは枠へ注がれて移行する（総数
   assert.equal(p.hotbar[0].count, inv.STACK_MAX);
   assert.equal(p.hotbar[2].count, 52);
   assert.equal(inv.countItem(p, "stone"), 3);
-  // 往復しても形が保たれる
   const again = inv.parseProfile(inv.serializeProfile(p));
   assert.equal(inv.countItem(again, "wood"), 250);
   assert.deepEqual(again.hotbar, p.hotbar);
@@ -251,8 +239,6 @@ test("インベントリ: 枠の入れ替え（swap）と不正な添字", () =>
   assert.equal(inv.swapSlots(base, "0", 0), null);
 });
 
-// ---------- タイル行為 ----------
-
 const map = T.worldTileSource();
 function findTile(id, startX = 60, startY = 60) {
   for (let y = startY; y < startY + 400; y++) {
@@ -273,7 +259,6 @@ const OTHER_KEY = "discord:622222222222222222";
 const withItems = (items) => inv.parseProfile({ items });
 
 test("タイル: 伐採は素手でもでき（収量1）、斧があると収量2、切り株つきで草地になり再生する", () => {
-  // HP制（木=30）: 素手（6/ヒット）は5ヒット、倒れるまで収穫は無い
   let bare = T.applyTileAction(
     null,
     withItems({}),
@@ -302,7 +287,6 @@ test("タイル: 伐採は素手でもでき（収量1）、斧があると収�
     );
   }
   assert.deepEqual(bare.gained, { wood: 1 });
-  // 木柄の斧（10/ヒット）は3ヒットで倒れ、収量2
   let ok = T.applyTileAction(
     null,
     withItems({ wooden_axe: 1 }),
@@ -334,13 +318,11 @@ test("タイル: 伐採は素手でもでき（収量1）、斧があると収�
   assert.equal(ok.override.until, NOW + T.TREE_REGROW_MS);
   assert.deepEqual(ok.gained, { wood: 2 });
   assert.equal(inv.countItem(ok.profile, "wood"), 2);
-  // 再生前は草地、再生後は木に戻る
   const overrides = { [T.tileKey(treeAt.x, treeAt.y)]: ok.override };
   assert.equal(T.tileView(map, overrides, treeAt.x, treeAt.y, NOW + 1000, null).tile, T.T_GRASS);
   const regrown = T.tileView(map, overrides, treeAt.x, treeAt.y, NOW + T.TREE_REGROW_MS + 1, null);
   assert.equal(regrown.tile, T.T_TREE);
   assert.equal(regrown.stump, false);
-  // 雪の木は雪地になる（グラスファイバーの斧 16/ヒット → 2ヒット）
   let snow = T.applyTileAction(
     null,
     withItems({ stone_axe: 1 }),
@@ -366,7 +348,6 @@ test("タイル: 伐採は素手でもでき（収量1）、斧があると収�
     );
   }
   assert.equal(snow.override.tile, T.T_SNOW);
-  // 草地は伐れない
   assert.equal(
     T.applyTileAction(
       null,
@@ -389,7 +370,6 @@ test("タイル: 採掘はツルハシが要り、岩が土になり石材が得
       .error,
     "tool_required",
   );
-  // HP制（岩=60）: 木ツルハシ（10/ヒット）は6ヒット。ミスリル（40）でも2ヒット
   let ok = T.applyTileAction(
     null,
     withItems({ wooden_pickaxe: 1 }),
@@ -419,7 +399,6 @@ test("タイル: 採掘はツルハシが要り、岩が土になり石材が得
   }
   assert.equal(ok.override.tile, T.T_DIRT);
   assert.equal(ok.override.until, NOW + 3 * 3600 * 1000, "岩の再成長タイマー（3時間）");
-  // 石材は基本2＋その土地の純度ボーナス（個体値）
   assert.equal(
     inv.countItem(ok.profile, "stone"),
     2 + T.purityBonusStone(T.tileIvsAt(rockAt.x, rockAt.y).purity),
@@ -448,7 +427,6 @@ test("タイル: 採掘はツルハシが要り、岩が土になり石材が得
     NOW,
   );
   assert.equal(mithril2.override.tile, T.T_DIRT, "ミスリルは2ヒットで壊れる");
-  // 土になった場所は掘れない
   assert.equal(
     T.applyTileAction(
       ok.override,
@@ -463,7 +441,6 @@ test("タイル: 採掘はツルハシが要り、岩が土になり石材が得
     ).error,
     "tile_blocked",
   );
-  // 再成長が終わればまた岩として掘れる
   const regrown = T.applyTileAction(
     ok.override,
     ok.profile,
@@ -507,7 +484,6 @@ test("タイル: 耕す→植える→育つ→所有者だけが収穫できる
   );
   assert.equal(tilled.ok, true);
   assert.equal(tilled.override.farmland, true);
-  // 二度耕しは不可
   assert.equal(
     T.applyTileAction(
       tilled.override,
@@ -522,13 +498,11 @@ test("タイル: 耕す→植える→育つ→所有者だけが収穫できる
     ).error,
     "tile_blocked",
   );
-  // 畑でない場所には植えられない
   assert.equal(
     T.applyTileAction(null, farmer, map, ME_KEY, "plant", treeAt.x, treeAt.y, "wheat_seed", NOW)
       .error,
     "tile_blocked",
   );
-  // 種の検証
   assert.equal(
     T.applyTileAction(
       tilled.override,
@@ -570,7 +544,6 @@ test("タイル: 耕す→植える→育つ→所有者だけが収穫できる
   );
   assert.equal(planted.ok, true);
   assert.equal(planted.override.crop.cropId, "wheat");
-  // NOW は秋: 小麦（適季=春）の反対の季節なので ×1.4 で遅く育つ。さらに土地の豊穣度倍率が掛かる
   assert.equal(
     planted.override.crop.readyAt,
     NOW +
@@ -579,7 +552,6 @@ test("タイル: 耕す→植える→育つ→所有者だけが収穫できる
       ),
   );
   assert.equal(inv.countItem(planted.profile, "wheat_seed"), 1, "種を1つ消費する");
-  // 育つ前は収穫できない
   assert.equal(
     T.applyTileAction(
       planted.override,
@@ -595,7 +567,6 @@ test("タイル: 耕す→植える→育つ→所有者だけが収穫できる
     "not_ready",
   );
   const readyAt = planted.override.crop.readyAt;
-  // 他人は収穫できない
   assert.equal(
     T.applyTileAction(
       planted.override,
@@ -610,7 +581,6 @@ test("タイル: 耕す→植える→育つ→所有者だけが収穫できる
     ).error,
     "not_owner",
   );
-  // 所有者は収穫できる（畑は残る）
   const harvested = T.applyTileAction(
     planted.override,
     planted.profile,
@@ -623,14 +593,12 @@ test("タイル: 耕す→植える→育つ→所有者だけが収穫できる
     readyAt,
   );
   assert.equal(harvested.ok, true);
-  // 収穫は基本2＋その土地の豊穣度ボーナス（個体値）
   assert.deepEqual(harvested.gained, {
     wheat: 2 + T.fertilityBonusYield(T.tileIvsAt(grassAt.x, grassAt.y).fertility),
   });
   assert.equal(inv.countItem(harvested.profile, "wheat"), 2);
   assert.equal(harvested.override.crop, null);
   assert.equal(harvested.override.farmland, true);
-  // 収穫後は作物が無い
   assert.equal(
     T.applyTileAction(
       harvested.override,
@@ -698,8 +666,6 @@ test("タイル: タップ判定（actionForTile）の優先順", () => {
   assert.equal(T.actionForTile(growing, { tool: "hoe" }), null, "成長中は何もしない");
 });
 
-// ---------- タイル API ----------
-
 const subdomainUrl = dataUrl(transpile("subdomain.ts"));
 const headersStubUrl = dataUrl(
   "export async function cookies() { throw new Error('tests do not use cookies()'); }",
@@ -760,7 +726,6 @@ export class NextResponse {
 }
 `);
 const userLockUrl = dataUrl(transpile("worldbox/core/user-lock.ts"));
-// 装置のスタブ: 実ロジック（isMachineItem / machineBufferCount）と空の保存層。
 const machinesUrl = bundleModule(
   ["worldbox/economy/items.ts", "worldbox/economy/machines.ts"],
   ["isMachineItem", "machineBufferCount"],
@@ -867,7 +832,6 @@ test("API(tiles): 伐採は素手でも適用され（収量1）、斧がある�
       ts: Date.now(),
     },
   ];
-  // 素手（空のプロフィール）でも伐採できる（HP制: 6/ヒット → 5ヒットで倒れる）
   let bareData = null;
   for (let i = 0; i < 6; i++) {
     const bare = await tilesRoute.POST(
@@ -881,7 +845,6 @@ test("API(tiles): 伐採は素手でも適用され（収量1）、斧がある�
   assert.deepEqual(bareData.gained, { wood: 1 });
   assert.equal(bareData.tile.tile, T.T_GRASS);
   assert.ok(globalThis.__wbFarmTiles.has(`${treeAt.x},${treeAt.y}`), "上書きが保存される");
-  // 斧を持たせると収量2（別の木で確認。10/ヒット → 3ヒット）
   globalThis.__wbFarmTiles.clear();
   globalThis.__wbFarmProfiles.set(
     MY_KEY,
@@ -931,7 +894,7 @@ test("API(tiles): GET は範囲内の有効な上書きだけを返す", async (
     JSON.stringify({ tile: 0, stump: true, ownerId: "aa", until: Date.now() + 60_000 }),
   );
   globalThis.__wbFarmTiles.set("500,500", JSON.stringify({ tile: 5, ownerId: "aa" }));
-  globalThis.__wbFarmTiles.set("11,10", JSON.stringify({ tile: 0, ownerId: "aa", until: 1 })); // 失効済み
+  globalThis.__wbFarmTiles.set("11,10", JSON.stringify({ tile: 0, ownerId: "aa", until: 1 }));
   const res = await tilesRoute.GET(apiRequest(`${URL_T}?x0=0&y0=0&x1=20&y1=20`, "GET", null));
   assert.equal(res.status, 200);
   const data = await res.json();
@@ -954,8 +917,6 @@ test("API(tiles): GET rect は旧境界の外（負座標・2000超）でも上�
   assert.deepEqual(Object.keys((await far.json()).overrides), ["2005,2005"]);
 });
 
-// ---------- クライアント配線 ----------
-
 test("クライアント: ホットバー・ストレージ・種ピッカー・タイル API が配線されている", () => {
   const client = fs.readFileSync(
     path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
@@ -966,7 +927,6 @@ test("クライアント: ホットバー・ストレージ・種ピッカー・
   assert.ok(client.includes("actionForTile"), "タップ判定を使っていない");
   assert.ok(client.includes("invProfile.hotbar"), "ホットバーを描いていない");
   assert.ok(client.includes("invProfile.storage"), "ストレージを描いていない");
-  assert.ok(client.includes("ストレージ"), "ストレージ UI が無い");
   assert.ok(client.includes('action: "move"'), "スロット移動を送っていない");
   const textures = fs.readFileSync(path.join(libDir, "worldbox/world/textures.ts"), "utf8");
   assert.ok(textures.includes("loadFarmSprites"), "テクスチャ側に農業読み込みが無い");

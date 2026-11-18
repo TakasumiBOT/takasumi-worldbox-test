@@ -1,12 +1,3 @@
-// AGO WORLD BOX 経済ブリッジの保存（サーバー専用）。
-// オプは bot_kv（名前空間 "worldbox_economy"、キー = オプID）に
-// オブジェクトのまま保存する（bg_cutout の結果レコードと同じ流儀。
-// Bot 本体のワーカーが dict として読み、結果を同じキーへ書き戻す）。
-// 残高の読み取りは Bot API の許可テーブル users への select。
-// コインの適用は submitEconomyOp が正: 対応する種別は bot-api 経由で
-// その場で適用し（CAS / transfer_coins RPC）、オプ記録と適用台帳
-// （worldbox_economy_applied）をワーカーと同じ形で残す。直接適用が
-// 使えない・金を動かす前に失敗した場合は従来のキュー経路へ寄せる。
 import {
   BotApiError,
   isBotApiConfigured,
@@ -32,20 +23,12 @@ export function isEconomyEnabled(): boolean {
   return isBotApiConfigured();
 }
 
-/** ゲストがコイン経済で弾かれる理由コード（クライアントの表示文言と対応）。 */
 export const GUEST_NOT_ALLOWED = "guest_not_allowed";
 
-/**
- * ゲスト（所有者キー "guest:<uuid>"）のオプかどうか。ゲストはコイン経済の
- * 対象外: ゲストの id は UUID で users テーブルの Discord ID にはならず、
- * ゲストを無限に作れる以上、1コインでも渡せば蛇口になる。提出の入口で
- * 一律に弾く（個別ルートの provider 判定に加えた二重の防壁）。
- */
 export function isGuestEconomyOp(op: EconomyOp): boolean {
   return op.userKey.startsWith("guest:");
 }
 
-/** オプをキューへそのまま積む（直接適用のフォールバック専用）。 */
 async function queueEconomyOp(op: EconomyOp): Promise<boolean> {
   if (!isBotApiConfigured()) return false;
   try {
@@ -56,33 +39,18 @@ async function queueEconomyOp(op: EconomyOp): Promise<boolean> {
   }
 }
 
-/**
- * オプの登録（直接適用が正）。submitEconomyOp へ委譲し、直接適用
- * できた場合はその場で終端する。戻り値は「登録できたか」で、終端
- * 状態そのものではない（必要な呼び出し側は findEconomyOp /
- * waitForOpDone で読む。直接適用後は done/failed が即座に読める）。
- */
 export async function enqueueEconomyOp(op: EconomyOp): Promise<boolean> {
   if (isGuestEconomyOp(op)) return false;
   const result = await submitEconomyOp(op);
   return result.state !== "unavailable";
 }
 
-/**
- * 冪等なオプ登録（カジノの enqueueSettleOnce と同じ規則）。
- * 決定的 ID のオプ専用: 同 ID のオプが既にあれば（pending / done /
- * failed を問わず）作り直さず true を返す。「1つの論理的な支払い =
- * オプ1件」を保証し、再試行や並行リクエストで二重に払われない。
- * submitEconomyOp が既存記録・適用台帳を先に見るため、done 済み
- * オプを pending で上書きして再適用させることもない。
- */
 export async function enqueueEconomyOpOnce(op: EconomyOp): Promise<boolean> {
   if (isGuestEconomyOp(op)) return false;
   const result = await submitEconomyOp(op);
   return result.state !== "unavailable";
 }
 
-/** 全ユーザーのオプ（カジノ大会の最終精算など、横断的な照合用）。読めなければ空配列。 */
 export async function loadAllEconomyOps(): Promise<EconomyOp[]> {
   if (!isBotApiConfigured()) return [];
   try {
@@ -98,12 +66,10 @@ export async function loadAllEconomyOps(): Promise<EconomyOp[]> {
   }
 }
 
-/** 自分のオプ（新しい順・最大20件）。読めなければ空配列。 */
 export async function loadMyEconomyOps(userKey: string): Promise<EconomyOp[]> {
   return recentEconomyOps(await loadAllEconomyOps(), userKey);
 }
 
-/** 自分のオプを ID で1件引く（セッション先払いの状態確認用）。無ければ null。 */
 export async function findEconomyOp(userKey: string, opId: string): Promise<EconomyOp | null> {
   if (!isBotApiConfigured()) return null;
   try {
@@ -116,11 +82,6 @@ export async function findEconomyOp(userKey: string, opId: string): Promise<Econ
   }
 }
 
-/**
- * オプを1件消す。終端した失敗オプだけを対象にする: 金が動いていない
- * 失敗オプが決定的 ID に残っていると、その ID の再試行（テント拡張など）
- * が塞がれてしまうため、消してから積み直す。成功したら true。
- */
 export async function deleteEconomyOp(opId: string): Promise<boolean> {
   if (!isBotApiConfigured()) return false;
   try {
@@ -133,24 +94,11 @@ export async function deleteEconomyOp(opId: string): Promise<boolean> {
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
-/**
- * server-side wait の既定値。ワーカーは適応ポーリング（処理がある間は
- * 0.4 秒間隔）で回るため、数秒待てば通常は done に出会える。上限を
- * 超えたら pending のまま返し、呼び出し側は従来どおりクライアントの
- * ポーリングに引き継ぐ（挙動は壊れない）。
- */
 export const OP_WAIT_TIMEOUT_MS = 3_000;
 export const OP_WAIT_INTERVAL_MS = 200;
 
 export type OpWaitOptions = { timeoutMs?: number; intervalMs?: number };
 
-/**
- * オプが終端（done / failed）になるまでその場で待つ。戻り値は最後に
- * 読めたオプ（タイムアウト時は pending のオプ、読めなければ null）。
- * 「次の処理が done に依存する」経路（カジノの先払い→精算、アリーナ
- * の参加費→対戦開始など）が、クライアントの再ポーリングを待たずに
- * 同一リクエストで最終状態まで進むための共通ヘルパー。
- */
 export async function waitForOpDone(
   userKey: string,
   opId: string,
@@ -168,7 +116,6 @@ export async function waitForOpDone(
   }
 }
 
-/** 複数オプの done を並行して待つ（PvP の両者参加費など、所有者が違うオプの混在可）。 */
 export async function waitForOpsDone(
   targets: readonly { userKey: string; opId: string }[],
   options: OpWaitOptions = {},
@@ -178,10 +125,6 @@ export async function waitForOpsDone(
 
 type UserBalanceRow = { balance?: unknown };
 
-/**
- * 残高の読み取り（users テーブルへの select のみ）。
- * 行が無いユーザーは 0（行は作らない）。読めなければ null。
- */
 export async function readUserBalance(discordId: string): Promise<number | null> {
   if (!isBotApiConfigured()) return null;
   try {
@@ -199,33 +142,10 @@ export async function readUserBalance(discordId: string): Promise<number | null>
   }
 }
 
-// 直接適用（bot-api 経由でその場でコインを動かす）
-//
-// 旧 Python ワーカー（本家側）と同型の冪等手順を Web 側でも踏む:
-//   1. 適用台帳（worldbox_economy_applied）を確認する。applied / failed
-//      が残っていれば再適用せず結果だけをオプ記録へ書き直す。
-//      applying のままなら成否が曖昧なので触らずキュー側に委ねる
-//      （ワーカーが apply_uncertain で終端化する）。
-//   2. オプ記録へ claim（トークン+時刻）を書いて再読で勝ちを確認する。
-//      ワーカーは新鮮な claim のあるオプを拾わない（90 秒で失効し、
-//      その場合はワーカーが台帳から再処理する = 直接側が死んでも安全）。
-//   3. 台帳へ applying を書いてから金を動かす。確定失敗は台帳も
-//      failed にし、例外（成否曖昧）は台帳を applying のまま残して
-//      オプを failed(apply_failed) にする（ワーカーと同じ規則）。
-//   4. 成功したら台帳 applied + 計測 + オプ記録 done。
-// 金を動かす「前」に失敗したら（台帳/claim の書き込み失敗、対象外の
-// 種別）従来のキュー登録へフォールバックする。動かした後にキューへ
-// 積み直すことは絶対にしない。
-
-/** 適用台帳の名前空間（ワーカーの APPLIED_NAMESPACE と同じ）。 */
 export const WORLDBOX_ECONOMY_APPLIED_NAMESPACE = "worldbox_economy_applied";
-/** 日次経済計測の名前空間（ワーカーの METRICS_NAMESPACE と同じ）。 */
 export const WORLDBOX_ECONOMY_METRICS_NAMESPACE = "worldbox_metrics_econ";
-/** 取引履歴でシステム側の相手として記録する ID（ワーカーの WORLDBOX_ID）。 */
 export const WORLDBOX_HISTORY_ID = "WORLD_BOX";
-/** 新規ユーザーの初期残高。 */
 export const NEW_USER_BALANCE = 10_000;
-/** 残高 CAS の再試行回数。 */
 const BALANCE_UPDATE_ATTEMPTS = 5;
 
 interface AppliedLedgerEntry {
@@ -265,10 +185,6 @@ function parseAppliedLedger(raw: unknown): AppliedLedgerEntry | null {
   return entry;
 }
 
-/**
- * 適用台帳の1件を消す。終端 failed のオプを再試行可能にする場合だけ
- * 使う（金が動いていない失敗に限る。オプ記録の削除と対で呼ぶこと）。
- */
 export async function deleteEconomyOpLedger(opId: string): Promise<boolean> {
   if (!isBotApiConfigured()) return false;
   try {
@@ -296,7 +212,6 @@ async function saveAppliedLedger(opId: string, entry: AppliedLedgerEntry): Promi
   }
 }
 
-/** オプ記録を終端状態で書き直す（claim は落とす）。 */
 async function writeOpTerminal(
   op: EconomyOp,
   status: "done" | "failed",
@@ -318,14 +233,6 @@ type ChangeBalanceResult =
   | { ok: true; newBalance: number }
   | { ok: false; error: "insufficient_funds" | "balance_update_failed" };
 
-/**
- * 残高 CAS: 読んだ残高が
- * 変わっていないときだけ条件付き update で書き、競合したら読み直す。
- * 確定結果（成功 / 残高不足 / 再試行枯渇）だけを戻り値にし、API の
- * 通信例外は「成否曖昧」として呼び出し側へ投げる。ただし update の
- * 応答が失われた場合は残高を読み直し、期待値になっていれば成功扱い
- * にして曖昧さをその場で解消する。
- */
 async function changeBalanceDirect(
   discordId: string,
   delta: number,
@@ -348,7 +255,7 @@ async function changeBalanceDirect(
         await tableInsert("users", { user_id: discordId, balance: newBalance, debt: 0 });
         return { ok: true, newBalance };
       } catch {
-        continue; // 同時に行が作られた等: 読み直してやり直す
+        continue;
       }
     }
     const oldBalance = Number(rows[0].balance ?? 0);
@@ -362,7 +269,6 @@ async function changeBalanceDirect(
         { column: "balance", op: "eq", value: Math.trunc(oldBalance) },
       ]);
     } catch (error) {
-      // 応答が失われただけなら残高は既に新しい値になっている。
       const now = await readUserBalance(discordId);
       if (now === newBalance) return { ok: true, newBalance };
       throw error;
@@ -372,7 +278,6 @@ async function changeBalanceDirect(
   return { ok: false, error: "balance_update_failed" };
 }
 
-/** 取引履歴の記録（ベストエフォート: 失敗しても適用は止めない）。 */
 async function recordHistoryDirect(
   senderId: string,
   receiverId: string,
@@ -397,7 +302,6 @@ interface MetricRecord {
   bankroll: number | null;
 }
 
-/** 適用分の集計。bankroll は読めたときだけ更新する。 */
 function applyMetricRecord(
   record: unknown,
   op: EconomyOp,
@@ -431,7 +335,6 @@ function applyMetricRecord(
   return out;
 }
 
-/** 日次経済計測への加算（ベストエフォート）。成功したら true。 */
 async function recordMetricDirect(op: EconomyOp, applied: number): Promise<boolean> {
   try {
     const date = new Date().toISOString().slice(0, 10);
@@ -448,7 +351,6 @@ async function recordMetricDirect(op: EconomyOp, applied: number): Promise<boole
   }
 }
 
-/** 確定失敗（再適用しない）を表す内部エラー。 */
 class DirectFailure extends Error {
   code: string;
   constructor(code: string) {
@@ -456,13 +358,6 @@ class DirectFailure extends Error {
     this.code = code;
   }
 }
-
-// 原資（economy_pool）の RPC 経由アクセス（コイン API 直接化 第2段）
-// 原資の正は Postgres の economy_pool_state（単一行）。pay_house 等は
-// RPC が原子的に処理する。SQL 未適用の
-// 環境ではテーブル自体が無いので、earn / gamble の直接適用は
-// テーブルの存在を事前に確認し、無ければ従来キューへ寄せる
-// （金を動かす前に判定する。途中まで直接で動かしてから寄せない）。
 
 interface PayHouseBreakdown {
   paid: number;
@@ -473,12 +368,10 @@ interface PayHouseBreakdown {
 let poolProbeCache: { at: number; available: boolean } | null = null;
 const POOL_PROBE_TTL_MS = 60_000;
 
-/** 原資 DB のプローブ結果を捨てる（SQL 適用直後の回復とテスト用）。 */
 export function resetEconomyPoolProbe(): void {
   poolProbeCache = null;
 }
 
-/** economy_pool_state テーブルが読めるか（= 第2段の SQL が適用済みか）。 */
 async function isPoolDbAvailable(): Promise<boolean> {
   if (poolProbeCache && Date.now() - poolProbeCache.at < POOL_PROBE_TTL_MS) {
     return poolProbeCache.available;
@@ -494,7 +387,6 @@ async function isPoolDbAvailable(): Promise<boolean> {
   return available;
 }
 
-/** 現在のバンクロール（プール＋国庫）。読めなければ null。 */
 async function readBankrollDirect(): Promise<number | null> {
   try {
     const rows = await tableSelect<{ pool?: unknown; treasury?: unknown }>(
@@ -524,14 +416,12 @@ function toBreakdown(raw: unknown): PayHouseBreakdown | null {
   return { paid: Math.trunc(paid), pool: Math.trunc(pool), treasury: Math.trunc(treasury) };
 }
 
-/** pay_house RPC: バンクロールから確保できた分の内訳を返す。 */
 async function payHouseDirect(amount: number): Promise<PayHouseBreakdown> {
   const breakdown = toBreakdown(await rpc("economy_pool_pay_house", { p_amount: amount }));
   if (!breakdown) throw new Error("economy_pool_pay_house returned an invalid result");
   return breakdown;
 }
 
-/** refund_house RPC（ベストエフォート: 失敗しても呼び出し側の終端は変えない）。 */
 async function refundHouseDirect(breakdown: PayHouseBreakdown): Promise<void> {
   try {
     await rpc("economy_pool_refund_house", {
@@ -543,7 +433,6 @@ async function refundHouseDirect(breakdown: PayHouseBreakdown): Promise<void> {
   }
 }
 
-/** add_loss RPC（ベストエフォート: 還流の取りこぼしは記録のみ）。 */
 async function addLossDirect(amount: number): Promise<void> {
   if (amount <= 0) return;
   try {
@@ -553,7 +442,6 @@ async function addLossDirect(amount: number): Promise<void> {
   }
 }
 
-/** earn の直接適用。戻り値は実際に払えた額。 */
 async function applyEarnDirect(op: EconomyOp): Promise<number> {
   const breakdown = await payHouseDirect(op.amount);
   const paid = breakdown.paid;
@@ -566,7 +454,6 @@ async function applyEarnDirect(op: EconomyOp): Promise<number> {
     throw error;
   }
   if (!credited.ok) {
-    // 入金できなかった分は原資へ戻す（発行しない）
     await refundHouseDirect(breakdown);
     throw new DirectFailure("credit_failed");
   }
@@ -574,12 +461,6 @@ async function applyEarnDirect(op: EconomyOp): Promise<number> {
   return paid;
 }
 
-/**
- * gamble の直接適用。
- * pay_house が必要なオプは、ベットを引き落とす「前」に原資を確保する
- * （確保の成否が確定してから残高を動かすため、途中失敗でも
- * refund_house で原資を戻せば金はどこにも残らない）。
- */
 async function applyGambleDirect(op: EconomyOp): Promise<number> {
   if (op.payout === undefined) throw new DirectFailure("invalid_op");
   const user = op.discordId;
@@ -609,7 +490,6 @@ async function applyGambleDirect(op: EconomyOp): Promise<number> {
     return 0;
   }
   if (prepaid && payout < bet) {
-    // 先払い精算の部分返し: 戻らなかった分は負けとして還流する。
     await addLossDirect(bet - payout);
   }
 
@@ -623,7 +503,6 @@ async function applyGambleDirect(op: EconomyOp): Promise<number> {
   if (!credited || !credited.ok) {
     if (breakdown) await refundHouseDirect(breakdown);
     if (!prepaid) {
-      // ベットを返金する（失敗したらワーカー同様に記録のみで終端する）
       try {
         await changeBalanceDirect(user, bet);
       } catch {
@@ -636,7 +515,6 @@ async function applyGambleDirect(op: EconomyOp): Promise<number> {
   return creditAmount;
 }
 
-/** spend の直接適用。戻り値は実際に動いた額。 */
 async function applySpendDirect(op: EconomyOp): Promise<number> {
   const result = await changeBalanceDirect(op.discordId, -op.amount, { requireFunds: true });
   if (!result.ok) throw new DirectFailure(result.error);
@@ -644,7 +522,6 @@ async function applySpendDirect(op: EconomyOp): Promise<number> {
   return op.amount;
 }
 
-/** transfer の直接適用（transfer_coins RPC は DB 内で原子的）。 */
 async function applyTransferDirect(op: EconomyOp): Promise<number> {
   if (!op.toDiscordId) throw new DirectFailure("invalid_op");
   try {
@@ -655,9 +532,6 @@ async function applyTransferDirect(op: EconomyOp): Promise<number> {
       p_new_user_balance: NEW_USER_BALANCE,
     });
   } catch (error) {
-    // RPC は API 側のトランザクション内で実行されるため、400 は
-    // 「適用されなかった」確定失敗（残高不足など）。それ以外は
-    // 成否曖昧として呼び出し側の例外規則に委ねる。
     if (error instanceof BotApiError && error.status === 400) {
       throw new DirectFailure("insufficient_funds");
     }
@@ -667,11 +541,6 @@ async function applyTransferDirect(op: EconomyOp): Promise<number> {
   return op.amount;
 }
 
-/**
- * 直接適用の対象種別か。spend / transfer は常時。earn / gamble は
- * 原資（economy_pool_state）が DB 化されている環境でのみ対象にし、
- * 使えない環境では従来キューへ寄せる（判定は金を動かす前に行う）。
- */
 async function isDirectKind(op: EconomyOp): Promise<boolean> {
   if (op.kind === "spend" || op.kind === "transfer") return true;
   if (op.kind === "earn" || op.kind === "gamble") return isPoolDbAvailable();
@@ -690,18 +559,7 @@ export type SubmitEconomyOpResult =
   | { state: "done" | "failed" | "pending"; op: EconomyOp }
   | { state: "unavailable" };
 
-/**
- * オプの提出（直接適用が正、キューはフォールバック）。
- * - done / failed: その場で終端した（または台帳・既存記録から終端が確定した）
- * - pending: キューに積んだ（または既に提出済み）。従来どおり
- *   waitForOpDone やクライアントのポーリングで追うこと
- * - unavailable: 直接もキューも使えなかった
- * ゲストのオプは記録を残さず failed（error = guest_not_allowed）で即終端する。
- * 決定的 ID のオプは既存記録・台帳を先に見るため、二重適用にならない。
- */
 export async function submitEconomyOp(op: EconomyOp): Promise<SubmitEconomyOpResult> {
-  // ゲストはコイン経済の対象外。どの経路から積まれても、その場で
-  // guest_not_allowed として終端させる（記録も台帳も残さない）。
   if (isGuestEconomyOp(op)) {
     return {
       state: "failed",
@@ -710,7 +568,6 @@ export async function submitEconomyOp(op: EconomyOp): Promise<SubmitEconomyOpRes
   }
   if (!isBotApiConfigured()) return { state: "unavailable" };
 
-  // 既存のオプ記録: 終端していればそれが結果。pending なら提出済み。
   let existingRaw: unknown = null;
   try {
     existingRaw = await kvGet(WORLDBOX_ECONOMY_NAMESPACE, op.id);
@@ -724,7 +581,6 @@ export async function submitEconomyOp(op: EconomyOp): Promise<SubmitEconomyOpRes
     return { state: "pending", op: existing };
   }
 
-  // 適用台帳: オプ記録が無いのに台帳だけ残っている場合の整合。
   const ledger = await loadAppliedLedger(op.id);
   if (ledger?.status === "applied") {
     const record = await writeOpTerminal(op, "done", { appliedAmount: ledger.appliedAmount ?? 0 });
@@ -735,19 +591,15 @@ export async function submitEconomyOp(op: EconomyOp): Promise<SubmitEconomyOpRes
     return { state: "failed", op: record };
   }
   if (ledger?.status === "applying") {
-    // 成否曖昧な適用が進行中/中断している。触らずキュー側の
-    // 再処理（台帳から終端化）に委ねる。
     if (await queueEconomyOp(op)) return { state: "pending", op };
     return { state: "unavailable" };
   }
 
-  // 対象外の種別は従来のキューへ。
   if (!(await isDirectKind(op))) {
     if (await queueEconomyOp(op)) return { state: "pending", op };
     return { state: "unavailable" };
   }
 
-  // claim: ワーカーに拾われないよう目印を書いて再読で勝ちを確認する。
   const token = crypto.randomUUID();
   const claimed: EconomyOp & { claim: { token: string; at: number } } = {
     ...op,
@@ -766,12 +618,10 @@ export async function submitEconomyOp(op: EconomyOp): Promise<SubmitEconomyOpRes
       return { state: "unavailable" };
     }
   } catch {
-    // claim を書く前に失敗: 金は動いていないのでキューへ寄せる。
     if (await queueEconomyOp(op)) return { state: "pending", op };
     return { state: "unavailable" };
   }
 
-  // 台帳へ applying。書けなければ適用しない（claim を外してキューへ）。
   if (!(await saveAppliedLedger(op.id, { status: "applying", at: Date.now() }))) {
     if (await queueEconomyOp(op)) return { state: "pending", op };
     return { state: "unavailable" };
@@ -786,8 +636,6 @@ export async function submitEconomyOp(op: EconomyOp): Promise<SubmitEconomyOpRes
       const record = await writeOpTerminal(op, "failed", { error: error.code });
       return { state: "failed", op: record };
     }
-    // 成否曖昧: 台帳は applying のまま残し、オプは failed にする
-    // （ワーカーの例外時と同じ。キューへ積み直すことはしない）。
     const record = await writeOpTerminal(op, "failed", { error: "apply_failed" });
     return { state: "failed", op: record };
   }
@@ -803,22 +651,8 @@ export async function submitEconomyOp(op: EconomyOp): Promise<SubmitEconomyOpRes
   return { state: "done", op: record };
 }
 
-// 経済オプのスイープ（旧 Python ワーカーの poll_once の
-// 移植。独立環境では Bot がいないため、Vercel Cron から内部ルート
-// /api/worldbox/internal/economy-sweep が毎分これを呼ぶ）。
-//
-// 役割はワーカーと同じ: 直接適用されずに残った pending オプの回収、
-// claim が失効したオプの再処理、適用台帳が applying のまま止まったオプの
-// 終端化（apply_uncertain）、終端オプの間引き。適用そのものは直接適用と
-// 同じ関数（applyDirectByKind）を使い、二重実装は作らない。台帳の
-// 解釈が壊れている場合はワーカーと同じく applying 扱いにする
-// （壊れた台帳を「無かったこと」にして再適用するのが一番危ないため）。
-
-/** claim がこのミリ秒を超えたら放棄されたものとして再処理可にする（90 秒）。 */
 export const ECONOMY_CLAIM_STALE_MS = 90_000;
-/** 1回のスイープで処理する上限。 */
 export const ECONOMY_SWEEP_BATCH = 100;
-/** 終端オプを名前空間に残す上限。 */
 export const ECONOMY_PRUNE_KEEP_TERMINAL = 1000;
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -841,13 +675,11 @@ interface SweepCandidate {
   sortKey: number;
 }
 
-/** 適用候補（pending で claim が無い/古いもの）を古い順に返す。 */
 function selectSweepCandidates(records: Map<string, unknown>, now: number): SweepCandidate[] {
   const out: SweepCandidate[] = [];
   for (const [key, raw] of records) {
     const value = asRecord(raw);
     if (!value) {
-      // 解釈できない値は invalid_op として終端化する候補に入れる（滞留させない）
       out.push({ key, raw, sortKey: 0 });
       continue;
     }
@@ -871,7 +703,6 @@ function selectSweepCandidates(records: Map<string, unknown>, now: number): Swee
   return out.slice(0, ECONOMY_SWEEP_BATCH);
 }
 
-/** 解釈できないレコードの終端書き込み。 */
 async function writeSweepInvalidResult(key: string, raw: unknown): Promise<void> {
   const base = asRecord(raw) ?? {};
   const record: Record<string, unknown> = {
@@ -888,12 +719,6 @@ async function writeSweepInvalidResult(key: string, raw: unknown): Promise<void>
   }
 }
 
-/**
- * スイープ用の適用ディスパッチ。追加規則:
- * steal は廃止済みとして即 failed（steal_disabled）、earn / gamble は
- * 理由ホワイトリストを適用時にも検証する（invalid_reason）。
- * それ以外は直接適用の applyDirectByKind をそのまま使う。
- */
 async function applySweepByKind(op: EconomyOp): Promise<number> {
   if (op.kind === "steal") throw new DirectFailure("steal_disabled");
   if (op.kind === "earn" && !EARN_REASONS.has(op.reason)) throw new DirectFailure("invalid_reason");
@@ -902,14 +727,12 @@ async function applySweepByKind(op: EconomyOp): Promise<number> {
   return applyDirectByKind(op);
 }
 
-/** オプ1件のスイープ処理。終端化したら true。 */
 async function sweepOneOp(key: string, raw: unknown): Promise<boolean> {
   const op = parseEconomyOp(raw);
   if (!op) {
     await writeSweepInvalidResult(key, raw);
     return true;
   }
-  // claim: 元レコードへ正規化済みオプと claim を重ねて書き、再読で勝ちを確認する
   const rawRecord = asRecord(raw) ?? {};
   const token = crypto.randomUUID();
   const claimed = { ...rawRecord, ...op, status: "pending", claim: { token, at: Date.now() } };
@@ -920,13 +743,12 @@ async function sweepOneOp(key: string, raw: unknown): Promise<boolean> {
     const currentOp = parseEconomyOp(current);
     const claim = currentRecord ? asRecord(currentRecord.claim) : null;
     if (!currentOp || currentOp.status !== "pending" || !claim || claim.token !== token) {
-      return false; // 他の処理が先に claim した / 状態が変わった
+      return false;
     }
   } catch {
     return false;
   }
 
-  // 適用台帳を読む。読み取り自体の失敗は今回を見送る（claim 失効後に再試行）。
   let ledgerRaw: unknown;
   try {
     ledgerRaw = await kvGet(WORLDBOX_ECONOMY_APPLIED_NAMESPACE, op.id);
@@ -935,7 +757,6 @@ async function sweepOneOp(key: string, raw: unknown): Promise<boolean> {
   }
   let ledger: AppliedLedgerEntry | null = null;
   if (ledgerRaw !== null && ledgerRaw !== undefined) {
-    // 壊れた台帳は applying 扱い（安全側の倒し方）
     ledger = parseAppliedLedger(ledgerRaw) ?? { status: "applying", at: 0 };
   }
   if (ledger?.status === "applied") {
@@ -959,12 +780,10 @@ async function sweepOneOp(key: string, raw: unknown): Promise<boolean> {
     return true;
   }
   if (ledger?.status === "applying") {
-    // 適用の成否が曖昧。再適用せず安全側に倒す（ワーカーと同じ）。
     await writeOpTerminal(op, "failed", { error: "apply_uncertain" });
     return true;
   }
 
-  // 台帳なし: applying を書いてから適用する。書けなければ適用しない。
   if (!(await saveAppliedLedger(op.id, { status: "applying", at: Date.now() }))) {
     return false;
   }
@@ -973,12 +792,10 @@ async function sweepOneOp(key: string, raw: unknown): Promise<boolean> {
     applied = await applySweepByKind(op);
   } catch (error) {
     if (error instanceof DirectFailure) {
-      // 確定失敗は台帳も failed で終端化する（apply_uncertain に化けないように）
       await saveAppliedLedger(op.id, { status: "failed", error: error.code, at: Date.now() });
       await writeOpTerminal(op, "failed", { error: error.code });
       return true;
     }
-    // 成否曖昧: 台帳は applying のまま残し、オプは failed にする
     await writeOpTerminal(op, "failed", { error: "apply_failed" });
     return true;
   }
@@ -993,7 +810,6 @@ async function sweepOneOp(key: string, raw: unknown): Promise<boolean> {
   return true;
 }
 
-/** 終端オプの間引き。スナップショット基準。 */
 async function pruneSweepTerminal(records: Map<string, unknown>): Promise<number> {
   const terminal: { at: number; key: string }[] = [];
   for (const [key, raw] of records) {
@@ -1015,7 +831,6 @@ async function pruneSweepTerminal(records: Map<string, unknown>): Promise<number
       // ベストエフォート
     }
   }
-  // 終端オプの台帳は二度と読まれないため同じタイミングで消す
   for (const entry of terminal) {
     try {
       await kvDelete(WORLDBOX_ECONOMY_APPLIED_NAMESPACE, entry.key);
@@ -1032,10 +847,6 @@ export interface EconomySweepResult {
   candidates: number;
 }
 
-/**
- * 経済オプのスイープ1回分。
- * bot-api 未設定・読み取り失敗時は静かに 0 を返す（次回に回す）。
- */
 export async function sweepEconomyOps(): Promise<EconomySweepResult> {
   const zero: EconomySweepResult = { handled: 0, pruned: 0, candidates: 0 };
   if (!isBotApiConfigured()) return zero;

@@ -1,8 +1,5 @@
 "use client";
 
-// AGO WORLD BOX の装置パネル（自動収穫機）。
-// バッファの回収、プログラム（有効/間隔/プリセット）の変更、共有コードの
-// 書き出し・取り込みを行う。状態の正はサーバー（/api/worldbox/machines）。
 import { useCallback, useEffect, useState } from "react";
 import type { PlayerProfile } from "@/lib/worldbox/player/profile";
 import { ItemAnnotation, ItemSlot, ItemSlotGrid } from "./ItemSlotGrid";
@@ -19,7 +16,6 @@ const panelStyle: React.CSSProperties = {
   transform: "translateX(-50%)",
   width: "min(340px, calc(100% - 20px))",
   zIndex: 30,
-  // 低丈の横持ちでもステージからはみ出さない（従来は高さ制限が無く溢れた）
   maxHeight: "calc(100% - 24px)",
   overflowY: "auto",
   overscrollBehavior: "contain",
