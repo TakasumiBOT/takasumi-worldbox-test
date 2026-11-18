@@ -346,10 +346,10 @@ test("move: findFreeNear は固体の中から立てる場所へ救済する", (
 test("presence: ハートビート検証（補正と却下）", () => {
   const bounds = wb.rectBounds(128, 128);
   const ok = wb.sanitizeHeartbeat(
-    { name: "  ago  ", x: 10, y: 20, vx: 3, vy: -3, face: -1 },
+    { name: "  player  ", x: 10, y: 20, vx: 3, vy: -3, face: -1 },
     bounds,
   );
-  assert.equal(ok.name, "ago");
+  assert.equal(ok.name, "player");
   assert.equal(ok.face, -1);
   const clamped = wb.sanitizeHeartbeat(
     { name: "x".repeat(40), x: 9999, y: -5, vx: 999, vy: 0 },
@@ -596,15 +596,15 @@ test("API(presence): ゲストは読めるが書けない・消せない", async
 });
 
 test("API(presence): ハートビート往復、名前はセッション由来、自分は一覧に出ない", async () => {
-  const cookieA = sessionCookie("111111111111111111", "ago-a");
-  const cookieB = sessionCookie("222222222222222222", "ago-b");
+  const cookieA = sessionCookie("111111111111111111", "player-a");
+  const cookieB = sessionCookie("222222222222222222", "player-b");
   const put = await presenceRoute.PUT(
     presenceRequest("PUT", cookieA, { name: "偽名", x: 64.5, y: 64.5, vx: 2, vy: 0, face: -1 }),
   );
   assert.equal(put.status, 200);
   const seenByB = await (await presenceRoute.GET(presenceRequest("GET", cookieB))).json();
   assert.equal(seenByB.players.length, 1);
-  assert.equal(seenByB.players[0].name, "ago-a");
+  assert.equal(seenByB.players[0].name, "player-a");
   assert.equal(seenByB.players[0].face, -1);
   assert.ok(!seenByB.players[0].id.includes("111111"));
   const seenByA = await (await presenceRoute.GET(presenceRequest("GET", cookieA))).json();
@@ -614,7 +614,7 @@ test("API(presence): ハートビート往復、名前はセッション由来�
 });
 
 test("API(presence): 不正な body は 400、他オリジンは 403", async () => {
-  const cookie = sessionCookie("333333333333333333", "ago-c");
+  const cookie = sessionCookie("333333333333333333", "player-c");
   assert.equal(
     (await presenceRoute.PUT(presenceRequest("PUT", cookie, { x: "abc", y: 1 }))).status,
     400,
@@ -630,14 +630,14 @@ test("API(presence): 不正な body は 400、他オリジンは 403", async () 
 });
 
 test("API(presence): 古いハートビートは一覧から落ち、DELETE で即座に消える", async () => {
-  const cookieA = sessionCookie("444444444444444444", "ago-d");
-  const cookieB = sessionCookie("555555555555555555", "ago-e");
+  const cookieA = sessionCookie("444444444444444444", "player-d");
+  const cookieB = sessionCookie("555555555555555555", "player-e");
   await presenceRoute.PUT(presenceRequest("PUT", cookieA, { x: 10, y: 10, vx: 0, vy: 0, face: 1 }));
   let seen = await (await presenceRoute.GET(presenceRequest("GET", cookieB))).json();
-  assert.equal(seen.players.filter((p) => p.name === "ago-d").length, 1);
+  assert.equal(seen.players.filter((p) => p.name === "player-d").length, 1);
   const store = globalThis.__wbStore;
   for (const [k, v] of store) {
-    if (k.startsWith("worldbox_presence ") && String(v).includes("ago-d")) {
+    if (k.startsWith("worldbox_presence ") && String(v).includes("player-d")) {
       const parsed = JSON.parse(v);
       parsed.ts = Date.now() - 60_000;
       store.set(k, JSON.stringify(parsed));
@@ -645,14 +645,18 @@ test("API(presence): 古いハートビートは一覧から落ち、DELETE で�
   }
   seen = await (await presenceRoute.GET(presenceRequest("GET", cookieB))).json();
   assert.equal(
-    seen.players.filter((p) => p.name === "ago-d").length,
+    seen.players.filter((p) => p.name === "player-d").length,
     0,
     "古いエントリが見えている",
   );
   await presenceRoute.PUT(presenceRequest("PUT", cookieA, { x: 10, y: 10, vx: 0, vy: 0, face: 1 }));
   assert.equal((await presenceRoute.DELETE(presenceRequest("DELETE", cookieA))).status, 200);
   seen = await (await presenceRoute.GET(presenceRequest("GET", cookieB))).json();
-  assert.equal(seen.players.filter((p) => p.name === "ago-d").length, 0, "DELETE 後も見えている");
+  assert.equal(
+    seen.players.filter((p) => p.name === "player-d").length,
+    0,
+    "DELETE 後も見えている",
+  );
 });
 
 test("クライアント: 見下ろし＋プレゼンス配線があり、横スクロール層は残っていない", () => {

@@ -901,7 +901,7 @@ export const WEB_GAMES: WebGame[] = [
   },
   {
     slug: "worldbox",
-    title: "AGO WORLD BOX",
+    title: "WORLD BOX",
     description: "見下ろし型の共有ワールド",
     status: "playable",
     activity: true,

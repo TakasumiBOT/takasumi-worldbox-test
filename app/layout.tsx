@@ -4,7 +4,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "WORLD BOX",
-  description: "AGO WORLD BOX の移行テスト版（Vercel）",
+  description: "みんなで同じワールドを歩き回れる、見下ろし型の共有ワールドゲーム",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

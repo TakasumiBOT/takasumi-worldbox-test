@@ -91,7 +91,7 @@ export default function GamesShell({
     if (!sdk || !customId) return false;
     try {
       const result = await sdk.commands.shareLink({
-        message: `AGOBOT ゲームで対戦しよう（ルームコード: ${code}）`,
+        message: `ゲームで対戦しよう（ルームコード: ${code}）`,
         custom_id: customId,
       });
       return Boolean(result.success);
@@ -182,7 +182,7 @@ export default function GamesShell({
       <div className="games-shell" {...(embedded ? { "data-activity-root": "" } : {})}>
         {embedded && (
           <nav className="games-embedded-bar" aria-label="ゲームメニュー">
-            <span className="games-embedded-brand">AGOBOT ゲーム</span>
+            <span className="games-embedded-brand">ゲーム</span>
             <span className="games-embedded-links">
               <Link href={`${prefix}/games`}>ゲーム一覧</Link>
             </span>
