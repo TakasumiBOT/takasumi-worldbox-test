@@ -60,6 +60,7 @@ function buildAuth(deployConfigUrl) {
 }
 const authFilled = await import(buildAuth(deployConfigFilledUrl));
 const authReal = await import(buildAuth(deployConfigRealUrl));
+const deployConfigReal = await import(deployConfigRealUrl);
 
 const fakeRequest = { url: "https://internal.test/somewhere", headers: new Headers() };
 
@@ -91,11 +92,11 @@ test("deploy-config: env があれば deploy-config より優先される", () =
   }
 });
 
-test("deploy-config: 実ファイルは ID/SECRET 未記入（redirect のみ）なので未設定扱い", () => {
+test("deploy-config: 実ファイルは SECRET 未記入なので未設定扱い（ID は実ファイルの値が読める）", () => {
   clearEnv();
   try {
     assert.equal(authReal.isDiscordConfigured(), false);
-    assert.equal(authReal.discordClientId(), "");
+    assert.equal(authReal.discordClientId(), deployConfigReal.DEPLOY_CONFIG.discordClientId);
     assert.equal(authReal.discordClientSecret(), "");
     assert.equal(
       authReal.discordRedirectUri(),
