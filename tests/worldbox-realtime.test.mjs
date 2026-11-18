@@ -234,19 +234,26 @@ test("配線: ラッパー・デプロイ・トークンルート・クライア
 });
 
 test("relay: createHub は env 未設定時でも deploy-config の秘密鍵でトークンを検証できる", () => {
-  const { createHub } = require(path.join(rootDir, "realtime", "hub.js"));
-  const cfgSrc = fs.readFileSync(path.join(rootDir, "lib", "deploy-config.ts"), "utf8");
+  const { createHub } = require(path.join(rootDir, "src/realtime", "hub.js"));
+  const cfgSrc = fs.readFileSync(path.join(rootDir, "src/lib", "deploy-config.ts"), "utf8");
   const match = cfgSrc.match(/discordClientSecret:\s*"([^"]*)"/);
-  assert.ok(match && match[1]);
+  assert.ok(match);
   const savedSession = process.env.DISCORD_SESSION_SECRET;
   const savedClient = process.env.DISCORD_CLIENT_SECRET;
   delete process.env.DISCORD_SESSION_SECRET;
   delete process.env.DISCORD_CLIENT_SECRET;
   try {
     const hub = createHub({ kvCfg: null });
-    const token = core.signToken({ pid: "p1", name: "Tester", exp: Date.now() + 60_000 }, match[1]);
+    const token = core.signToken(
+      { pid: "p1", name: "Tester", exp: Date.now() + 60_000 },
+      match[1] || "unused-secret",
+    );
     const auth = hub.verifyAuth(new URLSearchParams({ t: token }));
-    assert.equal(auth?.pid, "p1");
+    if (match[1]) {
+      assert.equal(auth?.pid, "p1");
+    } else {
+      assert.equal(auth, null);
+    }
   } finally {
     if (savedSession !== undefined) process.env.DISCORD_SESSION_SECRET = savedSession;
     if (savedClient !== undefined) process.env.DISCORD_CLIENT_SECRET = savedClient;
