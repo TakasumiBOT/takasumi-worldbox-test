@@ -92,15 +92,16 @@ test("deploy-config: env があれば deploy-config より優先される", () =
   }
 });
 
-test("deploy-config: 実ファイルは SECRET 未記入なので未設定扱い（ID は実ファイルの値が読める）", () => {
+test("deploy-config: 実ファイルの値がそのまま読め、設定判定は実ファイルの中身と一致する", () => {
   clearEnv();
   try {
-    assert.equal(authReal.isDiscordConfigured(), false);
-    assert.equal(authReal.discordClientId(), deployConfigReal.DEPLOY_CONFIG.discordClientId);
-    assert.equal(authReal.discordClientSecret(), "");
+    const cfg = deployConfigReal.DEPLOY_CONFIG;
+    assert.equal(authReal.discordClientId(), cfg.discordClientId);
+    assert.equal(authReal.discordClientSecret(), cfg.discordClientSecret);
+    assert.equal(authReal.discordRedirectUri(), cfg.discordRedirectUri);
     assert.equal(
-      authReal.discordRedirectUri(),
-      "https://takasumi-worldbox-test.vercel.app/api/auth/discord/callback",
+      authReal.isDiscordConfigured(),
+      Boolean(cfg.discordClientId && cfg.discordClientSecret && cfg.discordRedirectUri),
     );
   } finally {
     restoreEnv();

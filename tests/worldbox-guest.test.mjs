@@ -32,6 +32,22 @@ const authUrl = dataUrl(
 );
 const auth = await import(authUrl);
 
+const deployConfigEmptyUrl = dataUrl(`
+export const DEPLOY_CONFIG = {
+  discordClientId: "",
+  discordClientSecret: "",
+  discordRedirectUri: "",
+};
+`);
+const authNoSecret = await import(
+  dataUrl(
+    transpile("auth.ts")
+      .replaceAll('"./subdomain"', JSON.stringify(subdomainUrl))
+      .replaceAll('"./deploy-config"', JSON.stringify(deployConfigEmptyUrl))
+      .replaceAll('"next/headers"', JSON.stringify(headersStubUrl)),
+  )
+);
+
 const nextServerStubUrl = dataUrl(`
 class CookieJar {
   constructor() { this.map = new Map(); }
@@ -148,17 +164,17 @@ test("guest: セッション秘密が未設定でもゲストは入れるが、d
   delete process.env.DISCORD_SESSION_SECRET;
   delete process.env.DISCORD_CLIENT_SECRET;
   try {
-    const value = auth.createSession({
+    const value = authNoSecret.createSession({
       id: UUID,
       username: "ゲスト0001",
       avatar: null,
       provider: "guest",
     });
-    const info = auth.readSessionInfo(value);
+    const info = authNoSecret.readSessionInfo(value);
     assert.equal(info?.provider, "guest");
     assert.equal(info?.id, UUID);
     assert.throws(
-      () => auth.createSession({ id: ME, username: "d-user" }),
+      () => authNoSecret.createSession({ id: ME, username: "d-user" }),
       /session secret is not configured/,
     );
     const [encoded, signature] = value.split(".");
@@ -166,7 +182,7 @@ test("guest: セッション秘密が未設定でもゲストは入れるが、d
     payload.provider = "discord";
     payload.id = ME;
     const reEncoded = Buffer.from(JSON.stringify(payload)).toString("base64url");
-    assert.equal(auth.readSessionInfo(`${reEncoded}.${signature}`), null);
+    assert.equal(authNoSecret.readSessionInfo(`${reEncoded}.${signature}`), null);
   } finally {
     process.env.DISCORD_SESSION_SECRET = savedSession;
     if (savedClient === undefined) delete process.env.DISCORD_CLIENT_SECRET;
