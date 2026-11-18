@@ -1,0 +1,16 @@
+[Unit]
+Description=TAKASUMI WORLD BOX (AGO Pi test play)
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User=luna
+WorkingDirectory=/home/luna/takasumi-web/current
+EnvironmentFile=/home/luna/takasumi-web/env
+ExecStart=/usr/bin/node server.js
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
