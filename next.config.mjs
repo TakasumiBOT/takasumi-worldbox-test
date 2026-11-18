@@ -1,4 +1,5 @@
 const nextConfig = {
+  output: "standalone",
   async headers() {
     const frameAncestors = {
       key: "Content-Security-Policy",

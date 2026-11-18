@@ -1,4 +1,5 @@
-import { Pool, neonConfig } from "@neondatabase/serverless";
+import { Pool as NeonPool, neonConfig } from "@neondatabase/serverless";
+import { Pool as PgNativePool } from "pg";
 import { createRequire } from "node:module";
 
 if (typeof (globalThis as { WebSocket?: unknown }).WebSocket === "undefined") {
@@ -57,13 +58,32 @@ class PoolExecutor implements SqlExecutor {
   }
 }
 
-let sharedPool: Pool | null = null;
+export type DatabaseDriver = "neon" | "pg";
 
-export function getDbPool(): Pool {
+export function databaseDriverForUrl(databaseUrl: string): DatabaseDriver {
+  let host: string;
+  try {
+    host = new URL(databaseUrl).hostname.toLowerCase();
+  } catch {
+    throw new Error("DATABASE_URL is not a valid URL");
+  }
+  return host === "neon.tech" || host.endsWith(".neon.tech") ? "neon" : "pg";
+}
+
+export function createDbPool(databaseUrl: string): PgPool {
+  if (databaseDriverForUrl(databaseUrl) === "neon") {
+    return new NeonPool({ connectionString: databaseUrl }) as unknown as PgPool;
+  }
+  return new PgNativePool({ connectionString: databaseUrl }) as unknown as PgPool;
+}
+
+let sharedPool: PgPool | null = null;
+
+export function getDbPool(): PgPool {
   if (sharedPool) return sharedPool;
   const url = process.env.DATABASE_URL?.trim();
   if (!url) throw new Error("DATABASE_URL is not configured");
-  sharedPool = new Pool({ connectionString: url });
+  sharedPool = createDbPool(url);
   return sharedPool;
 }
 
@@ -74,6 +94,6 @@ export function createSqlExecutor(pool: PgPool): SqlExecutor {
 let sharedExecutor: SqlExecutor | null = null;
 
 export function getSqlExecutor(): SqlExecutor {
-  if (!sharedExecutor) sharedExecutor = createSqlExecutor(getDbPool() as unknown as PgPool);
+  if (!sharedExecutor) sharedExecutor = createSqlExecutor(getDbPool());
   return sharedExecutor;
 }
