@@ -107,8 +107,8 @@ test("activity: games-auth は identity を返し、通常ログインと同じ�
   const data = await res.json();
   assert.equal(data.user.id, ME);
   assert.equal(data.accessToken, "tok-test");
-  const session = res.cookies.get("ago_session");
-  assert.ok(session?.value, "ago_session Cookie が張られる");
+  const session = res.cookies.get("taka_session");
+  assert.ok(session?.value, "taka_session Cookie が張られる");
 });
 
 test("activity: games-auth のセッションで WORLD BOX ゲートが通る", async () => {
@@ -119,9 +119,9 @@ test("activity: games-auth のセッションで WORLD BOX ゲートが通る", 
       body: JSON.stringify({ code: "code-1", codeVerifier: VERIFIER }),
     }),
   );
-  const session = res.cookies.get("ago_session");
+  const session = res.cookies.get("taka_session");
   assert.ok(session?.value);
-  const cookie = `ago_session=${encodeURIComponent(session.value)}`;
+  const cookie = `taka_session=${encodeURIComponent(session.value)}`;
   const gateRes = await gateRoute.GET(
     new Request("https://example.test/api/worldbox/gate", {
       headers: { Cookie: cookie },

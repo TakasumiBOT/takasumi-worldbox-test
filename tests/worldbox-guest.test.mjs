@@ -85,7 +85,7 @@ const UUID = "12345678-9abc-4def-8abc-1234567890ab";
 const ME = "611111111111111111";
 
 function cookieOf(value) {
-  return `ago_session=${encodeURIComponent(value)}`;
+  return `taka_session=${encodeURIComponent(value)}`;
 }
 function req(url, cookie) {
   return new Request(url, { headers: cookie ? { cookie } : {} });
@@ -184,8 +184,8 @@ test("API(guest): POST でセッションが張られ、2回目は同じ身元�
   const firstData = await first.json();
   assert.equal(firstData.ok, true);
   assert.match(firstData.user.name, /^ゲスト\d{4}$/);
-  const cookie = first.cookies.get("ago_session");
-  assert.ok(cookie?.value, "ago_session Cookie が張られる");
+  const cookie = first.cookies.get("taka_session");
+  assert.ok(cookie?.value, "taka_session Cookie が張られる");
   const info = auth.readSessionInfo(cookie.value);
   assert.equal(info?.provider, "guest");
   assert.equal(info?.username, firstData.user.name);
@@ -194,7 +194,7 @@ test("API(guest): POST でセッションが張られ、2回目は同じ身元�
   assert.equal(second.status, 200);
   assert.equal((await second.json()).user.name, firstData.user.name);
   assert.equal(
-    second.cookies.get("ago_session"),
+    second.cookies.get("taka_session"),
     undefined,
     "既存ゲストには Cookie を張り直さない",
   );
@@ -207,7 +207,7 @@ test("API(guest): Discord セッションは格下げされず、Google はゲ�
   const discord = auth.createSession({ id: ME, username: "d-user" });
   const kept = await guestRoute.POST(req(URL_GUEST, cookieOf(discord)));
   assert.equal((await kept.json()).user.name, "d-user");
-  assert.equal(kept.cookies.get("ago_session"), undefined, "Discord セッションを上書きしない");
+  assert.equal(kept.cookies.get("taka_session"), undefined, "Discord セッションを上書きしない");
 
   const google = auth.createSession({
     id: "633333333333333333",
@@ -217,7 +217,7 @@ test("API(guest): Discord セッションは格下げされず、Google はゲ�
   });
   const switched = await guestRoute.POST(req(URL_GUEST, cookieOf(google)));
   assert.match((await switched.json()).user.name, /^ゲスト\d{4}$/);
-  const newCookie = switched.cookies.get("ago_session");
+  const newCookie = switched.cookies.get("taka_session");
   assert.ok(newCookie?.value, "Google セッションにはゲスト Cookie が張られる");
   assert.equal(auth.readSessionInfo(newCookie.value)?.provider, "guest");
 });

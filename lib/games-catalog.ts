@@ -21,7 +21,7 @@ export type GameGenre = {
 export const GAME_GENRES: GameGenre[] = [
   {
     id: "worldbox",
-    label: "WORLD BOX",
+    label: "TAKASUMI WORLD BOX",
     description: "共有ワールドを歩き、国を作り、経済で遊ぶ場所",
   },
 ];
@@ -901,7 +901,7 @@ export const WEB_GAMES: WebGame[] = [
   },
   {
     slug: "worldbox",
-    title: "WORLD BOX",
+    title: "TAKASUMI WORLD BOX",
     description: "見下ろし型の共有ワールド",
     status: "playable",
     activity: true,

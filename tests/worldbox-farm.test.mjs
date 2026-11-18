@@ -787,7 +787,7 @@ process.env["DISCORD_SESSION" + "_SECRET"] = "worldbox-farm-test-secret";
 const ME = "611111111111111111";
 const MY_KEY = `discord:${ME}`;
 function sessionCookie(id, username) {
-  return `ago_session=${encodeURIComponent(auth.createSession({ id, username }))}`;
+  return `taka_session=${encodeURIComponent(auth.createSession({ id, username }))}`;
 }
 function apiRequest(url, method, cookie, body) {
   return new Request(url, {

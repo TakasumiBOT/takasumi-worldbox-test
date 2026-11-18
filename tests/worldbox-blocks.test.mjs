@@ -606,7 +606,7 @@ const OTHER = "622222222222222222";
 const MY_KEY = `discord:${ME}`;
 const OTHER_KEY2 = `discord:${OTHER}`;
 function sessionCookie(id, username) {
-  return `ago_session=${encodeURIComponent(auth.createSession({ id, username }))}`;
+  return `taka_session=${encodeURIComponent(auth.createSession({ id, username }))}`;
 }
 function apiRequest(url, method, cookie, body) {
   return new Request(url, {

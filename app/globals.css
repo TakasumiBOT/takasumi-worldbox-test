@@ -2285,7 +2285,7 @@ body:has(.vs-shell) > main {
   border-top: none;
   padding: 0;
 }
-/* --- WORLD BOX 独立シェル（.wb-shell） ---
+/* --- TAKASUMI WORLD BOX 独立シェル（.wb-shell） ---
    /games/worldbox はサイト共通ヘッダー/フッターを出さず（lib/site-chrome.ts）、
    ステージが画面いっぱい（100svh）になる独立シェルで完結させる。共通CSSの
    main（中央カラム＋余白＋min-height）と、Activity 埋め込み時の .games-shell
@@ -2313,7 +2313,7 @@ body:has(.wb-shell) > main {
   background: #0b0e14;
   color: #f2f2f2;
 }
-/* --- WORLD BOX 感覚面 B2: アフォーダンス（押下感） ---
+/* --- TAKASUMI WORLD BOX 感覚面 B2: アフォーダンス（押下感） ---
    .wb-shell 内だけに効かせる（独立シェル外のボタンには触らない）。
    ボタンは押した瞬間だけ少し縮む。施設チップは出現時にポップし、
    無効操作のピルは小刻みに揺れる（文言ではなく動きで伝える）。 */
@@ -2333,7 +2333,7 @@ body:has(.wb-shell) > main {
     opacity: 1;
   }
 }
-/* --- WORLD BOX スマホ向けパネル（.wb-panel） ---
+/* --- TAKASUMI WORLD BOX スマホ向けパネル（.wb-panel） ---
    パネル類（経済/カジノ/闘技場/ギルド/装置/アーケード/クライアント内蔵）の
    ルートに付ける共通クラス。ブレークポイントは lib/worldbox/layout.ts の
    WB_PORTRAIT_MAX_WIDTH / WB_LANDSCAPE_MAX_HEIGHT と一致させる。
@@ -2360,7 +2360,7 @@ body:has(.wb-shell) > main {
     max-height: calc(100% - 12px) !important;
   }
 }
-/* --- WORLD BOX 感覚面 B5: パネルの出現アニメーション（全パネル共通） ---
+/* --- TAKASUMI WORLD BOX 感覚面 B5: パネルの出現アニメーション（全パネル共通） ---
    開く瞬間だけ、少し下から浮き上がって収まる。位置指定はインラインの
    transform が正なので、干渉しないよう translate/scale の個別プロパティで
    動かす（transform は触らない）。閉じる側は即時（出現で統一する）。 */

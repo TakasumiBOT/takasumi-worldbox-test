@@ -1,4 +1,4 @@
-const MUTE_KEY = "ago-sfx-muted";
+const MUTE_KEY = "taka-sfx-muted";
 
 let ctx: AudioContext | null = null;
 let noiseBuffer: AudioBuffer | null = null;
