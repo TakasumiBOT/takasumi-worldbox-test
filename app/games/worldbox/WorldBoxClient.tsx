@@ -286,7 +286,7 @@ import WorldBoxGuildBoardPanel from "./WorldBoxGuildBoardPanel";
 import WorldBoxGuildShopPanel from "./WorldBoxGuildShopPanel";
 import { ItemSlot as ItemSlotView, ItemSlotGrid } from "./ItemSlotGrid";
 
-const SAVE_KEY = "ago-worldbox-save-v6";
+const SAVE_KEY = "taka-worldbox-save-v6";
 const TILE = 44;
 const AVATAR_TILES = 1.3;
 
@@ -6173,7 +6173,7 @@ export default function WorldBoxClient() {
           textAlign: "center",
         }}
       >
-        <h1 style={{ fontSize: 28, margin: 0 }}>WORLD BOX</h1>
+        <h1 style={{ fontSize: 28, margin: 0 }}>TAKASUMI WORLD BOX</h1>
         {gate === "checking" || (gate === "ok" && !booted) ? (
           <p role="status" style={{ margin: 0 }}>
             読み込み中…
@@ -6285,7 +6285,7 @@ export default function WorldBoxClient() {
         <canvas
           ref={canvasRef}
           onContextMenu={(e) => e.preventDefault()}
-          aria-label="WORLD BOX の見下ろしマップ。スティックか WASD で歩けます"
+          aria-label="TAKASUMI WORLD BOX の見下ろしマップ。スティックか WASD で歩けます"
           style={{
             width: "100%",
             height: "100%",

@@ -1,12 +1,12 @@
-export const ONE_PROMPTER_HOST = "oneprompter.agobot.app";
+export const ONE_PROMPTER_HOST = "oneprompter.takasumibot.app";
 
 export const ONE_PROMPTER_PATH = "/one-prompter";
 
 export const SUBDOMAIN_ROUTES: Readonly<Record<string, string>> = {
   [ONE_PROMPTER_HOST]: ONE_PROMPTER_PATH,
-  "viewslopper.agobot.app": "/viewslopper",
-  "deshihito.agobot.app": "/folio/deshihito",
-  "tadanoen.agobot.app": "/folio/tadanoen",
+  "viewslopper.takasumibot.app": "/viewslopper",
+  "deshihito.takasumibot.app": "/folio/deshihito",
+  "tadanoen.takasumibot.app": "/folio/tadanoen",
 };
 
 export function effectiveHost(forwardedHost: string | null | undefined, hostname: string): string {

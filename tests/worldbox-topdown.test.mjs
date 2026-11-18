@@ -568,7 +568,7 @@ const presenceRoute = await import(
 process.env.DISCORD_SESSION_SECRET = ["worldbox", "topdown", "test", "secret"].join("-");
 function sessionCookie(id, username) {
   const value = auth.createSession({ id, username });
-  return `ago_session=${encodeURIComponent(value)}`;
+  return `taka_session=${encodeURIComponent(value)}`;
 }
 function presenceRequest(method, cookie, body, headers = {}) {
   return new Request("http://localhost/api/worldbox/presence", {
@@ -589,7 +589,7 @@ test("API(presence): ゲストは読めるが書けない・消せない", async
   assert.equal((await presenceRoute.PUT(presenceRequest("PUT", null, { x: 1, y: 1 }))).status, 401);
   assert.equal((await presenceRoute.DELETE(presenceRequest("DELETE", null))).status, 401);
   assert.equal(
-    (await presenceRoute.PUT(presenceRequest("PUT", "ago_session=forged.value", { x: 1, y: 1 })))
+    (await presenceRoute.PUT(presenceRequest("PUT", "taka_session=forged.value", { x: 1, y: 1 })))
       .status,
     401,
   );

@@ -425,7 +425,7 @@ const API_POSTER = "711111111111111111";
 const API_MEMBER1 = "722222222222222222";
 const API_MEMBER2 = "733333333333333333";
 const apiCookie = (id, name) =>
-  `ago_session=${encodeURIComponent(apiAuth.createSession({ id, username: name }))}`;
+  `taka_session=${encodeURIComponent(apiAuth.createSession({ id, username: name }))}`;
 const API_URL = "http://localhost/api/worldbox/requests";
 function apiReq(cookie, body) {
   return new Request(API_URL, {

@@ -261,7 +261,7 @@ process.env.DISCORD_SESSION_SECRET = ["worldbox", "place", "gates", "test"].join
 const ME = "611111111111111111";
 const OTHER = "622222222222222222";
 const MY_KEY = `discord:${ME}`;
-const cookie = `ago_session=${encodeURIComponent(auth.createSession({ id: ME, username: "gate-user" }))}`;
+const cookie = `taka_session=${encodeURIComponent(auth.createSession({ id: ME, username: "gate-user" }))}`;
 
 function apiRequest(url, method, body) {
   return new Request(url, {

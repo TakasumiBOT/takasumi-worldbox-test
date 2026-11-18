@@ -293,7 +293,7 @@ const PROFILE_URL = "http://localhost/api/worldbox/profile";
 const ROLES_URL = "http://localhost/api/worldbox/roles";
 
 function cookie(id, name = "dg-user") {
-  return `ago_session=${encodeURIComponent(auth.createSession({ id, username: name }))}`;
+  return `taka_session=${encodeURIComponent(auth.createSession({ id, username: name }))}`;
 }
 function apiReq(url, ck, body) {
   return new Request(url, {

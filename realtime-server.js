@@ -4,7 +4,7 @@ const path = require("node:path");
 
 const PUBLIC_PORT = Number(process.env.PORT || 3000);
 const HOSTNAME = process.env.HOSTNAME || "127.0.0.1";
-const NEXT_PORT = Number(process.env.AGOBOT_NEXT_PORT || 3100);
+const NEXT_PORT = Number(process.env.TAKASUMIBOT_NEXT_PORT || 3100);
 const REALTIME_PATH = "/api/worldbox/realtime";
 
 process.env.PORT = String(NEXT_PORT);

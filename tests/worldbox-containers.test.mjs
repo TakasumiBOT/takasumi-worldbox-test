@@ -560,7 +560,7 @@ const MY_KEY = `discord:${ME}`;
 const OTHER_KEY = `discord:${OTHER}`;
 const MY_ID = T.presenceIdFor(MY_KEY);
 function sessionCookie(id, username) {
-  return `ago_session=${encodeURIComponent(auth.createSession({ id, username }))}`;
+  return `taka_session=${encodeURIComponent(auth.createSession({ id, username }))}`;
 }
 function apiRequest(url, method, cookie, body) {
   return new Request(url, {

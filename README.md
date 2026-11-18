@@ -1,6 +1,6 @@
 # takasumi-worldbox-test
 
-Takasumi 版 WORLD BOX。共有ワールドを歩き、採集・生産・会社経営・株式取引を行うオンラインゲーム。
+TAKASUMI WORLD BOX。共有ワールドを歩き、採集・生産・会社経営・株式取引を行うオンラインゲーム。
 
 稼働先: https://takasumi-worldbox-test.vercel.app （デプロイ済み・稼働中）。ルート `/` は `/games/worldbox` へリダイレクトする。
 

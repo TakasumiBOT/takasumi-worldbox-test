@@ -3,10 +3,10 @@ import { cookies } from "next/headers";
 import { DEPLOY_CONFIG } from "./deploy-config";
 import { effectiveHost } from "./subdomain";
 
-export const SESSION_COOKIE = "ago_session";
-export const OAUTH_STATE_COOKIE = "ago_discord_oauth_state";
-export const GOOGLE_STATE_COOKIE = "ago_google_oauth_state";
-export const OAUTH_NEXT_COOKIE = "ago_oauth_next";
+export const SESSION_COOKIE = "taka_session";
+export const OAUTH_STATE_COOKIE = "taka_discord_oauth_state";
+export const GOOGLE_STATE_COOKIE = "taka_google_oauth_state";
+export const OAUTH_NEXT_COOKIE = "taka_oauth_next";
 
 const SESSION_MAX_AGE = 60 * 60 * 24 * 7;
 
@@ -53,7 +53,7 @@ export function sessionSecret() {
   );
 }
 
-const GUEST_SESSION_FALLBACK_SECRET = "ago-worldbox-guest-session-fallback";
+const GUEST_SESSION_FALLBACK_SECRET = "taka-worldbox-guest-session-fallback";
 
 function signWith(secret: string, value: string) {
   if (!secret) return "";

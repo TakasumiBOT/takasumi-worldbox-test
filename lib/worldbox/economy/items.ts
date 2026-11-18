@@ -1919,7 +1919,7 @@ export const ITEMS: readonly ItemDef[] = [
     price: 6900,
   },
   {
-    id: "ago_emblem",
+    id: "taka_emblem",
     name: "特注エンブレム",
     desc: "注文で作る印の飾り",
     category: "special",
@@ -2233,7 +2233,7 @@ export const ITEM_ICON_IDS: readonly string[] = [
   "dragon_egg",
   "star_crown",
   "world_seed",
-  "ago_emblem",
+  "taka_emblem",
 ];
 
 const ITEM_ICON_ID_SET = new Set(ITEM_ICON_IDS);
@@ -2605,7 +2605,12 @@ export const RECIPES: readonly Recipe[] = [
     output: "world_seed",
     outputCount: 1,
   },
-  { id: "ago_emblem", inputs: { mithril: 1, gold_ingot: 1 }, output: "ago_emblem", outputCount: 1 },
+  {
+    id: "taka_emblem",
+    inputs: { mithril: 1, gold_ingot: 1 },
+    output: "taka_emblem",
+    outputCount: 1,
+  },
   {
     id: "iron_ingot",
     inputs: { iron_ore: 2, coal: 1 },

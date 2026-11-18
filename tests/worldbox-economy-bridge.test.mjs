@@ -339,7 +339,7 @@ const economyRoute = await import(
 process.env.DISCORD_SESSION_SECRET = ["worldbox", "economy", "test", "secret"].join("-");
 function sessionCookie(id, username, provider) {
   const value = auth.createSession(provider ? { id, username, provider } : { id, username });
-  return `ago_session=${encodeURIComponent(value)}`;
+  return `taka_session=${encodeURIComponent(value)}`;
 }
 function apiRequest(url, method, cookie, body, headers = {}) {
   return new Request(url, {

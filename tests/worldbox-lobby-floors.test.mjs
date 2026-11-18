@@ -146,7 +146,7 @@ const OTHER = "644444444444444444";
 const MY_KEY = `discord:${ME}`;
 const OTHER_KEY = `discord:${OTHER}`;
 const cookieFor = (id) =>
-  `ago_session=${encodeURIComponent(auth.createSession({ id, username: `floor-user-${id.slice(-2)}` }))}`;
+  `taka_session=${encodeURIComponent(auth.createSession({ id, username: `floor-user-${id.slice(-2)}` }))}`;
 function apiRequest(url, method, body, id = ME) {
   return new Request(url, {
     method,

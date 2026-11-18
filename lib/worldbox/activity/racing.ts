@@ -31,7 +31,7 @@ export interface RaceTrack {
 }
 export const RACE_TRACKS: readonly RaceTrack[] = [
   { id: "hiroba", name: "広場", direction: "左", small: false },
-  { id: "ago", name: "まる", direction: "右", small: true },
+  { id: "taka", name: "まる", direction: "右", small: true },
   { id: "same", name: "サメ", direction: "右", small: true },
   { id: "moja", name: "もじゃ", direction: "右", small: false },
   { id: "ryungu", name: "リュング", direction: "右", small: true },

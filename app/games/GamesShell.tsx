@@ -37,7 +37,7 @@ export function useGamesNav(): GamesNav {
   return useContext(GamesNavContext);
 }
 
-const STORAGE_KEY = "agobot:activity-embedded";
+const STORAGE_KEY = "takasumibot:activity-embedded";
 const SDK_READY_TIMEOUT_MS = 4000;
 
 function hasActivityParams(): boolean {
@@ -61,7 +61,7 @@ function storeEmbedded() {
   }
 }
 
-const ROUTED_CUSTOM_ID_KEY = "agobot:invite-routed-custom-id";
+const ROUTED_CUSTOM_ID_KEY = "takasumibot:invite-routed-custom-id";
 
 export default function GamesShell({
   clientId,

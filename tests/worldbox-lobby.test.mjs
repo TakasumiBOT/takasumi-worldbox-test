@@ -604,7 +604,7 @@ const gateRoute = await import(
 process.env.DISCORD_SESSION_SECRET = ["worldbox", "lobby", "test", "secret"].join("-");
 function sessionCookie(id, username) {
   const value = auth.createSession({ id, username });
-  return `ago_session=${encodeURIComponent(value)}`;
+  return `taka_session=${encodeURIComponent(value)}`;
 }
 function apiRequest(url, method, cookie, body, headers = {}) {
   return new Request(url, {
@@ -736,14 +736,14 @@ test("API(gate): Discord セッションだけが入場でき、ゲストと Goo
   const url = "http://localhost/api/worldbox/gate";
   const guest = await (await gateRoute.GET(apiRequest(url, "GET", null))).json();
   assert.equal(guest.allowed, false);
-  const googleCookie = `ago_session=${encodeURIComponent(auth.createSession({ id: "g-123", username: "g-user", provider: "google" }))}`;
+  const googleCookie = `taka_session=${encodeURIComponent(auth.createSession({ id: "g-123", username: "g-user", provider: "google" }))}`;
   const google = await (await gateRoute.GET(apiRequest(url, "GET", googleCookie))).json();
   assert.equal(google.allowed, false, "Google セッションで入場できてしまう");
   const discordCookie = sessionCookie("655555555555555555", "d-user");
   const discord = await (await gateRoute.GET(apiRequest(url, "GET", discordCookie))).json();
   assert.equal(discord.allowed, true);
   const forged = await (
-    await gateRoute.GET(apiRequest(url, "GET", "ago_session=forged.value"))
+    await gateRoute.GET(apiRequest(url, "GET", "taka_session=forged.value"))
   ).json();
   assert.equal(forged.allowed, false);
 });
@@ -784,7 +784,7 @@ test("クライアント: ハンバーガーメニューと空間ワープがあ
   assert.ok(client.includes("≡"), "ハンバーガーボタンが無い");
   assert.ok(client.includes("中央広場へ行く"), "中央広場への導線が無い");
   assert.ok(client.includes("郊外へ戻る"), "郊外への導線が無い");
-  assert.ok(client.includes("ago-worldbox-save-v6"), "セーブキーが v6 でない");
+  assert.ok(client.includes("taka-worldbox-save-v6"), "セーブキーが v6 でない");
   assert.ok(client.includes("LOBBY_WARP_PAD"), "ロビー側ワープパッド判定が無い");
   assert.ok(!client.includes("WORLD_WARP_PAD"), "ワールド側の固定ワープパッドが残っている");
   assert.ok(

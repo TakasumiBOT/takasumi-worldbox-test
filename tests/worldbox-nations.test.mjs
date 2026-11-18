@@ -569,7 +569,7 @@ globalThis.__wbStationValue = "guild";
 
 function sessionCookie(id, username) {
   const value = auth.createSession({ id, username });
-  return `ago_session=${encodeURIComponent(value)}`;
+  return `taka_session=${encodeURIComponent(value)}`;
 }
 function guildUser(id, username, sidHex, guilds) {
   const sid = sidHex.repeat(32);
@@ -582,7 +582,7 @@ function guildUser(id, username, sidHex, guilds) {
   };
   globalThis.__wbGuildsByToken[token] = guilds;
   const value = auth.createSession({ id, username }, sid);
-  return `ago_session=${encodeURIComponent(value)}`;
+  return `taka_session=${encodeURIComponent(value)}`;
 }
 function discordGuild(id, name, owner, permissions) {
   return { id, name, icon: null, owner, permissions };
