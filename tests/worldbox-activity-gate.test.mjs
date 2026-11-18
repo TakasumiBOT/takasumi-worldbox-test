@@ -5,8 +5,8 @@ import path from "node:path";
 import ts from "typescript";
 
 const rootDir = path.join(import.meta.dirname, "..");
-const libDir = path.join(rootDir, "lib");
-const appDir = path.join(rootDir, "app");
+const libDir = path.join(rootDir, "src/lib");
+const appDir = path.join(rootDir, "src/app");
 
 function transpile(name, base = libDir) {
   const src = fs.readFileSync(path.join(base, name), "utf8");

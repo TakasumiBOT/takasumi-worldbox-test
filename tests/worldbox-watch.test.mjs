@@ -7,10 +7,10 @@ import ts from "typescript";
 
 const rootDir = path.join(import.meta.dirname, "..");
 const require = createRequire(import.meta.url);
-const watch = require(path.join(rootDir, "realtime", "watch-core.js"));
-const botkv = require(path.join(rootDir, "realtime", "botkv.js"));
+const watch = require(path.join(rootDir, "src/realtime", "watch-core.js"));
+const botkv = require(path.join(rootDir, "src/realtime", "botkv.js"));
 
-function transpile(name, base = path.join(rootDir, "lib")) {
+function transpile(name, base = path.join(rootDir, "src/lib")) {
   const src = fs.readFileSync(path.join(base, name), "utf8");
   return ts.transpileModule(src, {
     compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
@@ -226,17 +226,17 @@ test("botkv: kvList/kvSet は bot-api.ts と同じ /v1/query 形式で叩く", a
 test("watch 配線: ラッパーが watch を起動し、クライアントが push を適用する", () => {
   const server = fs.readFileSync(path.join(rootDir, "realtime-server.js"), "utf8");
   assert.ok(
-    server.includes('require(path.join(__dirname, "realtime", "botkv.js"))'),
+    server.includes('require(path.join(__dirname, "src", "realtime", "botkv.js"))'),
     "botkv を読んでいない",
   );
   assert.ok(
-    server.includes('require(path.join(__dirname, "realtime", "watch-core.js"))'),
+    server.includes('require(path.join(__dirname, "src", "realtime", "watch-core.js"))'),
     "watch-core を読んでいない",
   );
   assert.ok(server.includes("WATCH_PLAN"), "watch 計画を使っていない");
   assert.ok(server.includes("routeWatchChanges"), "差分配信が無い");
   const client = fs.readFileSync(
-    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    path.join(rootDir, "src/app/games/worldbox/WorldBoxClient.tsx"),
     "utf8",
   );
   assert.ok(client.includes('msg.kind === "tiles"'), "タイル push 適用が無い");
@@ -249,7 +249,7 @@ test("watch 配線: ラッパーが watch を起動し、クライアントが p
   assert.ok(client.includes("notifyEconomyApplied()"), "パネルへの合図が無い");
   assert.ok(server.includes("economyTargetPids"), "経済の宛先解決が無い");
   for (const panel of ["WorldBoxCasinoPanel.tsx", "WorldBoxEconomyPanel.tsx"]) {
-    const src = fs.readFileSync(path.join(rootDir, "app/games/worldbox", panel), "utf8");
+    const src = fs.readFileSync(path.join(rootDir, "src/app/games/worldbox", panel), "utf8");
     assert.ok(src.includes("onEconomyApplied("), `${panel} が経済 push を購読していない`);
   }
   assert.ok(client.includes("parseTileOverride(c.value)"), "タイル parse が無い");

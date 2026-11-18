@@ -5,7 +5,7 @@ import path from "node:path";
 import ts from "typescript";
 
 const rootDir = path.join(import.meta.dirname, "..");
-const libDir = path.join(rootDir, "lib");
+const libDir = path.join(rootDir, "src/lib");
 
 function transpile(name, base = libDir) {
   const src = fs.readFileSync(path.join(base, name), "utf8");
@@ -72,7 +72,7 @@ test("sell-shop: 既存ステーションの引きは壊れていない", () => 
 });
 
 test("sell-shop: API は売却に sellGate（shop/smith/sell）を使い、購入は shopGate のまま", () => {
-  const route = read("app/api/worldbox/profile/route.ts");
+  const route = read("src/app/api/worldbox/profile/route.ts");
   const sellGateBody = route.match(/const sellGate = async \(\) => \{[\s\S]*?\};/)?.[0] ?? "";
   assert.ok(sellGateBody.includes('"sell"'), "sellGate が売却カウンターを許可する");
   const shopGateBody = route.match(/const shopGate = async \(\) => \{[\s\S]*?\};/)?.[0] ?? "";
@@ -85,29 +85,29 @@ test("sell-shop: API は売却に sellGate（shop/smith/sell）を使い、購�
 });
 
 test("economy: 売却タブが売却専用ショップで開き、売却アクションは1か所だけ", () => {
-  const panel = read("app/games/worldbox/WorldBoxEconomyPanel.tsx");
+  const panel = read("src/app/games/worldbox/WorldBoxEconomyPanel.tsx");
   assert.ok(panel.includes("atSellShop"));
   assert.ok(panel.includes('tabBtn("sell", "売却")'));
   assert.equal(panel.split('action: "sell"').length - 1, 1, "売却ボタンは売却タブの注釈内だけ");
 });
 
 test("economy: パネル内にプレイヤーの空腹度・HP の表示は無い（ステージ左上の常時バーが正）", () => {
-  const panel = read("app/games/worldbox/WorldBoxEconomyPanel.tsx");
+  const panel = read("src/app/games/worldbox/WorldBoxEconomyPanel.tsx");
   assert.ok(!panel.includes("profile.hunger"), "満腹度バーが無い");
   assert.ok(!panel.includes("profile.hp"), "HP バーが無い");
   assert.ok(!panel.includes("毒）"), "毒ラベルが無い");
 });
 
 test("economy: ヘッダーは sticky で閉じるボタンが常時見える", () => {
-  const panel = read("app/games/worldbox/WorldBoxEconomyPanel.tsx");
+  const panel = read("src/app/games/worldbox/WorldBoxEconomyPanel.tsx");
   assert.ok(panel.includes('position: "sticky"'));
 });
 
 const PANELS = [
-  "app/games/worldbox/WorldBoxGuildShopPanel.tsx",
-  "app/games/worldbox/WorldBoxMachinePanel.tsx",
-  "app/games/worldbox/WorldBoxGuildBoardPanel.tsx",
-  "app/games/worldbox/WorldBoxCasinoPanel.tsx",
+  "src/app/games/worldbox/WorldBoxGuildShopPanel.tsx",
+  "src/app/games/worldbox/WorldBoxMachinePanel.tsx",
+  "src/app/games/worldbox/WorldBoxGuildBoardPanel.tsx",
+  "src/app/games/worldbox/WorldBoxCasinoPanel.tsx",
 ];
 
 test("slots: ギルドショップ・装置・ギルドボードは共通スロット部品を使う", () => {
@@ -122,7 +122,7 @@ test("slots: ギルドショップ・装置・ギルドボードは共通スロ�
 });
 
 test("menu: ≡ の「設定」の中に BGM・効果音・通報が格納されている", () => {
-  const client = read("app/games/worldbox/WorldBoxClient.tsx");
+  const client = read("src/app/games/worldbox/WorldBoxClient.tsx");
   assert.ok(client.includes("settingsOpen"), "設定の開閉 state がある");
   assert.ok(!client.includes('id: "report"'), "通報は menuActions 本体に残っていない");
   const settingsIdx = client.indexOf("設定\n            </button>");
@@ -138,10 +138,10 @@ test("menu: ≡ の「設定」の中に BGM・効果音・通報が格納され
 });
 
 test("sticky: 全パネルのヘッダーが sticky で固定される", () => {
-  for (const rel of [...PANELS, "app/games/worldbox/WorldBoxEconomyPanel.tsx"]) {
+  for (const rel of [...PANELS, "src/app/games/worldbox/WorldBoxEconomyPanel.tsx"]) {
     assert.ok(read(rel).includes('position: "sticky"'), `${rel} のヘッダーが sticky`);
   }
-  const client = read("app/games/worldbox/WorldBoxClient.tsx");
+  const client = read("src/app/games/worldbox/WorldBoxClient.tsx");
   assert.ok(client.includes("stickyPanelHead"), "内蔵パネル用 sticky ヘッダーがある");
   assert.ok(client.includes('sell: "売却専用ショップ"'), "売却ステーションのラベルがある");
   assert.ok(client.includes("ItemSlotView"), "コレクション・種ピッカーがスロット化されている");

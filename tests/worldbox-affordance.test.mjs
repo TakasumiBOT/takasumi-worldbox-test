@@ -5,7 +5,7 @@ import path from "node:path";
 import ts from "typescript";
 
 const rootDir = path.join(import.meta.dirname, "..");
-const libDir = path.join(rootDir, "lib");
+const libDir = path.join(rootDir, "src/lib");
 
 function transpile(name, base = libDir) {
   const src = fs.readFileSync(path.join(base, name), "utf8");
@@ -148,7 +148,7 @@ test("affordance: スティックのノブは掴んだら大きくなる", () =>
 });
 
 const clientSrc = fs.readFileSync(
-  path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+  path.join(rootDir, "src/app/games/worldbox/WorldBoxClient.tsx"),
   "utf8",
 );
 
@@ -170,7 +170,7 @@ test("affordance: クライアントが無効操作に赤い輪＋揺れ＋ erro
 
 test("affordance: クライアントに押下感（ボタン・スティック・チップ）がある", () => {
   assert.ok(clientSrc.includes("stickKnobRadius"), "スティックのノブが掴んだら大きくなる");
-  const css = fs.readFileSync(path.join(rootDir, "app/globals.css"), "utf8");
+  const css = fs.readFileSync(path.join(rootDir, "src/app/globals.css"), "utf8");
   assert.ok(css.includes(".wb-shell button:active"), "ボタン押下で縮む");
   assert.ok(
     css.includes("wb-chip-pop") || clientSrc.includes("wb-chip-pop"),

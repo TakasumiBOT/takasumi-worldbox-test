@@ -5,7 +5,7 @@ import path from "node:path";
 import ts from "typescript";
 
 const rootDir = path.join(import.meta.dirname, "..");
-const libDir = path.join(rootDir, "lib");
+const libDir = path.join(rootDir, "src/lib");
 
 function transpile(name, base = libDir) {
   const src = fs.readFileSync(path.join(base, name), "utf8");
@@ -573,7 +573,7 @@ export async function storeStall() { return true; }
 `);
 const tilesRoute = await import(
   dataUrl(
-    transpile("api/worldbox/tiles/route.ts", rootDir + "/app")
+    transpile("api/worldbox/tiles/route.ts", rootDir + "/src/app")
       .replaceAll('"next/server"', JSON.stringify(nextServerStubUrl))
       .replaceAll('"@/lib/auth"', JSON.stringify(authUrl))
       .replaceAll('"@/lib/worldbox/world/mapgen"', JSON.stringify(mapgenUrl))
@@ -800,7 +800,7 @@ test("整理: 空き枠への移動・異種の交換・同種の合算（あふ
 
 test("クライアント: アイコン・設置ブロック描画・固体化が配線されている", () => {
   const client = fs.readFileSync(
-    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    path.join(rootDir, "src/app/games/worldbox/WorldBoxClient.tsx"),
     "utf8",
   );
   assert.ok(client.includes("ItemIcon"), "アイコンコンポーネントが無い");
@@ -812,13 +812,13 @@ test("クライアント: アイコン・設置ブロック描画・固体化が
   assert.ok(client.includes("placedBlockSolid"), "施設を固体から外していない");
   assert.ok(client.includes("selfId"), "自分の ID を受け取っていない");
   const panel = fs.readFileSync(
-    path.join(rootDir, "app/games/worldbox/WorldBoxEconomyPanel.tsx"),
+    path.join(rootDir, "src/app/games/worldbox/WorldBoxEconomyPanel.tsx"),
     "utf8",
   );
   assert.ok(panel.includes("ItemIcon"), "経済パネルにアイコンが無い");
   assert.ok(panel.includes('from "./ItemSlotGrid"'), "経済パネルが共通スロット部品を使っていない");
   const slotGrid = fs.readFileSync(
-    path.join(rootDir, "app/games/worldbox/ItemSlotGrid.tsx"),
+    path.join(rootDir, "src/app/games/worldbox/ItemSlotGrid.tsx"),
     "utf8",
   );
   assert.ok(slotGrid.includes(".icon"), "共通スロット部品が icon を見ていない");
@@ -836,7 +836,7 @@ test("家具は全種 facility で置ける（柵・生け垣も設置対象）"
 
 test("クライアント: 設置できないタップは無反応で終わらず、置けるタイルを光らせる", () => {
   const client = fs.readFileSync(
-    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    path.join(rootDir, "src/app/games/worldbox/WorldBoxClient.tsx"),
     "utf8",
   );
   assert.ok(
@@ -852,11 +852,11 @@ test("クライアント: 設置できないタップは無反応で終わらず
 
 test("クライアント: 全パネルはステージ内オーバーレイで、スロットはスプライトのみ", () => {
   const client = fs.readFileSync(
-    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    path.join(rootDir, "src/app/games/worldbox/WorldBoxClient.tsx"),
     "utf8",
   );
   const panel = fs.readFileSync(
-    path.join(rootDir, "app/games/worldbox/WorldBoxEconomyPanel.tsx"),
+    path.join(rootDir, "src/app/games/worldbox/WorldBoxEconomyPanel.tsx"),
     "utf8",
   );
   assert.ok(client.includes("panelOverlay"), "オーバーレイ様式が無い");

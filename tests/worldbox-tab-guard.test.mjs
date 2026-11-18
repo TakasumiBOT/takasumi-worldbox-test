@@ -6,9 +6,9 @@ import { createRequire } from "node:module";
 import ts from "typescript";
 
 const rootDir = path.join(import.meta.dirname, "..");
-const libDir = path.join(rootDir, "lib");
+const libDir = path.join(rootDir, "src/lib");
 const require = createRequire(import.meta.url);
-const core = require(path.join(rootDir, "realtime", "relay-core.js"));
+const core = require(path.join(rootDir, "src/realtime", "relay-core.js"));
 
 function transpile(name, base = libDir) {
   const src = fs.readFileSync(path.join(base, name), "utf8");
@@ -91,7 +91,10 @@ test("admitTab: 世代交代で evict、旧世代は reject、申告なしは素
 });
 
 test("配線: ルートは 409 を返し、クライアントはタブを申告して 409/4001 で止まる", () => {
-  const route = fs.readFileSync(path.join(rootDir, "app/api/worldbox/presence/route.ts"), "utf8");
+  const route = fs.readFileSync(
+    path.join(rootDir, "src/app/api/worldbox/presence/route.ts"),
+    "utf8",
+  );
   assert.match(route, /putPresenceTabGuarded/);
   assert.match(route, /tab_superseded/);
   assert.match(route, /status: 409/);
@@ -101,7 +104,7 @@ test("配線: ルートは 409 を返し、クライアントはタブを申告�
   assert.match(server, /admitTab/);
   assert.match(server, /4001/);
   const client = fs.readFileSync(
-    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    path.join(rootDir, "src/app/games/worldbox/WorldBoxClient.tsx"),
     "utf8",
   );
   assert.match(client, /tab: tabSession\.tab/);

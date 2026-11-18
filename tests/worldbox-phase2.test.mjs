@@ -6,8 +6,8 @@ import vm from "node:vm";
 import ts from "typescript";
 
 const require = createRequire(import.meta.url);
-const core = require("../realtime/relay-core.js");
-const watch = require("../realtime/watch-core.js");
+const core = require("../src/realtime/relay-core.js");
+const watch = require("../src/realtime/watch-core.js");
 
 function loadTsModule(rel, requireStub) {
   const src = readFileSync(new URL(rel, import.meta.url), "utf8");
@@ -39,7 +39,7 @@ function loadTsModule(rel, requireStub) {
   return mod.exports;
 }
 
-const presence = loadTsModule("../lib/worldbox/player/presence.ts", () => ({}));
+const presence = loadTsModule("../src/lib/worldbox/player/presence.ts", () => ({}));
 
 test("presenceKvValue は putPresence 互換: parsePresenceEntry で読み戻せる", () => {
   const entry = {
@@ -122,7 +122,7 @@ test("トークンは所有者キー（ok）を運ぶ。旧トークンでは ok
 
 test("配線: トークン発行・relay 集約・クライアントの停止条件", () => {
   const tokenTs = readFileSync(
-    new URL("../lib/worldbox/core/realtime-token.ts", import.meta.url),
+    new URL("../src/lib/worldbox/core/realtime-token.ts", import.meta.url),
     "utf8",
   );
   assert.ok(tokenTs.includes("ok: sessionOwnerKey(session)"), "トークンに所有者キーが無い");
@@ -134,7 +134,7 @@ test("配線: トークン発行・relay 集約・クライアントの停止条
   );
   assert.ok(server.includes('t: "hello", now: Date.now(), agg: 1'), "集約の合図が無い");
   const client = readFileSync(
-    new URL("../app/games/worldbox/WorldBoxClient.tsx", import.meta.url),
+    new URL("../src/app/games/worldbox/WorldBoxClient.tsx", import.meta.url),
     "utf8",
   );
   assert.ok(

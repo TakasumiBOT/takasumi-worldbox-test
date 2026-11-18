@@ -5,7 +5,7 @@ import path from "node:path";
 import ts from "typescript";
 
 const rootDir = path.join(import.meta.dirname, "..");
-const libDir = path.join(rootDir, "lib");
+const libDir = path.join(rootDir, "src/lib");
 
 function transpile(name, base = libDir) {
   const src = fs.readFileSync(path.join(base, name), "utf8");
@@ -240,7 +240,7 @@ export class NextResponse {
 `);
 const profileRoute = await import(
   dataUrl(
-    transpile("api/worldbox/profile/route.ts", rootDir + "/app")
+    transpile("api/worldbox/profile/route.ts", rootDir + "/src/app")
       .replaceAll('"next/server"', JSON.stringify(nextServerStubUrl))
       .replaceAll('"@/lib/auth"', JSON.stringify(authUrl))
       .replaceAll('"@/lib/worldbox/player/roles"', JSON.stringify(rolesUrl))
@@ -259,7 +259,7 @@ const profileRoute = await import(
 );
 const rolesRoute = await import(
   dataUrl(
-    transpile("api/worldbox/roles/route.ts", rootDir + "/app")
+    transpile("api/worldbox/roles/route.ts", rootDir + "/src/app")
       .replaceAll('"next/server"', JSON.stringify(nextServerStubUrl))
       .replaceAll('"@/lib/auth"', JSON.stringify(authUrl))
       .replaceAll('"@/lib/worldbox/world/mapgen"', JSON.stringify(mapgenUrl))

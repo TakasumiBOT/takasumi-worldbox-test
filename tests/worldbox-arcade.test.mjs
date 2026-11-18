@@ -5,7 +5,7 @@ import path from "node:path";
 import ts from "typescript";
 
 const webDir = path.join(import.meta.dirname, "..");
-const libDir = path.join(webDir, "lib");
+const libDir = path.join(webDir, "src/lib");
 
 async function loadLib(name) {
   const src = fs.readFileSync(path.join(libDir, name), "utf8");

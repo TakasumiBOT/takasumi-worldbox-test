@@ -1,4 +1,4 @@
-# lib/worldbox — TAKASUMI WORLD BOX 本体のドメイン構成
+# src/lib/worldbox — TAKASUMI WORLD BOX 本体のドメイン構成
 
 TAKASUMI WORLD BOX の中核ライブラリ。ファイルはドメイン別フォルダに分けてある。
 

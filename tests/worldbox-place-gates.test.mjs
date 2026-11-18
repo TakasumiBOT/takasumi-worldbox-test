@@ -5,7 +5,7 @@ import path from "node:path";
 import ts from "typescript";
 
 const rootDir = path.join(import.meta.dirname, "..");
-const libDir = path.join(rootDir, "lib");
+const libDir = path.join(rootDir, "src/lib");
 
 function transpile(name, base = libDir) {
   const src = fs.readFileSync(path.join(base, name), "utf8");
@@ -213,7 +213,7 @@ const tentStubUrl = dataUrl(
 );
 const profileRoute = await import(
   dataUrl(
-    transpile("api/worldbox/profile/route.ts", rootDir + "/app")
+    transpile("api/worldbox/profile/route.ts", rootDir + "/src/app")
       .replaceAll('"next/server"', JSON.stringify(nextServerStubUrl))
       .replaceAll('"@/lib/auth"', JSON.stringify(authUrl))
       .replaceAll('"@/lib/worldbox/economy/economy"', JSON.stringify(economyLogicUrl))
@@ -235,7 +235,7 @@ const profileRoute = await import(
 );
 const economyRoute = await import(
   dataUrl(
-    transpile("api/worldbox/economy/route.ts", rootDir + "/app")
+    transpile("api/worldbox/economy/route.ts", rootDir + "/src/app")
       .replaceAll('"next/server"', JSON.stringify(nextServerStubUrl))
       .replaceAll('"@/lib/auth"', JSON.stringify(authUrl))
       .replaceAll('"@/lib/worldbox/economy/economy-bridge"', JSON.stringify(bridgeUrl))
@@ -248,7 +248,7 @@ const economyRoute = await import(
 );
 const boardRoute = await import(
   dataUrl(
-    transpile("api/worldbox/board/route.ts", rootDir + "/app")
+    transpile("api/worldbox/board/route.ts", rootDir + "/src/app")
       .replaceAll('"next/server"', JSON.stringify(nextServerStubUrl))
       .replaceAll('"@/lib/auth"', JSON.stringify(authUrl))
       .replaceAll('"@/lib/worldbox/social/board"', JSON.stringify(boardUrl))
@@ -474,7 +474,7 @@ test("API(place): 掲示板の投稿は掲示板の前でのみ通り、閲覧�
 
 test("クライアント: スティックは固定式で、タイルタップと分離されている", () => {
   const client = fs.readFileSync(
-    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    path.join(rootDir, "src/app/games/worldbox/WorldBoxClient.tsx"),
     "utf8",
   );
   assert.ok(client.includes("stickBase"), "固定基点を使っていない");
@@ -486,7 +486,7 @@ test("クライアント: スティックは固定式で、タイルタップと
 
 test("クライアント: 施設パネルは離れたら閉じる（掲示板・カジノ・ギルドボード）", () => {
   const client = fs.readFileSync(
-    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    path.join(rootDir, "src/app/games/worldbox/WorldBoxClient.tsx"),
     "utf8",
   );
   assert.ok(client.includes('if (stationUi !== "board") setBoardOpen(false);'));
@@ -497,7 +497,7 @@ test("クライアント: 施設パネルは離れたら閉じる（掲示板・
   );
   assert.ok(client.includes('not_at_guild_board: "ギルドボードの前で操作してください"'));
   const nationsRoute = fs.readFileSync(
-    path.join(rootDir, "app/api/worldbox/nations/route.ts"),
+    path.join(rootDir, "src/app/api/worldbox/nations/route.ts"),
     "utf8",
   );
   assert.match(nationsRoute, /loadMyLobbyStation/);

@@ -6,9 +6,9 @@ import { createRequire } from "node:module";
 import ts from "typescript";
 
 const rootDir = path.join(import.meta.dirname, "..");
-const libDir = path.join(rootDir, "lib");
+const libDir = path.join(rootDir, "src/lib");
 const require = createRequire(import.meta.url);
-const watch = require(path.join(rootDir, "realtime", "watch-core.js"));
+const watch = require(path.join(rootDir, "src/realtime", "watch-core.js"));
 
 function transpile(name, base = libDir) {
   const src = fs.readFileSync(path.join(base, name), "utf8");
@@ -24,7 +24,7 @@ function read(rel) {
 }
 
 test("guild-shop: GET の view が mine を返し、生キーは出ない", () => {
-  const routeSrc = read("app/api/worldbox/guild-shop/route.ts");
+  const routeSrc = read("src/app/api/worldbox/guild-shop/route.ts");
   assert.match(routeSrc, /mine: l\.sellerKey === viewerKey/);
   assert.match(routeSrc, /view\(state, nations, ownerKey\)/);
   assert.match(routeSrc, /view\(pruned, nations, ownerKey\)/);
@@ -36,10 +36,10 @@ test("guild-shop: GET の view が mine を返し、生キーは出ない", () =
 });
 
 test("guild-shop: パネルの「下げる」条件がサーバーの unlist 権限と一致する", () => {
-  const routeSrc = read("app/api/worldbox/guild-shop/route.ts");
+  const routeSrc = read("src/app/api/worldbox/guild-shop/route.ts");
   assert.match(routeSrc, /const mine = found\.listing\.sellerKey === ownerKey;/);
   assert.match(routeSrc, /const leaderOfPlot = myGuild === found\.plot\.guildId && isLeader;/);
-  const panelSrc = read("app/games/worldbox/WorldBoxGuildShopPanel.tsx");
+  const panelSrc = read("src/app/games/worldbox/WorldBoxGuildShopPanel.tsx");
   assert.match(panelSrc, /\(sel\.mine \|\| \(isLeader && shop\.myGuildId === plot\.guildId\)\)/);
   assert.ok(!panelSrc.includes("|| true"), "常時真の条件が残っている");
 });
@@ -54,23 +54,23 @@ test("guild-shop watch: relay が sync guildShop を流し、クライアント�
   const serverSrc = read("realtime-server.js");
   assert.match(serverSrc, /kind === "guildShop"/);
   assert.match(serverSrc, /\{ t: "sync", kind: "guildShop" \}/);
-  const clientSrc = read("app/games/worldbox/WorldBoxClient.tsx");
+  const clientSrc = read("src/app/games/worldbox/WorldBoxClient.tsx");
   assert.match(clientSrc, /msg\.kind === "guildShop"/);
   assert.match(clientSrc, /guildShopRefreshRef\.current\(true\)/);
   assert.match(clientSrc, /notifyGuildShopChanged\(\)/);
   assert.match(clientSrc, /GUILD_PLOT_ANCHORS\[plot\.idx\]/);
   assert.match(clientSrc, /fillText\(plot\.guildName, gx, gy - 5\)/);
-  const panelSrc = read("app/games/worldbox/WorldBoxGuildShopPanel.tsx");
+  const panelSrc = read("src/app/games/worldbox/WorldBoxGuildShopPanel.tsx");
   assert.match(panelSrc, /onGuildShopChanged/);
 });
 
 test("chat: appendChatMessage がリスト単位のロックで直列化される", () => {
-  const src = read("lib/worldbox/social/chat-online.ts");
+  const src = read("src/lib/worldbox/social/chat-online.ts");
   assert.match(src, /withUserLock\(`chat-list:\$\{namespaceFor\(message\.channel\)\}:\$\{key\}`/);
 });
 
 test("casino: 先払いは submitSpend（直接提出）で、BJ の hit/stand に確認ゲートがある", () => {
-  const src = read("app/api/worldbox/casino/route.ts");
+  const src = read("src/app/api/worldbox/casino/route.ts");
   assert.match(src, /async function submitSpend\(/);
   assert.match(src, /await submitEconomyOp\(op\)/);
   for (const reason of ["slot7Prepay", "doubleBet", "blackjackBet"]) {

@@ -5,7 +5,7 @@ import path from "node:path";
 import ts from "typescript";
 
 const rootDir = path.join(import.meta.dirname, "..");
-const libDir = path.join(rootDir, "lib");
+const libDir = path.join(rootDir, "src/lib");
 
 function transpile(name, base = libDir) {
   const src = fs.readFileSync(path.join(base, name), "utf8");
@@ -435,7 +435,7 @@ export class NextResponse {
 }
 `);
 function routeImport(file, replacements) {
-  let code = transpile(file, rootDir + "/app");
+  let code = transpile(file, rootDir + "/src/app");
   for (const [from, to] of replacements) code = code.replaceAll(from, JSON.stringify(to));
   return import(dataUrl(code));
 }
@@ -1017,7 +1017,7 @@ test("座席リスト: 室内（lobby の SEAT_SPRITES）とタイル側（tiles
 
 test("クライアント: コンテナのタップ分岐・パネル・回収が配線されている", () => {
   const client = fs.readFileSync(
-    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    path.join(rootDir, "src/app/games/worldbox/WorldBoxClient.tsx"),
     "utf8",
   );
   assert.ok(client.includes("isContainerItem(view.block.itemId)"), "タップ時のコンテナ判定が無い");
@@ -1033,7 +1033,7 @@ test("クライアント: コンテナのタップ分岐・パネル・回収が
     "室内の空間がコンテナ取得に渡っていない",
   );
   const containersRouteSrc2 = fs.readFileSync(
-    path.join(rootDir, "app/api/worldbox/containers/route.ts"),
+    path.join(rootDir, "src/app/api/worldbox/containers/route.ts"),
     "utf8",
   );
   assert.ok(
@@ -1052,11 +1052,14 @@ test("クライアント: コンテナのタップ分岐・パネル・回収が
     client.includes('postTileAction("mine_block", p.x, p.y)'),
     "回収が mine_block を送っていない",
   );
-  const routeSrc = fs.readFileSync(path.join(rootDir, "app/api/worldbox/tiles/route.ts"), "utf8");
+  const routeSrc = fs.readFileSync(
+    path.join(rootDir, "src/app/api/worldbox/tiles/route.ts"),
+    "utf8",
+  );
   assert.ok(routeSrc.includes("not_empty"), "タイルルートに not_empty 検証が無い");
   assert.ok(routeSrc.includes("loadContainer"), "タイルルートがコンテナ状態を見ていない");
   const containersRouteSrc = fs.readFileSync(
-    path.join(rootDir, "app/api/worldbox/containers/route.ts"),
+    path.join(rootDir, "src/app/api/worldbox/containers/route.ts"),
     "utf8",
   );
   assert.ok(

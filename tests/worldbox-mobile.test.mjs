@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 const client = await readFile(
-  new URL("../app/games/worldbox/WorldBoxClient.tsx", import.meta.url),
+  new URL("../src/app/games/worldbox/WorldBoxClient.tsx", import.meta.url),
   "utf8",
 );
 
@@ -35,7 +35,7 @@ test("ホットバーのスロットは画面幅でスケーリングする（�
   assert.match(client, /width: "var\(--slot, 42px\)"/);
   assert.match(client, /"--slot": hud\.hotbarSlotCss/);
   const layout = await readFile(
-    new URL("../lib/worldbox/world/layout.ts", import.meta.url),
+    new URL("../src/lib/worldbox/world/layout.ts", import.meta.url),
     "utf8",
   );
   assert.match(layout, /"clamp\(30px, 10\.5vw, 42px\)"/);

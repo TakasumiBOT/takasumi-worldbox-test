@@ -5,7 +5,7 @@ import path from "node:path";
 import ts from "typescript";
 
 const rootDir = path.join(import.meta.dirname, "..");
-const libDir = path.join(rootDir, "lib");
+const libDir = path.join(rootDir, "src/lib");
 
 function transpile(name, base = libDir) {
   const src = fs.readFileSync(path.join(base, name), "utf8");
@@ -324,7 +324,7 @@ export async function loadMyWorldStationKinds() { return new Set(); }
 `);
 const economyRoute = await import(
   dataUrl(
-    transpile("api/worldbox/economy/route.ts", rootDir + "/app")
+    transpile("api/worldbox/economy/route.ts", rootDir + "/src/app")
       .replaceAll('"next/server"', JSON.stringify(nextServerStubUrl))
       .replaceAll('"@/lib/auth"', JSON.stringify(authUrl))
       .replaceAll('"@/lib/worldbox/economy/economy-bridge"', JSON.stringify(economyUrl))
@@ -621,7 +621,7 @@ const tentStubUrl = dataUrl(
 
 const profileRoute = await import(
   dataUrl(
-    transpile("api/worldbox/profile/route.ts", rootDir + "/app")
+    transpile("api/worldbox/profile/route.ts", rootDir + "/src/app")
       .replaceAll('"next/server"', JSON.stringify(nextServerStubUrl))
       .replaceAll('"@/lib/auth"', JSON.stringify(authUrl))
       .replaceAll(
@@ -763,12 +763,12 @@ test("API(profile): steal は廃止され、オプもプロフィールも動か
 
 test("クライアント: 経済パネルに残高・銀行タブ・処理中表示がある", () => {
   const client = fs.readFileSync(
-    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    path.join(rootDir, "src/app/games/worldbox/WorldBoxClient.tsx"),
     "utf8",
   );
   assert.ok(client.includes("WorldBoxEconomyPanel"), "経済パネルが配線されていない");
   const panel = fs.readFileSync(
-    path.join(rootDir, "app/games/worldbox/WorldBoxEconomyPanel.tsx"),
+    path.join(rootDir, "src/app/games/worldbox/WorldBoxEconomyPanel.tsx"),
     "utf8",
   );
   assert.ok(panel.includes("/api/worldbox/economy"), "経済ブリッジ API を使っていない");

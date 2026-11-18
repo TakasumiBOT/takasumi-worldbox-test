@@ -5,7 +5,7 @@ import path from "node:path";
 import ts from "typescript";
 
 const rootDir = path.join(import.meta.dirname, "..");
-const libDir = path.join(rootDir, "lib");
+const libDir = path.join(rootDir, "src/lib");
 
 function transpile(name, base = libDir) {
   const src = fs.readFileSync(path.join(base, name), "utf8");
@@ -359,11 +359,11 @@ test("プレゼンス: sit は true のときだけ残る", () => {
 });
 
 const clientSrc = fs.readFileSync(
-  path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+  path.join(rootDir, "src/app/games/worldbox/WorldBoxClient.tsx"),
   "utf8",
 );
 const soundSrc = fs.readFileSync(path.join(libDir, "worldbox/media/sound.ts"), "utf8");
-const routeSrc = fs.readFileSync(path.join(rootDir, "app/api/worldbox/tiles/route.ts"), "utf8");
+const routeSrc = fs.readFileSync(path.join(rootDir, "src/app/api/worldbox/tiles/route.ts"), "utf8");
 
 test("配線: ピアノはタップで note SE を音階で鳴らす", () => {
   assert.ok(clientSrc.includes('view.block.itemId === "piano"'), "ピアノのタップ分岐がある");

@@ -34,7 +34,7 @@ TAKASUMI WORLD BOX を動かすための資材。アプリは systemd サービ�
    - `DATABASE_URL`（手順2のローカル Postgres の接続文字列。ホストが
      Neon でなければ `pg` ドライバで接続される）
    - `DISCORD_REDIRECT_URI`（Discord ログインを使う場合。テスプレ版の
-     公開 URL の `/api/auth/discord/callback`。`lib/deploy-config.ts`
+     公開 URL の `/api/auth/discord/callback`。`src/lib/deploy-config.ts`
      より env が優先される）
 
 4. スキーマを適用する。

@@ -5,7 +5,7 @@ import path from "node:path";
 import ts from "typescript";
 
 const rootDir = path.join(import.meta.dirname, "..");
-const libDir = path.join(rootDir, "lib");
+const libDir = path.join(rootDir, "src/lib");
 
 function transpile(name, base = libDir) {
   const src = fs.readFileSync(path.join(base, name), "utf8");
@@ -190,16 +190,19 @@ test("surface-objects: 枯渇状態のパースは不正値を捨てる", () => 
   assert.deepEqual(parsed, { "3,4": 1700000000000, "-5,6": 1700000000001 });
 });
 
-const routeSrc = fs.readFileSync(path.join(rootDir, "app/api/worldbox/objects/route.ts"), "utf8");
+const routeSrc = fs.readFileSync(
+  path.join(rootDir, "src/app/api/worldbox/objects/route.ts"),
+  "utf8",
+);
 const fishingRouteSrc = fs.readFileSync(
-  path.join(rootDir, "app/api/worldbox/fishing/route.ts"),
+  path.join(rootDir, "src/app/api/worldbox/fishing/route.ts"),
   "utf8",
 );
 const clientSrc = fs.readFileSync(
-  path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+  path.join(rootDir, "src/app/games/worldbox/WorldBoxClient.tsx"),
   "utf8",
 );
-const watchSrc = fs.readFileSync(path.join(rootDir, "realtime/watch-core.js"), "utf8");
+const watchSrc = fs.readFileSync(path.join(rootDir, "src/realtime/watch-core.js"), "utf8");
 const serverSrc = fs.readFileSync(path.join(rootDir, "realtime-server.js"), "utf8");
 
 test("surface-objects wiring: 採取APIが検証と永続化を持つ", () => {

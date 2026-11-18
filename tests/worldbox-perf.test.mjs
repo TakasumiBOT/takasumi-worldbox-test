@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 const client = await readFile(
-  new URL("../app/games/worldbox/WorldBoxClient.tsx", import.meta.url),
+  new URL("../src/app/games/worldbox/WorldBoxClient.tsx", import.meta.url),
   "utf8",
 );
 

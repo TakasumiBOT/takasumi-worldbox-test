@@ -5,7 +5,7 @@ import path from "node:path";
 import ts from "typescript";
 
 const rootDir = path.join(import.meta.dirname, "..");
-const libDir = path.join(rootDir, "lib");
+const libDir = path.join(rootDir, "src/lib");
 
 function transpile(name, base = libDir) {
   const src = fs.readFileSync(path.join(base, name), "utf8");
@@ -526,7 +526,7 @@ export async function loadMyLobbyStation() {
 `);
 const nationsRoute = await import(
   dataUrl(
-    transpile("api/worldbox/nations/route.ts", rootDir + "/app")
+    transpile("api/worldbox/nations/route.ts", rootDir + "/src/app")
       .replaceAll('"next/server"', JSON.stringify(nextServerStubUrl))
       .replaceAll('"@/lib/auth"', JSON.stringify(authUrl))
       .replaceAll('"@/lib/worldbox/world/mapgen"', JSON.stringify(mapgenUrl))
@@ -551,7 +551,7 @@ const spawnUrl = dataUrl(
 );
 const saveRoute = await import(
   dataUrl(
-    transpile("api/worldbox/save/route.ts", rootDir + "/app")
+    transpile("api/worldbox/save/route.ts", rootDir + "/src/app")
       .replaceAll('"next/server"', JSON.stringify(nextServerStubUrl))
       .replaceAll('"@/lib/auth"', JSON.stringify(authUrl))
       .replaceAll('"@/lib/worldbox/core/save"', JSON.stringify(saveUrl))
@@ -861,7 +861,7 @@ test("API(nations): 不正なアクションは 400、他オリジンは 403", a
 
 test("クライアント: 国家 API・首都マーカーが配線され、領地ティントは無い", () => {
   const client = fs.readFileSync(
-    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    path.join(rootDir, "src/app/games/worldbox/WorldBoxClient.tsx"),
     "utf8",
   );
   assert.ok(client.includes("/api/worldbox/nations"), "国家 API を使っていない");
@@ -874,11 +874,11 @@ test("クライアント: 国家 API・首都マーカーが配線され、領�
 
 test("クライアント: 建国・参加はサーバー単位（国名の自由入力は無い）", () => {
   const client = fs.readFileSync(
-    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    path.join(rootDir, "src/app/games/worldbox/WorldBoxClient.tsx"),
     "utf8",
   );
   const panel = fs.readFileSync(
-    path.join(rootDir, "app/games/worldbox/WorldBoxGuildBoardPanel.tsx"),
+    path.join(rootDir, "src/app/games/worldbox/WorldBoxGuildBoardPanel.tsx"),
     "utf8",
   );
   const ui = client + panel;
@@ -899,7 +899,7 @@ test("クライアント: 建国・参加はサーバー単位（国名の自由
 
 test("クライアント: 旧プレハブ建物（家・畑・塔）は廃止され、繁栄度表示は残る", () => {
   const client = fs.readFileSync(
-    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    path.join(rootDir, "src/app/games/worldbox/WorldBoxClient.tsx"),
     "utf8",
   );
   assert.ok(!client.includes("/api/worldbox/buildings"), "建物 API が残っている");
@@ -909,7 +909,7 @@ test("クライアント: 旧プレハブ建物（家・畑・塔）は廃止さ
   assert.ok(!client.includes('action: "demolish"'), "取り壊しアクションが残っている");
   assert.ok(!client.includes("buildingsRef"), "建物レイヤーの参照が残っている");
   const panel = fs.readFileSync(
-    path.join(rootDir, "app/games/worldbox/WorldBoxGuildBoardPanel.tsx"),
+    path.join(rootDir, "src/app/games/worldbox/WorldBoxGuildBoardPanel.tsx"),
     "utf8",
   );
   assert.ok(panel.includes("繁栄度"), "繁栄度の表示が無い");

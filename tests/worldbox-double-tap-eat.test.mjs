@@ -5,7 +5,10 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const rootDir = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
-const client = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"), "utf8");
+const client = fs.readFileSync(
+  path.join(rootDir, "src/app/games/worldbox/WorldBoxClient.tsx"),
+  "utf8",
+);
 
 test("ダブルタップで食べる: スロット（ストレージ/ホットバー共通ハンドラ）に判定がある", () => {
   assert.match(client, /lastSlotTapRef/);

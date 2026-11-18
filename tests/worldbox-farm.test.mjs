@@ -5,7 +5,7 @@ import path from "node:path";
 import ts from "typescript";
 
 const rootDir = path.join(import.meta.dirname, "..");
-const libDir = path.join(rootDir, "lib");
+const libDir = path.join(rootDir, "src/lib");
 
 function transpile(name, base = libDir) {
   const src = fs.readFileSync(path.join(base, name), "utf8");
@@ -756,7 +756,7 @@ export async function storeStall() { return true; }
 `);
 const tilesRoute = await import(
   dataUrl(
-    transpile("api/worldbox/tiles/route.ts", rootDir + "/app")
+    transpile("api/worldbox/tiles/route.ts", rootDir + "/src/app")
       .replaceAll('"next/server"', JSON.stringify(nextServerStubUrl))
       .replaceAll('"@/lib/auth"', JSON.stringify(authUrl))
       .replaceAll('"@/lib/worldbox/world/mapgen"', JSON.stringify(mapgenUrl))
@@ -919,7 +919,7 @@ test("API(tiles): GET rect は旧境界の外（負座標・2000超）でも上�
 
 test("クライアント: ホットバー・ストレージ・種ピッカー・タイル API が配線されている", () => {
   const client = fs.readFileSync(
-    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    path.join(rootDir, "src/app/games/worldbox/WorldBoxClient.tsx"),
     "utf8",
   );
   assert.ok(client.includes("/api/worldbox/tiles"), "タイル API を使っていない");
@@ -947,7 +947,7 @@ test("クライアント: ホットバー・ストレージ・種ピッカー・
     assert.equal(buf.readUInt32BE(20), 64, `${name}.png の高さが 64 でない`);
   }
   const panel = fs.readFileSync(
-    path.join(rootDir, "app/games/worldbox/WorldBoxEconomyPanel.tsx"),
+    path.join(rootDir, "src/app/games/worldbox/WorldBoxEconomyPanel.tsx"),
     "utf8",
   );
   assert.ok(panel.includes("かばんは空です"), "かばんの空状態が無い");

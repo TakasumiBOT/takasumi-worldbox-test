@@ -4,7 +4,10 @@ import fs from "node:fs";
 import path from "node:path";
 
 const rootDir = path.join(import.meta.dirname, "..");
-const client = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"), "utf8");
+const client = fs.readFileSync(
+  path.join(rootDir, "src/app/games/worldbox/WorldBoxClient.tsx"),
+  "utf8",
+);
 
 test("マップ表示モードの状態とキャンバスがある", () => {
   assert.match(client, /mapView/);

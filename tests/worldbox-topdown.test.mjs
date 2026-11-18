@@ -5,7 +5,7 @@ import path from "node:path";
 import ts from "typescript";
 
 const rootDir = path.join(import.meta.dirname, "..");
-const libDir = path.join(rootDir, "lib");
+const libDir = path.join(rootDir, "src/lib");
 
 function transpile(name, base = libDir) {
   const src = fs.readFileSync(path.join(base, name), "utf8");
@@ -550,7 +550,7 @@ export async function loadEconDay() { return null; }
 `);
 const presenceRoute = await import(
   dataUrl(
-    transpile("api/worldbox/presence/route.ts", rootDir + "/app")
+    transpile("api/worldbox/presence/route.ts", rootDir + "/src/app")
       .replaceAll('"next/server"', JSON.stringify(nextServerStubUrl))
       .replaceAll('"@/lib/auth"', JSON.stringify(authUrl))
       .replaceAll('"@/lib/worldbox/world/mapgen"', JSON.stringify(mapgenUrl))
@@ -661,7 +661,7 @@ test("API(presence): 古いハートビートは一覧から落ち、DELETE で�
 
 test("クライアント: 見下ろし＋プレゼンス配線があり、横スクロール層は残っていない", () => {
   const client = fs.readFileSync(
-    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    path.join(rootDir, "src/app/games/worldbox/WorldBoxClient.tsx"),
     "utf8",
   );
   assert.ok(client.includes("mapgen"), "mapgen を使っていない");
@@ -685,7 +685,7 @@ test("クライアント: 見下ろし＋プレゼンス配線があり、横ス
 
 test("クライアント: 地面タイルはダンジョン流用 PNG（grass/dirt/tree/rock）を使う", () => {
   const client = fs.readFileSync(
-    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    path.join(rootDir, "src/app/games/worldbox/WorldBoxClient.tsx"),
     "utf8",
   );
   assert.ok(client.includes("loadDungeonTiles"), "ダンジョンタイルを読み込んでいない");
@@ -709,7 +709,7 @@ test("クライアント: 地面タイルはダンジョン流用 PNG（grass/di
 
 test("クライアント: 雪タイルもダンジョン流用 PNG（snow/snow-tree）を使う", () => {
   const client = fs.readFileSync(
-    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    path.join(rootDir, "src/app/games/worldbox/WorldBoxClient.tsx"),
     "utf8",
   );
   assert.ok(client.includes("paintLocalTerrain"), "周辺マップの地形描画を使っていない");

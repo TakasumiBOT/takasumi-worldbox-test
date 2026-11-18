@@ -25,9 +25,9 @@ const server = http.createServer((req, res) => {
   req.pipe(up);
 });
 
-const core = require(path.join(__dirname, "realtime", "relay-core.js"));
-const botkv = require(path.join(__dirname, "realtime", "botkv.js"));
-const watchCore = require(path.join(__dirname, "realtime", "watch-core.js"));
+const core = require(path.join(__dirname, "src", "realtime", "relay-core.js"));
+const botkv = require(path.join(__dirname, "src", "realtime", "botkv.js"));
+const watchCore = require(path.join(__dirname, "src", "realtime", "watch-core.js"));
 const secret = process.env.DISCORD_SESSION_SECRET || process.env.DISCORD_CLIENT_SECRET || "";
 
 let wss = null;

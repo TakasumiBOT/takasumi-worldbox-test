@@ -5,7 +5,7 @@ import path from "node:path";
 import ts from "typescript";
 
 const rootDir = path.join(import.meta.dirname, "..");
-const libDir = path.join(rootDir, "lib");
+const libDir = path.join(rootDir, "src/lib");
 
 function transpile(name, base = libDir) {
   const src = fs.readFileSync(path.join(base, name), "utf8");
@@ -134,7 +134,7 @@ test("layout: wide のメトリクスは従来値（PC 退行なし）", () => {
 
 test("layout: クライアント配線と CSS シート化", () => {
   const client = fs.readFileSync(
-    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    path.join(rootDir, "src/app/games/worldbox/WorldBoxClient.tsx"),
     "utf8",
   );
   assert.ok(
@@ -146,7 +146,7 @@ test("layout: クライアント配線と CSS シート化", () => {
   assert.ok(client.includes("hud.hotbarSlotCss"));
   assert.ok(client.includes("hud.chatOnRight"));
 
-  const css = fs.readFileSync(path.join(rootDir, "app/globals.css"), "utf8");
+  const css = fs.readFileSync(path.join(rootDir, "src/app/globals.css"), "utf8");
   assert.ok(
     css.includes("@media (max-width: 759px) and (orientation: portrait)"),
     "縦持ちシートのメディアクエリが無い",
@@ -166,7 +166,7 @@ test("layout: クライアント配線と CSS シート化", () => {
     "WorldBoxMachinePanel.tsx",
     "WorldBoxArcadePanel.tsx",
   ]) {
-    const src = fs.readFileSync(path.join(rootDir, "app/games/worldbox", f), "utf8");
+    const src = fs.readFileSync(path.join(rootDir, "src/app/games/worldbox", f), "utf8");
     assert.ok(src.includes("wb-panel"), `${f} に wb-panel が無い`);
   }
   assert.ok(
@@ -174,7 +174,7 @@ test("layout: クライアント配線と CSS シート化", () => {
     "内蔵パネルの wb-panel が足りない",
   );
   const machine = fs.readFileSync(
-    path.join(rootDir, "app/games/worldbox/WorldBoxMachinePanel.tsx"),
+    path.join(rootDir, "src/app/games/worldbox/WorldBoxMachinePanel.tsx"),
     "utf8",
   );
   assert.ok(machine.includes("maxHeight"), "装置パネルに maxHeight が無い");

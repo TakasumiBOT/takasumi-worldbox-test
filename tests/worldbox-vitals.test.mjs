@@ -5,7 +5,7 @@ import path from "node:path";
 import ts from "typescript";
 
 const rootDir = path.join(import.meta.dirname, "..");
-const libDir = path.join(rootDir, "lib");
+const libDir = path.join(rootDir, "src/lib");
 
 function transpile(name, base = libDir) {
   const src = fs.readFileSync(path.join(base, name), "utf8");
@@ -218,7 +218,7 @@ test("vitals: 解毒薬・包帯・剣はカタログに存在しない", () => 
 });
 
 test("vitals: API ルートは sync のみで、ダメージ系アクションを持たない", () => {
-  const route = fs.readFileSync(path.join(rootDir, "app/api/worldbox/vitals/route.ts"), "utf8");
+  const route = fs.readFileSync(path.join(rootDir, "src/app/api/worldbox/vitals/route.ts"), "utf8");
   assert.ok(route.includes('"sync"'));
   for (const gone of [
     '"damage"',
@@ -235,7 +235,7 @@ test("vitals: API ルートは sync のみで、ダメージ系アクション�
 
 test("vitals: クライアントは定期 sync を送り、HP バーを持たない", () => {
   const client = fs.readFileSync(
-    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    path.join(rootDir, "src/app/games/worldbox/WorldBoxClient.tsx"),
     "utf8",
   );
   assert.ok(client.includes('action: "sync"'), "定期 sync が無い");

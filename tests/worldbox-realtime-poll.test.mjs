@@ -5,7 +5,7 @@ import path from "node:path";
 import ts from "typescript";
 
 const rootDir = path.join(import.meta.dirname, "..");
-const libDir = path.join(rootDir, "lib");
+const libDir = path.join(rootDir, "src/lib");
 
 function transpile(name, base = libDir) {
   const src = fs.readFileSync(path.join(base, name), "utf8");
@@ -84,7 +84,7 @@ test("realtime-poll: relay は定期 tick を送り、クライアントは生�
   assert.ok(server.includes('t: "tick"'), "relay に tick 送信が無い");
   assert.ok(server.includes("15_000"), "tick 間隔が15秒でない");
   const client = fs.readFileSync(
-    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    path.join(rootDir, "src/app/games/worldbox/WorldBoxClient.tsx"),
     "utf8",
   );
   assert.ok(client.includes("lastWsMsgAt = arrivedAt"), "受信時刻を記録していない");

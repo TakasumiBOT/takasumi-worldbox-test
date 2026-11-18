@@ -5,7 +5,7 @@ import path from "node:path";
 import ts from "typescript";
 
 const rootDir = path.join(import.meta.dirname, "..");
-const libDir = path.join(rootDir, "lib");
+const libDir = path.join(rootDir, "src/lib");
 
 function transpile(name, base = libDir) {
   const src = fs.readFileSync(path.join(base, name), "utf8");
@@ -274,7 +274,7 @@ test("presence: テレポーターは REST / WS 中継の役職許可リスト�
   const entry = P.parsePresenceEntry("id1", JSON.stringify({ ...hb, ts: 1000 }));
   assert.equal(entry.role, "teleporter");
   assert.equal(entry.rank, 3);
-  const relay = fs.readFileSync(path.join(rootDir, "realtime", "relay-core.js"), "utf8");
+  const relay = fs.readFileSync(path.join(rootDir, "src/realtime", "relay-core.js"), "utf8");
   assert.match(relay, /ROLE_IDS = \[[^\]]*"teleporter"[^\]]*\]/);
 });
 
@@ -486,7 +486,7 @@ export class NextResponse {
 }
 `);
 function routeMod(name, reps) {
-  let code = transpile(name, rootDir + "/app");
+  let code = transpile(name, rootDir + "/src/app");
   for (const [from, to] of Object.entries(reps))
     code = code.replaceAll(`"${from}"`, JSON.stringify(to));
   return dataUrl(code);

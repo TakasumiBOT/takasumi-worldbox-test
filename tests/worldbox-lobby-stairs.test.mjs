@@ -6,9 +6,9 @@ import { createRequire } from "node:module";
 import ts from "typescript";
 
 const rootDir = path.join(import.meta.dirname, "..");
-const libDir = path.join(rootDir, "lib");
+const libDir = path.join(rootDir, "src/lib");
 const require = createRequire(import.meta.url);
-const relay = require(path.join(rootDir, "realtime", "relay-core.js"));
+const relay = require(path.join(rootDir, "src/realtime", "relay-core.js"));
 
 function transpile(name, base = libDir) {
   const src = fs.readFileSync(path.join(base, name), "utf8");
@@ -325,7 +325,7 @@ test("relay: 2F/3F のハートビートは階の範囲へ丸められ、空間�
 
 test("client: 階データが indoorData / 境界 / 描画へ配線され、階段はフェード遷移で実行される", () => {
   const client = fs.readFileSync(
-    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    path.join(rootDir, "src/app/games/worldbox/WorldBoxClient.tsx"),
     "utf8",
   );
   assert.match(
