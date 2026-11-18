@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getRequestSession, publicOrigin, sessionOwnerKey } from "@/lib/auth";
+import { getRequestSession, isSameOriginRequest, sessionOwnerKey } from "@/lib/auth";
 import { MAP_SEED } from "@/lib/worldbox/world/mapgen";
 import { CHUNK_SIZE, structuresForChunk } from "@/lib/worldbox/world/maplogic";
 import { isProfileEnabled, loadProfile, storeProfile } from "@/lib/worldbox/player/profile-online";
@@ -47,8 +47,7 @@ const ENTRANCE_RANGE = 5;
 const INVITE_RANGE = 7;
 
 function sameOrigin(request: Request) {
-  const origin = request.headers.get("origin");
-  return !origin || origin === publicOrigin(request);
+  return isSameOriginRequest(request);
 }
 
 function err(error: string, status = 409) {

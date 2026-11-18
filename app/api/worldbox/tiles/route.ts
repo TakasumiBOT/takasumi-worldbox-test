@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getRequestSession, publicOrigin, sessionOwnerKey } from "@/lib/auth";
+import { getRequestSession, isSameOriginRequest, sessionOwnerKey } from "@/lib/auth";
 import { WORLD_COORD_LIMIT, worldTileSource } from "@/lib/worldbox/world/mapgen";
 import { loadProfile, storeProfile } from "@/lib/worldbox/player/profile-online";
 import { listPresence } from "@/lib/worldbox/player/presence-online";
@@ -58,8 +58,7 @@ function errorStatus(error: string): number {
 }
 
 function sameOrigin(request: Request) {
-  const origin = request.headers.get("origin");
-  return !origin || origin === publicOrigin(request);
+  return isSameOriginRequest(request);
 }
 
 function intParam(raw: string | null, fallback: number): number {

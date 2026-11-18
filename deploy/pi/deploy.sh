@@ -36,6 +36,8 @@ cp -a "$BUILD/public" "$RELEASE/public"
 mv "$RELEASE/server.js" "$RELEASE/next-server.js"
 cp -a "$BUILD/realtime-server.js" "$RELEASE/server.js"
 cp -a "$BUILD/realtime" "$RELEASE/realtime"
+mkdir -p "$RELEASE/lib"
+cp -a "$BUILD/lib/deploy-config.ts" "$RELEASE/lib/deploy-config.ts"
 mkdir -p "$RELEASE/node_modules/ws"
 cp -a "$BUILD/node_modules/ws/." "$RELEASE/node_modules/ws/"
 

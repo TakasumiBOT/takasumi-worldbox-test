@@ -26,7 +26,7 @@ export async function GET(request: Request) {
   const error = url.searchParams.get("error");
   const next = resolveOAuthNext(readCookie(request, OAUTH_NEXT_COOKIE));
   const fail = (codeName: string) => {
-    const target = next === "/dashboard" ? `/login?error=${codeName}` : next;
+    const target = next === "/games/worldbox" ? `/login?error=${codeName}` : next;
     const response = NextResponse.redirect(new URL(target, publicOrigin(request)));
     response.cookies.set(OAUTH_NEXT_COOKIE, "", stateCookieOptions(request, 0));
     return response;

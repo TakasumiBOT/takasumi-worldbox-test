@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getRequestSession, publicOrigin, sessionOwnerKey } from "@/lib/auth";
+import { getRequestSession, isSameOriginRequest, sessionOwnerKey } from "@/lib/auth";
 import type { CoinMovement } from "@/lib/worldbox/economy/economy";
 import { buildEconomyOp } from "@/lib/worldbox/economy/economy-bridge";
 import {
@@ -48,8 +48,7 @@ function statusError(error: string, status: number) {
 }
 
 function sameOrigin(request: Request) {
-  const origin = request.headers.get("origin");
-  return !origin || origin === publicOrigin(request);
+  return isSameOriginRequest(request);
 }
 
 function view(state: Parameters<typeof requestsForGuild>[0], guildId: string, ownerKey: string) {

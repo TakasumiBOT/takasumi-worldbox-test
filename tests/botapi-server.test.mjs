@@ -596,3 +596,29 @@ test("botapi: transfer_coins の失敗は P0001 で、残高も履歴も変わ�
   assert.equal(db.userRow("222").balance, "50");
   assert.equal(db.state.tables.transaction_history.length, 0);
 });
+
+test("botapi: transfer_coins は逆方向送金でも user_id 昇順で FOR UPDATE ロックを取得する", async () => {
+  const db = makeFakeDb();
+  db.seedUser("111", 500);
+  db.seedUser("222", 500);
+  const lockedOrder = [];
+  const spyExecutor = {
+    async query(sql, params = []) {
+      if (sql.includes("FOR UPDATE")) lockedOrder.push(params[0]);
+      return db.executor.query(sql, params);
+    },
+    transaction: (fn) => db.executor.transaction(() => fn(spyExecutor)),
+  };
+  await api.processBotApiRequest(
+    "rpc",
+    JSON.stringify({
+      name: "transfer_coins",
+      params: { p_sender_id: "222", p_receiver_id: "111", p_amount: 100 },
+    }),
+    AUTH,
+    spyExecutor,
+  );
+  assert.deepEqual(lockedOrder, ["111", "222"]);
+  assert.equal(db.userRow("222").balance, "400");
+  assert.equal(db.userRow("111").balance, "600");
+});

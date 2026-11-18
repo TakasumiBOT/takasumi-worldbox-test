@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getRequestSession, publicOrigin, sessionOwnerKey } from "@/lib/auth";
+import { getRequestSession, isSameOriginRequest, sessionOwnerKey } from "@/lib/auth";
 import {
   canDouble,
   createBlackjackGame,
@@ -60,6 +60,7 @@ import {
 } from "@/lib/worldbox/economy/economy-bridge-online";
 import { buildLobby } from "@/lib/worldbox/world/lobby";
 import { isPresenceEnabled, loadMyPresence } from "@/lib/worldbox/player/presence-online";
+import { creditHousePoolYield } from "@/lib/worldbox/activity/house-pool-online";
 
 export const runtime = "nodejs";
 
@@ -87,8 +88,7 @@ async function withUserLock<T>(userKey: string, fn: () => Promise<T>): Promise<T
 type AuthedSession = NonNullable<ReturnType<typeof casinoSession>["session"]>;
 
 function sameOrigin(request: Request) {
-  const origin = request.headers.get("origin");
-  return !origin || origin === publicOrigin(request);
+  return isSameOriginRequest(request);
 }
 
 function errorResponse(error: string, status: number) {
@@ -245,11 +245,12 @@ async function settleSlot7(
   const prepayTotal = session.bet * session.total;
   const netReturn =
     session.pendingReward - session.pendingPenalty + session.remaining * session.bet;
+  const clampedPayout = Math.min(Math.max(0, netReturn), GAMBLE_PAYOUT_MAX);
   const settle = await enqueueSettleOnce(ctx, `settle-${session.prepayOpId}`, {
     kind: "gamble",
     amount: prepayTotal,
     reason: CASINO_SESSION_REASONS.slot7Settle,
-    payout: Math.min(Math.max(0, netReturn), GAMBLE_PAYOUT_MAX),
+    payout: clampedPayout,
     prepaid: true,
   });
   if (!settle) return false;
@@ -260,6 +261,8 @@ async function settleSlot7(
       reason: CASINO_SESSION_REASONS.slot7Penalty,
     });
   }
+  const houseDelta = Math.trunc((prepayTotal - netReturn) * 0.2);
+  if (houseDelta !== 0) void creditHousePoolYield(houseDelta);
   await clearCasinoSession(ctx.userKey);
   return true;
 }
@@ -269,14 +272,17 @@ async function settleDouble(
   session: Extract<CasinoSession, { kind: "double" }>,
   payout: number,
 ): Promise<boolean> {
+  const clampedPayout = Math.min(payout, GAMBLE_PAYOUT_MAX);
   const ok = await enqueueSettleOnce(ctx, `settle-${session.prepayOpId}`, {
     kind: "gamble",
     amount: session.bet,
     reason: CASINO_SESSION_REASONS.doubleSettle,
-    payout: Math.min(payout, GAMBLE_PAYOUT_MAX),
+    payout: clampedPayout,
     prepaid: true,
   });
   if (!ok) return false;
+  const houseDelta = Math.trunc((session.bet - clampedPayout) * 0.2);
+  if (houseDelta !== 0) void creditHousePoolYield(houseDelta);
   await clearCasinoSession(ctx.userKey);
   return true;
 }
@@ -296,6 +302,8 @@ async function settleBlackjack(
     prepaid: true,
   });
   if (!ok) return false;
+  const houseDelta = Math.trunc((bj.bet - payout) * 0.2);
+  if (houseDelta !== 0) void creditHousePoolYield(houseDelta);
   await clearCasinoSession(ctx.userKey);
   return true;
 }
@@ -472,6 +480,8 @@ async function handlePost(request: Request, session: AuthedSession) {
         payout,
       });
       if (!op) return errorResponse("economy_failed", 503);
+      const diceDelta = Math.trunc((bet - payout) * 0.2);
+      if (diceDelta !== 0) void creditHousePoolYield(diceDelta);
       return NextResponse.json(
         {
           ok: true,
@@ -497,6 +507,8 @@ async function handlePost(request: Request, session: AuthedSession) {
       payout: result.payout,
     });
     if (!op) return errorResponse("economy_failed", 503);
+    const houseDelta = Math.trunc((bet - result.payout) * 0.2);
+    if (houseDelta !== 0) void creditHousePoolYield(houseDelta);
     return NextResponse.json(
       { ok: true, game, bet, payout: result.payout, result, opId: op.id },
       { headers: NO_STORE },

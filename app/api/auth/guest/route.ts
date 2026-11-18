@@ -4,7 +4,7 @@ import {
   SESSION_COOKIE,
   createSession,
   getRequestSession,
-  publicOrigin,
+  isSameOriginRequest,
   sessionCookieOptions,
 } from "@/lib/auth";
 
@@ -13,8 +13,7 @@ export const runtime = "nodejs";
 const NO_STORE = { "Cache-Control": "no-store, max-age=0" };
 
 function sameOrigin(request: Request) {
-  const origin = request.headers.get("origin");
-  return !origin || origin === publicOrigin(request);
+  return isSameOriginRequest(request);
 }
 
 export async function POST(request: Request) {

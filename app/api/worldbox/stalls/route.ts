@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getRequestSession, publicOrigin, sessionOwnerKey } from "@/lib/auth";
+import { getRequestSession, isSameOriginRequest, sessionOwnerKey } from "@/lib/auth";
 import { WORLD_COORD_LIMIT } from "@/lib/worldbox/world/mapgen";
 import { itemById } from "@/lib/worldbox/economy/items";
 import { addItem, removeItem } from "@/lib/worldbox/player/profile";
@@ -31,8 +31,7 @@ const NO_STORE = { "Cache-Control": "no-store, max-age=0" };
 const MAX_ACTION_DISTANCE = 2;
 
 function sameOrigin(request: Request) {
-  const origin = request.headers.get("origin");
-  return !origin || origin === publicOrigin(request);
+  return isSameOriginRequest(request);
 }
 
 function errorResponse(error: string, status: number) {

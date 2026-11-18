@@ -651,10 +651,18 @@ async function rpcTransferCoins(
   }
   const newUserBalance = rpcInt(params.p_new_user_balance) ?? 10n;
 
-  const senderRows = await tx.query(
+  const [first, second] = sender < receiver ? [sender, receiver] : [receiver, sender];
+  const firstRows = await tx.query(
     `SELECT "balance" FROM "users" WHERE "user_id" = $1 FOR UPDATE`,
-    [sender],
+    [first],
   );
+  const secondRows = await tx.query(
+    `SELECT "balance" FROM "users" WHERE "user_id" = $1 FOR UPDATE`,
+    [second],
+  );
+  const senderRows = first === sender ? firstRows : secondRows;
+  const receiverRows = first === receiver ? firstRows : secondRows;
+
   const senderBalance = senderRows.length > 0 ? rowBigInt(senderRows[0].balance) : null;
   if (senderBalance === null || senderBalance < amount) {
     throw new BotApiDbError("P0001", "insufficient balance");
@@ -665,10 +673,6 @@ async function rpcTransferCoins(
     sender,
   ]);
 
-  const receiverRows = await tx.query(
-    `SELECT "balance" FROM "users" WHERE "user_id" = $1 FOR UPDATE`,
-    [receiver],
-  );
   if (receiverRows.length > 0) {
     const next = rowBigInt(receiverRows[0].balance) + amount;
     await tx.query(`UPDATE "users" SET "balance" = $1 WHERE "user_id" = $2`, [

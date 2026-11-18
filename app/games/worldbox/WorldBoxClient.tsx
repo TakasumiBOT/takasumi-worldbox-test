@@ -120,6 +120,7 @@ import {
   LOBBY_W,
   LOBBY_WARP_PAD,
   buildLobby,
+  lobbyDistrictAt,
   lobbyTileAt,
   stationArcadeNear,
   stationGenreNear,
@@ -282,6 +283,8 @@ import { getWebGame } from "@/lib/games-catalog";
 import WorldBoxMachinePanel from "./WorldBoxMachinePanel";
 import WorldBoxEconomyPanel from "./WorldBoxEconomyPanel";
 import WorldBoxCompanyPanel from "./WorldBoxCompanyPanel";
+import WorldBoxMarketPanel from "./WorldBoxMarketPanel";
+import WorldBoxFinancePanel from "./WorldBoxFinancePanel";
 import WorldBoxGuildBoardPanel from "./WorldBoxGuildBoardPanel";
 import WorldBoxGuildShopPanel from "./WorldBoxGuildShopPanel";
 import { ItemSlot as ItemSlotView, ItemSlotGrid } from "./ItemSlotGrid";
@@ -1184,6 +1187,8 @@ export default function WorldBoxClient() {
   const [casinoOpen, setCasinoOpen] = useState(false);
   const [racingOpen, setRacingOpen] = useState(false);
   const [stockOpen, setStockOpen] = useState(false);
+  const [marketOpen, setMarketOpen] = useState(false);
+  const [financeOpen, setFinanceOpen] = useState(false);
   const [plazaMsg, setPlazaMsg] = useState("");
   const staminaBoostRef = useRef(false);
   const [boardOpen, setBoardOpen] = useState(false);
@@ -1494,6 +1499,10 @@ export default function WorldBoxClient() {
       setShowEconomy(false);
       setMapView(false);
       setCasinoOpen(false);
+      setRacingOpen(false);
+      setStockOpen(false);
+      setMarketOpen(false);
+      setFinanceOpen(false);
       setBoardOpen(false);
       setGuildBoardOpen(false);
       setStorageOpen(false);
@@ -6150,6 +6159,18 @@ export default function WorldBoxClient() {
       },
     },
     {
+      id: "market",
+      label: marketOpen ? "商品取引所を閉じる" : "商品取引所",
+      show: true,
+      run: () => setMarketOpen((v) => !v),
+    },
+    {
+      id: "finance",
+      label: financeOpen ? "FX・予測・LPを閉じる" : "FX・予測・LP",
+      show: true,
+      run: () => setFinanceOpen((v) => !v),
+    },
+    {
       id: "mapview",
       label: mapView ? "マップを閉じる" : "マップを見る",
       show: spaceUi === "world",
@@ -6321,6 +6342,7 @@ export default function WorldBoxClient() {
         >
           {statusText}
           {othersCount > 0 ? ` ・ いま ${othersCount} 人が歩いている` : ""}
+          {spaceUi === "lobby" ? ` ・ ${lobbyDistrictAt(coords.x, coords.y)}` : ""}
           {` ・ 座標 X ${coords.x} / Y ${coords.y}`}
         </div>
         <button
@@ -6541,13 +6563,22 @@ export default function WorldBoxClient() {
               </button>
             )}
             {stationUi === "casino" && (
-              <button
-                type="button"
-                style={{ ...btn, minHeight: hud.buttonMinHeight, padding: "2px 10px" }}
-                onClick={() => setCasinoOpen((v) => !v)}
-              >
-                {casinoOpen ? "閉じる" : "遊ぶ"}
-              </button>
+              <>
+                <button
+                  type="button"
+                  style={{ ...btn, minHeight: hud.buttonMinHeight, padding: "2px 10px" }}
+                  onClick={() => setCasinoOpen((v) => !v)}
+                >
+                  {casinoOpen ? "閉じる" : "遊ぶ"}
+                </button>
+                <button
+                  type="button"
+                  style={{ ...btn, minHeight: hud.buttonMinHeight, padding: "2px 10px" }}
+                  onClick={() => setFinanceOpen((v) => !v)}
+                >
+                  {financeOpen ? "LP閉じる" : "胴元LP・予測"}
+                </button>
+              </>
             )}
             {stationUi === "arcade" && (
               <button
@@ -6579,6 +6610,24 @@ export default function WorldBoxClient() {
                 開く
               </button>
             )}
+            {stationUi === "bank" && (
+              <button
+                type="button"
+                style={{ ...btn, minHeight: hud.buttonMinHeight, padding: "2px 10px" }}
+                onClick={() => setFinanceOpen((v) => !v)}
+              >
+                {financeOpen ? "閉じる" : "FX・予測・LP"}
+              </button>
+            )}
+            {stationUi === "sell" && (
+              <button
+                type="button"
+                style={{ ...btn, minHeight: hud.buttonMinHeight, padding: "2px 10px" }}
+                onClick={() => setMarketOpen((v) => !v)}
+              >
+                {marketOpen ? "閉じる" : "商品取引所"}
+              </button>
+            )}
             {stationUi === "telescope" && (
               <button
                 type="button"
@@ -6598,22 +6647,47 @@ export default function WorldBoxClient() {
               </button>
             )}
             {stationUi === "race" && (
-              <button
-                type="button"
-                style={{ ...btn, minHeight: hud.buttonMinHeight, padding: "2px 10px" }}
-                onClick={() => setRacingOpen((v) => !v)}
-              >
-                {racingOpen ? "閉じる" : "馬券"}
-              </button>
+              <>
+                <button
+                  type="button"
+                  style={{ ...btn, minHeight: hud.buttonMinHeight, padding: "2px 10px" }}
+                  onClick={() => setRacingOpen((v) => !v)}
+                >
+                  {racingOpen ? "閉じる" : "馬券"}
+                </button>
+                <button
+                  type="button"
+                  style={{ ...btn, minHeight: hud.buttonMinHeight, padding: "2px 10px" }}
+                  onClick={() => setFinanceOpen((v) => !v)}
+                >
+                  {financeOpen ? "LP閉じる" : "胴元LP"}
+                </button>
+              </>
             )}
             {stationUi === "stock" && (
-              <button
-                type="button"
-                style={{ ...btn, minHeight: hud.buttonMinHeight, padding: "2px 10px" }}
-                onClick={() => setStockOpen((v) => !v)}
-              >
-                {stockOpen ? "閉じる" : "株式"}
-              </button>
+              <>
+                <button
+                  type="button"
+                  style={{ ...btn, minHeight: hud.buttonMinHeight, padding: "2px 10px" }}
+                  onClick={() => setStockOpen((v) => !v)}
+                >
+                  {stockOpen ? "閉じる" : "株式"}
+                </button>
+                <button
+                  type="button"
+                  style={{ ...btn, minHeight: hud.buttonMinHeight, padding: "2px 10px" }}
+                  onClick={() => setMarketOpen((v) => !v)}
+                >
+                  {marketOpen ? "板閉じる" : "商品板"}
+                </button>
+                <button
+                  type="button"
+                  style={{ ...btn, minHeight: hud.buttonMinHeight, padding: "2px 10px" }}
+                  onClick={() => setFinanceOpen((v) => !v)}
+                >
+                  {financeOpen ? "FX閉じる" : "FX・予測"}
+                </button>
+              </>
             )}
             {stationUi === "fountain" && (
               <button
@@ -7872,6 +7946,8 @@ export default function WorldBoxClient() {
         {stockOpen && spaceUi === "lobby" && (
           <WorldBoxStockPanel onClose={() => setStockOpen(false)} />
         )}
+        {marketOpen && <WorldBoxMarketPanel onClose={() => setMarketOpen(false)} />}
+        {financeOpen && <WorldBoxFinancePanel onClose={() => setFinanceOpen(false)} />}
         {pianoOpen && spaceUi === "lobby" && (
           <WorldBoxPianoPanel onClose={() => setPianoOpen(false)} onPlay={playPianoNote} />
         )}

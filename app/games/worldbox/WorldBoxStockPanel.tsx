@@ -9,19 +9,25 @@ interface MarketView {
   id: string;
   name: string;
   industry: string;
+  kind?: "npc" | "company";
   price: number;
   prevPrice: number;
   change: number;
-  dividendAmount: number;
-  dividendRate: number;
+  dividendAmount?: number;
+  dividendRate?: number;
+  issuedShares?: number;
+  poolShares?: number;
   history: number[];
 }
 
 interface HoldingView {
   stockId: string;
+  name?: string;
+  kind?: "npc" | "company";
   shares: number;
   price: number;
   value: number;
+  costBasis?: number;
 }
 
 interface DividendView {
@@ -39,6 +45,7 @@ interface StockState {
   holdings: HoldingView[];
   holdingsValue: number;
   dividends: DividendView[];
+  dividendClaimedNow?: number;
   balance: number | null;
 }
 
@@ -46,6 +53,7 @@ const ERROR_LABEL: Record<string, string> = {
   not_at_exchange: "取引所の前にいません",
   not_enough_coins: "お金が足りません",
   invalid_trade: "その取引はできません",
+  insufficient_pool_liquidity: "公開株式プールの流動性が不足しています",
   economy_unavailable: "いま取引所を使えません",
   economy_failed: "取引できませんでした",
   guest_not_allowed: "ゲストはお金の機能を使えません",
@@ -57,7 +65,7 @@ const wrap: React.CSSProperties = {
   left: "50%",
   top: "50%",
   transform: "translate(-50%, -50%)",
-  width: "min(430px, calc(100% - 20px))",
+  width: "min(500px, calc(100% - 20px))",
   maxHeight: "calc(100% - 24px)",
   overflowY: "auto",
   boxSizing: "border-box",
@@ -124,6 +132,7 @@ function Sparkline({ history, up }: { history: number[]; up: boolean }) {
 export default function WorldBoxStockPanel({ onClose }: { onClose: () => void }) {
   const [load, setLoad] = useState<LoadState>("loading");
   const [state, setState] = useState<StockState | null>(null);
+  const [filterKind, setFilterKind] = useState<"all" | "npc" | "company">("all");
   const [selId, setSelId] = useState<string | null>(null);
   const [count, setCount] = useState<number>(10);
   const [busy, setBusy] = useState(false);
@@ -186,6 +195,7 @@ export default function WorldBoxStockPanel({ onClose }: { onClose: () => void })
         total?: number;
         net?: number;
         tax?: number;
+        fee?: number;
       };
       if (!res.ok) {
         setMsg(ERROR_LABEL[data.error ?? ""] ?? "受け付けられませんでした");
@@ -193,8 +203,8 @@ export default function WorldBoxStockPanel({ onClose }: { onClose: () => void })
       }
       setMsg(
         action === "buy"
-          ? `買いました（${yen(data.total ?? 0)}）`
-          : `売りました（税 ${yen(data.tax ?? 0)}、受取 ${yen(data.net ?? 0)}）`,
+          ? `買いました（手数料込 ${yen(data.total ?? 0)}）`
+          : `売りました（税・手数料 ${yen((data.tax ?? 0) + (data.fee ?? 0))}、受取 ${yen(data.net ?? 0)}）`,
       );
       void refresh();
     } catch {
@@ -204,19 +214,29 @@ export default function WorldBoxStockPanel({ onClose }: { onClose: () => void })
     }
   };
 
+  const marketList =
+    state?.market.filter((m) =>
+      filterKind === "all"
+        ? true
+        : filterKind === "company"
+          ? m.kind === "company"
+          : m.kind !== "company",
+    ) ?? [];
   const sel = state?.market.find((m) => m.id === selId) ?? null;
   const selHolding = state?.holdings.find((h) => h.stockId === selId) ?? null;
   const safeCount = Number.isInteger(count) && count > 0 ? count : 0;
-  const buyTotal = sel ? sel.price * safeCount : 0;
+  const buyGross = sel ? sel.price * safeCount : 0;
+  const buyFee = Math.floor(buyGross * 0.005);
   const sellGross = sel ? sel.price * safeCount : 0;
-  const sellTax = Math.floor(sellGross * 0.1);
+  const sellTax = Math.floor(sellGross * 0.05);
+  const sellFee = Math.floor(sellGross * 0.005);
 
   return (
-    <div style={wrap} role="dialog" aria-label="取引所">
+    <div style={wrap} className="wb-panel" data-wb-se="self" role="dialog" aria-label="取引所">
       <div
         style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}
       >
-        <strong style={{ fontSize: 16 }}>取引所</strong>
+        <strong style={{ fontSize: 16 }}>総合証券取引所（NPC＋企業IPO）</strong>
         <button
           type="button"
           style={{ ...btn, minHeight: 36, padding: "4px 12px" }}
@@ -225,8 +245,8 @@ export default function WorldBoxStockPanel({ onClose }: { onClose: () => void })
           閉じる
         </button>
       </div>
-      <p style={{ fontSize: 12, opacity: 0.75, margin: "6px 0 0" }}>
-        架空企業への投資です。プレイヤーの会社は上場しません。株価は1時間ごとに進み、売却には10%の税金がかかります。配当は毎日0時に、条件を満たす保有へ支払われます。
+      <p style={{ fontSize: 12, opacity: 0.78, margin: "6px 0 0" }}>
+        実体経済の物価と売買需給で株価がリアルタイムに変動します。プレイヤーの会社も資産50万円以上でIPO上場できます（売却税5%＋取引手数料0.5%）。
       </p>
 
       {load === "loading" && <p style={{ fontSize: 13, opacity: 0.8 }}>読み込み中…</p>}
@@ -243,13 +263,43 @@ export default function WorldBoxStockPanel({ onClose }: { onClose: () => void })
             <p style={{ fontSize: 13, margin: "10px 0 0" }}>
               所持金 {yen(state.balance)}
               {state.holdings.length > 0 && <> ／ 保有評価額 {yen(state.holdingsValue)}</>}
+              {(state.dividendClaimedNow ?? 0) > 0 && (
+                <> ／ 配当受取 +{yen(state.dividendClaimedNow ?? 0)}</>
+              )}
             </p>
           )}
 
+          <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+            {(
+              [
+                ["all", "全銘柄"],
+                ["npc", "基幹NPC銘柄"],
+                ["company", `企業IPO (${state.market.filter((m) => m.kind === "company").length})`],
+              ] as const
+            ).map(([k, label]) => (
+              <button
+                key={k}
+                type="button"
+                style={{
+                  ...chip,
+                  ...(filterKind === k
+                    ? { borderColor: "#4ade80", background: "rgba(74,222,128,0.18)" }
+                    : {}),
+                }}
+                onClick={() => setFilterKind(k)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
           <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 10 }}>
-            {state.market.map((m) => {
+            {marketList.map((m) => {
               const held = state.holdings.find((h) => h.stockId === m.id);
               const selected = m.id === selId;
+              const isCompany = m.kind === "company";
+              const pnl =
+                held && (held.costBasis ?? 0) > 0 ? held.value - (held.costBasis ?? 0) : null;
               return (
                 <button
                   key={m.id}
@@ -262,7 +312,11 @@ export default function WorldBoxStockPanel({ onClose }: { onClose: () => void })
                     textAlign: "left",
                     padding: "8px 10px",
                     borderRadius: 10,
-                    border: selected ? "1px solid #4ade80" : "1px solid rgba(255,255,255,0.15)",
+                    border: selected
+                      ? "1px solid #4ade80"
+                      : isCompany
+                        ? "1px solid rgba(96,165,250,0.4)"
+                        : "1px solid rgba(255,255,255,0.15)",
                     background: selected ? "rgba(74,222,128,0.12)" : "rgba(255,255,255,0.05)",
                     color: "#fff",
                     cursor: "pointer",
@@ -270,11 +324,25 @@ export default function WorldBoxStockPanel({ onClose }: { onClose: () => void })
                 >
                   <span style={{ flex: 1, minWidth: 0 }}>
                     <span style={{ display: "block", fontSize: 14 }}>
+                      <span
+                        style={{
+                          fontSize: 10,
+                          padding: "1px 5px",
+                          borderRadius: 4,
+                          marginRight: 5,
+                          background: isCompany ? "rgba(96,165,250,0.3)" : "rgba(255,255,255,0.15)",
+                        }}
+                      >
+                        {isCompany ? "IPO企業" : "NPC"}
+                      </span>
                       {m.name} <span style={{ opacity: 0.6, fontSize: 11 }}>{m.id}</span>
                     </span>
-                    <span style={{ display: "block", fontSize: 11, opacity: 0.7 }}>
-                      {m.industry} ／ 配当は{m.dividendAmount.toLocaleString()}株から
+                    <span style={{ display: "block", fontSize: 11, opacity: 0.75 }}>
+                      {isCompany
+                        ? `${m.industry} ／ 浮動株 ${(m.poolShares ?? 0).toLocaleString()}株`
+                        : `${m.industry} ／ 配当 ${(m.dividendAmount ?? 0).toLocaleString()}株〜`}
                       {held ? ` ／ 保有 ${held.shares.toLocaleString()}株` : ""}
+                      {pnl !== null ? ` (${signed(pnl)}円)` : ""}
                     </span>
                   </span>
                   <Sparkline history={m.history} up={m.change >= 0} />
@@ -292,7 +360,7 @@ export default function WorldBoxStockPanel({ onClose }: { onClose: () => void })
                               : "rgba(255,255,255,0.6)",
                       }}
                     >
-                      前時間 {signed(m.change)}
+                      前動 {signed(m.change)}
                     </span>
                   </span>
                 </button>
@@ -313,7 +381,7 @@ export default function WorldBoxStockPanel({ onClose }: { onClose: () => void })
               <div style={{ fontSize: 14 }}>
                 {sel.name}（{sel.id}） {yen(sel.price)}
                 {selHolding && (
-                  <span style={{ fontSize: 12, opacity: 0.8 }}>
+                  <span style={{ fontSize: 12, opacity: 0.85 }}>
                     {" "}
                     ／ 保有 {selHolding.shares.toLocaleString()}株（{yen(selHolding.value)}）
                   </span>
@@ -356,7 +424,7 @@ export default function WorldBoxStockPanel({ onClose }: { onClose: () => void })
                   disabled={busy || safeCount <= 0}
                   onClick={() => void trade("buy")}
                 >
-                  買う（{yen(buyTotal)}）
+                  買う（{yen(buyGross + buyFee)}）
                 </button>
                 <button
                   type="button"
@@ -364,11 +432,11 @@ export default function WorldBoxStockPanel({ onClose }: { onClose: () => void })
                   disabled={busy || safeCount <= 0 || !selHolding || safeCount > selHolding.shares}
                   onClick={() => void trade("sell")}
                 >
-                  売る（受取 {yen(sellGross - sellTax)}）
+                  売る（受取 {yen(Math.max(1, sellGross - sellTax - sellFee))}）
                 </button>
               </div>
-              <p style={{ fontSize: 11, opacity: 0.7, margin: "8px 0 0" }}>
-                売却税は売却額の10%（この条件では {yen(sellTax)}）で、国庫に入ります。
+              <p style={{ fontSize: 11, opacity: 0.72, margin: "8px 0 0" }}>
+                取引手数料 0.5%・売却譲渡税 5%。大量売買はAMMインパクトにより価格が変動します。
               </p>
             </div>
           )}

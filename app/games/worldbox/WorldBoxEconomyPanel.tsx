@@ -166,6 +166,19 @@ export default function WorldBoxEconomyPanel({
   const [ops, setOps] = useState<EconomyOp[]>([]);
   const [transferTo, setTransferTo] = useState("");
   const [transferAmount, setTransferAmount] = useState("");
+  const [bankData, setBankData] = useState<{
+    account: { deposit: number; loanPrincipal: number; accruedInterest: number };
+    credit: {
+      totalCollateral: number;
+      maxBorrow: number;
+      availableBorrow: number;
+      debt: number;
+      ltv: number;
+    };
+    rates: { depositApr: number; borrowApr: number; utilization: number };
+    totals: { totalDeposits: number; totalLoans: number };
+  } | null>(null);
+  const [bankAmtStr, setBankAmtStr] = useState("5000");
   const [bagSel, setBagSel] = useState<string | null>(null);
   const [shopSel, setShopSel] = useState<string | null>(null);
   const [sellSel, setSellSel] = useState<string | null>(null);
@@ -186,6 +199,36 @@ export default function WorldBoxEconomyPanel({
   useEffect(() => {
     if (atSellShop) setTab("sell");
   }, [atSellShop]);
+
+  const refreshBank = useCallback(async () => {
+    try {
+      const res = await fetch("/api/worldbox/bank", { headers: { Accept: "application/json" } });
+      if (!res.ok) return;
+      const data = (await res.json()) as {
+        guest?: boolean;
+        account?: { deposit: number; loanPrincipal: number; accruedInterest: number };
+        credit?: {
+          totalCollateral: number;
+          maxBorrow: number;
+          availableBorrow: number;
+          debt: number;
+          ltv: number;
+        };
+        rates?: { depositApr: number; borrowApr: number; utilization: number };
+        totals?: { totalDeposits: number; totalLoans: number };
+      };
+      if (aliveRef.current && data.account && data.credit && data.rates && data.totals) {
+        setBankData({
+          account: data.account,
+          credit: data.credit,
+          rates: data.rates,
+          totals: data.totals,
+        });
+      }
+    } catch {
+      /* 銀行が読めなくても送金や他機能は使える */
+    }
+  }, []);
 
   const refreshBridge = useCallback(async () => {
     try {
@@ -226,9 +269,11 @@ export default function WorldBoxEconomyPanel({
     aliveRef.current = true;
     void refreshProfile();
     void refreshBridge();
+    void refreshBank();
     const off = onEconomyApplied(() => {
       void refreshProfile();
       void refreshBridge();
+      void refreshBank();
     });
     return () => {
       aliveRef.current = false;
@@ -238,7 +283,7 @@ export default function WorldBoxEconomyPanel({
       for (const t of enhanceFlashTimersRef.current) window.clearTimeout(t);
       enhanceFlashTimersRef.current = [];
     };
-  }, [refreshProfile, refreshBridge]);
+  }, [refreshProfile, refreshBridge, refreshBank]);
 
   const act = async (
     payload: Record<string, unknown>,
@@ -312,6 +357,33 @@ export default function WorldBoxEconomyPanel({
       void refreshBridge();
     } catch {
       setMsg("送金を受け付けられませんでした");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const bankAction = async (action: "deposit" | "withdraw" | "borrow" | "repay", label: string) => {
+    setBusy(true);
+    setMsg("");
+    try {
+      const res = await fetch("/api/worldbox/bank", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ action, amount: Math.trunc(Number(bankAmtStr) || 0) }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) {
+        setMsg(
+          ERROR_LABEL[data.error ?? ""] ?? `銀行処理に失敗しました (${data.error ?? res.status})`,
+        );
+        return;
+      }
+      setMsg(`${label}が完了しました`);
+      playWbSe("coin");
+      void refreshBridge();
+      void refreshBank();
+    } catch {
+      setMsg("通信に失敗しました");
     } finally {
       setBusy(false);
     }
@@ -927,6 +999,88 @@ export default function WorldBoxEconomyPanel({
 
       {activeTab === "bank" && (
         <div style={{ marginTop: 6 }}>
+          {bankData && (
+            <div
+              style={{
+                padding: 10,
+                borderRadius: 10,
+                border: "1px solid rgba(255,255,255,0.16)",
+                background: "rgba(255,255,255,0.04)",
+                marginBottom: 10,
+                fontSize: 13,
+              }}
+            >
+              <div style={{ fontWeight: 700, marginBottom: 4 }}>
+                銀行口座（預金金利 {(bankData.rates.depositApr * 100).toFixed(1)}% ／ 借入金利{" "}
+                {(bankData.rates.borrowApr * 100).toFixed(1)}%）
+              </div>
+              <div>
+                普通預金: <strong>{bankData.account.deposit.toLocaleString()} 円</strong> ／
+                借入残高:{" "}
+                <strong>
+                  {(
+                    bankData.account.loanPrincipal + bankData.account.accruedInterest
+                  ).toLocaleString()}{" "}
+                  円
+                </strong>
+              </div>
+              <div style={{ fontSize: 12, opacity: 0.85, marginTop: 4 }}>
+                総担保評価（預金＋株式＋外貨）: {bankData.credit.totalCollateral.toLocaleString()}{" "}
+                円 ／ 追加借入枠（LTV 50%）:{" "}
+                <strong>{bankData.credit.availableBorrow.toLocaleString()} 円</strong>
+              </div>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
+                <input
+                  type="number"
+                  min={1}
+                  placeholder="金額"
+                  value={bankAmtStr}
+                  onChange={(e) => setBankAmtStr(e.target.value)}
+                  style={{
+                    width: 120,
+                    minHeight: 36,
+                    padding: "4px 8px",
+                    borderRadius: 8,
+                    border: "1px solid rgba(255,255,255,0.25)",
+                    background: "rgba(255,255,255,0.06)",
+                    color: "inherit",
+                  }}
+                />
+                <button
+                  type="button"
+                  style={btn}
+                  disabled={busy}
+                  onClick={() => void bankAction("deposit", "預け入れ")}
+                >
+                  預ける
+                </button>
+                <button
+                  type="button"
+                  style={btn}
+                  disabled={busy}
+                  onClick={() => void bankAction("withdraw", "引き出し")}
+                >
+                  引き出す
+                </button>
+                <button
+                  type="button"
+                  style={btn}
+                  disabled={busy}
+                  onClick={() => void bankAction("borrow", "担保融資の借入")}
+                >
+                  借りる
+                </button>
+                <button
+                  type="button"
+                  style={btn}
+                  disabled={busy}
+                  onClick={() => void bankAction("repay", "返済")}
+                >
+                  返済
+                </button>
+              </div>
+            </div>
+          )}
           <div style={row}>
             <strong>送金</strong>
             <input

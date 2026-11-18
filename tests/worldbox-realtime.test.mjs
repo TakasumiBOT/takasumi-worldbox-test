@@ -199,7 +199,7 @@ test("配線: ラッパー・デプロイ・トークンルート・クライア
   );
   assert.ok(wrapper.includes("next-server.js"), "Next 本体を内包していない");
   assert.ok(wrapper.includes("verifyToken"), "トークン検証が無い");
-  const deploy = fs.readFileSync(path.join(rootDir, "../deploy/deploy-web.sh"), "utf8");
+  const deploy = fs.readFileSync(path.join(rootDir, "deploy/pi/deploy.sh"), "utf8");
   assert.ok(
     deploy.includes('mv "$RELEASE/server.js" "$RELEASE/next-server.js"'),
     "デプロイでラッパーが設置されない",
@@ -231,4 +231,24 @@ test("配線: ラッパー・デプロイ・トークンルート・クライア
   assert.ok(client.includes("lastRestHeartbeatAt"), "REST 併送の間隔管理が無い");
   assert.ok(client.includes("wsSeenAt"), "WS 経由の鮮度が欠落グレースに無い");
   assert.ok(client.includes("isOtherPartyInDungeon"), "WS 側のダンジョンパーティ分離が無い");
+});
+
+test("relay: createHub は env 未設定時でも deploy-config の秘密鍵でトークンを検証できる", () => {
+  const { createHub } = require(path.join(rootDir, "realtime", "hub.js"));
+  const cfgSrc = fs.readFileSync(path.join(rootDir, "lib", "deploy-config.ts"), "utf8");
+  const match = cfgSrc.match(/discordClientSecret:\s*"([^"]*)"/);
+  assert.ok(match && match[1]);
+  const savedSession = process.env.DISCORD_SESSION_SECRET;
+  const savedClient = process.env.DISCORD_CLIENT_SECRET;
+  delete process.env.DISCORD_SESSION_SECRET;
+  delete process.env.DISCORD_CLIENT_SECRET;
+  try {
+    const hub = createHub({ kvCfg: null });
+    const token = core.signToken({ pid: "p1", name: "Tester", exp: Date.now() + 60_000 }, match[1]);
+    const auth = hub.verifyAuth(new URLSearchParams({ t: token }));
+    assert.equal(auth?.pid, "p1");
+  } finally {
+    if (savedSession !== undefined) process.env.DISCORD_SESSION_SECRET = savedSession;
+    if (savedClient !== undefined) process.env.DISCORD_CLIENT_SECRET = savedClient;
+  }
 });

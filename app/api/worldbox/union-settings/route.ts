@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getRequestSession, publicOrigin, sessionOwnerKey } from "@/lib/auth";
+import { getRequestSession, isSameOriginRequest, sessionOwnerKey } from "@/lib/auth";
 import type { UnionChatMode } from "@/lib/worldbox/social/chat";
 import {
   isChatEnabled,
@@ -20,8 +20,7 @@ function err(error: string, status: number) {
 }
 
 function sameOrigin(request: Request) {
-  const origin = request.headers.get("origin");
-  return !origin || origin === publicOrigin(request);
+  return isSameOriginRequest(request);
 }
 
 async function myRole(ownerKey: string) {

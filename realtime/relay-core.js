@@ -8,7 +8,7 @@ const NAME_MAX = 24;
 const TOKEN_TTL_MS = 10 * 60 * 1000;
 
 const SPACE_BOUNDS = {
-  lobby: { width: 126, height: 64 }, // 競馬場拡張で東へ拡大（lobby.ts の LOBBY_W/H）
+  lobby: { width: 156, height: 92 }, // テーマパーク型ロビー拡張（lobby.ts の LOBBY_W/H）
   lobby2: { width: 40, height: 28 }, // ロビー2Fラウンジ（lobby-floors.ts の LOBBY2_W/H）
   lobby3: { width: 32, height: 24 }, // ロビー3F展望（lobby-floors.ts の LOBBY3_W/H）
   tent: { width: 22, height: 17 }, // テント拡張の最大段階（tier 2）に合わせる

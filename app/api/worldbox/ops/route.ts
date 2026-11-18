@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getRequestSession, publicOrigin, sessionOwnerKey } from "@/lib/auth";
+import { getRequestSession, isSameOriginRequest, sessionOwnerKey } from "@/lib/auth";
 import { dayKeyOf } from "@/lib/worldbox/core/metrics";
 import { stateAtTime } from "@/lib/worldbox/core/ops";
 import {
@@ -22,8 +22,7 @@ function err(error: string, status: number) {
 }
 
 function sameOrigin(request: Request) {
-  const origin = request.headers.get("origin");
-  return !origin || origin === publicOrigin(request);
+  return isSameOriginRequest(request);
 }
 
 function isAdmin(session: NonNullable<ReturnType<typeof getRequestSession>>): boolean {

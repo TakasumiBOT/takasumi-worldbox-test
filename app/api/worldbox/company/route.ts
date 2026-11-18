@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
-import { getRequestSession, publicOrigin, sessionOwnerKey } from "@/lib/auth";
+import { getRequestSession, isSameOriginRequest, sessionOwnerKey } from "@/lib/auth";
 import { withUserLock } from "@/lib/worldbox/core/user-lock";
 import { readUserBalance } from "@/lib/worldbox/economy/economy-bridge-online";
 import { ECONOMY_AMOUNT_MAX } from "@/lib/worldbox/economy/economy-bridge";
 import {
+  applyLedger,
+  canChangeSalary,
   canDissolve,
+  dissolutionPayout,
   foundCompany,
   isCompanyOwner,
   isDutyActive,
@@ -60,6 +63,24 @@ import {
   storeSignCompany,
 } from "@/lib/worldbox/social/company-online";
 import { presenceIdFor } from "@/lib/worldbox/player/presence";
+import { addItem, countItem, removeItem } from "@/lib/worldbox/player/profile";
+import { loadProfile, storeProfile } from "@/lib/worldbox/player/profile-online";
+import { ITEMS, itemById } from "@/lib/worldbox/economy/items";
+import {
+  flushCompanyMarketClaims,
+  loadCommoditiesMarket,
+} from "@/lib/worldbox/economy/commodities-online";
+import { planCompanyIpo, planCorporateDividend } from "@/lib/worldbox/economy/exchange";
+import { loadExchangeState, storeExchangeState } from "@/lib/worldbox/economy/exchange-online";
+import {
+  addCompanyInventory,
+  COMPANY_RECIPES,
+  planBuyOrderCancel,
+  planBuyOrderCreate,
+  planFactoryCollect,
+  planFactoryStart,
+  removeCompanyInventory,
+} from "@/lib/worldbox/social/company-production";
 import { WORLD_COORD_LIMIT } from "@/lib/worldbox/world/mapgen";
 import { isOverrideActive, isSignItem } from "@/lib/worldbox/world/tiles";
 import { loadTileOverride } from "@/lib/worldbox/world/tiles-online";
@@ -70,8 +91,7 @@ const NO_STORE = { "Cache-Control": "no-store, max-age=0" };
 const HISTORY_VIEW_LIMIT = 30;
 
 function sameOrigin(request: Request) {
-  const origin = request.headers.get("origin");
-  return !origin || origin === publicOrigin(request);
+  return isSameOriginRequest(request);
 }
 
 function err(error: string, status = 409) {
@@ -125,6 +145,11 @@ function companyView(
     onDutyMembers,
     stats: company.stats,
     products: products.map(productView),
+    inventory: company.inventory,
+    factoryJobs: company.factoryJobs,
+    buyOrders: company.buyOrders,
+    ipo: company.ipo,
+    financials: company.financials,
     history,
   };
 }
@@ -140,6 +165,8 @@ function companySummary(company: Company) {
     productCount: company.productIds.length,
     createdAt: company.createdAt,
     hq: company.hq,
+    ipoTicker: company.ipo?.ticker ?? null,
+    buyOrderCount: company.buyOrders.length,
   };
 }
 
@@ -180,7 +207,18 @@ export async function GET(request: Request) {
     }
   }
 
-  const mine = await loadCompanyOf(ownerKey);
+  let mine = await loadCompanyOf(ownerKey);
+  if (mine) {
+    const mState = await loadCommoditiesMarket();
+    if (mState.claims[`company:${mine.id}`]) {
+      await withUserLock("market:global", async () => {
+        const latestMarket = await loadCommoditiesMarket();
+        await flushCompanyMarketClaims(latestMarket, mine!.id, now);
+      });
+      mine = await loadCompany(mine.id);
+    }
+  }
+
   let company = null;
   let duty = null;
   if (mine) {
@@ -203,12 +241,31 @@ export async function GET(request: Request) {
       workReward: workRewardFor(pruned),
     };
   }
-  const companies = (await loadAllCompanies()).map(companySummary);
-  const balance = await readUserBalance(session.id);
+  const [companiesRaw, balance, profile] = await Promise.all([
+    loadAllCompanies(),
+    readUserBalance(session.id),
+    loadProfile(ownerKey),
+  ]);
+  const companies = companiesRaw.map(companySummary);
+  const playerItems: Record<string, number> = {};
+  for (const it of ITEMS) {
+    const c = countItem(profile, it.id);
+    if (c > 0) playerItems[it.id] = c;
+  }
   const hqsSpace = url.searchParams.get("hqs");
   const hqs = hqsSpace ? await loadHqList(hqsSpace) : undefined;
   return NextResponse.json(
-    { guest: false, company, companies, balance, detail, duty, ...(hqs ? { hqs } : {}) },
+    {
+      guest: false,
+      company,
+      companies,
+      balance,
+      playerItems,
+      recipes: COMPANY_RECIPES,
+      detail,
+      duty,
+      ...(hqs ? { hqs } : {}),
+    },
     { headers: NO_STORE },
   );
 }
@@ -508,7 +565,11 @@ export async function POST(request: Request) {
       if (body.salary !== undefined) {
         const salary = validateCompanySalary(body.salary);
         if (salary === null) return err("invalid_salary", 400);
-        next.salary = salary;
+        if (salary !== fresh.salary) {
+          if (!canChangeSalary(fresh, now)) return err("salary_cooldown");
+          next.salary = salary;
+          next.lastSalaryChangedAt = now;
+        }
       }
       if (!(await storeCompany(next))) return err("store_failed", 503);
       return NextResponse.json({ ok: true }, { headers: NO_STORE });
@@ -582,12 +643,13 @@ export async function POST(request: Request) {
     return withUserLock(`company:${mine.id}`, async () => {
       const fresh = await loadCompany(mine.id);
       if (!fresh || !canDissolve(fresh, actor.ownerKey)) return err("cannot_dissolve");
-      let remaining = fresh.assets;
+      const { payout } = dissolutionPayout(fresh.assets);
+      let remaining = payout;
       while (remaining > 0) {
         const chunk = Math.min(remaining, ECONOMY_AMOUNT_MAX);
         const paid = await payOutToUser(actor.ownerKey, actor.discordId, chunk, "company_dissolve");
         if (paid.state !== "done") {
-          if (remaining !== fresh.assets) {
+          if (remaining !== payout) {
             await storeCompany({ ...fresh, assets: remaining });
           }
           return err("economy_failed");
@@ -598,6 +660,223 @@ export async function POST(request: Request) {
       await deleteCompanyAll(fresh);
       return NextResponse.json({ ok: true }, { headers: NO_STORE });
     });
+  }
+
+  if (action === "deposit_material") {
+    const item = itemById(body.itemId);
+    const qty = typeof body.count === "number" && Number.isInteger(body.count) ? body.count : 0;
+    if (!item || qty < 1 || qty > 999) return err("invalid_request", 400);
+    return withUserLock(`company:${mine.id}`, async () => {
+      const fresh = await loadCompany(mine.id);
+      if (!fresh) return err("not_in_company");
+      const profile = await loadProfile(actor.ownerKey);
+      const removed = removeItem(profile, item.id, qty);
+      if (!removed) return err("not_enough_items");
+      const stocked = addCompanyInventory(fresh, item.id, qty);
+      if (!stocked) return err("inventory_full");
+      if (!(await storeProfile(actor.ownerKey, removed))) return err("store_failed", 503);
+      if (!(await storeCompany(stocked))) {
+        await storeProfile(actor.ownerKey, profile);
+        return err("store_failed", 503);
+      }
+      return NextResponse.json({ ok: true }, { headers: NO_STORE });
+    });
+  }
+
+  if (action === "withdraw_item") {
+    if (!isCompanyOwner(mine, actor.ownerKey)) return err("not_owner");
+    const item = itemById(body.itemId);
+    const qty = typeof body.count === "number" && Number.isInteger(body.count) ? body.count : 0;
+    if (!item || qty < 1 || qty > 999) return err("invalid_request", 400);
+    return withUserLock(`company:${mine.id}`, async () => {
+      const fresh = await loadCompany(mine.id);
+      if (!fresh) return err("not_in_company");
+      const withdrawn = removeCompanyInventory(fresh, item.id, qty);
+      if (!withdrawn) return err("not_enough_items");
+      const profile = await loadProfile(actor.ownerKey);
+      if (!(await storeCompany(withdrawn))) return err("store_failed", 503);
+      if (!(await storeProfile(actor.ownerKey, addItem(profile, item.id, qty)))) {
+        await storeCompany(fresh);
+        return err("store_failed", 503);
+      }
+      return NextResponse.json({ ok: true }, { headers: NO_STORE });
+    });
+  }
+
+  if (action === "start_production") {
+    const recipeId = body.recipeId;
+    const batches = body.batches ?? 1;
+    return withUserLock(`company:${mine.id}`, async () => {
+      const fresh = await loadCompany(mine.id);
+      if (!fresh) return err("not_in_company");
+      const now = Date.now();
+      const duties = await Promise.all(fresh.members.map((m) => loadDuty(m.ownerKey)));
+      const onDutyCount = duties.filter((d) => isDutyActive(d, fresh.id, now)).length;
+      const plan = planFactoryStart(
+        fresh,
+        recipeId,
+        batches,
+        actor.discordId,
+        onDutyCount,
+        now,
+        `JOB-${now.toString(36)}-${makeProductId()}`,
+      );
+      if ("error" in plan) return err(plan.error);
+      if (!(await storeCompany(plan.company))) return err("store_failed", 503);
+      await appendCompanyHistory(fresh.id, [plan.entry]);
+      return NextResponse.json({ ok: true, job: plan.job }, { headers: NO_STORE });
+    });
+  }
+
+  if (action === "collect_production") {
+    const jobId = body.jobId;
+    return withUserLock(`company:${mine.id}`, async () => {
+      const fresh = await loadCompany(mine.id);
+      if (!fresh) return err("not_in_company");
+      const plan = planFactoryCollect(fresh, jobId, Date.now());
+      if ("error" in plan) return err(plan.error);
+      if (!(await storeCompany(plan.company))) return err("store_failed", 503);
+      return NextResponse.json({ ok: true, job: plan.job }, { headers: NO_STORE });
+    });
+  }
+
+  if (action === "create_buy_order") {
+    if (!isCompanyOwner(mine, actor.ownerKey)) return err("not_owner");
+    return withUserLock(`company:${mine.id}`, async () => {
+      const fresh = await loadCompany(mine.id);
+      if (!fresh) return err("not_in_company");
+      const now = Date.now();
+      const plan = planBuyOrderCreate(
+        fresh,
+        body.itemId,
+        body.unitPrice,
+        body.targetQty,
+        actor.discordId,
+        now,
+        `BUY-${now.toString(36)}-${makeProductId()}`,
+      );
+      if ("error" in plan) return err(plan.error);
+      if (!(await storeCompany(plan.company))) return err("store_failed", 503);
+      await appendCompanyHistory(fresh.id, [plan.entry]);
+      return NextResponse.json({ ok: true, order: plan.order }, { headers: NO_STORE });
+    });
+  }
+
+  if (action === "cancel_buy_order") {
+    if (!isCompanyOwner(mine, actor.ownerKey)) return err("not_owner");
+    return withUserLock(`company:${mine.id}`, async () => {
+      const fresh = await loadCompany(mine.id);
+      if (!fresh) return err("not_in_company");
+      const plan = planBuyOrderCancel(fresh, body.orderId, actor.discordId, Date.now());
+      if ("error" in plan) return err(plan.error);
+      if (!(await storeCompany(plan.company))) return err("store_failed", 503);
+      if (plan.entry) await appendCompanyHistory(fresh.id, [plan.entry]);
+      return NextResponse.json({ ok: true, refund: plan.refund }, { headers: NO_STORE });
+    });
+  }
+
+  if (action === "ipo_launch") {
+    if (!isCompanyOwner(mine, actor.ownerKey)) return err("not_owner");
+    return withUserLock("exchange:global", () =>
+      withUserLock(`company:${mine.id}`, async () => {
+        const [fresh, exchange] = await Promise.all([loadCompany(mine.id), loadExchangeState()]);
+        if (!fresh) return err("not_in_company");
+        const now = Date.now();
+        const plan = planCompanyIpo(
+          exchange,
+          fresh,
+          {
+            ticker: body.ticker,
+            issuedShares: body.issuedShares,
+            publicPct: body.publicPct,
+            ipoPrice: body.ipoPrice,
+          },
+          now,
+        );
+        if (!plan.ok) return err(plan.error);
+        const step = applyLedger(
+          fresh,
+          -plan.fee,
+          `株式上場（IPO:${plan.listing.ticker}）審査・登録料`,
+          actor.discordId,
+          now,
+        );
+        const listedCompany: Company = {
+          ...step.company,
+          ipo: {
+            ticker: plan.listing.ticker,
+            issuedShares: plan.listing.issuedShares,
+            publicShares: plan.listing.publicShares,
+            ipoPrice: plan.listing.anchorPrice,
+            listedAt: now,
+            totalDividendsPaid: 0,
+          },
+        };
+        if (!(await storeExchangeState(plan.state))) return err("store_failed", 503);
+        if (!(await storeCompany(listedCompany))) {
+          await storeExchangeState(exchange);
+          return err("store_failed", 503);
+        }
+        await appendCompanyHistory(fresh.id, [step.entry]);
+        return NextResponse.json(
+          {
+            ok: true,
+            ticker: plan.listing.ticker,
+            founderShares: plan.founderShares,
+            listing: plan.listing,
+          },
+          { headers: NO_STORE },
+        );
+      }),
+    );
+  }
+
+  if (action === "pay_dividend") {
+    if (!isCompanyOwner(mine, actor.ownerKey)) return err("not_owner");
+    return withUserLock("exchange:global", () =>
+      withUserLock(`company:${mine.id}`, async () => {
+        const [fresh, exchange] = await Promise.all([loadCompany(mine.id), loadExchangeState()]);
+        if (!fresh) return err("not_in_company");
+        const now = Date.now();
+        const plan = planCorporateDividend(exchange, fresh, body.amount);
+        if (!plan.ok) return err(plan.error);
+        const step = applyLedger(
+          fresh,
+          -plan.totalDistributed,
+          `株主配当の支払い（1株${plan.perShare}円・${plan.recipientCount}名）`,
+          actor.discordId,
+          now,
+        );
+        const nextCompany: Company = {
+          ...step.company,
+          ipo: step.company.ipo
+            ? {
+                ...step.company.ipo,
+                totalDividendsPaid: step.company.ipo.totalDividendsPaid + plan.totalDistributed,
+              }
+            : null,
+          financials: {
+            ...step.company.financials,
+            totalDividendsPaid: step.company.financials.totalDividendsPaid + plan.totalDistributed,
+          },
+        };
+        if (!(await storeExchangeState(plan.state))) return err("store_failed", 503);
+        if (!(await storeCompany(nextCompany))) {
+          await storeExchangeState(exchange);
+          return err("store_failed", 503);
+        }
+        await appendCompanyHistory(fresh.id, [step.entry]);
+        return NextResponse.json(
+          {
+            ok: true,
+            totalDistributed: plan.totalDistributed,
+            perShare: plan.perShare,
+            recipientCount: plan.recipientCount,
+          },
+          { headers: NO_STORE },
+        );
+      }),
+    );
   }
 
   return err("invalid_request", 400);

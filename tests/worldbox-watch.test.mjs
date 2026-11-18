@@ -221,6 +221,21 @@ test("botkv: kvList/kvSet は bot-api.ts と同じ /v1/query 形式で叩く", a
   assert.equal(setBody.values.namespace, "worldbox_presence");
   assert.equal(setBody.values.key, "discord:1");
   assert.equal(setBody.values.value, '{"x":1}');
+
+  assert.deepEqual(botkv.botKvConfig({ DATABASE_URL: "postgres://db.local/app" }), {
+    databaseUrl: "postgres://db.local/app",
+  });
+  const adapter = {
+    async kvList(ns) {
+      return new Map([["ns", ns]]);
+    },
+    async kvGet(ns, k) {
+      return `${ns}:${k}`;
+    },
+    async kvSet() {},
+  };
+  assert.equal((await botkv.kvList(adapter, "worldbox_chat")).get("ns"), "worldbox_chat");
+  assert.equal(await botkv.kvGet(adapter, "worldbox_chat", "k1"), "worldbox_chat:k1");
 });
 
 test("watch 配線: ラッパーが watch を起動し、クライアントが push を適用する", () => {

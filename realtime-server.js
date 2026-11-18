@@ -1,6 +1,17 @@
 "use strict";
+const fs = require("node:fs");
 const http = require("node:http");
 const path = require("node:path");
+
+function readDeploySecret(baseDir) {
+  try {
+    const src = fs.readFileSync(path.join(baseDir, "lib", "deploy-config.ts"), "utf8");
+    const match = src.match(/discordClientSecret:\s*"([^"]*)"/);
+    return match ? match[1] : "";
+  } catch {
+    return "";
+  }
+}
 
 const PUBLIC_PORT = Number(process.env.PORT || 3000);
 const HOSTNAME = process.env.HOSTNAME || "127.0.0.1";
@@ -28,7 +39,10 @@ const server = http.createServer((req, res) => {
 const core = require(path.join(__dirname, "realtime", "relay-core.js"));
 const botkv = require(path.join(__dirname, "realtime", "botkv.js"));
 const watchCore = require(path.join(__dirname, "realtime", "watch-core.js"));
-const secret = process.env.DISCORD_SESSION_SECRET || process.env.DISCORD_CLIENT_SECRET || "";
+const secret =
+  process.env.DISCORD_SESSION_SECRET ||
+  process.env.DISCORD_CLIENT_SECRET ||
+  readDeploySecret(__dirname);
 
 let wss = null;
 try {

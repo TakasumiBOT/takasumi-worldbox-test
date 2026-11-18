@@ -1,7 +1,19 @@
 "use strict";
+const fs = require("node:fs");
+const path = require("node:path");
 const core = require("./relay-core.js");
 const botkv = require("./botkv.js");
 const watchCore = require("./watch-core.js");
+
+function readDeploySecret(baseDir) {
+  try {
+    const src = fs.readFileSync(path.join(baseDir, "lib", "deploy-config.ts"), "utf8");
+    const match = src.match(/discordClientSecret:\s*"([^"]*)"/);
+    return match ? match[1] : "";
+  } catch {
+    return "";
+  }
+}
 
 function parsePresenceBaseline(raw) {
   if (typeof raw !== "string" || !raw) return null;
@@ -32,7 +44,9 @@ function createHub(options = {}) {
   const secret =
     options.secret !== undefined
       ? options.secret
-      : process.env.DISCORD_SESSION_SECRET || process.env.DISCORD_CLIENT_SECRET || "";
+      : process.env.DISCORD_SESSION_SECRET ||
+        process.env.DISCORD_CLIENT_SECRET ||
+        readDeploySecret(path.join(__dirname, ".."));
   const kvCfg = options.kvCfg !== undefined ? options.kvCfg : botkv.botKvConfig();
 
   const room = core.createRoom();
@@ -443,8 +457,8 @@ function createHub(options = {}) {
 }
 
 let sharedHub = null;
-function getHub() {
-  if (!sharedHub) sharedHub = createHub();
+function getHub(options) {
+  if (!sharedHub) sharedHub = createHub(options);
   return sharedHub;
 }
 

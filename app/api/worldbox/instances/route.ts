@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getRequestSession, publicOrigin, sessionOwnerKey } from "@/lib/auth";
+import { getRequestSession, isSameOriginRequest, sessionOwnerKey } from "@/lib/auth";
 import { MAP_SEED } from "@/lib/worldbox/world/mapgen";
 import { loadProfile, storeProfile } from "@/lib/worldbox/player/profile-online";
 import { addItem, wearTool } from "@/lib/worldbox/player/profile";
@@ -59,8 +59,7 @@ const NO_STORE = { "Cache-Control": "no-store, max-age=0" };
 const REACH = 2.4;
 
 function sameOrigin(request: Request) {
-  const origin = request.headers.get("origin");
-  return !origin || origin === publicOrigin(request);
+  return isSameOriginRequest(request);
 }
 
 function bestToolTier(

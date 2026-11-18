@@ -212,6 +212,33 @@ export function publicOrigin(request: Request): string {
   return new URL(request.url).origin;
 }
 
+export function isSameOriginRequest(request: Request): boolean {
+  const origin = request.headers.get("origin");
+  if (!origin) {
+    const fetchSite = request.headers.get("sec-fetch-site");
+    return !fetchSite || fetchSite === "same-origin" || fetchSite === "none";
+  }
+  if (origin === publicOrigin(request)) return true;
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+  if (siteUrl) {
+    try {
+      if (origin === new URL(siteUrl).origin) return true;
+    } catch {
+      // NEXT_PUBLIC_SITE_URL が不正でもリクエストオリジン照合へ進める
+    }
+  }
+  try {
+    const url = new URL(request.url);
+    const host = effectiveHost(request.headers.get("x-forwarded-host"), url.host);
+    const proto =
+      request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim() ||
+      url.protocol.replace(/:$/, "");
+    return origin === `${proto}://${host}`;
+  } catch {
+    return false;
+  }
+}
+
 function isSecureRequest(request: Request) {
   const forwardedProto = request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim();
   return forwardedProto === "https" || new URL(request.url).protocol === "https:";
@@ -240,7 +267,7 @@ export function stateCookieOptions(request: Request, maxAge = 600) {
 
 export function resolveOAuthNext(
   value: string | null | undefined,
-  fallback = "/dashboard",
+  fallback = "/games/worldbox",
 ): string {
   if (
     typeof value === "string" &&

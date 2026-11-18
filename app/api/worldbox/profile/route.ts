@@ -1,6 +1,6 @@
 import { addMasteryXp } from "@/lib/worldbox/player/roles";
 import { NextResponse } from "next/server";
-import { getRequestSession, publicOrigin, sessionOwnerKey } from "@/lib/auth";
+import { getRequestSession, isSameOriginRequest, sessionOwnerKey } from "@/lib/auth";
 import {
   buyItem,
   craftFromInputs,
@@ -63,8 +63,7 @@ const BAD_REQUEST_ERRORS = new Set([
 ]);
 
 function sameOrigin(request: Request) {
-  const origin = request.headers.get("origin");
-  return !origin || origin === publicOrigin(request);
+  return isSameOriginRequest(request);
 }
 
 function errorResponse(error: string) {

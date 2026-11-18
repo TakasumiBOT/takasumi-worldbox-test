@@ -90,6 +90,7 @@ const wb = await loadBundle(
     "LOBBY_UP_LANDING",
     "LOBBY_DOWN_LANDING",
     "buildLobby",
+    "lobbyDistrictAt",
     "lobbyTileAt",
     "stationNear",
     "sanitizeHeartbeat",
@@ -110,12 +111,12 @@ const wb = await loadBundle(
 const lobby = wb.buildLobby();
 const tile = (x, y) => wb.lobbyTileAt(lobby.tiles, x, y);
 
-test("lobby: 寸法は 126×64 で、タイル配列が一致する", () => {
-  assert.equal(wb.LOBBY_W, 126);
-  assert.equal(wb.LOBBY_H, 64);
-  assert.equal(lobby.tiles.length, 126 * 64);
+test("lobby: 寸法は 156×92 で、タイル配列が一致する", () => {
+  assert.equal(wb.LOBBY_W, 156);
+  assert.equal(wb.LOBBY_H, 92);
+  assert.equal(lobby.tiles.length, 156 * 92);
   assert.equal(lobby.moveMap.tileAt(-1, 0), wb.T_ROCK);
-  assert.equal(lobby.moveMap.tileAt(126, 0), wb.T_ROCK);
+  assert.equal(lobby.moveMap.tileAt(156, 0), wb.T_ROCK);
 });
 
 test("lobby: 中央は大円の広場（内側は歩行可、リングが縁取る）", () => {
@@ -390,6 +391,62 @@ test("lobby: 2階は階段着地点から区画と下り階段へ届く（1階�
   assert.ok(!reach2.has("28,32"), "2階から1階へ歩けてしまう");
   const reach1 = reachableFrom(28, 32);
   assert.ok(!reach1.has("17,60"), "1階から2階へ歩けてしまう");
+});
+
+test("lobby: テーマパーク回廊・中庭抜きの構造があり、1Fの全ての歩行可能タイルへ到達できる", () => {
+  const reach1 = reachableFrom(28, 32);
+  const reach2 = reachableFrom(17, 60);
+  const unreachable = [];
+  for (let y = 0; y < wb.LOBBY_H; y++) {
+    for (let x = 0; x < wb.LOBBY_W; x++) {
+      if (wb.isSolidLobbyTile(tile(x, y)) || lobby.blocked.has(`${x},${y}`)) continue;
+      const inPseudo2F = x >= 2 && x <= 19 && y >= 48 && y <= 63;
+      if (inPseudo2F) {
+        if (!reach2.has(`${x},${y}`)) unreachable.push(`2F:${x},${y}`);
+      } else {
+        if (!reach1.has(`${x},${y}`)) unreachable.push(`1F:${x},${y}`);
+      }
+    }
+  }
+  assert.deepEqual(
+    unreachable,
+    [],
+    `孤立した歩行タイルがある: ${unreachable.slice(0, 10).join(" ")}`,
+  );
+
+  const parkDistricts = {
+    北西グルメ夜市: [6, 10],
+    北東金融街: [42, 6],
+    エメラルド迷宮庭園: [47, 56],
+    ハーバー祭り小路: [36, 72],
+    ハーバー桟橋: [16, 84],
+    東回廊リゾート: [149, 25],
+    ロイヤル迷宮: [80, 62],
+    南東商業ギルド: [104, 54],
+    サンセット城劇場: [133, 85],
+  };
+  for (const [name, [x, y]] of Object.entries(parkDistricts)) {
+    assert.ok(reach1.has(`${x},${y}`), `${name} (${x},${y}) に届かない`);
+  }
+
+  for (const [cx, cy] of [
+    [11, 9],
+    [48, 9],
+    [30, 55],
+    [11, 79],
+    [140, 26],
+    [140, 74],
+  ]) {
+    assert.equal(tile(cx, cy), wb.L_VOID, `中庭 (${cx},${cy}) が VOID でない`);
+  }
+
+  assert.equal(wb.lobbyDistrictAt(28, 24), "中央噴水広場");
+  assert.equal(wb.lobbyDistrictAt(42, 6), "金融・株式取引街");
+  assert.equal(wb.lobbyDistrictAt(45, 55), "エメラルド迷宮庭園");
+  assert.equal(wb.lobbyDistrictAt(10, 80), "ハーバー祭り小路");
+  assert.equal(wb.lobbyDistrictAt(140, 10), "東回廊リゾート");
+  assert.equal(wb.lobbyDistrictAt(140, 80), "サンセット城・屋外劇場");
+  assert.equal(wb.lobbyDistrictAt(10, 55), "ギルドモール（擬似2F）");
 });
 
 test("save v6: ロビー位置と帰還点の往復、ロビー範囲でクランプ", () => {

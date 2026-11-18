@@ -123,6 +123,61 @@ test("deploy-config: セッション秘密は deploy-config の secret でも署
   }
 });
 
+test("auth: isSameOriginRequest は localhost・Preview・sec-fetch-site を許可し外部オリジンを拒否する", () => {
+  clearEnv();
+  try {
+    assert.equal(
+      authFilled.isSameOriginRequest({
+        url: "http://localhost:3000/api/worldbox/company",
+        headers: new Headers({ origin: "http://localhost:3000" }),
+      }),
+      true,
+    );
+    assert.equal(
+      authFilled.isSameOriginRequest({
+        url: "https://preview-abc.vercel.app/api/worldbox/company",
+        headers: new Headers({
+          origin: "https://preview-abc.vercel.app",
+          "x-forwarded-host": "preview-abc.vercel.app",
+          "x-forwarded-proto": "https",
+        }),
+      }),
+      true,
+    );
+    assert.equal(
+      authFilled.isSameOriginRequest({
+        url: "https://example.test/api/worldbox/company",
+        headers: new Headers({ origin: "https://example.test" }),
+      }),
+      true,
+    );
+    assert.equal(
+      authFilled.isSameOriginRequest({
+        url: "https://example.test/api/worldbox/company",
+        headers: new Headers({ origin: "https://evil.example" }),
+      }),
+      false,
+    );
+    assert.equal(
+      authFilled.isSameOriginRequest({
+        url: "https://example.test/api/worldbox/company",
+        headers: new Headers({ "sec-fetch-site": "cross-site" }),
+      }),
+      false,
+    );
+    assert.equal(
+      authFilled.isSameOriginRequest({
+        url: "https://example.test/api/worldbox/company",
+        headers: new Headers({ "sec-fetch-site": "same-origin" }),
+      }),
+      true,
+    );
+    assert.equal(authFilled.resolveOAuthNext(null), "/games/worldbox");
+  } finally {
+    restoreEnv();
+  }
+});
+
 function makeFakeExecutor() {
   const kv = new Map();
   const pool = { pool: "0", treasury: "0", total_recycled: "0", total_house_paid: "0" };

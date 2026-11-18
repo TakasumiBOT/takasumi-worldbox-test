@@ -44,8 +44,21 @@ export const EARN_REASONS: ReadonlySet<string> = new Set([
   "company_salary",
   "company_bonus",
   "company_dissolve",
+  "company_dividend",
+  "company_material_sale",
   "stock_sell",
   "stock_dividend",
+  "market_sale",
+  "market_refund",
+  "fx_exchange",
+  "fx_margin_close",
+  "bank_withdraw",
+  "bank_interest",
+  "bank_loan",
+  "house_pool_withdraw",
+  "house_pool_yield",
+  "prediction_payout",
+  "prediction_refund",
 ]);
 
 export const GAMBLE_REASONS: ReadonlySet<string> = new Set([
@@ -59,6 +72,15 @@ export const GAMBLE_REASONS: ReadonlySet<string> = new Set([
 ]);
 
 export const GAMBLE_PAYOUT_MAX = 300_000_000;
+
+export function chunkEconomyAmounts(total: number): number[] {
+  if (!Number.isInteger(total) || total <= 0) return [];
+  const chunks: number[] = [];
+  for (let rest = total; rest > 0; rest -= ECONOMY_AMOUNT_MAX) {
+    chunks.push(Math.min(rest, ECONOMY_AMOUNT_MAX));
+  }
+  return chunks;
+}
 
 export function validateGamblePayout(value: unknown): number | null {
   if (typeof value !== "number" || !Number.isInteger(value)) return null;

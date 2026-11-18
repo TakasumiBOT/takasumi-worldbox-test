@@ -1,5 +1,7 @@
 import { connection } from "next/server";
 import { upgradeWebSocket } from "@vercel/functions";
+import { sessionSecret } from "@/lib/auth";
+import { isBotApiConfigured, kvDelete, kvGet, kvList, kvSet } from "@/lib/bot-api";
 import { getHub } from "@/realtime/hub.js";
 
 export const runtime = "nodejs";
@@ -7,7 +9,10 @@ export const maxDuration = 300;
 
 export async function GET(request: Request) {
   await connection();
-  const hub = getHub();
+  const hub = getHub({
+    secret: sessionSecret(),
+    kvCfg: isBotApiConfigured() ? { kvList, kvGet, kvSet, kvDelete } : null,
+  });
   const auth = hub.verifyAuth(new URL(request.url).searchParams);
   if (!auth) {
     return new Response("Unauthorized", { status: 401 });

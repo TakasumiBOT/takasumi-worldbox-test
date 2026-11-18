@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getRequestSession, publicOrigin, sessionOwnerKey } from "@/lib/auth";
+import { getRequestSession, isSameOriginRequest, sessionOwnerKey } from "@/lib/auth";
 import { buildEconomyOp, GAMBLE_PAYOUT_MAX } from "@/lib/worldbox/economy/economy-bridge";
 import {
   enqueueEconomyOpOnce,
@@ -30,6 +30,7 @@ import {
   type RaceBetType,
 } from "@/lib/worldbox/activity/racing-online";
 import { loadMyLobbyStation } from "@/lib/worldbox/world/station-online";
+import { creditHousePoolYield } from "@/lib/worldbox/activity/house-pool-online";
 
 export const runtime = "nodejs";
 
@@ -55,8 +56,7 @@ async function withUserLock<T>(userKey: string, fn: () => Promise<T>): Promise<T
 }
 
 function sameOrigin(request: Request) {
-  const origin = request.headers.get("origin");
-  return !origin || origin === publicOrigin(request);
+  return isSameOriginRequest(request);
 }
 
 function errorResponse(error: string, status: number) {
@@ -305,5 +305,6 @@ async function handlePost(request: Request, session: AuthedSession) {
   bets.push(bet);
   await saveMyBets(ctx.userKey, bets);
   await appendPopularity(postMs, { horseId, type, amount });
+  void creditHousePoolYield(Math.max(1, Math.floor(amount * 0.02)));
   return NextResponse.json({ ok: true, bet: publicBet(bet) }, { headers: NO_STORE });
 }

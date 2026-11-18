@@ -19,19 +19,22 @@ export const COMPANY_PRODUCT_DESCRIPTION_MAX = 50;
 export const COMPANY_PRODUCT_CONTENT_MAX = 500;
 export const COMPANY_PRODUCT_PRICE_MIN = 100;
 export const COMPANY_PRODUCT_PRICE_MAX = 999_999;
-export const COMPANY_PRODUCT_CREATE_TAX_RATE = 0.15;
-export const COMPANY_PRODUCT_SALE_TAX_RATE = 0.5;
+export const COMPANY_PRODUCT_CREATE_TAX_RATE = 0.05;
+export const COMPANY_PRODUCT_SALE_TAX_RATE = 0.1;
+export const COMPANY_DISSOLVE_TAX_RATE = 0.2;
 export const COMPANY_PRODUCT_LIMIT = 15;
 export const COMPANY_PRODUCT_TTL_MS = 7 * 24 * 3_600_000;
 export const COMPANY_BONUS_MIN = 100;
 export const COMPANY_BONUS_MAX = 150_000;
 export const COMPANY_BONUS_ASSETS_DIVISOR = 10;
 export const COMPANY_BONUS_COOLDOWN_MS = 82_800_000;
+export const COMPANY_SALARY_CHANGE_COOLDOWN_MS = 24 * 3_600_000;
 export const COMPANY_TAX_WINDOW_MS = 3 * 3_600_000;
 export const COMPANY_HISTORY_LIMIT = 200;
 export const COMPANY_CAPITAL_REASON = "会社の資本金の追加";
+export const COMPANY_ESTABLISH_TAX_REASON = "会社設立税の支払い";
 export const COMPANY_HQ_RADIUS = 3;
-export const COMPANY_WORK_REWARD_DIVISOR = 12;
+export const COMPANY_WORK_REWARD = 500;
 export const COMPANY_WORK_COOLDOWN_MS = 5 * 60_000;
 export const COMPANY_DUTY_TTL_MS = 24 * 3_600_000;
 
@@ -79,6 +82,41 @@ export interface CompanySign {
   ownerId: string;
 }
 
+export interface CompanyFactoryJob {
+  id: string;
+  recipeId: string;
+  outputItemId: string;
+  outputQty: number;
+  startedAt: number;
+  readyAt: number;
+  cost: number;
+}
+
+export interface CompanyBuyOrder {
+  id: string;
+  itemId: string;
+  unitPrice: number;
+  targetQty: number;
+  filledQty: number;
+  escrowed: number;
+  createdAt: number;
+}
+
+export interface CompanyIpoInfo {
+  ticker: string;
+  issuedShares: number;
+  publicShares: number;
+  ipoPrice: number;
+  listedAt: number;
+  totalDividendsPaid: number;
+}
+
+export interface CompanyFinancials {
+  totalRevenue: number;
+  totalCost: number;
+  totalDividendsPaid: number;
+}
+
 export interface Company {
   id: string;
   name: string;
@@ -91,9 +129,15 @@ export interface Company {
   productIds: string[];
   stats: CompanyStats;
   lastBonusAt: Record<string, number>;
+  lastSalaryChangedAt: number;
   lastSalaryKey: string;
   lastTaxKey: string;
   hq: CompanyHq | null;
+  inventory: Record<string, number>;
+  factoryJobs: CompanyFactoryJob[];
+  buyOrders: CompanyBuyOrder[];
+  ipo: CompanyIpoInfo | null;
+  financials: CompanyFinancials;
 }
 
 export interface CompanyHistoryEntry {
@@ -288,9 +332,15 @@ export function foundCompany(
     productIds: [],
     stats: { totalEarn: 0, totalUse: 0, totalTax: 0 },
     lastBonusAt: {},
+    lastSalaryChangedAt: 0,
     lastSalaryKey: "",
     lastTaxKey: "",
     hq: null,
+    inventory: {},
+    factoryJobs: [],
+    buyOrders: [],
+    ipo: null,
+    financials: { totalRevenue: 0, totalCost: 0, totalDividendsPaid: 0 },
   };
   const history: CompanyHistoryEntry[] = [];
   let step = applyLedger(base, input.capital, COMPANY_CAPITAL_REASON, owner.discordId, now);
@@ -298,7 +348,7 @@ export function foundCompany(
   step = applyLedger(
     step.company,
     -establishmentTax(input.capital),
-    "会社設立税の支払い",
+    COMPANY_ESTABLISH_TAX_REASON,
     owner.discordId,
     now,
   );
@@ -330,6 +380,20 @@ export function removeMember(company: Company, ownerKey: string): Company {
 
 export function canDissolve(company: Company, ownerKey: string): boolean {
   return isCompanyOwner(company, ownerKey) && company.members.length === 1;
+}
+
+export function canChangeSalary(company: Company, now: number): boolean {
+  return (
+    !company.lastSalaryChangedAt ||
+    now - company.lastSalaryChangedAt >= COMPANY_SALARY_CHANGE_COOLDOWN_MS
+  );
+}
+
+export function dissolutionPayout(assets: number): { payout: number; tax: number } {
+  if (!Number.isFinite(assets) || assets <= 0) return { payout: 0, tax: 0 };
+  const safe = Math.floor(assets);
+  const tax = taxOf(safe, COMPANY_DISSOLVE_TAX_RATE);
+  return { payout: safe - tax, tax };
 }
 
 export function isInviteExpired(invite: CompanyInvite, now: number): boolean {
@@ -374,9 +438,14 @@ export function taxableProfit(
   let profit = 0;
   for (const entry of history) {
     if (entry.at < windowStart) continue;
-    if (entry.amount > 0 && entry.reason !== COMPANY_CAPITAL_REASON) profit += entry.amount;
+    if (entry.reason === COMPANY_CAPITAL_REASON) continue;
+    if (entry.reason === COMPANY_ESTABLISH_TAX_REASON) continue;
+    if (entry.reason.includes("法人税")) continue;
+    if (entry.reason.includes("IPO公募")) continue;
+    if (entry.reason.includes("株主配当")) continue;
+    profit += entry.amount;
   }
-  return profit;
+  return Math.max(0, profit);
 }
 
 export function planCorporateTax(
@@ -479,8 +548,8 @@ export function planProductSale(
   return { company: next, history };
 }
 
-export function workRewardFor(company: Company): number {
-  return Math.max(1, Math.floor(company.salary / COMPANY_WORK_REWARD_DIVISOR));
+export function workRewardFor(_company?: Company): number {
+  return COMPANY_WORK_REWARD;
 }
 
 export function isNearHq(hq: CompanyHq | null, space: string, x: number, y: number): boolean {
@@ -594,6 +663,81 @@ export function parseCompany(raw: unknown): Company | null {
       if (typeof value === "number" && Number.isFinite(value)) lastBonusAt[key] = Math.trunc(value);
     }
   }
+  const inventory: Record<string, number> = {};
+  const invRaw = asRecord(data.inventory);
+  if (invRaw) {
+    for (const [itemId, qty] of Object.entries(invRaw)) {
+      if (typeof qty === "number" && Number.isFinite(qty) && Math.floor(qty) > 0) {
+        inventory[itemId] = Math.floor(qty);
+      }
+    }
+  }
+  const factoryJobs: CompanyFactoryJob[] = [];
+  if (Array.isArray(data.factoryJobs)) {
+    for (const rawJob of data.factoryJobs.slice(0, 20)) {
+      const j = asRecord(rawJob);
+      if (!j) continue;
+      if (
+        typeof j.id !== "string" ||
+        typeof j.recipeId !== "string" ||
+        typeof j.outputItemId !== "string"
+      ) {
+        continue;
+      }
+      const outputQty = Math.max(1, asInt(j.outputQty));
+      factoryJobs.push({
+        id: j.id.slice(0, 40),
+        recipeId: j.recipeId.slice(0, 40),
+        outputItemId: j.outputItemId.slice(0, 40),
+        outputQty,
+        startedAt: Math.max(0, asInt(j.startedAt)),
+        readyAt: Math.max(0, asInt(j.readyAt)),
+        cost: Math.max(0, asInt(j.cost)),
+      });
+    }
+  }
+  const buyOrders: CompanyBuyOrder[] = [];
+  if (Array.isArray(data.buyOrders)) {
+    for (const rawOrder of data.buyOrders.slice(0, 20)) {
+      const o = asRecord(rawOrder);
+      if (!o || typeof o.id !== "string" || typeof o.itemId !== "string") continue;
+      const unitPrice = Math.max(1, asInt(o.unitPrice));
+      const targetQty = Math.max(1, asInt(o.targetQty));
+      const filledQty = Math.max(0, Math.min(targetQty, asInt(o.filledQty)));
+      buyOrders.push({
+        id: o.id.slice(0, 40),
+        itemId: o.itemId.slice(0, 40),
+        unitPrice,
+        targetQty,
+        filledQty,
+        escrowed: Math.max(0, asInt(o.escrowed)),
+        createdAt: Math.max(0, asInt(o.createdAt)),
+      });
+    }
+  }
+  const ipoRaw = asRecord(data.ipo);
+  let ipo: CompanyIpoInfo | null = null;
+  if (
+    ipoRaw &&
+    typeof ipoRaw.ticker === "string" &&
+    /^[A-Z0-9]{2,8}$/.test(ipoRaw.ticker) &&
+    asInt(ipoRaw.issuedShares) > 0
+  ) {
+    ipo = {
+      ticker: ipoRaw.ticker,
+      issuedShares: Math.max(1, asInt(ipoRaw.issuedShares)),
+      publicShares: Math.max(0, asInt(ipoRaw.publicShares)),
+      ipoPrice: Math.max(1, asInt(ipoRaw.ipoPrice, 1)),
+      listedAt: Math.max(0, asInt(ipoRaw.listedAt)),
+      totalDividendsPaid: Math.max(0, asInt(ipoRaw.totalDividendsPaid)),
+    };
+  }
+  const finRaw = asRecord(data.financials);
+  const financials: CompanyFinancials = {
+    totalRevenue: Math.max(0, asInt(finRaw?.totalRevenue)),
+    totalCost: Math.max(0, asInt(finRaw?.totalCost)),
+    totalDividendsPaid: Math.max(0, asInt(finRaw?.totalDividendsPaid)),
+  };
   return {
     id: data.id,
     name: data.name.slice(0, COMPANY_NAME_MAX),
@@ -617,9 +761,15 @@ export function parseCompany(raw: unknown): Company | null {
       totalTax: asInt(statsRaw?.totalTax),
     },
     lastBonusAt,
+    lastSalaryChangedAt: Math.max(0, asInt(data.lastSalaryChangedAt)),
     lastSalaryKey: typeof data.lastSalaryKey === "string" ? data.lastSalaryKey : "",
     lastTaxKey: typeof data.lastTaxKey === "string" ? data.lastTaxKey : "",
     hq: parseCompanyHq(data.hq),
+    inventory,
+    factoryJobs,
+    buyOrders,
+    ipo,
+    financials,
   };
 }
 

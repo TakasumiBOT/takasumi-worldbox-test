@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getRequestSession, publicOrigin, sessionOwnerKey } from "@/lib/auth";
+import { getRequestSession, isSameOriginRequest, sessionOwnerKey } from "@/lib/auth";
 import { kvGet, kvSet } from "@/lib/bot-api";
 import { buildEconomyOp } from "@/lib/worldbox/economy/economy-bridge";
 import {
@@ -25,8 +25,7 @@ const REST_COOLDOWN_MS = 3 * 60 * 1000;
 const REST_NAMESPACE = "worldbox_rest";
 
 function sameOrigin(request: Request) {
-  const origin = request.headers.get("origin");
-  return !origin || origin === publicOrigin(request);
+  return isSameOriginRequest(request);
 }
 
 function errorResponse(error: string, status: number, extra: Record<string, unknown> = {}) {

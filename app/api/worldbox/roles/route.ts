@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getRequestSession, publicOrigin, sessionOwnerKey } from "@/lib/auth";
+import { getRequestSession, isSameOriginRequest, sessionOwnerKey } from "@/lib/auth";
 import { MAP_SEED, tileAt } from "@/lib/worldbox/world/mapgen";
 import { isProfileEnabled, loadProfile, storeProfile } from "@/lib/worldbox/player/profile-online";
 import { type PlayerProfile } from "@/lib/worldbox/player/profile";
@@ -39,8 +39,7 @@ export const runtime = "nodejs";
 const NO_STORE = { "Cache-Control": "no-store, max-age=0" };
 
 function sameOrigin(request: Request) {
-  const origin = request.headers.get("origin");
-  return !origin || origin === publicOrigin(request);
+  return isSameOriginRequest(request);
 }
 
 function err(error: string, status = 409) {

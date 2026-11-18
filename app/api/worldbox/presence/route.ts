@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
-import { getRequestSession, publicOrigin, sessionAvatarUrl, sessionOwnerKey } from "@/lib/auth";
+import {
+  getRequestSession,
+  isSameOriginRequest,
+  sessionAvatarUrl,
+  sessionOwnerKey,
+} from "@/lib/auth";
 import { rectBounds, worldBounds } from "@/lib/worldbox/world/mapgen";
 import { LOBBY_H, LOBBY_W } from "@/lib/worldbox/world/lobby";
 import { LOBBY2_H, LOBBY2_W, LOBBY3_H, LOBBY3_W } from "@/lib/worldbox/world/lobby-floors";
@@ -29,8 +34,7 @@ export const runtime = "nodejs";
 const NO_STORE = { "Cache-Control": "no-store, max-age=0" };
 
 function sameOrigin(request: Request) {
-  const origin = request.headers.get("origin");
-  return !origin || origin === publicOrigin(request);
+  return isSameOriginRequest(request);
 }
 
 export async function GET(request: Request) {

@@ -235,6 +235,9 @@ export async function reconcileCasinoTournamentScores(userKey, discordId, ops) {
   }
 }
 `);
+const housePoolOnlineStubUrl = dataUrl(`
+export async function creditHousePoolYield() { return true; }
+`);
 const nextServerStubUrl = dataUrl(`
 export class NextResponse {
   static json(body, init = {}) {
@@ -260,6 +263,10 @@ const casinoRoute = await import(
       .replaceAll(
         '"@/lib/worldbox/activity/casino-tournament-online"',
         JSON.stringify(casinoTournamentOnlineUrl),
+      )
+      .replaceAll(
+        '"@/lib/worldbox/activity/house-pool-online"',
+        JSON.stringify(housePoolOnlineStubUrl),
       )
       .replaceAll('"@/lib/worldbox/economy/economy-bridge"', JSON.stringify(economyUrl))
       .replaceAll(

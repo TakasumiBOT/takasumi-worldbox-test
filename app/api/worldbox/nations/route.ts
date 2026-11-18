@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getRequestSession, publicOrigin, sessionOwnerKey } from "@/lib/auth";
+import { getRequestSession, isSameOriginRequest, sessionOwnerKey } from "@/lib/auth";
 import { worldTileSource } from "@/lib/worldbox/world/mapgen";
 import {
   applyFound,
@@ -55,8 +55,7 @@ function errorResponse(error: string, status?: number) {
 }
 
 function sameOrigin(request: Request) {
-  const origin = request.headers.get("origin");
-  return !origin || origin === publicOrigin(request);
+  return isSameOriginRequest(request);
 }
 
 function guildsErrorResponse(result: Extract<UserGuildsResult, { ok: false }>) {

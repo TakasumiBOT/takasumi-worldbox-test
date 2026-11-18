@@ -364,7 +364,7 @@ test("stock: 配線（取引所ステーション・ルート・Cron・クライ
   const route = read("app/api/worldbox/stock/route.ts");
   assert.ok(route.includes("loadMyLobbyStation") && route.includes("not_at_exchange"));
   assert.ok(route.includes("guest_not_allowed"));
-  assert.ok(route.includes("buyShares") && route.includes("sellShares"));
+  assert.ok(route.includes("planExchangeBuy") && route.includes("planExchangeSell"));
 
   const cron = read("app/api/worldbox/internal/stock-cron/route.ts");
   assert.ok(cron.includes("runStockDividendCron") && cron.includes("CRON_SECRET"));
@@ -381,5 +381,5 @@ test("stock: 配線（取引所ステーション・ルート・Cron・クライ
   assert.ok(client.includes('stock: "取引所"'));
   const panel = read("app/games/worldbox/WorldBoxStockPanel.tsx");
   assert.ok(panel.includes("/api/worldbox/stock"));
-  assert.ok(panel.includes("プレイヤーの会社は上場しません"), "会社との混同を避ける注意書きが無い");
+  assert.ok(panel.includes("IPO上場"), "企業IPO上場の案内が無い");
 });

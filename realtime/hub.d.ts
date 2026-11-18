@@ -23,5 +23,17 @@ export interface RealtimeHub {
   clientCount(): number;
 }
 
-export declare function createHub(options?: { secret?: string; kvCfg?: unknown }): RealtimeHub;
-export declare function getHub(): RealtimeHub;
+export interface RealtimeKvAdapter {
+  kvList(namespace: string): Promise<Map<string, unknown>>;
+  kvGet(namespace: string, key: string): Promise<unknown | null>;
+  kvSet(namespace: string, key: string, value: unknown): Promise<void>;
+  kvDelete?(namespace: string, key: string): Promise<void>;
+}
+
+export interface RealtimeHubOptions {
+  secret?: string;
+  kvCfg?: RealtimeKvAdapter | unknown;
+}
+
+export declare function createHub(options?: RealtimeHubOptions): RealtimeHub;
+export declare function getHub(options?: RealtimeHubOptions): RealtimeHub;

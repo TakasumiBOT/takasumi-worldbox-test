@@ -1,5 +1,6 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
+import { ITEMS, itemById } from "@/lib/worldbox/economy/items";
 
 const panel: React.CSSProperties = {
   position: "absolute",
@@ -80,7 +81,24 @@ const ERROR_LABEL: Record<string, string> = {
   too_far: "看板の近くで操作してください",
   tax_unaffordable: "作成税を払う会社資産が足りません",
   bonus_cooldown: "その社員へのボーナスは23時間に1回までです",
+  salary_cooldown: "時給の変更は24時間に1回までです",
   invalid_amount: "金額が不正です（100〜150,000円、会社資産の1/10まで）",
+  not_enough_assets: "会社資産が不足しています",
+  not_enough_items: "アイテムまたは倉庫在庫が不足しています",
+  inventory_full: "倉庫の種類上限に達しています",
+  unknown_recipe: "その製造レシピは存在しません",
+  invalid_batches: "バッチ数が不正です",
+  factory_busy: "工場の同時稼働枠（4枠）が埋まっています",
+  job_not_found: "製造ジョブが見つかりません",
+  job_not_ready: "まだ製造が完了していません",
+  already_collected: "すでに回収済みです",
+  too_many_buy_orders: "買取オファーが上限に達しています",
+  already_listed: "すでに上場しています",
+  insufficient_assets: "IPO最低資産（500,000円）を満たしていません",
+  invalid_ticker: "ティッカーは3〜6文字の英大文字（先頭英字）にしてください",
+  ticker_taken: "そのティッカーは既に使われています",
+  not_listed: "まだ上場していません",
+  no_shareholders: "配当対象の株主がいません",
   store_failed: "保存に失敗しました",
 };
 
@@ -100,6 +118,43 @@ interface CompanyHqView {
   y: number;
 }
 
+interface FactoryJobView {
+  id: string;
+  recipeId: string;
+  outputItemId: string;
+  outputQty: number;
+  startedAt: number;
+  readyAt: number;
+  collected: boolean;
+}
+
+interface BuyOrderView {
+  id: string;
+  itemId: string;
+  unitPrice: number;
+  targetQty: number;
+  filledQty: number;
+  createdAt: number;
+}
+
+interface CompanyRecipeView {
+  id: string;
+  name: string;
+  inputs: Record<string, number>;
+  outputItemId: string;
+  outputQty: number;
+  durationMs: number;
+}
+
+interface CompanyIpoView {
+  ticker: string;
+  issuedShares: number;
+  publicShares: number;
+  ipoPrice: number;
+  listedAt: number;
+  totalDividendsPaid: number;
+}
+
 interface CompanyView {
   id: string;
   name: string;
@@ -114,6 +169,15 @@ interface CompanyView {
   onDutyMembers: string[];
   stats: { totalEarn: number; totalUse: number; totalTax: number };
   products: CompanyProductView[];
+  inventory?: Record<string, number>;
+  factoryJobs?: FactoryJobView[];
+  buyOrders?: BuyOrderView[];
+  ipo?: CompanyIpoView | null;
+  financials?: {
+    totalMarketSales: number;
+    totalMaterialPurchases: number;
+    totalDividendsPaid: number;
+  };
   history: { at: number; amount: number; reason: string }[];
 }
 
@@ -127,6 +191,8 @@ interface CompanySummary {
   productCount: number;
   createdAt: number;
   hq: CompanyHqView | null;
+  ipoTicker?: string | null;
+  buyOrderCount?: number;
 }
 
 interface DutyView {
@@ -142,6 +208,8 @@ interface CompanyData {
   company: CompanyView | null;
   companies: CompanySummary[];
   balance: number | null;
+  playerItems?: Record<string, number>;
+  recipes?: CompanyRecipeView[];
   detail: CompanyView | null;
   duty: DutyView | null;
 }
@@ -176,6 +244,7 @@ export default function WorldBoxCompanyPanel({
   const [loadFailed, setLoadFailed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
+  const [cTab, setCTab] = useState<"overview" | "factory" | "ipo">("overview");
   const [detailId, setDetailId] = useState<string | null>(anchorCompanyId);
   const [revealed, setRevealed] = useState<{ name: string; content: string } | null>(null);
   const [issuedCode, setIssuedCode] = useState<{ code: string; expiresAt: number } | null>(null);
@@ -194,6 +263,18 @@ export default function WorldBoxCompanyPanel({
   const [pDesc, setPDesc] = useState("");
   const [pContent, setPContent] = useState("");
   const [pPrice, setPPrice] = useState("1000");
+  const [depItemId, setDepItemId] = useState("wheat");
+  const [depQty, setDepQty] = useState("10");
+  const [recipeId, setRecipeId] = useState("mass_bread");
+  const [batchesStr, setBatchesStr] = useState("1");
+  const [boItemId, setBoItemId] = useState("wheat");
+  const [boPriceStr, setBoPriceStr] = useState("55");
+  const [boQtyStr, setBoQtyStr] = useState("20");
+  const [ipoTicker, setIpoTicker] = useState("");
+  const [ipoSharesStr, setIpoSharesStr] = useState("10000");
+  const [ipoPctStr, setIpoPctStr] = useState("30");
+  const [ipoPriceStr, setIpoPriceStr] = useState("100");
+  const [divAmountStr, setDivAmountStr] = useState("50000");
 
   const refresh = useCallback(async (id: string | null) => {
     try {
@@ -350,263 +431,225 @@ export default function WorldBoxCompanyPanel({
           <p style={{ margin: "4px 0", opacity: 0.85, fontSize: 13 }}>
             累計収益 {yen(company.stats.totalEarn)} ・ 累計支出 {yen(company.stats.totalUse)} ・
             累計納税 {yen(company.stats.totalTax)}
+            {company.ipo ? ` ・ 上場ティッカー: ${company.ipo.ticker}` : ""}
           </p>
 
-          <div style={sectionTitle}>本社と勤務</div>
-          <p style={{ margin: "4px 0" }}>
-            本社: {hqLabel(company.hq)}
-            <span style={{ opacity: 0.8, fontSize: 13 }}>
-              （本社の近くで出社でき、勤務の報酬 {data.duty ? yen(data.duty.workReward) : ""}
-              が会社資産に入ります）
-            </span>
-          </p>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            {company.isOwner && (
-              <>
-                <button
-                  type="button"
-                  style={btn}
-                  disabled={busy}
-                  onClick={() =>
-                    void act({ action: "hq_set" }, (json) => {
-                      const hq = json.hq as CompanyHqView | undefined;
-                      return hq ? `本社を ${hqLabel(hq)} に登録しました` : "本社を登録しました";
-                    })
-                  }
-                >
-                  現在地を本社に登録
-                </button>
-                {company.hq && (
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", margin: "10px 0 6px" }}>
+            {(
+              [
+                ["overview", "概要・勤務・販売"],
+                ["factory", "工場・倉庫・買取"],
+                ["ipo", company.ipo ? `IPO (${company.ipo.ticker})・配当` : "株式上場 (IPO)"],
+              ] as const
+            ).map(([k, label]) => (
+              <button
+                key={k}
+                type="button"
+                style={{
+                  ...btn,
+                  ...(cTab === k
+                    ? { background: "rgba(255,210,62,0.18)", borderColor: "rgba(255,210,62,0.55)" }
+                    : {}),
+                }}
+                onClick={() => setCTab(k)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {cTab === "overview" && (
+            <>
+              <div style={sectionTitle}>本社と勤務</div>
+              <p style={{ margin: "4px 0" }}>
+                本社: {hqLabel(company.hq)}
+                <span style={{ opacity: 0.8, fontSize: 13 }}>
+                  （本社の近くで出社でき、勤務の報酬 {data.duty ? yen(data.duty.workReward) : ""}
+                  が会社資産に入ります）
+                </span>
+              </p>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                {company.isOwner && (
+                  <>
+                    <button
+                      type="button"
+                      style={btn}
+                      disabled={busy}
+                      onClick={() =>
+                        void act({ action: "hq_set" }, (json) => {
+                          const hq = json.hq as CompanyHqView | undefined;
+                          return hq ? `本社を ${hqLabel(hq)} に登録しました` : "本社を登録しました";
+                        })
+                      }
+                    >
+                      現在地を本社に登録
+                    </button>
+                    {company.hq && (
+                      <button
+                        type="button"
+                        style={btn}
+                        disabled={busy}
+                        onClick={() => void act({ action: "hq_clear" }, () => "本社を解除しました")}
+                      >
+                        本社を解除
+                      </button>
+                    )}
+                  </>
+                )}
+                {data.duty?.onDuty ? (
+                  <>
+                    <button
+                      type="button"
+                      style={btn}
+                      disabled={busy || Date.now() < (data.duty?.nextWorkAt ?? 0)}
+                      onClick={() =>
+                        void act({ action: "work" }, (json) =>
+                          typeof json.reward === "number"
+                            ? `勤務しました。報酬 ${yen(json.reward)} が会社資産に入りました`
+                            : "勤務しました",
+                        )
+                      }
+                    >
+                      働く（報酬 {data.duty ? yen(data.duty.workReward) : ""}）
+                    </button>
+                    <button
+                      type="button"
+                      style={btn}
+                      disabled={busy}
+                      onClick={() => void act({ action: "clock_out" }, () => "退社しました")}
+                    >
+                      退社
+                    </button>
+                  </>
+                ) : (
                   <button
                     type="button"
                     style={btn}
-                    disabled={busy}
-                    onClick={() => void act({ action: "hq_clear" }, () => "本社を解除しました")}
+                    disabled={busy || !company.hq}
+                    onClick={() => void act({ action: "clock_in" }, () => "出社しました")}
                   >
-                    本社を解除
+                    出社
                   </button>
                 )}
-              </>
-            )}
-            {data.duty?.onDuty ? (
-              <>
-                <button
-                  type="button"
-                  style={btn}
-                  disabled={busy || Date.now() < (data.duty?.nextWorkAt ?? 0)}
-                  onClick={() =>
-                    void act({ action: "work" }, (json) =>
-                      typeof json.reward === "number"
-                        ? `勤務しました。報酬 ${yen(json.reward)} が会社資産に入りました`
-                        : "勤務しました",
-                    )
-                  }
-                >
-                  働く（報酬 {data.duty ? yen(data.duty.workReward) : ""}）
-                </button>
-                <button
-                  type="button"
-                  style={btn}
-                  disabled={busy}
-                  onClick={() => void act({ action: "clock_out" }, () => "退社しました")}
-                >
-                  退社
-                </button>
-              </>
-            ) : (
-              <button
-                type="button"
-                style={btn}
-                disabled={busy || !company.hq}
-                onClick={() => void act({ action: "clock_in" }, () => "出社しました")}
-              >
-                出社
-              </button>
-            )}
-          </div>
-          {data.duty?.onDuty && (
-            <p style={{ margin: "4px 0", opacity: 0.85, fontSize: 13 }}>
-              勤務中（{new Date(data.duty.since).toLocaleTimeString()} から）
-              {Date.now() < data.duty.nextWorkAt &&
-                ` ・ 次に働けるのは ${new Date(data.duty.nextWorkAt).toLocaleTimeString()} から`}
-            </p>
-          )}
-
-          <div style={sectionTitle}>メンバー</div>
-          {company.members.map((m) => (
-            <div
-              key={m.ownerKey}
-              style={{ display: "flex", alignItems: "center", gap: 8, padding: "3px 0" }}
-            >
-              <span style={{ flex: 1 }}>
-                {m.name || "（名前なし）"}
-                {m.owner ? "（オーナー）" : ""}
-                {company.onDutyMembers.includes(m.ownerKey) ? "（勤務中）" : ""}
-              </span>
-              {company.isOwner && !m.owner && (
-                <>
-                  <button
-                    type="button"
-                    style={btn}
-                    disabled={busy}
-                    onClick={() => setBonusTarget(m.ownerKey)}
-                  >
-                    ボーナス
-                  </button>
-                  <button
-                    type="button"
-                    style={btn}
-                    disabled={busy}
-                    onClick={() => void act({ action: "fire", targetKey: m.ownerKey })}
-                  >
-                    解雇
-                  </button>
-                </>
-              )}
-            </div>
-          ))}
-          {company.isOwner && bonusTarget && (
-            <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
-              <input
-                style={{ ...input, flex: 1 }}
-                inputMode="numeric"
-                placeholder="ボーナス額（円）"
-                value={bonusAmount}
-                onChange={(e) => setBonusAmount(e.target.value)}
-              />
-              <button
-                type="button"
-                style={btn}
-                disabled={busy}
-                onClick={() =>
-                  void act(
-                    { action: "bonus", targetKey: bonusTarget, amount: Number(bonusAmount) },
-                    () => "ボーナスを支給しました（所得税15%を控除して入金されます）",
-                  )
-                }
-              >
-                支給
-              </button>
-              <button type="button" style={btn} onClick={() => setBonusTarget("")}>
-                やめる
-              </button>
-            </div>
-          )}
-
-          {company.isOwner && (
-            <>
-              <div style={sectionTitle}>招待コード</div>
-              <button
-                type="button"
-                style={btn}
-                disabled={busy}
-                onClick={() => void act({ action: "invite" })}
-              >
-                招待コードを発行
-              </button>
-              {issuedCode && (
-                <p style={{ margin: "6px 0" }}>
-                  コード: <strong>{issuedCode.code}</strong>
-                  <span style={{ opacity: 0.8 }}>
-                    （1回限り・{new Date(issuedCode.expiresAt).toLocaleTimeString()} まで有効）
-                  </span>
+              </div>
+              {data.duty?.onDuty && (
+                <p style={{ margin: "4px 0", opacity: 0.85, fontSize: 13 }}>
+                  勤務中（{new Date(data.duty.since).toLocaleTimeString()} から）
+                  {Date.now() < data.duty.nextWorkAt &&
+                    ` ・ 次に働けるのは ${new Date(data.duty.nextWorkAt).toLocaleTimeString()} から`}
                 </p>
               )}
-            </>
-          )}
 
-          <div style={sectionTitle}>商品を作る</div>
-          <div style={{ display: "grid", gap: 6 }}>
-            <input
-              style={input}
-              placeholder="商品名（1〜20文字）"
-              value={pName}
-              onChange={(e) => setPName(e.target.value)}
-            />
-            <input
-              style={input}
-              placeholder="説明（1〜50文字）"
-              value={pDesc}
-              onChange={(e) => setPDesc(e.target.value)}
-            />
-            <input
-              style={input}
-              placeholder="内容（購入者だけに開示・1〜500文字）"
-              value={pContent}
-              onChange={(e) => setPContent(e.target.value)}
-            />
-            <div style={{ display: "flex", gap: 8 }}>
-              <input
-                style={{ ...input, flex: 1 }}
-                inputMode="numeric"
-                placeholder="価格（円）"
-                value={pPrice}
-                onChange={(e) => setPPrice(e.target.value)}
-              />
-              <button
-                type="button"
-                style={btn}
-                disabled={busy}
-                onClick={() =>
-                  void act(
-                    {
-                      action: "product_create",
-                      name: pName,
-                      description: pDesc,
-                      content: pContent,
-                      price: Number(pPrice),
-                    },
-                    () => "商品を出品しました（作成税15%を会社資産から支払いました）",
-                  )
-                }
-              >
-                出品
-              </button>
-            </div>
-          </div>
+              <div style={sectionTitle}>メンバー</div>
+              {company.members.map((m) => (
+                <div
+                  key={m.ownerKey}
+                  style={{ display: "flex", alignItems: "center", gap: 8, padding: "3px 0" }}
+                >
+                  <span style={{ flex: 1 }}>
+                    {m.name || "（名前なし）"}
+                    {m.owner ? "（オーナー）" : ""}
+                    {company.onDutyMembers.includes(m.ownerKey) ? "（勤務中）" : ""}
+                  </span>
+                  {company.isOwner && !m.owner && (
+                    <>
+                      <button
+                        type="button"
+                        style={btn}
+                        disabled={busy}
+                        onClick={() => setBonusTarget(m.ownerKey)}
+                      >
+                        ボーナス
+                      </button>
+                      <button
+                        type="button"
+                        style={btn}
+                        disabled={busy}
+                        onClick={() => void act({ action: "fire", targetKey: m.ownerKey })}
+                      >
+                        解雇
+                      </button>
+                    </>
+                  )}
+                </div>
+              ))}
+              {company.isOwner && bonusTarget && (
+                <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+                  <input
+                    style={{ ...input, flex: 1 }}
+                    inputMode="numeric"
+                    placeholder="ボーナス額（円）"
+                    value={bonusAmount}
+                    onChange={(e) => setBonusAmount(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    style={btn}
+                    disabled={busy}
+                    onClick={() =>
+                      void act(
+                        { action: "bonus", targetKey: bonusTarget, amount: Number(bonusAmount) },
+                        () => "ボーナスを支給しました（所得税15%を控除して入金されます）",
+                      )
+                    }
+                  >
+                    支給
+                  </button>
+                  <button type="button" style={btn} onClick={() => setBonusTarget("")}>
+                    やめる
+                  </button>
+                </div>
+              )}
 
-          <div style={sectionTitle}>自社の出品</div>
-          {productList(company, false)}
+              {company.isOwner && (
+                <>
+                  <div style={sectionTitle}>招待コード</div>
+                  <button
+                    type="button"
+                    style={btn}
+                    disabled={busy}
+                    onClick={() => void act({ action: "invite" })}
+                  >
+                    招待コードを発行
+                  </button>
+                  {issuedCode && (
+                    <p style={{ margin: "6px 0" }}>
+                      コード: <strong>{issuedCode.code}</strong>
+                      <span style={{ opacity: 0.8 }}>
+                        （1回限り・{new Date(issuedCode.expiresAt).toLocaleTimeString()} まで有効）
+                      </span>
+                    </p>
+                  )}
+                </>
+              )}
 
-          <div style={sectionTitle}>取引履歴</div>
-          {company.history.length === 0 && <p style={{ opacity: 0.8 }}>まだ履歴がありません。</p>}
-          {company.history.map((h, i) => (
-            <div
-              key={`${h.at}-${i}`}
-              style={{ display: "flex", gap: 8, padding: "3px 0", fontSize: 13 }}
-            >
-              <span style={{ opacity: 0.75 }}>{new Date(h.at).toLocaleString()}</span>
-              <span style={{ flex: 1 }}>{h.reason}</span>
-              <span>
-                {h.amount >= 0 ? "+" : ""}
-                {yen(h.amount)}
-              </span>
-            </div>
-          ))}
-
-          {company.isOwner && (
-            <>
-              <div style={sectionTitle}>会社設定（オーナー）</div>
+              <div style={sectionTitle}>商品を作る</div>
               <div style={{ display: "grid", gap: 6 }}>
                 <input
                   style={input}
-                  placeholder="会社名（4〜20文字）"
-                  value={sName}
-                  onChange={(e) => setSName(e.target.value)}
+                  placeholder="商品名（1〜20文字）"
+                  value={pName}
+                  onChange={(e) => setPName(e.target.value)}
                 />
                 <input
                   style={input}
-                  placeholder="説明（5〜100文字）"
-                  value={sDesc}
-                  onChange={(e) => setSDesc(e.target.value)}
+                  placeholder="説明（1〜50文字）"
+                  value={pDesc}
+                  onChange={(e) => setPDesc(e.target.value)}
+                />
+                <input
+                  style={input}
+                  placeholder="内容（購入者だけに開示・1〜500文字）"
+                  value={pContent}
+                  onChange={(e) => setPContent(e.target.value)}
                 />
                 <div style={{ display: "flex", gap: 8 }}>
                   <input
                     style={{ ...input, flex: 1 }}
                     inputMode="numeric"
-                    placeholder="時給（1,000〜100,000円）"
-                    value={sSalary}
-                    onChange={(e) => setSSalary(e.target.value)}
+                    placeholder="価格（円）"
+                    value={pPrice}
+                    onChange={(e) => setPPrice(e.target.value)}
                   />
                   <button
                     type="button"
@@ -615,47 +658,489 @@ export default function WorldBoxCompanyPanel({
                     onClick={() =>
                       void act(
                         {
-                          action: "setting",
-                          name: sName,
-                          description: sDesc,
-                          salary: Number(sSalary),
+                          action: "product_create",
+                          name: pName,
+                          description: pDesc,
+                          content: pContent,
+                          price: Number(pPrice),
                         },
-                        () => "設定を変更しました",
+                        () => "商品を出品しました（作成税5%を会社資産から支払いました）",
                       )
                     }
                   >
-                    保存
+                    出品
                   </button>
                 </div>
+              </div>
+
+              <div style={sectionTitle}>自社の出品</div>
+              {productList(company, false)}
+
+              <div style={sectionTitle}>取引履歴</div>
+              {company.history.length === 0 && (
+                <p style={{ opacity: 0.8 }}>まだ履歴がありません。</p>
+              )}
+              {company.history.map((h, i) => (
+                <div
+                  key={`${h.at}-${i}`}
+                  style={{ display: "flex", gap: 8, padding: "3px 0", fontSize: 13 }}
+                >
+                  <span style={{ opacity: 0.75 }}>{new Date(h.at).toLocaleString()}</span>
+                  <span style={{ flex: 1 }}>{h.reason}</span>
+                  <span>
+                    {h.amount >= 0 ? "+" : ""}
+                    {yen(h.amount)}
+                  </span>
+                </div>
+              ))}
+
+              {company.isOwner && (
+                <>
+                  <div style={sectionTitle}>会社設定（オーナー）</div>
+                  <div style={{ display: "grid", gap: 6 }}>
+                    <input
+                      style={input}
+                      placeholder="会社名（4〜20文字）"
+                      value={sName}
+                      onChange={(e) => setSName(e.target.value)}
+                    />
+                    <input
+                      style={input}
+                      placeholder="説明（5〜100文字）"
+                      value={sDesc}
+                      onChange={(e) => setSDesc(e.target.value)}
+                    />
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <input
+                        style={{ ...input, flex: 1 }}
+                        inputMode="numeric"
+                        placeholder="時給（1,000〜100,000円）"
+                        value={sSalary}
+                        onChange={(e) => setSSalary(e.target.value)}
+                      />
+                      <button
+                        type="button"
+                        style={btn}
+                        disabled={busy}
+                        onClick={() =>
+                          void act(
+                            {
+                              action: "setting",
+                              name: sName,
+                              description: sDesc,
+                              salary: Number(sSalary),
+                            },
+                            () => "設定を変更しました",
+                          )
+                        }
+                      >
+                        保存
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+                {!company.isOwner && (
+                  <button
+                    type="button"
+                    style={btn}
+                    disabled={busy}
+                    onClick={() => void act({ action: "leave" }, () => "脱退しました")}
+                  >
+                    脱退する
+                  </button>
+                )}
+                {company.isOwner && (
+                  <button
+                    type="button"
+                    style={btn}
+                    disabled={busy || company.members.length > 1}
+                    title={company.members.length > 1 ? "従業員を1人にしてから解散できます" : ""}
+                    onClick={() =>
+                      void act(
+                        { action: "dissolve" },
+                        () => "解散しました（解散税20%を差し引いた残資産が返還されます）",
+                      )
+                    }
+                  >
+                    解散する
+                  </button>
+                )}
               </div>
             </>
           )}
 
-          <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
-            {!company.isOwner && (
-              <button
-                type="button"
-                style={btn}
-                disabled={busy}
-                onClick={() => void act({ action: "leave" }, () => "脱退しました")}
-              >
-                脱退する
-              </button>
-            )}
-            {company.isOwner && (
-              <button
-                type="button"
-                style={btn}
-                disabled={busy || company.members.length > 1}
-                title={company.members.length > 1 ? "従業員を1人にしてから解散できます" : ""}
-                onClick={() =>
-                  void act({ action: "dissolve" }, () => "解散しました（残資産は返還されます）")
-                }
-              >
-                解散する
-              </button>
-            )}
-          </div>
+          {cTab === "factory" && (
+            <div>
+              <div style={sectionTitle}>会社倉庫（在庫）</div>
+              {Object.keys(company.inventory ?? {}).length === 0 ? (
+                <p style={{ fontSize: 12, opacity: 0.75, margin: "4px 0" }}>倉庫は空です。</p>
+              ) : (
+                <div style={{ display: "grid", gap: 4 }}>
+                  {Object.entries(company.inventory ?? {}).map(([id, cnt]) => (
+                    <div
+                      key={id}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                        padding: "4px 0",
+                        borderTop: "1px solid rgba(255,255,255,0.08)",
+                        fontSize: 13,
+                      }}
+                    >
+                      <span style={{ flex: 1 }}>
+                        {itemById(id)?.name ?? id} × {cnt}
+                      </span>
+                      {company.isOwner && (
+                        <button
+                          type="button"
+                          style={{ ...btn, minHeight: 28, fontSize: 12 }}
+                          disabled={busy}
+                          onClick={() =>
+                            void act(
+                              { action: "withdraw_item", itemId: id, count: 1 },
+                              () => `${itemById(id)?.name ?? id}を1個引き出しました`,
+                            )
+                          }
+                        >
+                          1個引出
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div style={sectionTitle}>個人バッグから倉庫へ資材投入</div>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+                <select
+                  style={{ ...input, flex: "1 1 160px" }}
+                  value={depItemId}
+                  onChange={(e) => setDepItemId(e.target.value)}
+                >
+                  {ITEMS.filter((it) => (data.playerItems?.[it.id] ?? 0) > 0).map((it) => (
+                    <option key={it.id} value={it.id}>
+                      {it.name}（所持 {data.playerItems?.[it.id] ?? 0}）
+                    </option>
+                  ))}
+                  {Object.keys(data.playerItems ?? {}).length === 0 && (
+                    <option value={depItemId}>
+                      {itemById(depItemId)?.name ?? depItemId}（所持0）
+                    </option>
+                  )}
+                </select>
+                <input
+                  style={{ ...input, width: 80 }}
+                  inputMode="numeric"
+                  value={depQty}
+                  onChange={(e) => setDepQty(e.target.value)}
+                />
+                <button
+                  type="button"
+                  style={btn}
+                  disabled={busy}
+                  onClick={() =>
+                    void act(
+                      {
+                        action: "deposit_material",
+                        itemId: depItemId,
+                        count: Math.trunc(Number(depQty) || 0),
+                      },
+                      () => "資材を会社倉庫へ投入しました",
+                    )
+                  }
+                >
+                  投入
+                </button>
+              </div>
+
+              <div style={sectionTitle}>工場大量生産（出社社員がいるほど高速化）</div>
+              <div style={{ display: "grid", gap: 6 }}>
+                <select
+                  style={input}
+                  value={recipeId}
+                  onChange={(e) => setRecipeId(e.target.value)}
+                >
+                  {(data.recipes ?? []).map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.name}（
+                      {Object.entries(r.inputs)
+                        .map(([k, v]) => `${itemById(k)?.name ?? k}×${v}`)
+                        .join("+")}{" "}
+                      → {itemById(r.outputItemId)?.name ?? r.outputItemId}×{r.outputQty}）
+                    </option>
+                  ))}
+                </select>
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <input
+                    style={{ ...input, width: 90 }}
+                    inputMode="numeric"
+                    value={batchesStr}
+                    onChange={(e) => setBatchesStr(e.target.value)}
+                    placeholder="バッチ数"
+                  />
+                  <button
+                    type="button"
+                    style={btn}
+                    disabled={busy}
+                    onClick={() =>
+                      void act(
+                        {
+                          action: "start_production",
+                          recipeId,
+                          batches: Math.trunc(Number(batchesStr) || 1),
+                        },
+                        () => "工場生産ラインを稼働しました",
+                      )
+                    }
+                  >
+                    製造開始
+                  </button>
+                </div>
+              </div>
+
+              {(company.factoryJobs ?? []).length > 0 && (
+                <div style={{ marginTop: 8 }}>
+                  {(company.factoryJobs ?? []).map((job) => {
+                    const ready = Date.now() >= job.readyAt;
+                    return (
+                      <div
+                        key={job.id}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 8,
+                          padding: "5px 0",
+                          borderTop: "1px solid rgba(255,255,255,0.08)",
+                          fontSize: 13,
+                        }}
+                      >
+                        <span style={{ flex: 1 }}>
+                          {itemById(job.outputItemId)?.name ?? job.outputItemId} × {job.outputQty}
+                          {" ・ "}
+                          {ready
+                            ? "生産完了！"
+                            : `完了予定 ${new Date(job.readyAt).toLocaleTimeString()}`}
+                        </span>
+                        <button
+                          type="button"
+                          style={btn}
+                          disabled={busy || !ready || job.collected}
+                          onClick={() =>
+                            void act(
+                              { action: "collect_production", jobId: job.id },
+                              () => "完成品を倉庫に格納しました",
+                            )
+                          }
+                        >
+                          {job.collected ? "回収済" : "回収"}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {company.isOwner && (
+                <>
+                  <div style={sectionTitle}>原料買取オファー（他プレイヤーから自動調達）</div>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+                    <select
+                      style={{ ...input, flex: "1 1 130px" }}
+                      value={boItemId}
+                      onChange={(e) => setBoItemId(e.target.value)}
+                    >
+                      {ITEMS.slice(0, 60).map((it) => (
+                        <option key={it.id} value={it.id}>
+                          {it.name}（基準 {it.price}円）
+                        </option>
+                      ))}
+                    </select>
+                    <input
+                      style={{ ...input, width: 85 }}
+                      inputMode="numeric"
+                      value={boPriceStr}
+                      onChange={(e) => setBoPriceStr(e.target.value)}
+                      placeholder="単価"
+                    />
+                    <input
+                      style={{ ...input, width: 75 }}
+                      inputMode="numeric"
+                      value={boQtyStr}
+                      onChange={(e) => setBoQtyStr(e.target.value)}
+                      placeholder="数量"
+                    />
+                    <button
+                      type="button"
+                      style={btn}
+                      disabled={busy}
+                      onClick={() =>
+                        void act(
+                          {
+                            action: "create_buy_order",
+                            itemId: boItemId,
+                            unitPrice: Math.trunc(Number(boPriceStr) || 0),
+                            targetQty: Math.trunc(Number(boQtyStr) || 0),
+                          },
+                          () => "原料買取オファーを公開しました（商品取引所にも表示されます）",
+                        )
+                      }
+                    >
+                      募集を出す
+                    </button>
+                  </div>
+                  {(company.buyOrders ?? []).map((o) => (
+                    <div
+                      key={o.id}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                        padding: "5px 0",
+                        borderTop: "1px solid rgba(255,255,255,0.08)",
+                        fontSize: 12,
+                      }}
+                    >
+                      <span style={{ flex: 1 }}>
+                        {itemById(o.itemId)?.name ?? o.itemId} @ {yen(o.unitPrice)} （達成{" "}
+                        {o.filledQty}/{o.targetQty}）
+                      </span>
+                      <button
+                        type="button"
+                        style={{ ...btn, minHeight: 28, fontSize: 12 }}
+                        disabled={busy}
+                        onClick={() =>
+                          void act(
+                            { action: "cancel_buy_order", orderId: o.id },
+                            (res) => `買取を取り消しました（返金 ${yen(Number(res.refund ?? 0))}）`,
+                          )
+                        }
+                      >
+                        取消
+                      </button>
+                    </div>
+                  ))}
+                </>
+              )}
+            </div>
+          )}
+
+          {cTab === "ipo" && (
+            <div>
+              {company.ipo ? (
+                <div>
+                  <div style={sectionTitle}>上場情報（ティッカー: {company.ipo.ticker}）</div>
+                  <p style={{ margin: "4px 0", fontSize: 13 }}>
+                    発行済株式: {company.ipo.issuedShares.toLocaleString()}株 ／ 市場公開:{" "}
+                    {company.ipo.publicShares.toLocaleString()}株 ／ 公募価格:{" "}
+                    {yen(company.ipo.ipoPrice)}
+                  </p>
+                  <p style={{ margin: "4px 0", fontSize: 13 }}>
+                    累計配当支払額: {yen(company.ipo.totalDividendsPaid)}
+                  </p>
+                  {company.isOwner && (
+                    <>
+                      <div style={sectionTitle}>株主への配当支払い</div>
+                      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                        <input
+                          style={{ ...input, flex: 1 }}
+                          inputMode="numeric"
+                          value={divAmountStr}
+                          onChange={(e) => setDivAmountStr(e.target.value)}
+                          placeholder="配当総額（会社資産から支出）"
+                        />
+                        <button
+                          type="button"
+                          style={btn}
+                          disabled={busy}
+                          onClick={() =>
+                            void act(
+                              {
+                                action: "pay_dividend",
+                                amount: Math.trunc(Number(divAmountStr) || 0),
+                              },
+                              (res) =>
+                                `全株主へ総額 ${yen(Number(res.totalDistributed ?? 0))}（1株 ${res.perShare}円）の配当を実施しました`,
+                            )
+                          }
+                        >
+                          配当を実施
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              ) : (
+                <div>
+                  <div style={sectionTitle}>新規株式上場（IPO）</div>
+                  <p style={{ fontSize: 12, opacity: 0.8, margin: "4px 0 8px" }}>
+                    会社資産 500,000円以上かつ上場登録料
+                    25,000円で証券取引所へ上場できます。発行株は創業者と市場プールに分かれ、以後は市場売買で株価が変動します。
+                  </p>
+                  {company.isOwner ? (
+                    <div style={{ display: "grid", gap: 6 }}>
+                      <input
+                        style={input}
+                        placeholder="ティッカー（例: TAKA / 英大文字3〜6文字）"
+                        value={ipoTicker}
+                        onChange={(e) => setIpoTicker(e.target.value.toUpperCase())}
+                      />
+                      <div style={{ display: "flex", gap: 6 }}>
+                        <input
+                          style={{ ...input, flex: 1 }}
+                          inputMode="numeric"
+                          placeholder="総発行株数 (1000〜100000)"
+                          value={ipoSharesStr}
+                          onChange={(e) => setIpoSharesStr(e.target.value)}
+                        />
+                        <input
+                          style={{ ...input, width: 110 }}
+                          inputMode="numeric"
+                          placeholder="公開比率% (10-50)"
+                          value={ipoPctStr}
+                          onChange={(e) => setIpoPctStr(e.target.value)}
+                        />
+                        <input
+                          style={{ ...input, width: 120 }}
+                          inputMode="numeric"
+                          placeholder="公募単価 (50〜)"
+                          value={ipoPriceStr}
+                          onChange={(e) => setIpoPriceStr(e.target.value)}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        style={btn}
+                        disabled={busy || company.assets < 500_000}
+                        onClick={() =>
+                          void act(
+                            {
+                              action: "ipo_launch",
+                              ticker: ipoTicker,
+                              issuedShares: Math.trunc(Number(ipoSharesStr) || 0),
+                              publicPct: Math.trunc(Number(ipoPctStr) || 0),
+                              ipoPrice: Math.trunc(Number(ipoPriceStr) || 0),
+                            },
+                            (res) =>
+                              `証券取引所に ${String(res.ticker ?? ipoTicker)} として上場しました！`,
+                          )
+                        }
+                      >
+                        IPO上場を実行（登録料 25,000円）
+                      </button>
+                    </div>
+                  ) : (
+                    <p style={{ fontSize: 13, opacity: 0.75 }}>
+                      IPO上場はオーナーのみ実行できます。
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       ) : (
         <div>

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getRequestSession, publicOrigin, sessionOwnerKey } from "@/lib/auth";
+import { getRequestSession, isSameOriginRequest, sessionOwnerKey } from "@/lib/auth";
 import { appendBoardPost, sanitizeBoardText } from "@/lib/worldbox/social/board";
 import {
   isBoardEnabled,
@@ -15,8 +15,7 @@ const BOARD_MIN_INTERVAL_MS = 1_500;
 const lastPostAt = new Map<string, number>();
 
 function sameOrigin(request: Request) {
-  const origin = request.headers.get("origin");
-  return !origin || origin === publicOrigin(request);
+  return isSameOriginRequest(request);
 }
 
 export async function GET(request: Request) {

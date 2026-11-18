@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getRequestSession, publicOrigin } from "@/lib/auth";
+import { getRequestSession, isSameOriginRequest } from "@/lib/auth";
 import { issueRealtimeToken } from "@/lib/worldbox/core/realtime-token";
 
 export const runtime = "nodejs";
@@ -7,8 +7,7 @@ export const runtime = "nodejs";
 const NO_STORE = { "Cache-Control": "no-store, max-age=0" };
 
 function sameOrigin(request: Request) {
-  const origin = request.headers.get("origin");
-  return !origin || origin === publicOrigin(request);
+  return isSameOriginRequest(request);
 }
 
 export async function POST(request: Request) {
