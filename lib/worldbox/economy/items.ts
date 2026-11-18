@@ -1,10 +1,3 @@
-// AGO WORLD BOX のアイテム定義（純粋ロジック）。
-// Discord ボット側の経済機能の仕組みをワールドボックスに持ち込んだもの。
-// カタログは「入口としての物量」を優先し、データ追加だけで厚くする:
-// 食事・素材・製造品・特殊に加え、道具（斧/ツルハシ/クワ×素材4段）、
-// ブロック（耐久つき）、種と作物、家具を用意する。
-// 効果が未実装のアイテムは作らない。
-
 export type ItemCategory =
   | "food"
   | "material"
@@ -16,7 +9,6 @@ export type ItemCategory =
   | "crop"
   | "furniture";
 
-/** 道具の種類。ワールド上の行為（伐採・採掘・耕作）の前提になる。 */
 export type ToolKind = "axe" | "pickaxe" | "hoe";
 
 export type ItemDef = {
@@ -24,41 +16,20 @@ export type ItemDef = {
   name: string;
   desc: string;
   category: ItemCategory;
-  /** ショップの販売価格（円）。売却はこの割合（SELL_RATE）。 */
   price: number;
-  /** 食べたときの空腹度回復量（food / crop のみ）。 */
   hunger?: number;
-  /** 食べた・使ったときの HP 回復量（食事の一部と薬）。 */
-  /** 使うと毒を治す（薬・一部の飲み物）。 */
-  /** 食べると付く持続効果（warm=空腹が減りにくい / alert=満腹時に少しずつ回復）。 */
   buff?: { kind: "warm"; minutes: number };
-  /** 食べた/飲んだ後に手元へ戻る容器のアイテム ID（水入りバケツ→バケツ）。 */
   containerReturn?: string;
-  /** 道具の種類（tool のみ）。 */
   tool?: ToolKind;
-  /** 道具の素材段位 1=木柄 2=グラスファイバー 3=スチール 4=チタン合金（tool のみ）。 */
   tier?: number;
-  /** 耐久の目安（block=壊されにくさ、tool=使用回数）。 */
   durability?: number;
-  /**
-   * 施設（作業台・家具など）: ブロック層に置くと、そのマスを占有する
-   * （他のブロック/施設は置けない）が、移動の当たり判定は持たず
-   * プレイヤーは通過できる。固体ブロックとの区別はこのデータで持つ。
-   */
   facility?: boolean;
-  /**
-   * この素材はそのままこのブロックとして置ける（基本素材の直接設置）。
-   * 消費は素材側、設置されるブロックは placesBlock の定義で描画・耐久・回収される。
-   */
   placesBlock?: string;
-  /** 硬いブロック（耐久50以上）を掘るのに要る道具（block のみ）。 */
   mineTool?: "axe" | "pickaxe";
-  /** ドット絵アイコンのパス（public 配下）。無いアイテムは文字で出す。 */
   icon?: string;
 };
 
 export const ITEMS: readonly ItemDef[] = [
-  // ---- 食事（食べると空腹度が回復する） -------------------------------
   {
     id: "wheat",
     name: "小麦",
@@ -111,7 +82,6 @@ export const ITEMS: readonly ItemDef[] = [
     price: 500,
     hunger: 100,
   },
-  // ---- 素材（製造の材料） ---------------------------------------------
   {
     id: "wood",
     name: "木材",
@@ -146,7 +116,6 @@ export const ITEMS: readonly ItemDef[] = [
     category: "material",
     price: 1500,
   },
-  // ---- 製造品（製造で作る。売ると素材代より高くなる） -----------------
   {
     id: "carving",
     name: "木彫りの置物",
@@ -200,7 +169,6 @@ export const ITEMS: readonly ItemDef[] = [
     price: 1300,
     hunger: 100,
   },
-  // ---- 特殊（所持しているだけで効く） ---------------------------------
   {
     id: "guard_charm",
     name: "防犯チャーム",
@@ -229,7 +197,6 @@ export const ITEMS: readonly ItemDef[] = [
     category: "special",
     price: 5000,
   },
-  // ---- 道具（斧=伐採、ツルハシ=採掘、クワ=耕作。木柄/グラスファイバー/スチールの3段） --
   {
     id: "wooden_axe",
     name: "木柄の斧",
@@ -320,7 +287,6 @@ export const ITEMS: readonly ItemDef[] = [
     tier: 3,
     durability: 250,
   },
-  // ---- ブロック（置く素材。耐久で壊されにくさが違う。設置は次フェーズ） --
   {
     id: "dirt_block",
     name: "土ブロック",
@@ -592,7 +558,6 @@ export const ITEMS: readonly ItemDef[] = [
     durability: 200,
     mineTool: "pickaxe",
   },
-  // ---- 素材（追加分） ---------------------------------------------------
   { id: "stick", name: "棒", desc: "道具の柄になる", category: "material", price: 40 },
   { id: "fiber", name: "繊維", desc: "草から取れる素材", category: "material", price: 60 },
   { id: "clay", name: "粘土", desc: "焼くとレンガになる", category: "material", price: 60 },
@@ -603,10 +568,6 @@ export const ITEMS: readonly ItemDef[] = [
   { id: "feather", name: "羽根", desc: "軽い素材", category: "material", price: 100 },
   { id: "bone", name: "骨", desc: "硬い素材", category: "material", price: 140 },
   { id: "slime", name: "粘着ジェル", desc: "粘る素材", category: "material", price: 220 },
-  // 製造の失敗作: レシピに無い組み合わせで台に入れると生まれる。
-  // レシピの材料にはしない（RECIPES には一切載せない）。アイコンは新規
-  // png を作らず、塊っぽいスライムの絵を明示指定で流用する
-  // （ITEM_ICON_IDS には足さない: 足すと存在しない mystery_lump.png を指す）。
   {
     id: "mystery_lump",
     name: "なぞの塊",
@@ -618,7 +579,6 @@ export const ITEMS: readonly ItemDef[] = [
   { id: "leather", name: "革", desc: "丈夫な素材", category: "material", price: 240 },
   { id: "iron_ingot", name: "鉄インゴット", desc: "精錬した鉄", category: "material", price: 340 },
   { id: "gold_ingot", name: "金インゴット", desc: "精錬した金", category: "material", price: 950 },
-  // ---- 種（畑に植えると作物が育つ） -------------------------------------
   { id: "wheat_seed", name: "小麦の種", desc: "畑に植える種", category: "seed", price: 60 },
   { id: "carrot_seed", name: "ニンジンの種", desc: "畑に植える種", category: "seed", price: 80 },
   {
@@ -635,7 +595,6 @@ export const ITEMS: readonly ItemDef[] = [
   { id: "rice_seed", name: "米の種", desc: "畑に植える種もみ", category: "seed", price: 120 },
   { id: "pumpkin_seed", name: "カボチャの種", desc: "畑に植える種", category: "seed", price: 160 },
   { id: "melon_seed", name: "メロンの種", desc: "畑に植える種", category: "seed", price: 180 },
-  // ---- 作物（収穫物。そのまま食べられるものも多い） -----------------------
   {
     id: "carrot",
     name: "ニンジン",
@@ -687,7 +646,6 @@ export const ITEMS: readonly ItemDef[] = [
     hunger: 6,
   },
   { id: "melon", name: "メロン", desc: "収穫した作物", category: "crop", price: 340, hunger: 8 },
-  // ---- 食事（追加分。作物から作る） --------------------------------------
   {
     id: "grilled_corn",
     name: "焼きトウモロコシ",
@@ -713,7 +671,6 @@ export const ITEMS: readonly ItemDef[] = [
     price: 600,
     hunger: 50,
   },
-  // ---- 家具・装飾（施設: 占有するが通過できる。当たり判定なし） -------
   {
     id: "bench",
     name: "ベンチ",
@@ -827,7 +784,6 @@ export const ITEMS: readonly ItemDef[] = [
     price: 2000,
     facility: true,
   },
-  // ---- 道具（チタン合金段位: スチールの上の4段目） ------------------------------
   {
     id: "mithril_axe",
     name: "チタン合金の斧",
@@ -858,11 +814,6 @@ export const ITEMS: readonly ItemDef[] = [
     tier: 4,
     durability: 500,
   },
-  // ---- 道具（特殊: 種別を持たない探索道具） ------------------------------
-  // 開拓のコンパス: 所持している間、最も近い洞窟/ダンジョン入口の方向と
-  // 距離がミニマップ付近に出る（効果は compass.ts とクライアント側）。
-  // tool 種別は持たない（伐採等の道具判定には使わない）。tier が無いので
-  // レア品の販売除外（tier 4）にも掛からず、道具屋で通常販売される。
   {
     id: "explorer_compass",
     name: "探索コンパス",
@@ -870,7 +821,6 @@ export const ITEMS: readonly ItemDef[] = [
     category: "tool",
     price: 10000,
   },
-  // ---- 素材（追加分: 金属・宝石・自然素材） ------------------------------
   { id: "copper_ore", name: "銅鉱石", desc: "金属の素材", category: "material", price: 180 },
   {
     id: "copper_ingot",
@@ -891,7 +841,6 @@ export const ITEMS: readonly ItemDef[] = [
   { id: "honey", name: "はちみつ", desc: "甘い素材", category: "material", price: 280 },
   { id: "beeswax", name: "ミツロウ", desc: "巣から取れる素材", category: "material", price: 200 },
   { id: "flower", name: "花", desc: "野に咲く花", category: "material", price: 80 },
-  // ---- ブロック（追加分: 防衛・装飾・特殊） ------------------------------
   {
     id: "copper_block",
     name: "銅ブロック",
@@ -1026,7 +975,6 @@ export const ITEMS: readonly ItemDef[] = [
     price: 480,
     durability: 12,
   },
-  // ---- 食事（追加分: 自然の恵みと調理品） --------------------------------
   {
     id: "egg",
     name: "たまご",
@@ -1117,7 +1065,6 @@ export const ITEMS: readonly ItemDef[] = [
     hunger: 65,
     buff: { kind: "warm", minutes: 10 },
   },
-  // ---- 種（追加分） -------------------------------------------------------
   { id: "onion_seed", name: "タマネギの種", desc: "畑に植える種", category: "seed", price: 80 },
   { id: "soybean_seed", name: "大豆の種", desc: "畑に植える種", category: "seed", price: 80 },
   { id: "cucumber_seed", name: "キュウリの種", desc: "畑に植える種", category: "seed", price: 100 },
@@ -1132,7 +1079,6 @@ export const ITEMS: readonly ItemDef[] = [
   { id: "pepper_seed", name: "ピーマンの種", desc: "畑に植える種", category: "seed", price: 120 },
   { id: "grape_seed", name: "ブドウの種", desc: "畑に植える種", category: "seed", price: 160 },
   { id: "turnip_seed", name: "カブの種", desc: "畑に植える種", category: "seed", price: 80 },
-  // ---- 作物（追加分） -----------------------------------------------------
   { id: "onion", name: "タマネギ", desc: "収穫した作物", category: "crop", price: 100, hunger: 6 },
   { id: "soybean", name: "大豆", desc: "収穫した作物", category: "crop", price: 100, hunger: 8 },
   {
@@ -1155,7 +1101,6 @@ export const ITEMS: readonly ItemDef[] = [
   { id: "pepper", name: "ピーマン", desc: "収穫した作物", category: "crop", price: 130, hunger: 6 },
   { id: "grape", name: "ブドウ", desc: "収穫した作物", category: "crop", price: 220, hunger: 14 },
   { id: "turnip", name: "カブ", desc: "収穫した作物", category: "crop", price: 100, hunger: 8 },
-  // ---- 製造品（追加分: 宝石細工・日用品） ---------------------------------
   { id: "rope", name: "ロープ", desc: "糸を編んだ実用品", category: "crafted", price: 320 },
   { id: "stone_statue", name: "石像", desc: "石を彫った像", category: "crafted", price: 900 },
   { id: "flower_wreath", name: "花冠", desc: "花を編んだ飾り", category: "crafted", price: 580 },
@@ -1182,7 +1127,6 @@ export const ITEMS: readonly ItemDef[] = [
     price: 1050,
     hunger: 20,
   },
-  // ---- 特殊（追加分: 遺跡・洞窟・ダンジョンの宝） -------------------------
   {
     id: "ancient_coin",
     name: "古い硬貨",
@@ -1226,7 +1170,6 @@ export const ITEMS: readonly ItemDef[] = [
     category: "special",
     price: 2800,
   },
-  // ---- 施設（追加分: 作業台・精密加工機・溶解炉等の特殊オブジェクト） --------
   {
     id: "workbench",
     name: "作業台",
@@ -1331,7 +1274,6 @@ export const ITEMS: readonly ItemDef[] = [
     price: 250,
     facility: true,
   },
-  // ---- ブロック（追加分2: 木種・石種・色ブロック） -----------------------
   {
     id: "sakura_log",
     name: "桜の原木",
@@ -1428,12 +1370,10 @@ export const ITEMS: readonly ItemDef[] = [
     price: 1350,
     durability: 12,
   },
-  // ---- 素材（追加分2） -----------------------------------------------------
   { id: "silk", name: "絹", desc: "なめらかな素材", category: "material", price: 360 },
   { id: "ceramic", name: "陶器", desc: "焼き物の素材", category: "material", price: 220 },
   { id: "gunpowder", name: "火薬", desc: "硫黄と石炭の粉", category: "material", price: 720 },
   { id: "milk", name: "ミルク", desc: "料理の素材", category: "material", price: 120 },
-  // ---- 種・作物（追加分2） ---------------------------------------------------
   { id: "chili_seed", name: "トウガラシの種", desc: "畑に植える種", category: "seed", price: 120 },
   { id: "lettuce_seed", name: "レタスの種", desc: "畑に植える種", category: "seed", price: 80 },
   {
@@ -1475,7 +1415,6 @@ export const ITEMS: readonly ItemDef[] = [
     price: 120,
     hunger: 8,
   },
-  // ---- 食事（追加分2） -------------------------------------------------------
   {
     id: "stir_fry",
     name: "野菜炒め",
@@ -1517,12 +1456,10 @@ export const ITEMS: readonly ItemDef[] = [
     price: 460,
     hunger: 20,
   },
-  // ---- 製造品（追加分2） -------------------------------------------------------
   { id: "ceramic_vase", name: "陶器の壺", desc: "焼き物の壺", category: "crafted", price: 1250 },
   { id: "silk_cloth", name: "絹布", desc: "絹を織った布", category: "crafted", price: 1350 },
   { id: "painting", name: "絵画", desc: "紙と花の絵", category: "crafted", price: 1100 },
   { id: "music_box", name: "オルゴール", desc: "音の出る小箱", category: "crafted", price: 1500 },
-  // ---- 特殊（追加分2: モブの落とし物） -----------------------------------------
   {
     id: "slime_core",
     name: "ジェルコア",
@@ -1531,7 +1468,6 @@ export const ITEMS: readonly ItemDef[] = [
     price: 1600,
   },
   { id: "wolf_fang", name: "オオカミの牙", desc: "大きな牙", category: "special", price: 1900 },
-  // ---- 家具（追加分2） -----------------------------------------------------------
   {
     id: "stone_fence",
     name: "石の柵",
@@ -1565,7 +1501,6 @@ export const ITEMS: readonly ItemDef[] = [
     facility: true,
   },
 
-  // ---- 母数拡充 第2弾（並行便 251種への追加分） ----
   { id: "chicken_meat", name: "鶏肉", desc: "焼くと食べられる", category: "material", price: 120 },
   {
     id: "spider_eye",
@@ -1992,13 +1927,7 @@ export const ITEMS: readonly ItemDef[] = [
   },
 ];
 
-/**
- * ドット絵アイコンを持つアイテムの ID 一覧。実体は
- * public/img/worldbox/items/<id>.png。
- * ここに無いアイテムはアイコンなし（UI は名前ラベルで出す）。
- */
 export const ITEM_ICON_IDS: readonly string[] = [
-  // 道具（4種×3段すべて）
   "wooden_axe",
   "stone_axe",
   "iron_axe",
@@ -2008,7 +1937,6 @@ export const ITEM_ICON_IDS: readonly string[] = [
   "wooden_hoe",
   "stone_hoe",
   "iron_hoe",
-  // 素材（すべて）
   "wood",
   "stone",
   "herb",
@@ -2030,7 +1958,6 @@ export const ITEM_ICON_IDS: readonly string[] = [
   "leather",
   "iron_ingot",
   "gold_ingot",
-  // ブロック（すべて）
   "dirt_block",
   "sand_block",
   "snow_block",
@@ -2064,7 +1991,6 @@ export const ITEM_ICON_IDS: readonly string[] = [
   "iron_block",
   "obsidian_block",
   "mithril_block",
-  // 種（すべて）
   "wheat_seed",
   "carrot_seed",
   "potato_seed",
@@ -2075,7 +2001,6 @@ export const ITEM_ICON_IDS: readonly string[] = [
   "rice_seed",
   "pumpkin_seed",
   "melon_seed",
-  // 作物・食事（一部）
   "wheat",
   "carrot",
   "tomato",
@@ -2085,7 +2010,6 @@ export const ITEM_ICON_IDS: readonly string[] = [
   "energy_drink",
   "meal",
   "cake",
-  // 製造品・特殊（一部）
   "lantern",
   "blanket",
   "potion",
@@ -2093,7 +2017,6 @@ export const ITEM_ICON_IDS: readonly string[] = [
   "tent",
   "accessory",
   "star_shard",
-  // 家具（すべて）
   "bench",
   "chair",
   "sign_board",
@@ -2109,7 +2032,6 @@ export const ITEM_ICON_IDS: readonly string[] = [
   "bookshelf",
   "sofa",
   "piano",
-  // 拡張分（ミスリル道具・金属/宝石素材・特殊ブロック）
   "mithril_axe",
   "mithril_pickaxe",
   "mithril_hoe",
@@ -2143,7 +2065,6 @@ export const ITEM_ICON_IDS: readonly string[] = [
   "flower_block",
   "pumpkin_block",
   "melon_block",
-  // 拡張分（食事・種・作物）
   "egg",
   "raw_meat",
   "mushroom",
@@ -2172,7 +2093,6 @@ export const ITEM_ICON_IDS: readonly string[] = [
   "pepper",
   "grape",
   "turnip",
-  // 拡張分（製造品・特殊・施設）
   "rope",
   "stone_statue",
   "flower_wreath",
@@ -2200,7 +2120,6 @@ export const ITEM_ICON_IDS: readonly string[] = [
   "cooking_pot",
   "flower_pot",
   "auto_harvester",
-  // 拡張分2
   "sakura_log",
   "dark_log",
   "mossy_stone_block",
@@ -2241,7 +2160,6 @@ export const ITEM_ICON_IDS: readonly string[] = [
   "iron_fence",
   "wooden_gate",
   "rug",
-  // 母数拡充 第2弾（全種アイコンつき）
   "chicken_meat",
   "spider_eye",
   "turtle_scute",
@@ -2329,15 +2247,11 @@ export function itemById(id: unknown): ItemDef | null {
   return typeof id === "string" ? (ITEM_BY_ID.get(id) ?? null) : null;
 }
 
-/** 売却価格（販売価格の6割）。 */
 export const SELL_RATE = 0.6;
 export function sellPrice(item: ItemDef): number {
   return Math.max(1, Math.floor(item.price * SELL_RATE));
 }
 
-// ---------------------------------------------------------------- 製造
-// ボット側と同じ「2種の素材を組み合わせる」方式。
-/** レシピの種別。どの設置物/施設で作れるかの判定に使う（未指定は "craft"）。 */
 export type RecipeKind = "craft" | "smelt" | "cook" | "weave";
 
 export type Recipe = {
@@ -2345,9 +2259,7 @@ export type Recipe = {
   inputs: Readonly<Record<string, number>>;
   output: string;
   outputCount: number;
-  /** 種別（未指定は "craft" = 作業台/製造・R&D拠点）。精錬は "smelt"、調理は "cook"、織りは "weave"。 */
   kind?: RecipeKind;
-  /** 成功時に追加でレアアイテムが落ちる確率（0〜1）。 */
   rareItem?: string;
   rareChance?: number;
 };
@@ -2383,7 +2295,6 @@ export const RECIPES: readonly Recipe[] = [
   },
   { id: "bread", inputs: { wheat: 2 }, output: "bread", outputCount: 1, kind: "cook" },
   { id: "crown", inputs: { accessory: 1, mithril: 1 }, output: "crown", outputCount: 1 },
-  // 道具（木柄/グラスファイバー/スチール × 斧/ツルハシ/クワ）
   { id: "wooden_axe", inputs: { wood: 3, stick: 2 }, output: "wooden_axe", outputCount: 1 },
   { id: "wooden_pickaxe", inputs: { wood: 3, stick: 2 }, output: "wooden_pickaxe", outputCount: 1 },
   { id: "wooden_hoe", inputs: { wood: 2, stick: 2 }, output: "wooden_hoe", outputCount: 1 },
@@ -2393,7 +2304,6 @@ export const RECIPES: readonly Recipe[] = [
   { id: "iron_axe", inputs: { iron_ore: 3, stick: 2 }, output: "iron_axe", outputCount: 1 },
   { id: "iron_pickaxe", inputs: { iron_ore: 3, stick: 2 }, output: "iron_pickaxe", outputCount: 1 },
   { id: "iron_hoe", inputs: { iron_ore: 2, stick: 2 }, output: "iron_hoe", outputCount: 1 },
-  // ブロック
   { id: "planks_block", inputs: { wood: 2 }, output: "planks_block", outputCount: 1 },
   { id: "stone_brick_block", inputs: { stone: 4 }, output: "stone_brick_block", outputCount: 1 },
   { id: "brick_block", inputs: { clay: 4 }, output: "brick_block", outputCount: 1 },
@@ -2402,7 +2312,6 @@ export const RECIPES: readonly Recipe[] = [
   { id: "hay_bale", inputs: { wheat: 4 }, output: "hay_bale", outputCount: 1 },
   { id: "bone_block", inputs: { bone: 4 }, output: "bone_block", outputCount: 1 },
   { id: "wool_block", inputs: { cloth: 2 }, output: "wool_block", outputCount: 1 },
-  // 作物料理
   { id: "grilled_corn", inputs: { corn: 1 }, output: "grilled_corn", outputCount: 1, kind: "cook" },
   { id: "corn_soup", inputs: { corn: 2 }, output: "corn_soup", outputCount: 1, kind: "cook" },
   { id: "salad", inputs: { cabbage: 1, tomato: 1, carrot: 1 }, output: "salad", outputCount: 1 },
@@ -2413,7 +2322,6 @@ export const RECIPES: readonly Recipe[] = [
     outputCount: 1,
     kind: "cook",
   },
-  // 家具
   { id: "bench", inputs: { wood: 2 }, output: "bench", outputCount: 1 },
   { id: "chair", inputs: { wood: 2 }, output: "chair", outputCount: 1 },
   { id: "crate", inputs: { wood: 3 }, output: "crate", outputCount: 1 },
@@ -2435,7 +2343,6 @@ export const RECIPES: readonly Recipe[] = [
     kind: "weave",
   },
   { id: "piano", inputs: { wood: 5, iron_ore: 2 }, output: "piano", outputCount: 1 },
-  // 道具（チタン合金段位）
   { id: "mithril_axe", inputs: { mithril: 3, stick: 2 }, output: "mithril_axe", outputCount: 1 },
   {
     id: "mithril_pickaxe",
@@ -2450,7 +2357,6 @@ export const RECIPES: readonly Recipe[] = [
     outputCount: 2,
   },
   { id: "mithril_hoe", inputs: { mithril: 2, stick: 2 }, output: "mithril_hoe", outputCount: 1 },
-  // ブロック（金属・宝石・自然素材）
   { id: "copper_block", inputs: { copper_ingot: 4 }, output: "copper_block", outputCount: 1 },
   { id: "coal_block", inputs: { coal: 4 }, output: "coal_block", outputCount: 1 },
   { id: "diamond_block", inputs: { diamond: 4 }, output: "diamond_block", outputCount: 1 },
@@ -2459,7 +2365,6 @@ export const RECIPES: readonly Recipe[] = [
   { id: "sapphire_block", inputs: { sapphire: 4 }, output: "sapphire_block", outputCount: 1 },
   { id: "honey_block", inputs: { honey: 4 }, output: "honey_block", outputCount: 1 },
   { id: "mushroom_block", inputs: { mushroom: 4 }, output: "mushroom_block", outputCount: 1 },
-  // 調理（追加分）
   { id: "cookie", inputs: { wheat: 2, honey: 1 }, output: "cookie", outputCount: 1, kind: "cook" },
   {
     id: "grilled_meat",
@@ -2485,7 +2390,6 @@ export const RECIPES: readonly Recipe[] = [
     kind: "cook",
   },
   { id: "honey_candy", inputs: { honey: 2 }, output: "honey_candy", outputCount: 1, kind: "cook" },
-  // 製造品（追加分）
   { id: "rope", inputs: { string: 2 }, output: "rope", outputCount: 1 },
   { id: "stone_statue", inputs: { stone: 5 }, output: "stone_statue", outputCount: 1 },
   { id: "flower_wreath", inputs: { flower: 3, fiber: 1 }, output: "flower_wreath", outputCount: 1 },
@@ -2503,7 +2407,6 @@ export const RECIPES: readonly Recipe[] = [
     output: "pearl_necklace",
     outputCount: 1,
   },
-  // 施設（作業台・精密加工機・溶解炉等）
   { id: "workbench", inputs: { wood: 4 }, output: "workbench", outputCount: 1 },
   {
     id: "smithing_table",
@@ -2527,7 +2430,6 @@ export const RECIPES: readonly Recipe[] = [
     outputCount: 1,
   },
   { id: "flower_pot", inputs: { clay: 2 }, output: "flower_pot", outputCount: 1 },
-  // 拡張分2（ブロック・料理・製造品）
   {
     id: "mossy_stone_block",
     inputs: { stone: 2, fiber: 1 },
@@ -2584,7 +2486,6 @@ export const RECIPES: readonly Recipe[] = [
   { id: "wooden_gate", inputs: { wood: 3, stick: 2 }, output: "wooden_gate", outputCount: 1 },
   { id: "rug", inputs: { cloth: 2, string: 1 }, output: "rug", outputCount: 1 },
 
-  // 母数拡充 第2弾のレシピ
   { id: "cooked_meat", inputs: { raw_meat: 1 }, output: "cooked_meat", outputCount: 1 },
   { id: "grilled_chicken", inputs: { chicken_meat: 1 }, output: "grilled_chicken", outputCount: 1 },
   { id: "sashimi", inputs: { fish: 2 }, output: "sashimi", outputCount: 1 },
@@ -2705,7 +2606,6 @@ export const RECIPES: readonly Recipe[] = [
     outputCount: 1,
   },
   { id: "ago_emblem", inputs: { mithril: 1, gold_ingot: 1 }, output: "ago_emblem", outputCount: 1 },
-  // 精錬（溶解炉）: 鉱石をインゴットにする。木炭は木を焼く
   {
     id: "iron_ingot",
     inputs: { iron_ore: 2, coal: 1 },
@@ -2728,7 +2628,6 @@ export const RECIPES: readonly Recipe[] = [
     kind: "smelt",
   },
   { id: "charcoal", inputs: { wood: 2 }, output: "charcoal", outputCount: 1, kind: "smelt" },
-  // 織り（織機）: 繊維から糸と布を作る
   { id: "string", inputs: { fiber: 2 }, output: "string", outputCount: 1, kind: "weave" },
   { id: "cloth", inputs: { fiber: 3 }, output: "cloth", outputCount: 1, kind: "weave" },
 ];
@@ -2737,50 +2636,28 @@ export function recipeById(id: unknown): Recipe | null {
   return typeof id === "string" ? (RECIPES.find((r) => r.id === id) ?? null) : null;
 }
 
-/** レシピの種別（未指定は "craft"）。 */
 export function recipeKind(recipe: Recipe): RecipeKind {
   return recipe.kind ?? "craft";
 }
 
-// ---------------------------------------------------------------- steal
-// ボット側の規則をワールドボックスの経済規模に合わせて
-// 縮小したもの（成功率・割合の考え方は同じ）。
-/** steal の成功率。 */
 export const STEAL_SUCCESS_RATE = 0.4;
-/** 奪える額 = 対象の所持金 × この割合（上限つき）。 */
 export const STEAL_BALANCE_RATE = 0.05;
-/** 奪える額の絶対上限。 */
 export const STEAL_MAX_AMOUNT = 50;
-/** 対象の所持金がこれ未満なら保護されて盗めない。 */
 export const STEAL_TARGET_MIN_COINS = 50;
-/** 失敗時に相手へ払う罰金。 */
 export const STEAL_FINE_AMOUNT = 20;
-/** steal 実行者のクールダウン（秒）。 */
 export const STEAL_ACTOR_COOLDOWN_SECONDS = 600;
-/** steal された人の保護期間（秒）。 */
 export const STEAL_TARGET_COOLDOWN_SECONDS = 3600;
-/** 目出しマスク所持時の成功率ボーナス。 */
 export const THIEF_MASK_BONUS = 0.15;
 
-// ---------------------------------------------------------------- 労働
-/** 労働1回の空腹度コストと報酬（仕様書の「労働」）。 */
 export const WORK_HUNGER_COST = 10;
 export const WORK_REWARD_COINS = 20;
 
-// ---------------------------------------------------------------- 作物
-// 畑は「設置」ではなく、地面を耕して好きな作物を植える。種アイテムを
-// 消費し、growthMinutes 経つと produceId を produceCount 個収穫できる。
 export type CropDef = {
   id: string;
-  /** 植える種アイテム。 */
   seedId: string;
-  /** 収穫で得られるアイテム。 */
   produceId: string;
-  /** 植えてから収穫できるまでの分数。 */
   growthMinutes: number;
-  /** 適季（この季節は速く育つ。反対の季節は遅い）。 */
   season?: "spring" | "summer" | "autumn" | "winter";
-  /** 1株からの収穫数。 */
   produceCount: number;
 };
 
@@ -2961,7 +2838,6 @@ export const CROPS: readonly CropDef[] = [
     produceCount: 2,
     season: "winter",
   },
-  // 母数拡充 第2弾
   {
     id: "daikon",
     seedId: "daikon_seed",
@@ -3004,7 +2880,6 @@ export function cropBySeedId(seedId: unknown): CropDef | null {
   return typeof seedId === "string" ? (CROPS.find((c) => c.seedId === seedId) ?? null) : null;
 }
 
-/** その種類の道具アイテム（素材段位の昇順）。 */
 export function itemsWithTool(kind: ToolKind): ItemDef[] {
   return ITEMS.filter((i) => i.tool === kind).sort((a, b) => (a.tier ?? 0) - (b.tier ?? 0));
 }

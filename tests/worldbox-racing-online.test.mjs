@@ -1,8 +1,3 @@
-// AGO WORLD BOX 競馬の永続化・精算・経済配線の検証:
-// - 人気集計は実馬券だけを数える
-// - 精算: 先払い done の的中馬券だけ gamble オプが1回積まれ、failed は無効、
-//   pending は次回へ回る（カジノと同じ先払いゲート規則）
-// - gamble 理由 horse_racing が TS/Python 両側のホワイトリストで一致する
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";

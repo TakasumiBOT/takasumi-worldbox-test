@@ -1,10 +1,3 @@
-// AGO WORLD BOX 演出基盤（アニメーション/モーション/パーティクル）の検証:
-// - バースト生成（種類ごとの粒数・上限・決定的乱数）
-// - 粒の物理（寿命で消える・重力・減衰）と残り割合
-// - 環境パーティクル（雪/落葉/花粉/蛍の選択と生成）
-// - 画面の揺れ（最初に強く収束し、終われば 0）
-// - 出現ポップ（0.55 から行き過ぎて 1 に収まる）とスイング/風切り
-// - クライアント配線（成功イベント→粒、スイング、揺れ、環境粒、ポップ）
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -137,16 +130,15 @@ test("fx: 粒は寿命で消え、重力で落ち、残り割合が減る", () =
   const r0 = fx.fxLifeRatio(p0);
   fx.stepFx(sys, 0.1);
   assert.ok(fx.fxLifeRatio(sys.particles[0]) < r0);
-  // 十分な時間が過ぎれば全部消える
   for (let i = 0; i < 40; i++) fx.stepFx(sys, 0.05);
   assert.equal(sys.particles.length, 0);
   assert.ok(Number.isFinite(y0));
 });
 
 test("fx: 環境粒の種類選択（雪 > 森 > 夜 > 花粉）", () => {
-  assert.equal(fx.ambientKindFor(6, false, 0), "snow"); // T_SNOW
-  assert.equal(fx.ambientKindFor(7, true, 0), "snow"); // T_SNOW_TREE
-  assert.equal(fx.ambientKindFor(0, true, 0), "leaf"); // 草地だが木のそば
+  assert.equal(fx.ambientKindFor(6, false, 0), "snow");
+  assert.equal(fx.ambientKindFor(7, true, 0), "snow");
+  assert.equal(fx.ambientKindFor(0, true, 0), "leaf");
   assert.equal(fx.ambientKindFor(0, false, 0.8), "firefly");
   assert.equal(fx.ambientKindFor(0, false, 0), "pollen");
 });
@@ -172,7 +164,6 @@ test("fx: 揺れは最初に強く、収束して 0 に戻る", () => {
   assert.ok(Math.abs(early.x) + Math.abs(early.y) > 0);
   assert.ok(Math.abs(late.x) <= 3 && Math.abs(late.y) <= 3);
   assert.deepEqual(fx.shakeOffsetAt(shake, 1200), { x: 0, y: 0 });
-  // 弱い揺れでは強い揺れを上書きしない
   const strong = fx.startShake(shake, 1, 1010, 180);
   assert.equal(strong.amp, 3);
 });
@@ -274,7 +265,6 @@ test("fx2: phaseKind の境界（daynight の夜判定と整合）", () => {
   assert.equal(fx.phaseKind(0.85), "dusk");
   assert.equal(fx.phaseKind(0.86), "night");
   assert.equal(fx.phaseKind(0.95), "night");
-  // 正規化: 1 を超えても・負でも同じ位相に落ちる
   assert.equal(fx.phaseKind(1.5), "day");
   assert.equal(fx.phaseKind(-0.5), "day");
 });
@@ -304,7 +294,6 @@ test("fx2: クライアント配線（空振り・天候・時間帯）", () => 
     path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
     "utf8",
   );
-  // 失敗分岐（タイル行為など）が whiff を push する（成功バーストは出さない）
   const whiffPushes =
     client.match(
       /fxEventsRef\.current\.push\(\{\s*kind: "whiff"|fxEventsRef\.current\.push\(\{\n\s*kind: "whiff"/g,
@@ -314,13 +303,10 @@ test("fx2: クライアント配線（空振り・天候・時間帯）", () => 
   assert.match(client, /whiff: true/, "whiff スイングを立てる");
   assert.match(client, /WHIFF_ALPHA_SCALE/, "空振りは風切りを薄くする");
   assert.match(client, /swing\.whiff \? 1\.5 : 3/, "空振りは風切りを細くする");
-  // whiff 分岐は spawnBurst より前にあり、continue で成功粒を出さない構造
   const drainAt = client.indexOf('ev.kind === "whiff"');
   const burstAt = client.indexOf("spawnBurst(fxSys, ev.kind");
   assert.ok(drainAt >= 0 && burstAt > drainAt, "whiff 判定が成功バーストより前");
-  // モブイベントの経路は存在しない（モブ撤去）
   assert.ok(!client.includes("spawnMobFx"), "モブ演出が残っている");
-  // 天候と時間帯を環境粒に使う
   assert.match(client, /weatherBlendAt\(nowSec\)/, "天候は決定的サイクル＋境界ブレンドから取る");
   assert.match(client, /weatherAmbientKind\(/, "環境粒の種類に天候を反映する");
   assert.match(client, /phaseKind\(phase\)/, "時間帯の切り替わりを検出する");
@@ -329,7 +315,6 @@ test("fx2: クライアント配線（空振り・天候・時間帯）", () => 
 
 test("fx3: 天候ブレンドは境界で線形に混ざり、区間の途中では一定になる", () => {
   const P = fx.WEATHER_PERIOD_SEC;
-  // 天候が切り替わる境界を探す（決定的なので必ず見つかる）
   let flipIdx = -1;
   let cur = null;
   for (let idx = 1; idx < 500 && flipIdx < 0; idx++) {
@@ -343,17 +328,14 @@ test("fx3: 天候ブレンドは境界で線形に混ざり、区間の途中で
   assert.ok(flipIdx > 0, "天候の切り替わり境界が存在する");
   const start = flipIdx * P;
   const full = cur === "rain" ? 1 : 0;
-  // 境界の瞬間は前区間の強さ（反対側）
   const at0 = fx.weatherBlendAt(start);
   assert.equal(at0.weather, cur);
   assert.ok(
     Math.abs(at0.rainStrength - (1 - full)) < 1e-9,
     `境界直後は前区間の強さ (実測 ${at0.rainStrength})`,
   );
-  // ブレンドの中点は 0.5
   const mid = fx.weatherBlendAt(start + fx.WEATHER_BLEND_SEC / 2);
   assert.ok(Math.abs(mid.rainStrength - 0.5) < 1e-9, `中点は 0.5 (実測 ${mid.rainStrength})`);
-  // ブレンドを過ぎたら現区間の強さで一定
   for (const t of [start + fx.WEATHER_BLEND_SEC, start + P / 2, start + P - 1]) {
     const b = fx.weatherBlendAt(t);
     assert.equal(b.weather, cur);
@@ -362,7 +344,6 @@ test("fx3: 天候ブレンドは境界で線形に混ざり、区間の途中で
       `区間内は一定 (t=${t}, 実測 ${b.rainStrength})`,
     );
   }
-  // 決定的（同じ時刻は同じ結果）
   assert.deepEqual(fx.weatherBlendAt(start + 7), fx.weatherBlendAt(start + 7));
 });
 
@@ -378,7 +359,6 @@ test("fx3: 素材パレットは対象 ID から素材色を返し、不明な�
   assert.equal(fx.burstPaletteFor("mystery_lump"), null, "不明な素材は既定色に任せる");
   assert.equal(fx.burstPaletteFor(null), null);
   assert.equal(fx.burstPaletteFor(undefined), null);
-  // 具体的な素材が汎用より優先される（ミスリル鉱脈が石色にならない）
   assert.ok(!fx.burstPaletteFor("mithril_vein")?.includes("#55555c"));
 });
 
@@ -399,15 +379,12 @@ test("fx3: クライアント配線（素材パレット・クリックSE・パ�
     path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
     "utf8",
   );
-  // ヒットストップは存在しない（戦闘撤去）
   assert.ok(!client.includes("hitstop"), "ヒットストップが残っている");
   assert.match(client, /stepMove\(activeMap\(\), player, vel, sdt/, "プレイヤー移動は sdt で進む");
-  // 素材パレット: 地表オブジェクト・設置ブロック・洞窟の鉱脈に配線
   assert.match(client, /burstPaletteFor\(objectId\)/, "地表オブジェクトの破片が素材色になる");
   assert.match(client, /burstPaletteFor\(prevBlockId\)/, "設置ブロックの破片が素材色になる");
   assert.match(client, /fxObjectId: vein\.objectId/, "洞窟の鉱脈タップが素材を渡す");
   assert.match(client, /colors: ev\.colors/, "fx イベントのパレットがバーストへ渡る");
-  // クリック SE の一本化（シェルの capture）と固有 SE 領域の除外マーカー
   assert.match(client, /onClickCapture/, "シェルがボタン押下を捕捉して click SE を鳴らす");
   assert.match(
     client,
@@ -415,7 +392,6 @@ test("fx3: クライアント配線（素材パレット・クリックSE・パ�
     "固有 SE の領域を除外するマーカーがある",
   );
   assert.match(client, /playWbSe\("click"\)/, "捕捉側が click SE を鳴らす");
-  // パネル出現アニメーション（globals.css の共通クラス）
   const css = fs.readFileSync(path.join(rootDir, "app/globals.css"), "utf8");
   assert.match(css, /@keyframes wb-panel-in/, "パネル出現のキーフレームがある");
   assert.match(
@@ -423,7 +399,6 @@ test("fx3: クライアント配線（素材パレット・クリックSE・パ�
     /\.wb-shell \.wb-panel \{[^}]*animation: wb-panel-in/,
     "全パネル共通で出現アニメーションが付く",
   );
-  // 固有 SE を持つパネルはマーカーで除外される
   for (const name of [
     "WorldBoxEconomyPanel.tsx",
     "WorldBoxCasinoPanel.tsx",

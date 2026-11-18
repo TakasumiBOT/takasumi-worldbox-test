@@ -1,7 +1,3 @@
-// AGO WORLD BOX 地形 HP・道具耐久・道具の棲み分けの検証（2026-11-17）:
-// - 岩・木は HP 制（ミスリルでも岩は1発で壊れない）
-// - 道具は使うたびに摩耗し、尽きたら壊れる（カタログの durability が正）
-// - 剣はブロック採掘に使えない（ピッケル枠に入らない）
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -112,23 +108,18 @@ function findTile(id, sx = 60, sy = 60) {
 const rockAt = findTile(T.T_ROCK);
 const grassAt = findTile(T.T_GRASS, 300, 300);
 
-// ---------- 道具の耐久（profile 層） ----------
-
 test("耐久: wearTool は最良の道具から削れ、尽きたら1本壊れて次が満タンになる", () => {
   const p = withItems({ wooden_pickaxe: 1, mithril_pickaxe: 1 });
-  // 最良（ミスリル）が使われる
   assert.equal(inv.bestToolItem(p, "pickaxe").id, "mithril_pickaxe");
   const w1 = inv.wearTool(p, "pickaxe");
   assert.equal(w1.brokeItemId, null);
   assert.equal(inv.toolHpOf(w1.profile, "mithril_pickaxe"), 499);
   assert.equal(inv.toolHpOf(w1.profile, "wooden_pickaxe"), 60, "使っていない道具は減らない");
-  // 残り1まで削ってから使うと壊れる
   const almost = withItems({ wooden_pickaxe: 2 }, { toolHp: { wooden_pickaxe: 1 } });
   const w2 = inv.wearTool(almost, "pickaxe");
   assert.equal(w2.brokeItemId, "wooden_pickaxe");
   assert.equal(inv.countItem(w2.profile, "wooden_pickaxe"), 1, "壊れたのは1本だけ");
   assert.equal(inv.toolHpOf(w2.profile, "wooden_pickaxe"), 60, "次の1本は満タン");
-  // 道具が無ければ無変化
   const w3 = inv.wearTool(withItems({}), "pickaxe");
   assert.equal(w3.brokeItemId, null);
 });
@@ -146,8 +137,6 @@ test("耐久: toolHp は parse/serialize を往復し、不正値は落ちる", 
   assert.equal(inv.toolDurabilityFraction(p, "iron_axe"), 100 / 250);
   assert.equal(inv.toolDurabilityFraction(p, "wood"), null, "道具でないものは null");
 });
-
-// ---------- 地形 HP と行為の配線 ----------
 
 test("地形HP: 岩はミスリルでも1発で壊れず、ヒットでツルハシが摩耗する", () => {
   const p = withItems({ mithril_pickaxe: 1 });
@@ -173,7 +162,6 @@ test("地形HP: 岩はミスリルでも1発で壊れず、ヒットでツルハ
     NOW,
   );
   assert.equal(hit2.override.tile, T.T_DIRT);
-  // 石材は基本2＋その土地の純度ボーナス（個体値）。石炭も混ざることがある
   const rockIvs = T.tileIvsAt(rockAt.x, rockAt.y);
   const expectedGained = { stone: 2 + T.purityBonusStone(rockIvs.purity) };
   if (T.purityBonusCoal(rockIvs.purity) > 0) expectedGained.coal = 1;
@@ -186,7 +174,6 @@ test("地形HP: 残り耐久1のツルハシは掘った瞬間に壊れて結果
   assert.equal(hit.ok, true);
   assert.equal(hit.broke, "wooden_pickaxe");
   assert.equal(inv.countItem(hit.profile, "wooden_pickaxe"), 0);
-  // ツルハシが無くなれば次は掘れない
   const next = T.applyTileAction(
     hit.override,
     hit.profile,
@@ -217,8 +204,6 @@ test("地形HP: 耕すとクワが摩耗する", () => {
   assert.equal(tilled.ok, true);
   assert.equal(inv.toolHpOf(tilled.profile, "wooden_hoe"), 59);
 });
-
-// ---------- ブロック採掘の摩耗と棲み分け ----------
 
 test("ブロック採掘: ダメージ源の道具が摩耗する（柔らかいブロック×斧）", () => {
   const p = withItems({ dirt_block: 1, wooden_axe: 1 });
@@ -256,7 +241,6 @@ test("棲み分け: 自分のブロックでも剣・クワでは掘れず、斧
   assert.equal(T.actionForTile(view, { tool: "hoe" }), null, "クワでも掘れない");
   assert.deepEqual(T.actionForTile(view, { tool: "axe" }), { action: "mine_block" });
   assert.deepEqual(T.actionForTile(view, { tool: "pickaxe" }), { action: "mine_block" });
-  // 門は剣タップで開閉に戻る（採掘優先にならない）
   const gate = { ...view, block: { itemId: "wooden_gate", mine: true, hpFrac: 1 } };
   assert.deepEqual(T.actionForTile(gate, { tool: "sword" }), { action: "toggle_gate" });
   assert.deepEqual(T.actionForTile(gate, { tool: "pickaxe" }), { action: "mine_block" });

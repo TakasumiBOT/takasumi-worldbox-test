@@ -33,15 +33,6 @@ import { loadMyLobbyStation } from "@/lib/worldbox/world/station-online";
 
 export const runtime = "nodejs";
 
-// AGO WORLD BOX の競馬（ロビー競馬場、LHA 統合 Phase 1）。
-// 通常レースは30分間隔で自動開催され、出走表・着順・オッズは
-// racing.ts の決定的ロジックからいつでも再計算できる（保存しない）。
-// 馬券の購入は馬券カウンター（station "race"）の前にいるときだけ。
-// お金は経済ブリッジ経由のみ: 購入 = spend 先払い（race-bet-<betId>）、
-// 的中 = prepaid gamble（race-settle-<betId>、理由 horse_racing）。
-// GET: { balance, next, running, last, myBets }
-// POST: { action: "bet", postMs, horseId, type, amount, clientBetId }
-
 const NO_STORE = { "Cache-Control": "no-store, max-age=0" };
 
 const userLocks = new Map<string, Promise<void>>();
@@ -99,7 +90,6 @@ function publicBet(bet: RaceBet) {
   };
 }
 
-/** 終了した自分の馬券を精算し、保存まで済ませた最新の馬券一覧を返す。 */
 async function settleAndLoad(ctx: Ctx): Promise<RaceBet[]> {
   const bets = await loadMyBets(ctx.userKey);
   const { bets: settled, changed } = await settleMyBets(
@@ -143,7 +133,6 @@ async function handleGet(session: AuthedSession) {
   const myBets = await settleAndLoad(ctx);
   const sched = scheduleAt(now);
 
-  // 次走（出走表 + オッズ + 人気 + 近走）
   const nextCore = generateRaceCore(sched.nextPostMs);
   const [nextOdds, popularity] = await Promise.all([
     loadOrEstimateOdds(sched.nextPostMs),
@@ -172,7 +161,6 @@ async function handleGet(session: AuthedSession) {
     })),
   };
 
-  // 演出中のレース（観戦アニメ用: 出走表だけ渡し、位置はクライアントが pose で作る）
   const runningCore = sched.runningPostMs !== null ? generateRaceCore(sched.runningPostMs) : null;
   const running =
     runningCore !== null && sched.runningPostMs !== null
@@ -189,7 +177,6 @@ async function handleGet(session: AuthedSession) {
         }
       : null;
 
-  // 直近の結果
   const lastCore = generateRaceCore(sched.lastPostMs);
   const last = {
     postMs: sched.lastPostMs,
@@ -270,7 +257,6 @@ async function handlePost(request: Request, session: AuthedSession) {
   const bets = await loadMyBets(ctx.userKey);
   const existing = bets.find((b) => b.betId === betId);
   if (existing) {
-    // 同じ購入意図のリトライ: 二重に買わず既存を返す。
     return NextResponse.json(
       { ok: true, bet: publicBet(existing), duplicated: true },
       { headers: NO_STORE },

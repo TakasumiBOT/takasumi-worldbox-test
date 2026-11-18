@@ -1,16 +1,3 @@
-// AGO WORLD BOX のプレイヤープロフィール（純粋ロジック）。
-// 個人データ:
-// 空腹度（hunger, 0〜100）と steal のクールダウン時刻に、手持ちの
-// インベントリ（ホットバー5枠＝すぐ使う手持ち、ストレージ10枠＝
-// 持ち歩く裏の手持ち。マイクラ式）を加えたもの。
-// 所持金の正は AGO コイン本体（economy-bridge / 案B）であり、
-// coins フィールドは旧ローカル残高の互換のため読み込みだけ許容し、
-// ロジック・表示では一切使わない（書き戻しても値はそのまま）。
-// items フィールドは「スロット＋あふれ分」の集計ビューとして常に
-// 同期される（読み取り専用のつもりで扱うこと）。保存・通信は
-// profile-online.ts / API ルート側が担い、ここは検証とインベントリ
-// 操作だけを行う。経済の状態遷移は economy.ts。
-/** 冒険役職 ID（プロフィールが所有する。規則は roles.ts）。 */
 export type AdventureRoleId =
   | "free"
   | "blade"
@@ -34,72 +21,39 @@ export function isAdventureRoleId(v: unknown): v is AdventureRoleId {
 }
 import { ITEMS, itemById, type ItemDef, type ToolKind } from "../economy/items";
 
-/** 空腹度の上限（0〜100）。 */
 export const HUNGER_MAX = 100;
 
-/** 持続効果の種類（食事バフ）。 */
 export type StatusKind = "warm" | "alert";
-/** 持続効果1件（終了時刻つき）。 */
 export type StatusEffect = { kind: StatusKind; until: number };
-/** 旧ローカル残高の初期値（互換のためだけに残す。実残高はブリッジ側）。 */
 export const STARTING_COINS = 100;
 
-/** ホットバーの枠数（すぐ使える手持ち）。 */
 export const HOTBAR_SLOTS = 5;
-/** ストレージの枠数（持ち歩く裏の手持ち）。 */
 export const STORAGE_SLOTS = 10;
-/** 1枠に積める最大数。 */
 export const STACK_MAX = 99;
 
-/** インベントリの1枠。空きは null。 */
 export type ItemSlot = { id: string; count: number } | null;
 
 export type PlayerProfile = {
-  /** 廃止: 旧ローカル残高。読み込み互換のためだけに保持し、使わない。 */
   coins: number;
   hunger: number;
-  /** 持続効果（食事バフなど）。 */
   status: StatusEffect[];
-  /** バイタル（空腹）を最後に精算した時刻（epoch ms）。0 は未精算。 */
   vitalAt: number;
-  /** 前回バイタル精算時の位置と空間（空腹の活動判定用。未記録は undefined）。 */
   vitalX?: number;
   vitalY?: number;
   vitalSpace?: string;
-  /** 集計ビュー: 全アイテムID → 総所持数（スロット＋あふれ分）。 */
   items: Record<string, number>;
-  /** ホットバー（すぐ使う手持ち、HOTBAR_SLOTS 枠）。 */
   hotbar: ItemSlot[];
-  /** ストレージ（持ち歩く裏の手持ち、STORAGE_SLOTS 枠）。 */
   storage: ItemSlot[];
-  /** 最後に steal を実行した時刻（epoch ms）。 */
   stealActorAt: number;
-  /** 最後に steal された時刻（epoch ms）。 */
   stealTargetAt: number;
-  /** 冒険役職（自由人/剣士/守護/斥候/採掘者/薬師/テレポーター）。 */
   role: AdventureRoleId;
-  /** 一度でも役職を選んだか（転職コストの初回無料判定。旧データで
-   * role が free でない人は選んだものとして読み込み時に補う）。 */
   rolePicked: boolean;
-  /** 役職ごとの熟練 XP（ランクは roles.rankForXp で導出）。 */
   mastery: Partial<Record<AdventureRoleId, { xp: number }>>;
-  /** 技ごとの最終発動時刻（epoch ms）。クールタイム検証はサーバー側。 */
   skillAt: Record<string, number>;
-  /** テント（個人空間）の拡張段階 0..2。 */
   tentTier: number;
-  /** 道具の強化レベル（アイテム ID → 0..3）。 */
   enhance: Record<string, number>;
-  /**
-   * 道具の残り耐久（アイテム ID → その種類の「使用中の1本」の残量）。
-   * 所持数はスタック（個数）管理のため、個体ごとの耐久は持たず、
-   * 種類ごとに使用中の1本の残量だけを追う。未記録は満タン扱い。
-   * 0 になったら1本壊れて消え、次の1本が満タンで使用中になる。
-   */
   toolHp: Record<string, number>;
-  /** 自分で発見した合成レシピの ID（自由セット式の合成で完全一致した分だけ。
-   * 任意・後方互換: 旧データには無い）。本人の図鑑表示にだけ使う。 */
   discoveredRecipes?: string[];
-  /** 移動先の予約（パーティ集合など。次回 sync でクライアントが適用し、サーバーが消す）。 */
   pendingTeleport: { space: string; x: number; y: number } | null;
 };
 
@@ -133,12 +87,6 @@ function clampInt(v: unknown, min: number, max: number, fallback: number): numbe
   return Math.max(min, Math.min(max, Math.floor(v)));
 }
 
-/**
- * HP・空腹度用の小数保持クランプ。精算（15秒間隔）ごとに整数化すると
- * 1回ぶんの減少（放置で約0.1）が毎回切り捨て/切り上げられて実効レートが
- * 仕様から大きくずれる（放置でも約25分で空腹が空になった実害）。
- * 端数は保持し、小数第3位までで丸めて保存ノイズだけ抑える。
- */
 function clampVital(v: unknown, min: number, max: number, fallback: number): number {
   if (typeof v !== "number" || !Number.isFinite(v)) return fallback;
   return Math.round(Math.max(min, Math.min(max, v)) * 1000) / 1000;
@@ -148,7 +96,7 @@ function parseItems(raw: unknown): Record<string, number> {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
   const items: Record<string, number> = {};
   for (const [id, count] of Object.entries(raw as Record<string, unknown>)) {
-    if (!itemById(id)) continue; // 定義が無いアイテムは捨てる
+    if (!itemById(id)) continue;
     const n = clampInt(count, 0, 9999, 0);
     if (n > 0) items[id] = n;
   }
@@ -163,7 +111,6 @@ function parseSlot(raw: unknown): ItemSlot {
   return n > 0 ? { id: v.id as string, count: n } : null;
 }
 
-/** 枠配列を読む。配列でなければ null（＝旧形式で移行が必要）。 */
 function parseSlots(raw: unknown, size: number): ItemSlot[] | null {
   if (!Array.isArray(raw)) return null;
   const out = emptySlots(size);
@@ -177,10 +124,6 @@ function slotTotal(slots: readonly ItemSlot[], itemId: string): number {
   return n;
 }
 
-/**
- * 集計（総数）から枠へ注ぐ（移行用）。枠に入りきらない分は集計側に
- * 「あふれ分」として残るため、総数は変わらない（ロスレス）。
- */
 function pourIntoSlots(
   totals: Record<string, number>,
   hotbar: ItemSlot[],
@@ -205,7 +148,6 @@ function pourIntoSlots(
         remaining -= put;
       }
     }
-    // all は hotbar/storage のコピー参照を含む配列ではないため、書き戻す
     for (let i = 0; i < hotbar.length; i++) hotbar[i] = all[i];
     for (let i = 0; i < storage.length; i++) storage[i] = all[hotbar.length + i];
   }
@@ -213,10 +155,6 @@ function pourIntoSlots(
 
 type InvView = { hotbar: ItemSlot[]; storage: ItemSlot[]; items: Record<string, number> };
 
-/**
- * どんな形のプロフィールからでもインベントリを取り出す（読み取り用）。
- * 枠が無い旧形式は集計から注いだ状態として扱う。
- */
 function invOf(profile: PlayerProfile): InvView {
   const items = parseItems(profile.items);
   let hotbar = parseSlots(profile.hotbar, HOTBAR_SLOTS);
@@ -226,7 +164,6 @@ function invOf(profile: PlayerProfile): InvView {
     storage = emptySlots(STORAGE_SLOTS);
     pourIntoSlots(items, hotbar, storage);
   }
-  // 枠にあるのに集計に無い分は失わない（集計を枠に合わせて底上げする）
   for (const slot of [...hotbar, ...storage]) {
     if (!slot) continue;
     const slotted = slotTotal(hotbar, slot.id) + slotTotal(storage, slot.id);
@@ -235,7 +172,6 @@ function invOf(profile: PlayerProfile): InvView {
   return { hotbar, storage, items };
 }
 
-/** 壊れたデータは既定値に落とす（範囲外はクランプ）。文字列でもオブジェクトでも受ける。 */
 export function parseProfile(raw: unknown): PlayerProfile {
   let data: Record<string, unknown> | null = null;
   if (typeof raw === "string") {
@@ -300,7 +236,6 @@ export function parseProfile(raw: unknown): PlayerProfile {
     stealActorAt: clampInt(data.stealActorAt, 0, Number.MAX_SAFE_INTEGER, 0),
     stealTargetAt: clampInt(data.stealTargetAt, 0, Number.MAX_SAFE_INTEGER, 0),
     role,
-    // 旧データ（フラグなし）で役職を持っている人は「選んだ」ものとして扱う
     rolePicked: data.rolePicked === true || role !== "free",
     mastery: parseMastery(data.mastery),
     skillAt: parseSkillAt(data.skillAt),
@@ -341,7 +276,6 @@ function parsePendingTeleport(raw: unknown): { space: string; x: number; y: numb
   return { space: v.space.slice(0, 64), x: v.x, y: v.y };
 }
 
-/** 発見済みレシピの復元（文字列だけ通し、重複を除いて上限で切る）。 */
 export function parseDiscoveredRecipes(raw: unknown): string[] {
   if (!Array.isArray(raw)) return [];
   const out: string[] = [];
@@ -353,7 +287,6 @@ export function parseDiscoveredRecipes(raw: unknown): string[] {
   return out;
 }
 
-/** 強化レベルの復元（道具以外・範囲外は落とす）。 */
 export function parseEnhance(raw: unknown): Record<string, number> {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
   const out: Record<string, number> = {};
@@ -366,7 +299,6 @@ export function parseEnhance(raw: unknown): Record<string, number> {
   return out;
 }
 
-/** 道具の残り耐久の復元（道具以外・満タン以上・0以下は落とす＝満タン扱い）。 */
 export function parseToolHp(raw: unknown): Record<string, number> {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
   const out: Record<string, number> = {};
@@ -381,11 +313,8 @@ export function parseToolHp(raw: unknown): Record<string, number> {
   return out;
 }
 
-/** 道具強化の最大レベル。 */
 export const ENHANCE_MAX_LEVEL = 3;
-/** 強化1回のコイン価格（レベル+1 ごとにこの額 × (現在レベル+1)）。暫定。 */
 export const ENHANCE_BASE_COST = 150;
-/** 強化に要る素材（道具の tier ごと）。 */
 export const ENHANCE_MATERIALS: Record<number, { itemId: string; count: number }> = {
   1: { itemId: "wood", count: 2 },
   2: { itemId: "stone", count: 2 },
@@ -406,13 +335,11 @@ function parseStatus(raw: unknown): StatusEffect[] {
   return out.slice(0, 4);
 }
 
-/** 前回精算位置の座標を読む（範囲外・非数は undefined）。 */
 function parseVitalCoord(v: unknown): number | undefined {
   if (typeof v !== "number" || !Number.isFinite(v)) return undefined;
   return Math.max(-1_000_000, Math.min(1_000_000, v));
 }
 
-/** 前回精算位置の空間を読む（空文字・非文字列は undefined）。 */
 function parseVitalSpace(v: unknown): string | undefined {
   if (typeof v !== "string" || v.length === 0) return undefined;
   return v.slice(0, 64);
@@ -425,7 +352,6 @@ export function serializeProfile(profile: PlayerProfile): string {
     hunger: clampVital(profile.hunger, 0, HUNGER_MAX, 0),
     status: parseStatus(profile.status),
     vitalAt: clampInt(profile.vitalAt, 0, Number.MAX_SAFE_INTEGER, 0),
-    // 前回精算位置は3点そろったときだけ書く（欠けた状態を保存しない）
     ...(typeof profile.vitalX === "number" &&
     typeof profile.vitalY === "number" &&
     typeof profile.vitalSpace === "string"
@@ -453,15 +379,12 @@ export function serializeProfile(profile: PlayerProfile): string {
   });
 }
 
-// ---------------------------------------------------------------- インベントリ
-/** 総所持数（ホットバー＋ストレージ＋あふれ分）。 */
 export function countItem(profile: PlayerProfile, itemId: string): number {
   const inv = invOf(profile);
   const slotted = slotTotal(inv.hotbar, itemId) + slotTotal(inv.storage, itemId);
   return Math.max(inv.items[itemId] ?? 0, slotted);
 }
 
-/** あふれ分（枠に入っていない数）。 */
 export function overflowCount(profile: PlayerProfile, itemId: string): number {
   const inv = invOf(profile);
   const slotted = slotTotal(inv.hotbar, itemId) + slotTotal(inv.storage, itemId);
@@ -472,17 +395,10 @@ function withInv(profile: PlayerProfile, inv: InvView): PlayerProfile {
   return { ...profile, items: inv.items, hotbar: inv.hotbar, storage: inv.storage };
 }
 
-/**
- * アイテムを加える。注ぐ順は「ホットバーの既存スタック →
- * ストレージの既存スタック → ホットバーの空き枠 → ストレージの
- * 空き枠」で、入りきらない分はあふれ分になる（総数は必ず増える）。
- * 負数を渡すとその分だけ減らす（0未満にはならない）。
- */
 export function addItem(profile: PlayerProfile, itemId: string, count: number): PlayerProfile {
   if (count < 0) {
     const removed = removeItem(profile, itemId, -count);
     if (removed) return removed;
-    // 足りない分はあるだけ減らす（旧 addItem の負数挙動）
     const inv = invOf(profile);
     const total = countItem(profile, itemId);
     const next = {
@@ -525,10 +441,6 @@ export function addItem(profile: PlayerProfile, itemId: string, count: number): 
   return withInv(profile, { hotbar, storage, items });
 }
 
-/**
- * アイテムを減らす。引き出し順は「ホットバーのスタック →
- * ストレージのスタック → あふれ分」。足りなければ null（何も変えない）。
- */
 export function removeItem(
   profile: PlayerProfile,
   itemId: string,
@@ -552,7 +464,6 @@ export function removeItem(
       }
     }
   }
-  // remaining はあふれ分から引かれる（集計だけを減らせばよい）
   const items = { ...inv.items };
   const next = countItem(profile, itemId) - count;
   if (next > 0) items[itemId] = next;
@@ -560,12 +471,6 @@ export function removeItem(
   return withInv(profile, { hotbar, storage, items });
 }
 
-// ---------------------------------------------------------------- 道具の耐久
-/**
- * その種類で実際に使われる道具（実効ティア = ティア + 強化 が最大の1本）。
- * 同点ならティアが高い方、次に耐久上限が高い方を優先する（弱い方から
- * 壊していく誤爆を避け、「一番いい道具で作業する」既存の規則に合わせる）。
- */
 export function bestToolItem(profile: PlayerProfile, kind: ToolKind): ItemDef | null {
   let best: ItemDef | null = null;
   let bestEff = -1;
@@ -586,7 +491,6 @@ export function bestToolItem(profile: PlayerProfile, kind: ToolKind): ItemDef | 
   return best;
 }
 
-/** 使用中の1本の残り耐久（満タンは上限そのもの。持っていなければ 0）。 */
 export function toolHpOf(profile: PlayerProfile, itemId: string): number {
   const def = itemById(itemId);
   if (!def?.tool || !def.durability) return 0;
@@ -594,7 +498,6 @@ export function toolHpOf(profile: PlayerProfile, itemId: string): number {
   return profile.toolHp?.[itemId] ?? def.durability;
 }
 
-/** 残り耐久の割合（1 = 無傷）。道具でない・持っていない場合は null。 */
 export function toolDurabilityFraction(profile: PlayerProfile, itemId: string): number | null {
   const def = itemById(itemId);
   if (!def?.tool || !def.durability) return null;
@@ -604,15 +507,9 @@ export function toolDurabilityFraction(profile: PlayerProfile, itemId: string): 
 
 export type WearResult = {
   profile: PlayerProfile;
-  /** この使用で壊れた道具のアイテム ID（壊れなければ null）。 */
   brokeItemId: string | null;
 };
 
-/**
- * 道具を amount 回ぶん使う（耐久を削る）。尽きたらその種類の最良の1本が
- * 壊れて所持から消え、残量記録も消える（次に使う1本は満タン）。
- * 対象の道具を持っていない・耐久が定義されていない場合は無変化。
- */
 export function wearTool(profile: PlayerProfile, kind: ToolKind, amount = 1): WearResult {
   const def = bestToolItem(profile, kind);
   if (!def || !def.durability || amount <= 0) return { profile, brokeItemId: null };
@@ -630,7 +527,6 @@ export function wearTool(profile: PlayerProfile, kind: ToolKind, amount = 1): We
   return { profile: { ...removed, toolHp }, brokeItemId: def.id };
 }
 
-/** ホットバーとストレージの枠を入れ替える。添字が不正なら null。 */
 export function swapSlots(
   profile: PlayerProfile,
   hotbarIndex: unknown,
@@ -649,7 +545,6 @@ export function swapSlots(
   return withInv(profile, { hotbar, storage, items: inv.items });
 }
 
-/** スロットの住所（インベントリ整理用）。 */
 export type SlotZone = "hotbar" | "storage";
 export type SlotRef = { zone: SlotZone; index: number };
 
@@ -664,11 +559,6 @@ function parseSlotRef(raw: unknown): SlotRef | null {
   return { zone: v.zone, index };
 }
 
-/**
- * 任意スロット間の移動（マイクラ式の整理）: 空き枠へは移動、同種は
- * 合算（上限 STACK_MAX、あふれた分は元の枠に残る）、異種は入れ替え。
- * 住所が不正なら null。総量は常に保存されるため items 集計は不変。
- */
 export function moveSlot(
   profile: PlayerProfile,
   fromRaw: unknown,

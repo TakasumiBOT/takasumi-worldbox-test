@@ -14,13 +14,6 @@ import {
 
 export const runtime = "nodejs";
 
-// WORLD BOX（Takasumi 版）の店舗看板（Phase 4 の空間化）。
-// GET ?x&y: ワールドの看板タイルに登録された会社（店舗・受付）を返す。
-// 登録の正は bot_kv（worldbox_company の "sign:<x>,<y>"）で、看板の
-// 実在と設置者はタイル上書き（block.ownerId = 設置者のプレゼンス ID）
-// で毎回照合する。看板が掘り返された／設置者が変わった登録は、ここで
-// 落として掃除する。商品の内容テキストは含めない（購入時のみ開示、
-// 会社ルートの product_buy と同じ規則）。購入も product_buy を使う。
 const NO_STORE = { "Cache-Control": "no-store, max-age=0" };
 
 function err(error: string, status = 409) {
@@ -41,7 +34,6 @@ export async function GET(request: Request) {
     return err("invalid_request", 400);
   }
 
-  // 閲覧者自身の会社（看板の設置者が自社店舗として登録できるかの判定用）。
   const viewerKey = sessionOwnerKey(session);
   const viewerCompany = await loadCompanyOf(viewerKey);
   const viewerCompanyId = viewerCompany?.id ?? null;
@@ -49,7 +41,6 @@ export async function GET(request: Request) {
   const sign = await loadSignCompany(tx, ty);
   if (!sign) return NextResponse.json({ sign: null, viewerCompanyId }, { headers: NO_STORE });
 
-  // 看板の実在と設置者を照合する（外れていたら登録を落とす）。
   const ov = await loadTileOverride(tx, ty);
   if (
     !ov?.block ||

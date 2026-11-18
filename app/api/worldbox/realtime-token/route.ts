@@ -4,10 +4,6 @@ import { issueRealtimeToken } from "@/lib/worldbox/core/realtime-token";
 
 export const runtime = "nodejs";
 
-// AGO WORLD BOX リアルタイム中継（WebSocket）用の短期トークン発行。
-// POST: ログイン中のみ。{ token } を返す（有効期限つき・署名はセッションと同じ鍵）。
-// 中継ラッパー（realtime-server.js）が接続時にこのトークンを検証する。
-
 const NO_STORE = { "Cache-Control": "no-store, max-age=0" };
 
 function sameOrigin(request: Request) {

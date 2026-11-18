@@ -1,13 +1,3 @@
-// WORLD BOX（Takasumi 版）株式の検証:
-// - 銘柄定義（架空企業10社、配当パラメータは v3 仕様の範囲内）
-// - 価格系列の決定性（シード固定・別インスタンスでも同じ列）と
-//   時刻インデックス（1時間で1つ進む・末尾で先頭へ折り返す）
-// - 売買の金額計算（売却税10%の控除と行き先）
-// - 配当（最低保有数の閾値・対象株数上限10,000・JST 日付キー・
-//   Cron の冪等性: 同日二重払いなし、翌日は再び払う）
-// - 保有アカウントの保存値パースと付け替え
-// - 配線: 取引所ステーション / ルート / Cron / vercel.json /
-//   クライアント / earn 理由ホワイトリスト
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -29,12 +19,9 @@ function dataUrl(js) {
 }
 
 const S = await import(dataUrl(transpile("worldbox/economy/stock.ts")));
-// 別インスタンス（キャッシュを共有しない）でも同じ系列になることの確認用
 const S2 = await import(dataUrl(transpile("worldbox/economy/stock.ts") + "\n// second instance\n"));
 const eco = await import(dataUrl(transpile("worldbox/economy/economy-bridge.ts")));
 
-// ---- オンライン層のスタブ（bot-api = インメモリ kv、経済ブリッジ =
-// その場で done になる記録係。決定的 ID の二重提出は done を返す） ----
 const infraStubUrl = dataUrl(`
 const kvStore = new Map();
 const ops = new Map();
@@ -78,7 +65,7 @@ const online = await import(
   )
 );
 
-const T0 = Date.UTC(2026, 10, 18, 3, 0, 0); // JST 2026-11-18 12:00
+const T0 = Date.UTC(2026, 10, 18, 3, 0, 0);
 const DAY_MS = 24 * 3_600_000;
 
 test("stock: 銘柄は架空企業10社で、配当パラメータが v3 仕様の範囲内", () => {
@@ -124,10 +111,8 @@ test("stock: 時刻インデックスは1時間で1つ進み、系列の末尾�
   const def = S.stockById("TOMOTA");
   const first = S.stockPrice(def, S.STOCK_EPOCH_MS);
   assert.equal(S.stockPrice(def, S.STOCK_EPOCH_MS + S.STOCK_SERIES_LENGTH * 3_600_000), first);
-  // 前時間の価格は1つ前の位置
   const now = S.STOCK_EPOCH_MS + 100 * 3_600_000;
   assert.equal(S.stockPrevPrice(def, now), S.stockPrice(def, now - 3_600_000));
-  // 推移の末尾は現在価格
   const history = S.stockPriceHistory(def, now, 48);
   assert.equal(history.length, 48);
   assert.equal(history[history.length - 1], S.stockPrice(def, now));
@@ -142,7 +127,6 @@ test("stock: 購入計画は総額=単価×株数、上限と株数の検証が�
   assert.equal(S.planStockBuy(def, -3, T0), null);
   assert.equal(S.planStockBuy(def, 1.5, T0), null);
   assert.equal(S.planStockBuy(def, S.STOCK_COUNT_MAX + 1, T0), null);
-  // 総額がオプ上限（1,000,000）を超える取引は作れない
   assert.equal(S.planStockBuy(def, S.STOCK_COUNT_MAX, T0), null);
 });
 
@@ -156,26 +140,24 @@ test("stock: 売却計画は売却税10%を差し引き、税は国庫側に残�
   assert.equal(plan.tax, tax);
   assert.equal(plan.net, gross - tax);
   assert.equal(plan.net + plan.tax, plan.gross);
-  // 保有を超える売却はできない
   assert.equal(S.planStockSell(def, { TOMOTA: 5 }, 6, T0), null);
   assert.equal(S.planStockSell(def, {}, 1, T0), null);
 });
 
 test("stock: 配当は最低保有数から、対象株数は10,000で頭打ち", () => {
-  const def = S.stockById("TAKASUMI"); // dividendAmount 100, rate 0.003
+  const def = S.stockById("TAKASUMI");
   const price = 10_000;
   assert.equal(S.stockDividendFor(def, def.dividendAmount - 1, price), 0);
   assert.equal(
     S.stockDividendFor(def, def.dividendAmount, price),
     Math.ceil(def.dividendAmount * price * def.dividendRate),
   );
-  // 上限を超える保有でも計算対象は 10,000 株まで
   assert.equal(
     S.stockDividendFor(def, 50_000, price),
     Math.ceil(10_000 * price * def.dividendRate),
   );
   const plan = S.planStockDividends({ TAKASUMI: 100, TOMOTA: 10 }, T0);
-  assert.equal(plan.entries.length, 1); // TOMOTA は最低保有数 500 未満
+  assert.equal(plan.entries.length, 1);
   assert.equal(plan.entries[0].stockId, "TAKASUMI");
   assert.equal(plan.total, plan.entries[0].amount);
 });
@@ -226,7 +208,6 @@ test("stock: 保有の付け替え（買う・売る・売り切るとキーが�
   assert.equal(account.holdings.TOMOTA, 40);
   account = S.applyStockSell(account, "TOMOTA", 40);
   assert.equal("TOMOTA" in account.holdings, false);
-  // 保有を超える売却は無言で何もしない（計画側で弾く前提の防御）
   const before = S.applyStockBuy(S.emptyStockAccount(), "DEEDLE", 5);
   assert.deepEqual(S.applyStockSell(before, "DEEDLE", 6), before);
 });
@@ -274,7 +255,6 @@ test("stock(online): 購入は spend 確定後に保有が増え、売却は税�
   assert.equal(ops[1].reason, "stock_sell");
   assert.equal(ops[1].amount, sold.net);
 
-  // 保有を超える売却・不正な株数はオプを作らず invalid
   assert.equal(
     (await online.sellShares("discord:100100100100100100", "100100100100100100", "RIPPLE", 7, now))
       .state,
@@ -290,7 +270,7 @@ test("stock(online): 購入は spend 確定後に保有が増え、売却は税�
 
 test("stock(online): 配当 Cron は同日に二重払いせず、翌日に再び払う", async () => {
   infra.__reset();
-  const now = Date.UTC(2026, 10, 18, 15, 0, 0); // JST 2026-11-19 00:00
+  const now = Date.UTC(2026, 10, 18, 15, 0, 0);
   await online.storeStockAccount("discord:100100100100100100", {
     holdings: { TAKASUMI: 100, TOMOTA: 10 },
     lastDividendDate: null,
@@ -318,12 +298,10 @@ test("stock(online): 配当 Cron は同日に二重払いせず、翌日に再�
   assert.equal(account.dividends[0].stockId, "TAKASUMI");
   assert.equal(account.dividends[0].amount, expected.total);
 
-  // 同じ日付の再実行は払わない（冪等）
   const run2 = await online.runStockDividendCron(now + 3_600_000);
   assert.equal(run2.paidUsers, 0);
   assert.equal(infra.__ops().filter((op) => op.reason === "stock_dividend").length, 1);
 
-  // 翌日（JST）は再び払い、オプ ID も日付で変わる
   const run3 = await online.runStockDividendCron(now + DAY_MS);
   assert.equal(run3.paidUsers, 1);
   const divOpsAfter = infra.__ops().filter((op) => op.reason === "stock_dividend");
@@ -358,7 +336,6 @@ test("stock: earn 理由ホワイトリストに株式の売却と配当が入�
     T0,
   );
   assert.ok(dividend);
-  // 購入は spend（理由はホワイトリスト対象外）で作れる
   const buy = eco.buildEconomyOp(
     {
       kind: "spend",

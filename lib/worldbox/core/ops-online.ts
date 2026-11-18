@@ -1,6 +1,3 @@
-// AGO WORLD BOX の運用状態の保存（bot_kv、サーバー専用）。
-// worldbox_ops（キー "state" = 凍結フラグ / "reports" = 通報リスト）と
-// worldbox_tile_journal（キー = 日付）に持つ。
 import { isBotApiConfigured, kvGet, kvSet } from "../../bot-api";
 import {
   appendJournal,
@@ -15,7 +12,6 @@ import { withUserLock } from "./user-lock";
 export const WORLDBOX_OPS_NAMESPACE = "worldbox_ops";
 export const WORLDBOX_JOURNAL_NAMESPACE = "worldbox_tile_journal";
 
-/** 運営操作ができる Discord ユーザー ID。独立環境では AGO 側の管理者 ID を埋め込まず、WORLDBOX_ADMIN_IDS（カンマ区切り）環境変数だけで決める。未設定なら空集合（ops は誰にも開かない）。 */
 export function worldboxAdminIds(): Set<string> {
   const env = process.env.WORLDBOX_ADMIN_IDS;
   if (env)

@@ -1,11 +1,3 @@
-// WORLD BOX ゲスト入場（Discord ログインなし）の検証:
-// - ゲストセッションの往復（provider "guest" と所有者キー guest:<uuid>）
-// - セッション秘密が未設定でもゲストだけは入れる（フォールバック署名）。
-//   ただしフォールバック署名は discord / google では絶対に受理しない
-// - ゲストルートの冪等性（連打で身元が増えない）と Discord の格下げ防止
-// - 入場ゲート: ゲストは通る、Google は従来どおり通らない
-// - /api/auth/me: ゲストの avatarUrl は null（実在しない CDN URL を作らない）
-// - 経済ブリッジ: ゲストのオプは guest_not_allowed で即終端し、記録が残らない
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -99,8 +91,6 @@ function req(url, cookie) {
   return new Request(url, { headers: cookie ? { cookie } : {} });
 }
 
-// ---------- セッション ----------
-
 test("guest: セッションの往復で provider と所有者キーが保たれる", () => {
   const value = auth.createSession({
     id: UUID,
@@ -144,7 +134,6 @@ test("guest: sessionAvatarUrl は null（Discord と Google は従来どおり�
 test("guest: provider 無しの旧セッションは discord として読む（後方互換）", () => {
   const info = auth.readSessionInfo(auth.createSession({ id: ME, username: "old-user" }));
   assert.equal(info?.provider, "discord");
-  // ゲストの UUID を provider 無し（= discord 扱い）で読むと id の形で落ちる
   const forged = auth.createSession({ id: ME, username: "x" });
   const [encoded] = forged.split(".");
   const payload = JSON.parse(Buffer.from(encoded, "base64url").toString("utf8"));
@@ -159,7 +148,6 @@ test("guest: セッション秘密が未設定でもゲストは入れるが、d
   delete process.env.DISCORD_SESSION_SECRET;
   delete process.env.DISCORD_CLIENT_SECRET;
   try {
-    // ゲストはフォールバック署名で往復できる
     const value = auth.createSession({
       id: UUID,
       username: "ゲスト0001",
@@ -169,12 +157,10 @@ test("guest: セッション秘密が未設定でもゲストは入れるが、d
     const info = auth.readSessionInfo(value);
     assert.equal(info?.provider, "guest");
     assert.equal(info?.id, UUID);
-    // discord セッションは秘密なしでは作れない（従来どおり）
     assert.throws(
       () => auth.createSession({ id: ME, username: "d-user" }),
       /session secret is not configured/,
     );
-    // フォールバック署名のペイロードを discord に書き換えても受理しない
     const [encoded, signature] = value.split(".");
     const payload = JSON.parse(Buffer.from(encoded, "base64url").toString("utf8"));
     payload.provider = "discord";
@@ -187,8 +173,6 @@ test("guest: セッション秘密が未設定でもゲストは入れるが、d
     else process.env.DISCORD_CLIENT_SECRET = savedClient;
   }
 });
-
-// ---------- ゲストルート + ゲート + me ----------
 
 const URL_GUEST = "https://example.test/api/auth/guest";
 const URL_GATE = "https://example.test/api/worldbox/gate";
@@ -206,7 +190,6 @@ test("API(guest): POST でセッションが張られ、2回目は同じ身元�
   assert.equal(info?.provider, "guest");
   assert.equal(info?.username, firstData.user.name);
 
-  // 2回目: 同じ名前が返り、新しい Cookie は張られない
   const second = await guestRoute.POST(req(URL_GUEST, cookieOf(cookie.value)));
   assert.equal(second.status, 200);
   assert.equal((await second.json()).user.name, firstData.user.name);
@@ -216,7 +199,6 @@ test("API(guest): POST でセッションが張られ、2回目は同じ身元�
     "既存ゲストには Cookie を張り直さない",
   );
 
-  // そのセッションでゲートが開く
   const gate = await gateRoute.GET(req(URL_GATE, cookieOf(cookie.value)));
   assert.equal((await gate.json()).allowed, true);
 });
@@ -277,8 +259,6 @@ test("API(me): ゲストの avatarUrl は null、Discord は CDN URL", async () 
   );
 });
 
-// ---------- 経済ブリッジ ----------
-
 const botApiStubUrl = dataUrl(`
 const store = new Map();
 globalThis.__wbGuestEcoStore = store;
@@ -309,7 +289,6 @@ const eco = await import(economyUrl);
 
 test("economy: ゲストのオプは guest_not_allowed で即終端し、記録も残高も触らない", async () => {
   const guestKey = `guest:${UUID}`;
-  // buildEconomyOp の時点で作れない（最初の壁）
   assert.equal(
     eco.buildEconomyOp(
       { kind: "earn", userKey: guestKey, discordId: UUID, amount: 100, reason: "harvest" },
@@ -318,7 +297,6 @@ test("economy: ゲストのオプは guest_not_allowed で即終端し、記録�
     ),
     null,
   );
-  // 手組みのオプを直接 submit しても弾かれる（ブリッジの壁）
   const op = {
     id: "op-guest-01",
     kind: "earn",
@@ -337,8 +315,6 @@ test("economy: ゲストのオプは guest_not_allowed で即終端し、記録�
   assert.equal(await economyOnline.enqueueEconomyOpOnce(op), false);
   assert.equal(globalThis.__wbGuestEcoStore.size, 0, "オプ記録も台帳も残らない");
 });
-
-// ---------- クライアント配線 ----------
 
 test("配線: ゲート画面にゲスト導線、経済・カジノパネルにゲスト文言", () => {
   const client = fs.readFileSync(path.join(appDir, "games/worldbox/WorldBoxClient.tsx"), "utf8");

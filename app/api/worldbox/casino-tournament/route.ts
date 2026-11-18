@@ -29,18 +29,6 @@ import { withUserLock } from "@/lib/worldbox/core/user-lock";
 
 export const runtime = "nodejs";
 
-// AGO WORLD BOX のカジノ大会（バッチ7c）。
-// 参加費 200 のスコア制大会。募集 30 分のあと 60 分の対局時間があり、
-// その間にカジノで遊んだ gamble オプの純益（配当 - ベット）の合計で
-// 順位を競う。純益がプラスの上位 3 人が参加費の総額を 50% / 30% / 20%
-// で分ける（earn casino_tournament_prize）。2人未満で締め切られた
-// 大会は不成立で参加費を earn（casino_tournament_refund）で返す。
-// 参加はカジノの機器の前でのみ（サーバーがプレゼンスで検証）。
-// 大会は1件だけのため、全 POST を固定キー "casino-tournament" の
-// ロックで直列化する。
-// GET: { balance, effectiveBalance, tournament }
-// POST: { action: "enter" }
-
 const NO_STORE = { "Cache-Control": "no-store, max-age=0" };
 
 function sameOrigin(request: Request) {
@@ -59,7 +47,6 @@ function casinoTournamentSession(request: Request) {
   return { session, status: 200 as const };
 }
 
-/** 今いるカジノ機器（無ければ null）。カジノルートと同じ検証。 */
 async function currentMachine(ownerKey: string) {
   if (!isPresenceEnabled()) return null;
   const presence = await loadMyPresence(ownerKey);
@@ -145,7 +132,6 @@ async function handlePost(request: Request, session: AuthedSession) {
   }
   if (body.action !== "enter") return errorResponse("bad_action", 400);
 
-  // 場所検証: 参加はカジノの機器の前でのみ
   if (!(await currentMachine(ownerKey))) return errorResponse("not_at_casino", 409);
 
   const now = Date.now();
@@ -177,7 +163,6 @@ async function handlePost(request: Request, session: AuthedSession) {
   const fee = await enqueueFee(ownerKey, discordId, casinoTournamentFeeOpId(t.id, discordId));
   if (!fee) return errorResponse("economy_unavailable", 503);
   t = { ...t, entrants: [...t.entrants, discordId] };
-  // 満員になったらその場で募集を締め切って対局時間へ入る
   t = await advanceCasinoTournamentInner(t, now);
   await saveCasinoTournament(t);
   return stateResponse(ownerKey, discordId, t);

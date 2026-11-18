@@ -1,16 +1,4 @@
 "use client";
-// WORLD BOX（Takasumi 版）の会社パネル。
-// 設立・招待コードの発行と入力・メンバー管理・資産と取引履歴・
-// 商品の作成と購入・ボーナス・設定変更・解散まで、会社の全操作を
-// ここで完結させる。数字の規則はサーバー側（lib/worldbox/social/
-// company.ts、TakasumiBOT v3 仕様）が正で、このパネルは表示と
-// 入力だけを持つ。商品の内容テキストは購入レスポンスでだけ開示
-// される（出品一覧には含めない）。
-// Phase 4（空間化）: 本社の表示と登録（オーナーは現在地で登録）、
-// 本社近くでの出社・退社と勤務（報酬は会社資産へ）、他社の詳細は
-// 受付として開く（会社情報＋出品＋招待コードでの入社）。ワールドの
-// 店舗看板や本社マーカーから開くときは anchorCompanyId でその会社
-// の受付を最初から開く。
 import { useCallback, useEffect, useState } from "react";
 
 const panel: React.CSSProperties = {
@@ -160,7 +148,6 @@ interface CompanyData {
 
 const yen = (n: number) => `${n.toLocaleString()}円`;
 
-/** 空間 ID の表示名（本社の場所の案内用）。 */
 function spaceLabel(space: string): string {
   if (space === "world") return "ワールド";
   if (space === "lobby") return "ロビー";
@@ -193,21 +180,16 @@ export default function WorldBoxCompanyPanel({
   const [revealed, setRevealed] = useState<{ name: string; content: string } | null>(null);
   const [issuedCode, setIssuedCode] = useState<{ code: string; expiresAt: number } | null>(null);
 
-  // 設立フォーム
   const [fName, setFName] = useState("");
   const [fDesc, setFDesc] = useState("");
   const [fCapital, setFCapital] = useState("100000");
   const [fSalary, setFSalary] = useState("1000");
-  // 入社
   const [joinCode, setJoinCode] = useState("");
-  // 設定
   const [sName, setSName] = useState("");
   const [sDesc, setSDesc] = useState("");
   const [sSalary, setSSalary] = useState("");
-  // ボーナス
   const [bonusTarget, setBonusTarget] = useState("");
   const [bonusAmount, setBonusAmount] = useState("");
-  // 商品作成
   const [pName, setPName] = useState("");
   const [pDesc, setPDesc] = useState("");
   const [pContent, setPContent] = useState("");

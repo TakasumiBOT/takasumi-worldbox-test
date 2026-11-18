@@ -23,12 +23,9 @@ export function GET(request: Request) {
     );
   }
 
-  // 別ホスト（専用サブドメイン等）から始まった場合は正規ホストへ寄せる。
-  // state / next の Cookie はコールバックが着地する正規ホスト側に無いと照合できない。
   const canonical = canonicalAuthorizeRedirect(request, "/api/auth/discord/authorize", redirectUri);
   if (canonical) return NextResponse.redirect(canonical);
 
-  // ログイン後に戻る先（同一サイト内のパスだけ許可）。未指定は従来どおり /dashboard。
   const next = resolveOAuthNext(new URL(request.url).searchParams.get("next"));
 
   const state = crypto.randomBytes(24).toString("hex");

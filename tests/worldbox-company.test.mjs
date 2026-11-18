@@ -1,12 +1,3 @@
-// WORLD BOX（Takasumi 版）会社システムの検証:
-// - 入力検証（会社名・説明・資本金・時給・商品）
-// - 会社の一生: 設立（税20%）→ 招待入社（上限15人・コード失効）→
-//   給料（社長 ×1.15・所得税15%・資産不足は全員スキップ）→
-//   商品（作成税15%・売却税50%・出品上限15・寿命1週間）→
-//   ボーナス（資産の1/10まで・23時間クールダウン）→
-//   法人税（累進 0〜70%・資本金は利益に数えない）→ 脱退・解散条件
-// - 保存値のパース、JST の時間キー（Cron 冪等化）
-// - 配線: ルート / Cron / vercel.json / クライアント / earn 理由
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -37,7 +28,7 @@ const EMP = (n) => ({
   name: `社員${n}`,
   joinedAt: 0,
 });
-const T0 = Date.UTC(2026, 10, 18, 0, 0, 0); // JST 2026-11-18 09:00
+const T0 = Date.UTC(2026, 10, 18, 0, 0, 0);
 
 function foundCompany(capital = 100_000, salary = 10_000) {
   return C.foundCompany(
@@ -47,8 +38,6 @@ function foundCompany(capital = 100_000, salary = 10_000) {
     T0,
   );
 }
-
-// ---------- 検証 ----------
 
 test("company: 会社名は4〜20文字、説明は5〜100文字だけ通る", () => {
   assert.equal(C.validateCompanyName("あいうえ"), "あいうえ");
@@ -104,7 +93,7 @@ test("company: 商品入力は長さと価格（100〜999,999）を検証する"
 });
 
 test("company: ID と招待コードは仕様の文字数で、会社 ID の形が判定できる", () => {
-  const rand = () => 0; // 常に先頭文字
+  const rand = () => 0;
   assert.equal(C.makeCompanyId(rand), "AAAAAAAAAA");
   assert.equal(C.makeInviteCode(rand), "AAAAAAAAAA");
   assert.equal(C.makeProductId(rand), "AAAAAAAA");
@@ -112,8 +101,6 @@ test("company: ID と招待コードは仕様の文字数で、会社 ID の形�
   assert.equal(C.isCompanyId("member:discord:1"), false);
   assert.equal(C.isCompanyId("short"), false);
 });
-
-// ---------- 設立 ----------
 
 test("company: 設立は資本金を入金してから設立税20%を引き、初期資産は80%", () => {
   const { company, history } = foundCompany(100_000);
@@ -131,12 +118,9 @@ test("company: 設立は資本金を入金してから設立税20%を引き、�
   assert.equal(company.stats.totalEarn, 100_000);
   assert.equal(company.stats.totalUse, 20_000);
   assert.equal(company.stats.totalTax, 20_000);
-  // 端数の切り捨て: 資本金 100,001 → 税 20,000（floor）
   const odd = foundCompany(100_001);
   assert.equal(odd.company.assets, 100_001 - 20_000);
 });
-
-// ---------- 所属 ----------
 
 test("company: 入社は上限15人（オーナー含む）までで、重複は弾く", () => {
   let { company } = foundCompany();
@@ -170,8 +154,6 @@ test("company: 脱退と解雇はメンバーを外し、オーナーは外せ�
   assert.equal(ownerRemoved.members.length, 1);
 });
 
-// ---------- 給料 ----------
-
 test("company: 給料は社長 ×1.15、所得税15%控除、台帳からは総額を引く", () => {
   let { company } = foundCompany(100_000, 10_000);
   company = C.joinCompany(company, EMP(1)).company;
@@ -188,13 +170,10 @@ test("company: 給料は社長 ×1.15、所得税15%控除、台帳からは総�
 });
 
 test("company: 給料は会社資産が総額に不足する回は全員スキップ（部分支給なし）", () => {
-  // 資本金 100,000 → 資産 80,000。時給 100,000 では社長分 115,000 だけで不足。
   const { company } = foundCompany(100_000, 100_000);
   const plan = C.planSalaryRun(company, T0);
   assert.deepEqual(plan, { skipped: true });
 });
-
-// ---------- 商品 ----------
 
 function makeProduct(price = 10_000, id = "PROD0001") {
   return {
@@ -219,10 +198,8 @@ test("company: 商品作成税は価格の15%を会社資産から払い、出�
   assert.equal(plan.entry.amount, -1_500);
   assert.equal(plan.entry.reason, "商品作成税");
   assert.deepEqual(plan.company.productIds, ["PROD0001"]);
-  // 資産不足: 資産 80,000 で価格 999,999（税 149,999）は作れない
   const poor = C.planProductCreate(company, makeProduct(999_999, "PROD0002"), T0);
   assert.deepEqual(poor, { error: "tax_unaffordable" });
-  // 上限: 15件出品済みの会社には16件目を作れない
   const filled = { ...company, productIds: Array.from({ length: 15 }, (_, i) => `P${i}`) };
   const over = C.planProductCreate(filled, makeProduct(100, "PROD0016"), T0);
   assert.deepEqual(over, { error: "limit" });
@@ -252,28 +229,21 @@ test("company: 商品は作成から1週間で寿命切れになる", () => {
   assert.equal(C.isProductExpired(product, T0 + 7 * 24 * 3_600_000), true);
 });
 
-// ---------- ボーナス ----------
-
 test("company: ボーナスは資産の1/10（上限150,000）まで、23時間クールダウン、所得税控除", () => {
-  let { company } = foundCompany(1_000_000, 10_000); // 資産 800,000 → 上限 80,000
+  let { company } = foundCompany(1_000_000, 10_000);
   company = C.joinCompany(company, EMP(1)).company;
   const plan = C.planBonus(company, EMP(1).ownerKey, 80_000, T0);
   assert.ok("company" in plan);
   assert.equal(plan.gross, 80_000);
   assert.equal(plan.net, 80_000 - 12_000);
   assert.equal(plan.company.assets, 800_000 - 80_000);
-  // 上限超え（80,001）と下限未満（99）
   assert.deepEqual(C.planBonus(company, EMP(1).ownerKey, 80_001, T0), { error: "invalid_amount" });
   assert.deepEqual(C.planBonus(company, EMP(1).ownerKey, 99, T0), { error: "invalid_amount" });
-  // クールダウン: 支給直後は同じ相手へ出せない。23時間後は出せる
   assert.deepEqual(C.planBonus(plan.company, EMP(1).ownerKey, 100, T0 + 1), { error: "cooldown" });
   const afterDay = C.planBonus(plan.company, EMP(1).ownerKey, 100, T0 + 82_800_000);
   assert.ok("company" in afterDay);
-  // 非メンバーには出せない
   assert.deepEqual(C.planBonus(company, "discord:9999", 100, T0), { error: "not_member" });
 });
-
-// ---------- 法人税 ----------
 
 test("company: 法人税は累進ブラケット（0〜70%）で計算する", () => {
   assert.equal(C.corporateTaxFor(0), 0);
@@ -295,31 +265,27 @@ test("company: 課税利益はウィンドウ内の入金から資本金の追�
 });
 
 test("company: 法人税は資産が税額に不足する場合は徴収されない", () => {
-  const { company } = foundCompany(); // 資産 80,000
-  const plan = C.planCorporateTax(company, 30_000, T0); // 税 3,600
+  const { company } = foundCompany();
+  const plan = C.planCorporateTax(company, 30_000, T0);
   assert.ok(plan);
   assert.equal(plan.tax, 3_600);
   assert.equal(plan.company.assets, 80_000 - 3_600);
   assert.ok(plan.entry.reason.includes("法人税"));
   const poor = { ...company, assets: 100 };
   assert.equal(C.planCorporateTax(poor, 30_000, T0), null);
-  assert.equal(C.planCorporateTax(company, 5_000, T0), null); // 税 0
+  assert.equal(C.planCorporateTax(company, 5_000, T0), null);
 });
-
-// ---------- JST 時間キー ----------
 
 test("company: 給料時間帯と冪等キーは JST 基準（8〜20時・3時間税）", () => {
-  assert.equal(C.isSalaryHour(T0), true); // JST 09:00
+  assert.equal(C.isSalaryHour(T0), true);
   assert.equal(C.salaryRunKey(T0), "2026-11-18T09");
-  assert.equal(C.isSalaryHour(Date.UTC(2026, 10, 17, 23, 0)), true); // JST 08:00
-  assert.equal(C.isSalaryHour(Date.UTC(2026, 10, 18, 12, 0)), false); // JST 21:00
-  assert.equal(C.isTaxHour(T0), true); // 9 % 3 == 0
+  assert.equal(C.isSalaryHour(Date.UTC(2026, 10, 17, 23, 0)), true);
+  assert.equal(C.isSalaryHour(Date.UTC(2026, 10, 18, 12, 0)), false);
+  assert.equal(C.isTaxHour(T0), true);
   assert.equal(C.taxRunKey(T0), "2026-11-18T09");
-  assert.equal(C.isTaxHour(Date.UTC(2026, 10, 18, 1, 0)), false); // JST 10:00
-  assert.equal(C.taxRunKey(Date.UTC(2026, 10, 18, 2, 0)), "2026-11-18T09"); // JST 11:00 → 窓は 09
+  assert.equal(C.isTaxHour(Date.UTC(2026, 10, 18, 1, 0)), false);
+  assert.equal(C.taxRunKey(Date.UTC(2026, 10, 18, 2, 0)), "2026-11-18T09");
 });
-
-// ---------- パース ----------
 
 test("company: 保存値のパースは往復で一致し、壊れた値を弾く", () => {
   const { company, history } = foundCompany();
@@ -338,13 +304,11 @@ test("company: 保存値のパースは往復で一致し、壊れた値を弾�
   assert.equal(C.parseCompanyProduct(JSON.stringify({ id: "x" })), null);
 });
 
-// ---------- 一生（純粋ロジックの連結） ----------
-
 test("company: 一生 — 設立→入社→給料→商品→販売→ボーナス→税→解散条件", () => {
   const balances = new Map([[OWNER.discordId, 1_000_000]]);
   let { company, history } = foundCompany(200_000, 10_000);
-  let hist = [...history].reverse(); // 保存は新しい順
-  balances.set(OWNER.discordId, balances.get(OWNER.discordId) - 200_000); // 資本金 spend
+  let hist = [...history].reverse();
+  balances.set(OWNER.discordId, balances.get(OWNER.discordId) - 200_000);
   assert.equal(company.assets, 160_000);
 
   company = C.joinCompany(company, EMP(1)).company;
@@ -365,7 +329,6 @@ test("company: 一生 — 設立→入社→給料→商品→販売→ボーナ
   const sale = C.planProductSale(company, makeProduct(20_000), "9001", T0);
   company = sale.company;
   hist = C.appendHistory(hist, sale.history);
-  // 資産: 160,000 - 21,500（給料） - 3,000（作成税） + 20,000 - 10,000（売却税）
   assert.equal(company.assets, 145_500);
 
   const bonus = C.planBonus(company, EMP(1).ownerKey, 10_000, T0);
@@ -374,20 +337,16 @@ test("company: 一生 — 設立→入社→給料→商品→販売→ボーナ
   balances.set(EMP(1).discordId, balances.get(EMP(1).discordId) + bonus.net);
   assert.equal(balances.get(EMP(1).discordId), 8_500 + 8_500);
 
-  // 直近ウィンドウの利益 = 商品売却 20,000 のみ（資本金は除外）→ 税 600+1,500=2,100
   const profit = C.taxableProfit(hist, T0 - C.COMPANY_TAX_WINDOW_MS);
   assert.equal(profit, 20_000);
   const tax = C.planCorporateTax(company, profit, T0);
   assert.equal(tax.tax, 2_100);
   company = tax.company;
 
-  // 解散は社員がいる間は不可。全員抜ければ可。
   assert.equal(C.canDissolve(company, OWNER.ownerKey), false);
   company = C.removeMember(company, EMP(1).ownerKey);
   assert.equal(C.canDissolve(company, OWNER.ownerKey), true);
 });
-
-// ---------- 配線 ----------
 
 test("company: earn 理由に会社系（給料・ボーナス・解散返還）が許可されている", () => {
   for (const reason of ["company_salary", "company_bonus", "company_dissolve"]) {
@@ -438,15 +397,12 @@ test("company: ルート・Cron・クライアント・vercel.json に配線さ�
   assert.ok(panel.includes("/api/worldbox/company"));
 });
 
-// ---------- Phase 4: 本社・出社・勤務・店舗看板（空間化） ----------
-
 test("company-p4: 本社は設立直後は未登録で、保存値の往復で位置が一致する", () => {
   const { company } = foundCompany();
   assert.equal(company.hq, null);
   const withHq = { ...company, hq: { space: "world", x: 123, y: -45 } };
   const parsed = C.parseCompany(JSON.stringify(withHq));
   assert.deepEqual(parsed.hq, { space: "world", x: 123, y: -45 });
-  // 壊れた本社は null（未登録扱い）
   assert.equal(C.parseCompanyHq(null), null);
   assert.equal(C.parseCompanyHq({ space: "", x: 1, y: 2 }), null);
   assert.equal(C.parseCompanyHq({ space: "world", x: 1.5, y: 2 })?.x, 1);
@@ -469,7 +425,6 @@ test("company-p4: 勤務報酬は時給÷12（1時間みっちりで時給1時�
   assert.equal(C.workRewardFor(company), 833);
   assert.equal(C.workRewardFor({ ...company, salary: 1_000 }), 83);
   assert.equal(C.workRewardFor({ ...company, salary: 100_000 }), 8_333);
-  // 12回 × 5分クールダウン = 1時間で最大12回、その合計は時給を超えない
   assert.ok(C.workRewardFor(company) * 12 <= company.salary);
   assert.equal(C.COMPANY_WORK_COOLDOWN_MS, 5 * 60_000);
 });
@@ -496,11 +451,9 @@ test("company-p4: 勤務1回で報酬は会社資産だけに増え、個人へ�
   assert.equal(plan.entry.amount, 833);
   assert.ok(plan.entry.reason.startsWith("勤務報酬"));
   assert.equal(plan.entry.userId, member.discordId);
-  // 計画に個人払い出し（payouts 等）が含まれないこと
   assert.equal("payouts" in plan, false);
   assert.equal("net" in plan, false);
   assert.equal(plan.duty.lastWorkAt, T0 + 1_000);
-  // 勤務報酬は会社の課税利益に数えられる（資本金の追加だけが除外）
   const profit = C.taxableProfit([plan.entry], T0);
   assert.equal(profit, 833);
 });
@@ -526,8 +479,6 @@ test("company-p4: 店舗看板の登録パースは会社 ID と設置者 ID を
 });
 
 test("company-p4: 店頭購入はパネル購入と同じ計画（売却税50%・開示は購入時のみ）を使う", () => {
-  // 店頭（看板ルート）は出品の表示だけで、購入は会社ルートの
-  // product_buy（planProductSale）に一本化されていることを配線で固定する
   const signRoute = fs.readFileSync(
     path.join(rootDir, "app/api/worldbox/company/sign/route.ts"),
     "utf8",
@@ -535,7 +486,6 @@ test("company-p4: 店頭購入はパネル購入と同じ計画（売却税50%�
   assert.ok(signRoute.includes("loadSignCompany"));
   assert.ok(signRoute.includes("loadTileOverride"));
   assert.ok(signRoute.includes("isSignItem"));
-  // 看板の表示に商品の内容テキストを含めない（開示規則はパネルと同じ）
   assert.ok(!signRoute.includes("content: p.content"));
   assert.ok(!signRoute.includes("content: product.content"));
   const route = fs.readFileSync(path.join(rootDir, "app/api/worldbox/company/route.ts"), "utf8");

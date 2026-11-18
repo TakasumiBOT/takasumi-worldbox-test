@@ -1,13 +1,3 @@
-// AGO WORLD BOX 即時 spend の無担保交付の是正（B2・構造問題#4）の検証:
-// - profile の売買・強化: 決済オプが failed なら交付したプロフィールを巻き戻す
-// - テント拡張: failed なら段階を上げない。再試行は失敗オプを消して積み直す
-// - 転職: failed なら役職を元へ戻す
-// - pending のままなら従来どおり交付する（フォールバック維持）
-// コイン API 直接化（PR1）後の形: spend は bot-api の CAS でその場で
-// 適用されるため、failed は「CAS が最後まで成立しない」状態を
-// __wbDgFailUpdate フラグで再現し、done は即時適用そのものを検証する。
-// earn（売却）は PR1 では従来キュー経路のため、ワーカーの終端化を
-// armFlip で再現する従来形のまま。
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -350,8 +340,6 @@ function findOps(pred) {
   }
   return out;
 }
-/** Bot ワーカーがオプを終端させた状態を再現する。POST の最中に条件に合う
- * pending オプが現れたら即座に書き換える（server-side wait が拾う）。 */
 function armFlip(pred, status, error = "insufficient_funds") {
   return new Promise((resolve) => {
     let timer;
@@ -386,7 +374,6 @@ function reset() {
   seedProfile(ME);
 }
 
-// 本日の tools 棚で買える品目（日次ローテーション＋販売ホワイトリストの両方を満たすもの）。
 const BUY_ITEM = shops
   .dailyStockForGenre("tools", shops.shopDayKeyOf(Date.now()))
   .find((i) => shops.checkBuySold(i.id) === null);
@@ -395,7 +382,7 @@ assert.ok(BUY_ITEM, "本日の tools 棚に買える品目がある");
 test("API(profile): 購入の決済が failed ならアイテムは付かない（巻き戻し）", async () => {
   reset();
   seedPresence(ME, 5.5, 19.5);
-  globalThis.__wbDgFailUpdate = true; // CAS が最後まで成立しない = 直接適用が確定失敗する
+  globalThis.__wbDgFailUpdate = true;
   const res = await profileRoute.POST(
     apiReq(PROFILE_URL, cookie(ME), { action: "buy", itemId: BUY_ITEM.id, count: 1 }),
   );
@@ -431,7 +418,6 @@ test("API(profile): 売却の決済が pending のままなら従来どおり交
   reset();
   seedProfile(ME, { items: { wood: 3 } });
   seedPresence(ME, 5.5, 19.5);
-  // earn は PR1 ではキュー経路: ワーカーが拾わない限り pending のまま。
   const res = await profileRoute.POST(
     apiReq(PROFILE_URL, cookie(ME), { action: "sell", itemId: "wood", count: 1 }),
   );
@@ -501,7 +487,6 @@ test("API(profile): テント拡張の決済が failed なら段階は上がら�
   assert.equal(res1.status, 409);
   assert.equal((await res1.json()).error, "economy_failed");
   assert.equal(readProfile(ME).tentTier ?? 0, 0, "段階は上がっていない");
-  // 再試行: 失敗オプ（と台帳）が決定的 ID を塞がないこと。
   globalThis.__wbDgFailUpdate = false;
   const res2 = await profileRoute.POST(apiReq(PROFILE_URL, cookie(ME), { action: "expand_tent" }));
   assert.equal(res2.status, 200);

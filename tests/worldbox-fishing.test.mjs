@@ -1,4 +1,3 @@
-// WORLD BOX バッチ8b-2: 釣り（魚影の配置・再出現・ルート）のテスト。
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";

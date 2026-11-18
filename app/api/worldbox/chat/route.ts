@@ -23,13 +23,6 @@ import { bumpMetric } from "@/lib/worldbox/core/metrics-online";
 
 export const runtime = "nodejs";
 
-// AGO WORLD BOX のチャット。
-// GET ?channel=proximity|global|union&space=: 見えるメッセージ（新しい順）
-// POST { channel, text, space }: 投稿。近距離/全体は揮発、ユニオンは
-// ギルドボード（worldbox_union_board）に残り、Discord 連携が設定されて
-// いれば送信箱にも積む。連投は最小間隔で制限する。
-// Bot API 未設定なら 503。
-
 const NO_STORE = { "Cache-Control": "no-store, max-age=0" };
 const lastPostAt = new Map<string, number>();
 
@@ -42,11 +35,7 @@ function sameOrigin(request: Request) {
   return !origin || origin === publicOrigin(request);
 }
 
-/** 本人の現在位置（鮮度フィルタ付きプレゼンス→無ければ null）。 */
 async function myPresence(ownerKey: string) {
-  // 鮮度切れのプレゼンスで位置・空間を判定すると、別空間にいる扱いで
-  // 近距離チャットが見えたり union の空間がずれたりする。他ルートと
-  // 同じ loadMyPresence（鮮度内のみ有効）を使う。
   return loadMyPresence(ownerKey);
 }
 
@@ -120,8 +109,6 @@ export async function POST(request: Request) {
     1,
     now,
   );
-  // ユニオンは Discord 連携チャンネルへも流す（Bot ワーカーが投稿する）。
-  // 宛先は連携 mode と Bot 公開ディレクトリから解決する（ID 手入力は無い）。
   if (fields.channel === "union" && membership) {
     const settings = await loadUnionChatSettings(membership.nationId);
     const directory =

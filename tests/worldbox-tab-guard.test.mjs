@@ -1,7 +1,3 @@
-// AGO WORLD BOX タブ世代管理（同一アカウントの分身防止）のテスト。
-// - presence.ts の tabVerdict（REST プレゼンスの世代判定）
-// - relay-core の admitTab（WS 中継の世代判定）
-// - ルート / オンライン層 / 中継ラッパー / クライアントの配線
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -49,7 +45,6 @@ test("tabVerdict: 申告なし・記録なし・鮮度切れは受理する", ()
     presence.tabVerdict(entry(undefined, undefined), { tab: "b", tabAt: 50 }, NOW),
     "accept",
   );
-  // 鮮度切れ（10秒超）の保存エントリは世代を握らない
   assert.equal(
     presence.tabVerdict(entry("a", 100, NOW - 60_000), { tab: "b", tabAt: 50 }, NOW),
     "accept",
@@ -61,7 +56,6 @@ test("tabVerdict: 同じタブは受理、古いタブは拒否、新しいタ�
   assert.equal(presence.tabVerdict(stored, { tab: "tab-a", tabAt: 1_000 }, NOW), "accept");
   assert.equal(presence.tabVerdict(stored, { tab: "tab-b", tabAt: 2_000 }, NOW), "accept");
   assert.equal(presence.tabVerdict(stored, { tab: "tab-b", tabAt: 500 }, NOW), "reject");
-  // 世代交代後は旧タブが拒否される
   const next = entry("tab-b", 2_000);
   assert.equal(presence.tabVerdict(next, { tab: "tab-a", tabAt: 1_000 }, NOW), "reject");
 });
@@ -92,7 +86,6 @@ test("admitTab: 世代交代で evict、旧世代は reject、申告なしは素
     verdict: "accept",
     evict: false,
   });
-  // removePlayer で世代の記録も消える
   core.removePlayer(room, "p1");
   assert.deepEqual(core.admitTab(room, "p1", "tab-a", 1_000), { verdict: "accept", evict: false });
 });

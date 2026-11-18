@@ -1,13 +1,3 @@
-// AGO WORLD BOX ロビー 2F/3F（L2）の検証:
-// - 2F ラウンジ（40×28）・3F 展望（32×24）は図形の和集合（長方形だけにしない）
-// - 全オブジェクトは床タイルの上にあり重ならず、階段・入口・着地点は歩行可能
-// - 床は入口から連結しており、休憩ステーションまで歩いて行ける
-// - 使用スプライトはロビー素材＋L3 のアーケード筐体（新規作成・textures.ts 登録済み）
-// - セーブ/プレゼンスが "lobby2" / "lobby3" を正しい空間として扱い、座標を階の範囲へ丸める
-// - ステーション検証が 2F/3F の休憩でも "rest" を返す（プレゼンス経路・セーブ代替経路とも）
-// - プレゼンスルートが 2F/3F のハートビートを階の範囲へ丸め、空間ごとに分離する
-// 対象外（L2b、競合 PR マージ後）: WorldBoxClient.tsx の階段遷移・描画、
-// relay-core.js の空間分離（#962 と競合中のため今バッチは触らない）。
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -197,8 +187,6 @@ function putSaveRaw(key, space, x, y) {
 
 const URL_PRESENCE = "http://localhost/api/worldbox/presence";
 
-// ---------- 階の形状 ----------
-
 function walkableTiles(data) {
   const out = new Set();
   for (let y = 0; y < data.height; y++) {
@@ -240,7 +228,6 @@ test("floors: 2F 40×28・3F 32×24 で、1F（126×64）とは別サイズの�
   assert.equal(f3.height, 24);
   assert.equal(f2.tiles.length, 40 * 28);
   assert.equal(f3.tiles.length, 32 * 24);
-  // 決定的キャッシュ（同じインスタンス）
   assert.equal(floors.buildLobby2(), f2);
   assert.equal(floors.buildLobby3(), f3);
 });
@@ -260,7 +247,6 @@ test("floors: 外形は図形の和集合（長方形ではない）", () => {
     }
     assert.ok(floor > 0, `${name} に床が無い`);
     assert.ok(voidInside > 0, `${name} が長方形のまま（内側に void が無い）`);
-    // 境界はすべて壁（外形の外に接する床セルは L_WALL=1）
     const data = build();
     for (let y = 0; y < h; y++) {
       for (let x = 0; x < w; x++) {
@@ -298,7 +284,6 @@ test("floors: 全オブジェクトは床の上にあり重ならず、スプラ
         }
       }
     }
-    // 固体オブジェクトは blocked に載り、通過可の階段は載らない（座席は上に乗って座るため固体でも載らない）
     for (const o of data.objects) {
       const expected = o.solid && !["bench", "chair", "sofa"].includes(o.sprite);
       for (let dy = 0; dy < o.h; dy++) {
@@ -348,7 +333,6 @@ test("floors: 階段・入口・着地点は歩行可能で、入口から全階
       assert.ok(walk.has(lk), `${c.name} の着地点が歩行不可: ${lk}`);
       assert.ok(reach.has(lk), `${c.name} の着地点に入口から行けない: ${lk}`);
     }
-    // 休憩ステーションの隣に歩行可能タイルがある（前に立てる）
     const rest = c.data.objects.filter((o) => o.station === "rest");
     assert.ok(rest.length > 0, `${c.name} に休憩ステーションが無い`);
     for (const o of rest) {
@@ -367,7 +351,6 @@ test("floors: 階段・入口・着地点は歩行可能で、入口から全階
 test("floors: 2F はラウンジ＋休憩、3F は展望＋休憩の構成", () => {
   const f2 = floors.buildLobby2();
   const f3 = floors.buildLobby3();
-  // 2F: 中央にテーブル＋椅子、西翼にソファ、東翼に休憩の本棚＋ソファ
   assert.ok(
     f2.objects.some((o) => o.sprite === "table_round" && o.x === 20 && o.y === 14),
     "2F 中央にテーブルが無い",
@@ -380,7 +363,6 @@ test("floors: 2F はラウンジ＋休憩、3F は展望＋休憩の構成", () 
     f2.objects.some((o) => o.sprite === "bookshelf" && o.station === "rest"),
     "2F に休憩の本棚が無い",
   );
-  // 3F: 北デッキに北向きベンチ、南に休憩コーナー、北の本棚 2 つが L5 の入口アンカー
   assert.ok(
     f3.objects.some((o) => o.sprite === "bench" && o.y === 3),
     "3F 北デッキにベンチが無い",
@@ -397,7 +379,6 @@ test("floors: 2F はラウンジ＋休憩、3F は展望＋休憩の構成", () 
     f3.objects.some((o) => o.sprite === "bookshelf" && o.x === 14 && o.y === 4),
     "3F の L5 アンカー本棚が無い",
   );
-  // 階段の行き先が対応している（2F 上→3F、3F 下→2F の着地点は同じ南踊り場）
   assert.deepEqual(floors.LOBBY3_DOWN_LANDING, floors.LOBBY2_UP_LANDING);
 });
 
@@ -411,8 +392,6 @@ test("floors: タイル取得は範囲外で 0 を返す", () => {
   assert.notEqual(floors.lobby3TileAt(f3.tiles, 16, 13), 0);
 });
 
-// ---------- セーブ / プレゼンス ----------
-
 test("save: lobby2/lobby3 を空間として保持し、座標を階の範囲へ丸める", () => {
   const s2 = save.parseSave(
     JSON.stringify({ version: 6, space: "lobby2", x: 999, y: -5, worldReturn: null }),
@@ -425,18 +404,15 @@ test("save: lobby2/lobby3 を空間として保持し、座標を階の範囲へ
   );
   assert.equal(s3.space, "lobby3");
   assert.deepEqual([s3.x, s3.y], [20, 20]);
-  // 往復で空間が保たれる
   const round = save.parseSave(
     save.serializeSave({ space: "lobby3", x: 15.5, y: 5.5, worldReturn: { x: 1, y: 2 } }),
   );
   assert.equal(round.space, "lobby3");
   assert.deepEqual([round.x, round.y], [15.5, 5.5]);
-  // 未知の階はワールドに寄せる（lobby4 は無い）
   const unknown = save.parseSave(
     JSON.stringify({ version: 6, space: "lobby4", x: 5, y: 5, worldReturn: null }),
   );
   assert.equal(unknown.space, "world");
-  // 1F/テントは従来どおり
   assert.equal(
     save.parseSave(JSON.stringify({ version: 6, space: "lobby", x: 5, y: 5, worldReturn: null }))
       .space,
@@ -459,20 +435,14 @@ test("presence: lobby2/lobby3 を空間として保持し、未知はワール�
   assert.equal(presence.sanitizePresenceSpace(null), "world");
 });
 
-// ---------- ステーション検証 ----------
-
 test("station: 2F/3F の休憩の前で rest を返す（プレゼンス経路）", async () => {
-  // 2F 東翼: 休憩ソファ (35,17) の南に立つ
   putPresenceRaw(MY_KEY, 35.5, 18.5, "lobby2");
   assert.equal(await stationOnline.loadMyLobbyStation(MY_KEY), "rest");
   assert.equal(await stationOnline.loadMyLobbyShopGenre(MY_KEY), null);
-  // 3F 南: 休憩ソファ (14,19) の西に立つ
   putPresenceRaw(MY_KEY, 13.5, 19.5, "lobby3");
   assert.equal(await stationOnline.loadMyLobbyStation(MY_KEY), "rest");
-  // 2F 中央ラウンジ（どの施設の前でもない）では null
   putPresenceRaw(MY_KEY, 20.5, 15.5, "lobby2");
   assert.equal(await stationOnline.loadMyLobbyStation(MY_KEY), null);
-  // 3F 北デッキ（ベンチの前・施設なし）では null
   putPresenceRaw(MY_KEY, 11.5, 4.5, "lobby3");
   assert.equal(await stationOnline.loadMyLobbyStation(MY_KEY), null);
 });
@@ -485,12 +455,9 @@ test("station: プレゼンスが無い/古い場合はセーブで代替する�
   assert.equal(await stationOnline.loadMyLobbyStation(MY_KEY), "rest");
   putSaveRaw(MY_KEY, "lobby2", 20.5, 15.5);
   assert.equal(await stationOnline.loadMyLobbyStation(MY_KEY), null);
-  // ワールドのセーブでは null（室内ではない）
   putSaveRaw(MY_KEY, "world", 512.5, 512.5);
   assert.equal(await stationOnline.loadMyLobbyStation(MY_KEY), null);
 });
-
-// ---------- プレゼンスルート ----------
 
 test("presence route: 2F/3F のハートビートを階の範囲へ丸めて保存する", async () => {
   const put2 = await presenceRoute.PUT(
@@ -538,7 +505,6 @@ test("presence route: GET は空間ごとに分離する（2F の者は 3F に�
   const players3 = (await res3.json()).players;
   assert.equal(players3.length, 1);
   assert.equal(players3[0].space, "lobby3");
-  // 未知の空間指定はワールドに寄せる（2F/3F の者は出ない）
   const resW = await presenceRoute.GET(apiRequest(`${URL_PRESENCE}?space=lobby4`, "GET"));
   assert.deepEqual((await resW.json()).players, []);
 });

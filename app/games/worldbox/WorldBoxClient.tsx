@@ -1,13 +1,4 @@
 "use client";
-// AGO WORLD BOX（見下ろし型・共有ワールド）。
-// 世界は固定シード＋座標の純関数で決まるチャンク式マップで、広さは実質
-// 無制限。全員が同じ場所を歩く。初期スポーンはサーバーがランダムに決める。
-// 移動は8方向フリー（左下の固定式スティック＋WASD）、他プレイヤーはプレゼンス API 経由で
-// アバター＋名前つきで表示される（同時接続）。セーブは空間＋位置（v6）。
-// ロビーは別空間（図形の和集合のホール＋ショップ翼2階）で、ワープパッドと
-// ≡ メニューで行き来する。ロビーの描画はピクセル固定（整数座標・補間オフ）。
-// ゲームループと描画は canvas + refs で回し、React state は HUD 表示だけに使う。
-// 純粋ロジックは lib/worldbox/ に分離（生成・移動・プレゼンス・保存）。
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -296,16 +287,13 @@ import WorldBoxGuildShopPanel from "./WorldBoxGuildShopPanel";
 import { ItemSlot as ItemSlotView, ItemSlotGrid } from "./ItemSlotGrid";
 
 const SAVE_KEY = "ago-worldbox-save-v6";
-/** 1タイルの表示サイズ（CSS px）。 */
 const TILE = 44;
-/** アバターの表示幅（タイル比）。 */
 const AVATAR_TILES = 1.3;
 
 const TILE_TEXTURE: Record<number, string> = {
   [T_WATER]: "water",
   [T_SAND]: "sand",
 };
-/** ダンジョン流用タイル（/img/worldbox/*.png、64×64 ピクセルアート）。 */
 const TILE_DUNGEON: Record<number, string> = {
   [T_GRASS]: "grass",
   [T_DIRT]: "dirt",
@@ -324,7 +312,6 @@ const TILE_FALLBACK: Record<number, string> = {
   [T_SNOW]: "#eef3f6",
   [T_SNOW_TREE]: "#eef3f6",
 };
-/** ミニマップの地形色。 */
 const MINIMAP_COLOR: Record<number, string> = {
   [T_GRASS]: "#57a639",
   [T_WATER]: "#3a7cb4",
@@ -335,19 +322,12 @@ const MINIMAP_COLOR: Record<number, string> = {
   [T_SNOW]: "#f4f8fa",
   [T_SNOW_TREE]: "#9fc4bb",
 };
-/** ミニマップ: プレイヤー中心の周辺図。キャンバス解像度と表示範囲（タイル）。 */
 const MINIMAP_PX = 256;
 const MINIMAP_TILES = 128;
-/** ミニマップ上の1タイルの大きさ（256px / 128タイル）。 */
 const MINIMAP_SCALE = MINIMAP_PX / MINIMAP_TILES;
-/** 開拓のコンパスの対象色（洞窟=橙、ダンジョン=紫）。 */
 const COMPASS_CAVE_COLOR = "#e8933a";
 const COMPASS_DUNGEON_COLOR = "#b07fe8";
 
-/**
- * 開拓のコンパスの対象をミニマップへ描く: 範囲内なら入口の位置に
- * マーカー、範囲外なら端に方向矢印（対象への向きに回転した三角）。
- */
 function drawCompassOnMinimap(
   mctx: CanvasRenderingContext2D,
   target: CompassTarget | null,
@@ -391,7 +371,6 @@ function drawCompassOnMinimap(
   mctx.restore();
 }
 
-/** 開拓のコンパスの HUD 1行分（矢印の回転と距離）を直接書き換える。 */
 function updateCompassHud(
   arrowEl: HTMLSpanElement | null,
   distEl: HTMLSpanElement | null,
@@ -415,7 +394,6 @@ function updateCompassHud(
   }
 }
 
-/** マップ表示モード（周辺を大きく見る）のキャンバス解像度と表示範囲。 */
 const BIGMAP_SIZE = 512;
 const BIGMAP_TILES = 256;
 const BIGMAP_SCALE = BIGMAP_SIZE / BIGMAP_TILES;
@@ -430,12 +408,10 @@ type PlayerState = {
 };
 
 type OtherRender = {
-  /** 描画位置のトラック（スナップショット予測へバネで寄せる）。 */
   track: RemoteTrack;
   phase: number;
 };
 
-/** 店舗看板（会社の店舗・受付）の表示データ。サーバー（company/sign ルート）が正。 */
 type CompanySignView = {
   companyId: string;
   name: string;
@@ -452,14 +428,12 @@ type CompanySignView = {
   }[];
 };
 
-/** 移動キー（ダッシュの2度押し判定の対象）。 */
 const MOVE_KEYS = new Set(["w", "a", "s", "d", "arrowup", "arrowdown", "arrowleft", "arrowright"]);
 
 function texReady(img: HTMLImageElement | undefined): img is HTMLImageElement {
   return !!img && img.complete && img.naturalWidth > 0;
 }
 
-/** ひび割れの折れ線（タイル内 0..1 の相対座標）。段階ごとに先頭から増える。 */
 const BLOCK_CRACK_LINES: readonly (readonly (readonly [number, number])[])[] = [
   [
     [0.16, 0.08],
@@ -481,11 +455,6 @@ const BLOCK_CRACK_LINES: readonly (readonly (readonly [number, number])[])[] = [
   ],
 ];
 
-/**
- * 設置ブロックのひび割れ描画（HP制）: 残り HP 割合が下がるほど
- * 線の本数と濃さが増える。形はタイル座標から決定的にずらし、
- * 毎フレーム同じ見た目にする。
- */
 function drawBlockCracks(
   ctx: CanvasRenderingContext2D,
   bx: number,
@@ -533,8 +502,6 @@ const NATION_ERROR_LABEL: Record<string, string> = {
   forbidden: "その権限がありません",
 };
 
-/** タイル行為の失敗ラベル（断片のみ）。 */
-/** モブの色（被弾/死亡エフェクト用）。描画本体は素材スプライト（MOB_SPRITE）が正で、これは色だけを持つ。 */
 const TILE_ERROR_LABEL: Record<string, string> = {
   tool_required: "道具が必要",
   tile_blocked: "そこではできない",
@@ -560,7 +527,6 @@ const TILE_ERROR_LABEL: Record<string, string> = {
   containers_unavailable: "いま使えない",
 };
 
-/** アイテムのドット絵アイコン（無いアイテムは名前ラベルのみで出す）。 */
 function ItemIcon({ id, size = 22 }: { id: string; size?: number }) {
   const def = itemById(id);
   if (!def?.icon) return null;
@@ -576,11 +542,6 @@ function ItemIcon({ id, size = 22 }: { id: string; size?: number }) {
   );
 }
 
-/**
- * スロットの中身: スプライトのみで出す（名前テキストはスロットに置かない）。
- * アイコンの無いアイテムは枠だけ、個数は右下のバッジ。
- * 親ボタンは position: relative 前提。
- */
 function SlotContent({ slot, durFrac }: { slot: ItemSlot; durFrac?: number | null }) {
   if (!slot) return null;
   const def = itemById(slot.id);
@@ -624,7 +585,6 @@ function SlotContent({ slot, durFrac }: { slot: ItemSlot; durFrac?: number | nul
         {slot.count}
       </span>
       {durFrac !== null && durFrac !== undefined && durFrac < 1 && (
-        // 道具の耐久バー（使用中の1本の残量。満タンでは出さない）
         <span
           aria-hidden
           style={{
@@ -662,10 +622,8 @@ const EMPTY_NATIONS: NationsResponse = {
   guildsScopeRequired: false,
 };
 
-/** 足元に平置きで描くロビースプライト（上に立てるもの）。 */
 const FLAT_LOBBY_SPRITES = new Set(["warp_pad", "stairs", "tapestry"]);
 
-/** 地表オブジェクトの鉱脈の色（洞窟内の描画と同じ色づかい）。 */
 const SURFACE_VEIN_COLORS: Record<string, string> = {
   copper_vein: "#c47b4a",
   coal_vein: "#3a3a42",
@@ -673,12 +631,6 @@ const SURFACE_VEIN_COLORS: Record<string, string> = {
   crystal_cluster: "#9fe8ff",
 };
 
-/**
- * 地表オブジェクトをタイル内にフラットな形で描く（洞窟の鉱脈・宝箱と
- * 同じ様式: 単色＋簡単な形）。sx/sy はタイル左上、tile は一辺 px。
- * spent=true（一回きりを使い終わった）は薄く描いて「残っているが
- * 恵みは無い」ことを示す。
- */
 function drawSurfaceObject(
   ctx: CanvasRenderingContext2D,
   objectId: string,
@@ -725,7 +677,6 @@ function drawSurfaceObject(
         ctx.fill();
         break;
       }
-      // 茂み・群生: 緑の塊＋実や葉の差し色
       ctx.fillStyle = objectId === "berry_bush" ? "#2f6121" : "#3e7d2c";
       ctx.beginPath();
       ctx.arc(cx - 8 * u, ground - 6 * u, 8 * u, 0, Math.PI * 2);
@@ -917,7 +868,6 @@ function drawSurfaceObject(
   ctx.restore();
 }
 
-/** ステーションの名前札（近づくと下部チップに出る）。 */
 const STATION_LABEL: Record<LobbyStation, string> = {
   board: "掲示板",
   guild: "ギルドボード",
@@ -940,29 +890,22 @@ export default function WorldBoxClient() {
   const { prefix, embedded, identity, retryIdentity } = useGamesNav();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const minimapRef = useRef<HTMLCanvasElement | null>(null);
-  /** 開拓のコンパスの HUD（矢印と距離は描画ループが直接書き換える）。 */
   const compassCaveArrowRef = useRef<HTMLSpanElement | null>(null);
   const compassCaveDistRef = useRef<HTMLSpanElement | null>(null);
   const compassDungeonArrowRef = useRef<HTMLSpanElement | null>(null);
   const compassDungeonDistRef = useRef<HTMLSpanElement | null>(null);
-  // ポーリングのガード（S6）: in-flight 重複を抑え、古いレスポンスが新しい
-  // 状態を上書きしない。取得ごとに begin → isCurrent → end を使う。
   const chatGuardRef = useRef<PollGuard>(createPollGuard());
   const partyGuardRef = useRef<PollGuard>(createPollGuard());
   const boardGuardRef = useRef<PollGuard>(createPollGuard());
   const nationsGuardRef = useRef<PollGuard>(createPollGuard());
   const guildShopGuardRef = useRef<PollGuard>(createPollGuard());
-  // ギルドショップの借り区画（地図のギルド名表示用。借りている区画だけ）
   const guildShopPlotsRef = useRef<{ idx: number; guildName: string }[]>([]);
   const invGuardRef = useRef<PollGuard>(createPollGuard());
   const vitalsGuardRef = useRef<PollGuard>(createPollGuard());
   const instanceGuardRef = useRef<PollGuard>(createPollGuard());
-  // WS 中継の接続状態（エンジンが書き、コンポーネント側ポーリングの
-  // 間引き判定が読む）。WS push が健全な間は対象ポーリングを止める。
   const rtOpenRef = useRef(false);
   const rtLastMsgRef = useRef(0);
   const wsHealthyNow = () => isWsHealthy(rtOpenRef.current, rtLastMsgRef.current, Date.now());
-  /** エンジンから呼ぶ再同期用の橋（各 refresh の最新版を毎レンダーで差す）。 */
   const nationsRefreshRef = useRef<(force?: boolean) => Promise<void>>(async () => {});
   const guildShopRefreshRef = useRef<(force?: boolean) => Promise<void>>(async () => {});
   const boardRefreshRef = useRef<() => Promise<void>>(async () => {});
@@ -971,8 +914,6 @@ export default function WorldBoxClient() {
   const [statusText, setStatusText] = useState("読み込み中…");
   const [othersCount, setOthersCount] = useState(0);
   const [showMap, setShowMap] = useState(true);
-  // スマホ向けレイアウト分岐（lib/worldbox/world/layout が正）。初期値は wide で
-  // PC 表示を既定にし、マウント後に実寸へ追随する。
   const [viewport, setViewport] = useState({ w: 1280, h: 800 });
   useEffect(() => {
     const update = () => setViewport({ w: window.innerWidth, h: window.innerHeight });
@@ -988,18 +929,15 @@ export default function WorldBoxClient() {
   const hud = wbHudMetrics(layoutMode);
   const showMapRef = useRef(true);
   showMapRef.current = showMap;
-  // 国家レイヤー（描画ループは ref、パネルは state で同じデータを見る）
   const nationsRef = useRef<NationsResponse>(EMPTY_NATIONS);
   const playerPosRef = useRef({ x: 0.5, y: 0.5 });
   const [nationsUi, setNationsUi] = useState<NationsResponse>(EMPTY_NATIONS);
   const [showEconomy, setShowEconomy] = useState(false);
   const [showCompany, setShowCompany] = useState(false);
-  // マップ表示モード（周辺マップを大きく見る。描画ループは ref で見る）
   const [mapView, setMapView] = useState(false);
   const mapViewRef = useRef(false);
   mapViewRef.current = mapView;
   const bigMapRef = useRef<HTMLCanvasElement | null>(null);
-  // 自ユニオンのポーター（テレポーターが設置した転移点。マップに表示し、選ぶと移動）
   const [porterUi, setPorterUi] = useState<{ x: number; y: number } | null>(null);
   const porterRef = useRef<{ x: number; y: number } | null>(null);
   porterRef.current = porterUi;
@@ -1023,7 +961,6 @@ export default function WorldBoxClient() {
       window.clearInterval(timer);
     };
   }, [mapView]);
-  // フルスクリーン（ステージ全体を画面いっぱいにする。対応環境でのみボタンを出す）
   const stageRef = useRef<HTMLDivElement | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [canFullscreen, setCanFullscreen] = useState(false);
@@ -1042,13 +979,10 @@ export default function WorldBoxClient() {
       void stageRef.current?.requestFullscreen().catch(() => {});
     }
   };
-  // 座標表示（タイル単位の整数。ループが毎フレーム書く playerPosRef から拾う）
   const [coords, setCoords] = useState({ x: 0, y: 0 });
   const [nationMsg, setNationMsg] = useState("");
-  /** ワールドの固体タイル（"x,y" の集合）。設置ブロックから作り直す。 */
   const blockedRef = useRef<ReadonlySet<string>>(new Set());
 
-  // 座標表示の更新（250ms 間隔・タイルが変わったときだけ再描画）
   useEffect(() => {
     const timer = window.setInterval(() => {
       const next = {
@@ -1060,12 +994,9 @@ export default function WorldBoxClient() {
     return () => window.clearInterval(timer);
   }, []);
 
-  // 入場ゲート（Discord ログインかゲスト入場が必須。許可されるまでワールドは描画しない）
   const [gate, setGate] = useState<"checking" | "ok" | "denied">("checking");
   const [gateTry, setGateTry] = useState(0);
-  // ゲスト入場リクエストの送信中フラグ（連打で二重に送らないため）
   const [guestBusy, setGuestBusy] = useState(false);
-  // 先読み完了までワールドを出さない（初フレームで平色フォールバックがチラつかないように）。
   const [booted, setBooted] = useState(false);
   const gateOk = gate === "ok" && booted;
   useEffect(() => {
@@ -1083,9 +1014,6 @@ export default function WorldBoxClient() {
       cancelled = true;
     };
   }, [gateTry]);
-  // 入場前スプライト先読み: ロビー/農場/洞窟のファイル素材を温め、
-  // 初フレームで平色フォールバックがチラつかないようにする。タイムアウトで
-  // 必ず進む（止まらない）。ゲート画面の「読み込み中…」の間に済ませる。
   useEffect(() => {
     if (gate !== "ok" || booted) return;
     let cancelled = false;
@@ -1103,25 +1031,13 @@ export default function WorldBoxClient() {
       cancelled = true;
     };
   }, [gate, booted]);
-  // Activity 内では GamesShell の SDK 認証が完了するとセッションが張られる。
-  // 本人情報が届いた時点でゲートを引き直す（初回チェックが認証より先に
-  // 走って denied になっても、押せないログインリンクで詰まらないように）。
   const identityId = identity?.id;
   useEffect(() => {
     if (identityId) setGateTry((t) => t + 1);
   }, [identityId]);
-  // Activity 経由では Discord にログイン済みなのが前提（SDK 認証が本人
-  // 確認そのもの）。本人情報が届いたらセッション確認を待たずに通す
-  // （ユーザー指示 2026-11-16: Activity では認証はいらないはず）。
-  // Activity の iframe ではセッション Cookie が保持されるとは限らず、
-  // ゲート判定（Cookie のみ）に委ねると認証済みでも「ログインが必要」で
-  // 詰まる。API 側のセッション検証は従来どおり各ルートが担い、
-  // games-auth は引き続きセッション Cookie も張る。
   useEffect(() => {
     if (embedded && identityId) setGate("ok");
   }, [embedded, identityId]);
-  // 認証完了の通知を取りこぼした場合の保険: Activity 内で denied の間は
-  // しばらく自動で引き直す。
   useEffect(() => {
     if (!embedded || gate !== "denied") return;
     let count = 0;
@@ -1135,47 +1051,34 @@ export default function WorldBoxClient() {
     }, 2500);
     return () => window.clearInterval(timer);
   }, [embedded, gate]);
-  // 空間（ワールド / ロビー）とハンバーガーメニュー、ステーション、掲示板
   const [spaceUi, setSpaceUi] = useState<SaveSpace>("world");
-  /** spaceUi の ref ミラー（定期精算のタイマーから現在空間を読むため）。 */
   const spaceUiRef = useRef<SaveSpace>("world");
   spaceUiRef.current = spaceUi;
   const [menuOpen, setMenuOpen] = useState(false);
-  // ≡ メニュー内の「設定」開閉: BGM・効果音・通報はここへ格納し、
-  // メニュー本体はアクションだけに保つ（2026-11-17 ユーザー指示）。
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [collectionSel, setCollectionSel] = useState<string | null>(null);
   const [stationUi, setStationUi] = useState<LobbyStation | null>(null);
-  /** ワールドで設置した作業施設の近くにいるときの作業種別（カンマ区切り。経済パネル用）。 */
   const [worldStationKinds, setWorldStationKinds] = useState("");
-  /** いま接している店の品目ジャンル（製造・R&D拠点は "smith"）。経済パネルの品目選別に使う。 */
   const [stationGenre, setStationGenre] = useState<ShopGenreId | null>(null);
-  /** いま接しているアーケード筐体のゲーム ID（L4）。筐体パネルの起動に使う。 */
   const [stationArcade, setStationArcade] = useState<string | null>(null);
   const [arcadeOpen, setArcadeOpen] = useState(false);
-  /** 筐体で遊んでいる間はワールド側の移動キーを受けない（ゲーム側のキー入力と競合するため）。 */
   const arcadeOpenRef = useRef(false);
   useEffect(() => {
     arcadeOpenRef.current = arcadeOpen;
   }, [arcadeOpen]);
-  /** 望遠鏡モード（開いている間はプレイヤーが止まり、視点だけが自由に動く）。 */
   const [telescopeOpen, setTelescopeOpen] = useState(false);
   const telescopeOpenRef = useRef(false);
   useEffect(() => {
     telescopeOpenRef.current = telescopeOpen;
   }, [telescopeOpen]);
-  /** 望遠鏡の視点をプレイヤー位置へ戻す合図（増えるたびにループ側が再センタリング）。 */
   const telescopeCenterRef = useRef(0);
-  /** ロビーのピアノ（鍵盤パネル）。音は中継でロビー全員に届く。 */
   const [pianoOpen, setPianoOpen] = useState(false);
   useEffect(() => {
     if (stationUi !== "piano") setPianoOpen(false);
   }, [stationUi]);
-  /** ピアノ音の送信口（リアルタイム接続が張る）。 */
   const pianoSendRef = useRef<((notes: number[]) => void) | null>(null);
   const pianoPendingRef = useRef<number[]>([]);
   const pianoFlushTimerRef = useRef<number | undefined>(undefined);
-  /** 鍵盤の打鍵: 自分に即鳴らし、30ms 以内の打鍵をまとめて中継へ送る。 */
   const playPianoNote = (semi: number) => {
     playPianoNotes([semi]);
     pianoPendingRef.current.push(semi);
@@ -1193,7 +1096,6 @@ export default function WorldBoxClient() {
   const instanceWarpRef = useRef<(target: string, entry: { x: number; y: number }) => void>(
     () => {},
   );
-  /** 開催中イベント（期間ダンジョンの入場導線用）。 */
   const [eventsUi, setEventsUi] = useState<
     { id: string; name: string; kind: string; daysLeft: number }[]
   >([]);
@@ -1227,9 +1129,7 @@ export default function WorldBoxClient() {
       { x: r.portal.x + 0.5, y: r.portal.y + 0.5 },
     );
   };
-  /** 所属国への移動（ゲームループ側のテレポート実体）。 */
   const teleportActionRef = useRef<(x: number, y: number) => void>(() => {});
-  /** 所属国へ移動: 所属の検証と移動先の決定はサーバー側が行う。 */
   const travelToNation = async () => {
     setNationMsg("");
     try {
@@ -1252,7 +1152,6 @@ export default function WorldBoxClient() {
       setNationMsg("失敗しました");
     }
   };
-  /** 自ユニオンのポーターへ移動: 所属と現在空間の検証はサーバー側が行う。 */
   const teleportToPorter = async () => {
     try {
       const res = await fetch("/api/worldbox/warp", {
@@ -1289,7 +1188,6 @@ export default function WorldBoxClient() {
   const staminaBoostRef = useRef(false);
   const [boardOpen, setBoardOpen] = useState(false);
   const [guildBoardOpen, setGuildBoardOpen] = useState(false);
-  /** 招待リンク（?union=<DiscordサーバーID>）の指定先。 */
   const [inviteGuildId] = useState<string | null>(() => {
     if (typeof window === "undefined") return null;
     return new URLSearchParams(window.location.search).get("union");
@@ -1327,8 +1225,6 @@ export default function WorldBoxClient() {
   const [boardLoggedIn, setBoardLoggedIn] = useState(false);
   const [boardText, setBoardText] = useState("");
   const [boardMsg, setBoardMsg] = useState("");
-  // 音響（BGM/SE）: 設定は lib/worldbox/media/sound が localStorage に持つ。
-  // AudioContext は最初のユーザー操作でだけ作れるため、解錠は pointerdown/keydown で行う。
   const [soundSettings, setSoundSettings] = useState<WbSoundSettings>({ bgm: true, se: true });
   useEffect(() => {
     setSoundSettings(loadWbSoundSettings());
@@ -1341,7 +1237,6 @@ export default function WorldBoxClient() {
       stopWbBgm();
     };
   }, []);
-  // BGM の場面は 1 秒ごとに判定し直す（昼夜は共有時計で勝手に進むため）。
   useEffect(() => {
     const applyScene = () => {
       setWbBgmScene(
@@ -1363,7 +1258,6 @@ export default function WorldBoxClient() {
     if (key === "se" && next.se) playWbSe("click");
   };
   const refreshBoard = async () => {
-    // 古いレスポンスが新しい投稿一覧を上書きしない（S6）
     const ticket = boardGuardRef.current.begin();
     if (ticket === null) return;
     try {
@@ -1409,7 +1303,6 @@ export default function WorldBoxClient() {
   useEffect(() => {
     if (!boardOpen) return;
     void refreshBoard();
-    // WS push が健全な間は掲示板の差分が push で届くため定期取得しない
     const timer = window.setInterval(() => {
       if (!wsHealthyNow()) void refreshBoard();
     }, 10000);
@@ -1417,7 +1310,6 @@ export default function WorldBoxClient() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [boardOpen]);
 
-  // 施設から離れたら、その施設のパネルは閉じる（場所制約の表示側）
   useEffect(() => {
     if (stationUi !== "board") setBoardOpen(false);
     if (stationUi !== "casino") setCasinoOpen(false);
@@ -1427,7 +1319,6 @@ export default function WorldBoxClient() {
     setPlazaMsg("");
   }, [stationUi]);
 
-  // 噴水・休憩の小施設アクション（場所検証はサーバー側、回復はここで適用）
   const plazaAction = async (action: "fountain" | "rest") => {
     try {
       const res = await fetch("/api/worldbox/plaza", {
@@ -1474,7 +1365,6 @@ export default function WorldBoxClient() {
     setNationsUi(data);
   };
   const refreshNations = async (force = false) => {
-    // 古いレスポンスが新しい国家状態を上書きしない（S6）。行為直後の再取得は force。
     const ticket = nationsGuardRef.current.begin(force ? { force: true } : undefined);
     if (ticket === null) return;
     try {
@@ -1491,8 +1381,6 @@ export default function WorldBoxClient() {
   };
   nationsRefreshRef.current = refreshNations;
   boardRefreshRef.current = refreshBoard;
-  // ギルドショップの借り区画（地図のカウンター上にギルド名を出す用）。
-  // 応答の本人向け加工は地図では使わず、借り区画の idx とギルド名だけ持つ。
   const refreshGuildShopPlots = async (force = false) => {
     const ticket = guildShopGuardRef.current.begin(force ? { force: true } : undefined);
     if (ticket === null) return;
@@ -1533,11 +1421,8 @@ export default function WorldBoxClient() {
       setNationMsg("失敗しました");
     }
   };
-  // インベントリ（ホットバー/ストレージ）とタイル上書き（伐採・畑・作物）
   const [invProfile, setInvProfile] = useState<PlayerProfile | null>(null);
-  /** 技チャージゲージの表示時計（クールタイム中だけ 200ms で進める）。 */
   const [gaugeNow, setGaugeNow] = useState(() => Date.now());
-  // テレポーターのゲージはポーター設置（activeSkillFor は戦闘技として返さない）
   const gaugeSkill =
     invProfile && invProfile.role !== "free"
       ? invProfile.role === "teleporter"
@@ -1557,18 +1442,14 @@ export default function WorldBoxClient() {
   }, []);
   const invRef = useRef<PlayerProfile | null>(null);
   invRef.current = invProfile;
-  /** 開拓のコンパスを持っているか（持っている間だけ方向表示が出る）。 */
   const hasCompass = !!invProfile && countItem(invProfile, "explorer_compass") > 0;
   const [selSlot, setSelSlot] = useState(0);
   const selSlotRef = useRef(0);
   selSlotRef.current = selSlot;
   const [storageOpen, setStorageOpen] = useState(false);
-  /** インベントリ整理で持ち上げ中のスロット（タップ→タップで移動）。 */
   const [heldSlot, setHeldSlot] = useState<SlotRef | null>(null);
-  /** インベントリのダブルタップ検出（食べ物はダブルタップで食べる）。 */
   const lastSlotTapRef = useRef<{ zone: SlotRef["zone"]; index: number; at: number } | null>(null);
   const lastHotbarTapRef = useRef<{ index: number; at: number } | null>(null);
-  /** 開いている収納コンテナ（自分の樽・宝箱）とその中身。 */
   const [containerPanel, setContainerPanel] = useState<{
     x: number;
     y: number;
@@ -1576,48 +1457,36 @@ export default function WorldBoxClient() {
     space: "world" | "tent" | "lobby" | "lobby2" | "lobby3";
   } | null>(null);
   const [machinePanel, setMachinePanel] = useState<{ x: number; y: number } | null>(null);
-  /** 座っている家具のタイル（ベンチ・椅子・ソファ）。見た目だけの状態で、プレゼンスにも申告する。 */
   const sitTileRef = useRef<{ x: number; y: number } | null>(null);
   const [containerSlots, setContainerSlots] = useState<ItemSlot[] | null>(null);
-  /** コンテナパネルで持ち上げ中のスロット（プロフィール側も含む）。 */
   const [heldPanelSlot, setHeldPanelSlot] = useState<ContainerSlotRef | null>(null);
   const [seedPicker, setSeedPicker] = useState<{ x: number; y: number } | null>(null);
-  /** 看板テキストの編集対象（自分の看板をタップしたとき）。 */
   const [signEdit, setSignEdit] = useState<{ x: number; y: number; text: string } | null>(null);
-  /** 屋台パネル: 対象タイルと、開いた時点で選択していたアイテム（出品候補）と自分の屋台か。 */
   const [stallPanel, setStallPanel] = useState<{
     x: number;
     y: number;
     selItemId: string | null;
     mine: boolean;
   } | null>(null);
-  /** 屋台の出品（サーバーが正）。undefined は読み込み中。 */
   const [stallInfo, setStallInfo] = useState<
     { itemId: string; name: string; price: number; count: number; mine: boolean } | null | undefined
   >(undefined);
   const [stallPriceText, setStallPriceText] = useState("100");
   const [stallCountText, setStallCountText] = useState("1");
-  /** 会社パネルを特定の会社の受付から開くときのアンカー（看板・本社マーカーから）。 */
   const [companyAnchor, setCompanyAnchor] = useState<string | null>(null);
-  /** 現在の空間にある会社本社のマーカー（サーバーが正。描画とタップ判定は ref で読む）。 */
   const companyHqsRef = useRef<{ id: string; name: string; x: number; y: number }[]>([]);
-  /** 店舗看板のポップアップ（登録済みの看板をタップしたとき）。 */
   const [signShop, setSignShop] = useState<{ x: number; y: number; sign: CompanySignView } | null>(
     null,
   );
   const [signShopBusy, setSignShopBusy] = useState(false);
   const [signShopMsg, setSignShopMsg] = useState("");
   const [signRevealed, setSignRevealed] = useState<{ name: string; content: string } | null>(null);
-  /** 自分の看板の店舗登録状態（看板編集ポップアップ用。undefined は取得中）。 */
   const [signReg, setSignReg] = useState<{ companyId: string; name: string } | null | undefined>(
     undefined,
   );
-  /** 自分が所属する会社 ID（看板を自社店舗として登録できるかの判定用）。 */
   const [signViewerCompanyId, setSignViewerCompanyId] = useState<string | null>(null);
   const [tileMsg, setTileMsg] = useState("");
-  /** 別のタブに同じアカウントで引き継がれた（このタブは無効化された）か。 */
   const [tabTaken, setTabTaken] = useState(false);
-  // Esc で開いているパネル/メニューを全部閉じる（パネル内に閉じ場所が無い状態への保険）
   useEffect(() => {
     const onEsc = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
@@ -1636,8 +1505,6 @@ export default function WorldBoxClient() {
     window.addEventListener("keydown", onEsc);
     return () => window.removeEventListener("keydown", onEsc);
   }, []);
-  // 会社本社のマーカー: 空間が変わるたび（と1分ごと）に、その空間の
-  // 本社一覧を取り直す。失敗したらマーカーを出さないだけ。
   useEffect(() => {
     let alive = true;
     const load = async () => {
@@ -1660,7 +1527,6 @@ export default function WorldBoxClient() {
       window.clearInterval(timer);
     };
   }, [spaceUi]);
-  /** 店舗看板の商品購入（会社ルートの product_buy と同じ。内容は購入時だけ開示）。 */
   const buySignProduct = async (productId: string) => {
     if (!signShop || signShopBusy) return;
     setSignShopBusy(true);
@@ -1703,7 +1569,6 @@ export default function WorldBoxClient() {
       setSignShopBusy(false);
     }
   };
-  /** 自分の看板の店舗登録・解除（会社ルートが所有と所属を検証する）。 */
   const postSignRegistration = async (action: "sign_register" | "sign_unregister") => {
     if (!signEdit) return;
     try {
@@ -1718,7 +1583,6 @@ export default function WorldBoxClient() {
       }
       if (action === "sign_register") {
         setTileMsg("看板を会社の店舗・受付として登録しました");
-        // 登録先の会社名を取り直す
         const view = await fetch(`/api/worldbox/company/sign?x=${signEdit.x}&y=${signEdit.y}`, {
           headers: { Accept: "application/json" },
         });
@@ -1734,8 +1598,6 @@ export default function WorldBoxClient() {
   };
   const tilesRef = useRef<TileOverridesMap>({});
   const tilesVersionRef = useRef(0);
-  /** 演出イベントの受け渡し（行為の成功/失敗→描画ループでパーティクル/揺れ/ポップに変換）。
-   * whiff は空振り（風切りのみ、粒なし）。 */
   const fxEventsRef = useRef<
     {
       kind: FxBurstKind | "whiff";
@@ -1746,29 +1608,18 @@ export default function WorldBoxClient() {
       colors?: string[];
     }[]
   >([]);
-  /** 無効操作のフィードバック（赤い輪＋揺れ。タップしたタイルと開始時刻）。 */
   const denyFxRef = useRef<{ x: number; y: number; at: number } | null>(null);
-  /** 初回誘導を出した施設（セッション内だけ覚える。キー=施設種別/スプライト）。 */
   const seenAffordanceRef = useRef(new Map<string, number>());
-  /** 無効フィードバックの回数（tileMsg ピルの揺れアニメーション再発火用）。 */
   const [denyStamp, setDenyStamp] = useState(0);
-  // 冒険役職の技（ダブルタップ発動）: 進行中の演出・前回タップ。
   const skillFxRef = useRef<{ effect: SkillFxEffect; stage: number }[]>([]);
   const lastTapRef = useRef<{ x: number; y: number; at: number } | null>(null);
 
-  /** 無効操作の構造的フィードバック: 赤い輪＋揺れ＋ error SE（文言だけに頼らない）。 */
   const denyAtTile = (x: number, y: number) => {
     denyFxRef.current = { x, y, at: performance.now() };
     playWbSe("error");
     setDenyStamp((n) => n + 1);
   };
 
-  /**
-   * ダブルタップで技を打つ。発動したら true（通常タップは消費される）。
-   * サーバーに弾かれたら "denied"（ジェスチャ自体は技の試みとして消費し、
-   * 無言で通常タップに化けさせない）。役職なし等で技にならない場合は false。
-   * 現在の技はテレポーターのポーター設置だけ（戦闘技は存在しない）。
-   */
   const castSkillAt = async (t: { x: number; y: number }): Promise<boolean | "denied"> => {
     const profile = invRef.current;
     if (!profile || profile.role !== "teleporter") return false;
@@ -1825,9 +1676,7 @@ export default function WorldBoxClient() {
   };
   const castSkillRef = useRef(castSkillAt);
   castSkillRef.current = castSkillAt;
-  /** 自分の不透明 ID（プレゼンス ID）。自分のブロック判定に使う。 */
   const selfIdRef = useRef<string | null>(null);
-  /** タイル上書きから設置ブロックの固体集合を作り直す（施設は占有のみで固体にしない。柵は固体、門は閉じている間だけ固体、床は固体にしない）。 */
   const syncBlockBlocked = () => {
     const now = Date.now();
     const next = new Set<string>();
@@ -1836,9 +1685,6 @@ export default function WorldBoxClient() {
       if (placedBlockSolid(ov.block.itemId)) next.add(key);
       else if (isGateItem(ov.block.itemId) && ov.gateOpen !== true) next.add(key);
     }
-    // 地表の固体オブジェクト（鉱脈・巣・宝箱・石柱・倒木）も歩行を塞ぐ。
-    // 読み込み済みタイル窓（中心 ±64）の範囲で決定的配置から合成する
-    // （枯渇しても物体そのものは残るため採取状態には依存しない）。
     const center = tilesCenterRef.current ?? {
       x: Math.floor(playerPosRef.current.x),
       y: Math.floor(playerPosRef.current.y),
@@ -1856,7 +1702,6 @@ export default function WorldBoxClient() {
   };
 
   const refreshInv = async () => {
-    // 古いレスポンスが行為後の新しいプロフィール（残高・所持）を巻き戻さない（S6）
     const ticket = invGuardRef.current.begin();
     if (ticket === null) return;
     try {
@@ -1871,14 +1716,12 @@ export default function WorldBoxClient() {
     }
   };
   invRefreshRef.current = refreshInv;
-  /** バイタル API の結果を反映する（テレポート配達があれば移動まで行う）。 */
   const applyVitalsResult = (data: {
     profile?: PlayerProfile;
     teleport?: { space: string; x: number; y: number };
   }) => {
     if (data.profile) setInvProfile(data.profile);
     if (data.teleport) {
-      // パーティワープのテレポートは対象の空間へ戻す（洞窟・遺跡・ダンジョン）。
       const t = data.teleport;
       if (t.space && parseInstanceSpace(t.space)) {
         instanceWarpRef.current(t.space, { x: t.x, y: t.y });
@@ -1889,8 +1732,6 @@ export default function WorldBoxClient() {
     }
   };
   const postVitals = async (body: Record<string, unknown>, force = false) => {
-    // 古い精算レスポンスが行為後の新しいプロフィールを巻き戻さない（S6）。
-    // 15s 定期精算はスキップ可、明示呼び出しは force。
     const ticket = vitalsGuardRef.current.begin(force ? { force: true } : undefined);
     if (ticket === null) return;
     try {
@@ -1910,14 +1751,12 @@ export default function WorldBoxClient() {
       vitalsGuardRef.current.end(ticket);
     }
   };
-  /** 遺跡の個人状態（宝箱・罠・扉）。サーバーが正、ここは表示用キャッシュ。 */
   const ruinsStateRef = useRef<{
     chests: Record<string, boolean>;
     traps: Record<string, boolean>;
     doors: Record<string, boolean>;
   }>({ chests: {}, traps: {}, doors: {} });
   const refreshRuinsState = async (space: string) => {
-    // 行為直後の明示再取得。古いレスポンスが新しい状態を上書きしない（S6）。
     const ticket = instanceGuardRef.current.begin({ force: true });
     if (ticket === null) return;
     try {
@@ -1944,15 +1783,12 @@ export default function WorldBoxClient() {
   };
   const refreshRuinsStateRef = useRef(refreshRuinsState);
   refreshRuinsStateRef.current = refreshRuinsState;
-  /** インスタンス内のテレポート（転移罠など）。エフェクト側が placePlayer を差す。 */
   const instanceTeleportRef = useRef<((x: number, y: number) => void) | null>(null);
-  /** 洞窟の枯渇状態（鉱脈・宝箱）。サーバーが正、ここは表示用キャッシュ。 */
   const caveStateRef = useRef<{ veins: Record<string, number>; chest: number }>({
     veins: {},
     chest: 0,
   });
   const refreshCaveState = async (space: string) => {
-    // 行為直後の明示再取得。古いレスポンスが新しい状態を上書きしない（S6）。
     const ticket = instanceGuardRef.current.begin({ force: true });
     if (ticket === null) return;
     try {
@@ -1971,13 +1807,11 @@ export default function WorldBoxClient() {
   };
   const refreshCaveStateRef = useRef(refreshCaveState);
   refreshCaveStateRef.current = refreshCaveState;
-  /** ダンジョンのセッション状態（宝箱）。サーバーが正、ここは表示用。 */
   const dungeonStateRef = useRef<{
     opened: Record<string, boolean>;
     size: number;
   }>({ opened: {}, size: 1 });
   const refreshDungeonState = async (space: string) => {
-    // 行為直後の明示再取得。古いレスポンスが新しい状態を上書きしない（S6）。
     const ticket = instanceGuardRef.current.begin({ force: true });
     if (ticket === null) return;
     try {
@@ -2002,7 +1836,6 @@ export default function WorldBoxClient() {
   };
   const refreshDungeonStateRef = useRef(refreshDungeonState);
   refreshDungeonStateRef.current = refreshDungeonState;
-  /** パーティ状態（編成・招待）。サーバーが正、ここは表示と導線用。 */
   type PartyViewClient = {
     id: string;
     entrance: { x: number; y: number };
@@ -2018,7 +1851,6 @@ export default function WorldBoxClient() {
   partyRef.current = partyUi;
   const myPartyKeyRef = useRef("");
   const [nearDungeonEntrance, setNearDungeonEntrance] = useState(false);
-  /** タップで選択した他プレイヤーのプロフィールチップ。 */
   const [playerCard, setPlayerCard] = useState<{
     id: string;
     name: string;
@@ -2038,7 +1870,6 @@ export default function WorldBoxClient() {
   };
   const showPlayerCardRef = useRef(showPlayerCard);
   showPlayerCardRef.current = showPlayerCard;
-  /** チャット（近距離/全体/ユニオン）。サーバーが正、ここは表示と送信だけ。 */
   const [chatChannel, setChatChannel] = useState<"proximity" | "global" | "union">("proximity");
   const [chatMsgs, setChatMsgs] = useState<
     { name: string; text: string; at: number; source?: string }[]
@@ -2049,10 +1880,7 @@ export default function WorldBoxClient() {
   useEffect(() => {
     let disposed = false;
     const load = async (force = false) => {
-      // WS push が健全な間は定期取得を止める（変更時は relay の poke で
-      // force 取得が走る）。初期表示とチャンネル切替はスナップショット取得。
       if (!force && wsHealthyNow()) return;
-      // 古いレスポンスが新しいメッセージ一覧を上書きしない（S6）
       const ticket = chatGuardRef.current.begin();
       if (ticket === null) return;
       try {
@@ -2084,9 +1912,7 @@ export default function WorldBoxClient() {
       window.clearInterval(timer);
     };
   }, [spaceUi, chatChannel]);
-  /** 釣り: 魚影タップでキャスト、食いつきの窓でもう一度タップすると釣れる。 */
   const fishingRef = useRef<{ x: number; y: number; biteAt: number } | null>(null);
-  /** 闇マスク用のオフスクリーン（設置した明かりの穴あけに使う）。 */
   const darkCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const fishCaughtRef = useRef(new Map<string, number>());
   const postCatch = async (x: number, y: number) => {
@@ -2123,9 +1949,7 @@ export default function WorldBoxClient() {
   };
   const postCatchRef = useRef(postCatch);
   postCatchRef.current = postCatch;
-  /** 地表オブジェクトの枯渇状態（サーバー共有が正、ここは表示用キャッシュ）。 */
   const surfaceObjStateRef = useRef(new Map<string, number>());
-  /** 地表オブジェクトへの行為: 検証・付与・枯渇記録はサーバーが正。 */
   const postSurfaceObject = async (x: number, y: number, objectId: string) => {
     try {
       const res = await fetch("/api/worldbox/objects", {
@@ -2152,7 +1976,6 @@ export default function WorldBoxClient() {
               : def?.tool === "axe"
                 ? "chop"
                 : "harvest";
-        // 破片は対象の素材色で返す（鉱脈・巣・実など）
         fxEventsRef.current.push({
           kind: fxKind,
           x,
@@ -2178,11 +2001,6 @@ export default function WorldBoxClient() {
   };
   const postSurfaceObjectRef = useRef(postSurfaceObject);
   postSurfaceObjectRef.current = postSurfaceObject;
-  /**
-   * 枯渇状態と釣果時刻をサーバーから取り直す（読み込み済みタイル窓の範囲）。
-   * 他プレイヤーの行為は WS の kv 差分でも届くため、これは初期表示と
-   * WS 不健全時のフォールバック。マージは新しい時刻を優先する。
-   */
   const refreshSurfaceStates = async () => {
     const c = tilesCenterRef.current ?? {
       x: Math.floor(playerPosRef.current.x),
@@ -2237,12 +2055,9 @@ export default function WorldBoxClient() {
     }
   };
   const refreshParty = async (force = false) => {
-    // 古いレスポンスが新しいパーティ状態（招待・編成）を巻き戻さない（S6）
     const ticket = partyGuardRef.current.begin(force ? { force: true } : undefined);
     if (ticket === null) return;
     try {
-      // ダンジョン内ではセッション要約も一緒に受け取る（?space= を付けないと
-      // サーバー側の要約経路が死んだままになる）
       const dungeonSpace = parseInstanceSpace(spaceUi)?.kind === "dungeon" ? spaceUi : null;
       const res = await fetch(
         dungeonSpace
@@ -2260,7 +2075,6 @@ export default function WorldBoxClient() {
       };
       if (!partyGuardRef.current.isCurrent(ticket)) return;
       if (data.dungeon) {
-        // 人数だけを要約で更新する（宝箱はインスタンス取得の正のまま残す）。
         dungeonStateRef.current = {
           ...dungeonStateRef.current,
           size: data.dungeon.size,
@@ -2283,7 +2097,6 @@ export default function WorldBoxClient() {
   refreshPartyRef.current = refreshParty;
   useEffect(() => {
     void refreshParty();
-    // WS push が健全な間はパーティ変更が poke で届くため定期取得しない
     const timer = window.setInterval(() => {
       if (!wsHealthyNow()) void refreshPartyRef.current();
     }, 4000);
@@ -2292,7 +2105,6 @@ export default function WorldBoxClient() {
   }, []);
   useEffect(() => {
     void refreshSurfaceStates();
-    // WS push が健全な間は枯渇・釣果の差分が kv で届くため定期取得しない
     const timer = window.setInterval(() => {
       if (!wsHealthyNow()) void refreshSurfaceStatesRef.current();
     }, 5000);
@@ -2323,9 +2135,7 @@ export default function WorldBoxClient() {
   };
   const postPartyRef = useRef(postParty);
   postPartyRef.current = postParty;
-  /** エンジン側の入場フロー（入口座標→セッション作成→空間遷移）。 */
   const enterDungeonRef = useRef<((ex: number, ey: number) => void) | null>(null);
-  /** インスタンス内アクション（洞窟の採掘/宝箱/温泉、遺跡の宝箱/扉/罠）。検証と付与はサーバーが担う。 */
   const postInstance = async (
     action: "mine" | "open_chest" | "onsen" | "open_door" | "trap" | "leave",
     extra?: {
@@ -2364,8 +2174,6 @@ export default function WorldBoxClient() {
       };
       if (!res.ok) {
         if (data.error && TILE_ERROR_LABEL[data.error]) setTileMsg(TILE_ERROR_LABEL[data.error]);
-        // 失敗理由がサーバー状態とのずれ（他人が先に採って枯渇した等）の
-        // ことがあるため、表示キャッシュをサーバーの正へ寄せ直す
         if (kindNow === "cave") void refreshCaveState(space);
         else if (kindNow === "dungeon") void refreshDungeonState(space);
         else void refreshRuinsState(space);
@@ -2384,7 +2192,6 @@ export default function WorldBoxClient() {
         extra?.fxY !== undefined &&
         (action === "mine" || action === "open_chest" || action === "open_door")
       ) {
-        // 対象の位置で素材の粒を返す（従来は全部プレイヤー位置の poof で同じだった）
         fxEventsRef.current.push({
           kind: action === "mine" ? "mine" : action === "open_chest" ? "harvest" : "place",
           x: extra.fxX,
@@ -2418,9 +2225,6 @@ export default function WorldBoxClient() {
   };
   const postInstanceRef = useRef(postInstance);
   postInstanceRef.current = postInstance;
-  // バイタルの定期精算（空腹・毒・飢えはサーバー側の時刻で進む）。
-  // 現在位置と空間も送り、サーバーが前回精算位置との平均速度から
-  // 空腹の活動クラス（放置/移動/ダッシュ）を判定する。
   useEffect(() => {
     const timer = window.setInterval(
       () =>
@@ -2436,19 +2240,15 @@ export default function WorldBoxClient() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  /** 最後にタイルを取得した中心（タイル座標）。移動で外れたら取り直す。 */
   const tilesCenterRef = useRef<{ x: number; y: number } | null>(null);
   const tilesInFlightRef = useRef(false);
   const tilesQueuedRef = useRef(false);
   const refreshTiles = async () => {
-    // 取得中の追加要求は、完了後に最新位置でもう1回だけ取り直す
     if (tilesInFlightRef.current) {
       tilesQueuedRef.current = true;
       return;
     }
     tilesInFlightRef.current = true;
-    // 取得開始後にローカル行為（掘る・置く）でタイルが変わったら、その
-    // 古いレスポンスは適用せず取り直す（S6）。行為は tilesVersionRef を進める。
     const tilesGen = tilesVersionRef.current;
     try {
       const px = Math.floor(playerPosRef.current.x);
@@ -2460,8 +2260,6 @@ export default function WorldBoxClient() {
         { headers: { Accept: "application/json" } },
       );
       if (res.ok && tilesGen !== tilesVersionRef.current) {
-        // 取得中にローカル行為でタイルが変わった。古いスナップショットで
-        // 上書きせず、完了後に取り直す。
         tilesQueuedRef.current = true;
       } else if (res.ok) {
         const data = (await res.json()) as { overrides?: TileOverridesMap; selfId?: string | null };
@@ -2479,7 +2277,6 @@ export default function WorldBoxClient() {
         tilesVersionRef.current += 1;
         tilesCenterRef.current = { x: px, y: py };
         syncBlockBlocked();
-        // タイル窓が動いたら地表オブジェクトの枯渇・釣果も同じ窓で取り直す
         void refreshSurfaceStatesRef.current();
       }
     } catch {
@@ -2503,7 +2300,6 @@ export default function WorldBoxClient() {
     text?: string,
   ) => {
     setTileMsg("");
-    // 掘る前のブロック素材（応答で上書きが差し替わるため先に控える。破片の色に使う）
     const prevBlockId =
       action === "mine_block" ? tilesRef.current[tileKey(x, y)]?.block?.itemId : undefined;
     try {
@@ -2528,11 +2324,9 @@ export default function WorldBoxClient() {
       };
       if (!res.ok) {
         setTileMsg(TILE_ERROR_LABEL[data.error ?? ""] ?? "できませんでした");
-        // 失敗は空振りで返す（風切りだけ・成功の粒は出さない）
         fxEventsRef.current.push({ kind: "whiff", x, y });
         return;
       }
-      // 成功した行為は演出で返す（粒・揺れ・出現ポップは描画ループ側で出す）
       const fxKind: Record<TileActionKind, FxBurstKind> = {
         chop: "chop",
         mine: "mine",
@@ -2549,7 +2343,6 @@ export default function WorldBoxClient() {
         clear_display: "harvest",
         draw_water: "splash",
       };
-      // ブロック採掘（HP制）: 壊れたら破片（debris）、まだ残るヒットは小さな破片（mine）
       const fxForAction = action === "mine_block" && data.override?.block ? "mine" : fxKind[action];
       fxEventsRef.current.push({
         kind: fxForAction,
@@ -2570,7 +2363,6 @@ export default function WorldBoxClient() {
         setTileMsg(`${itemById(data.broke)?.name ?? "道具"}が壊れた`);
         playWbSe("debris");
       } else if (action === "till" || action === "plant") {
-        // 土地の豊穣度だけを断片で出す（個体値の手がかり）
         setTileMsg(`豊穣度 ${tileIvsAt(x, y).fertility}`);
       } else if (action === "mine") {
         setTileMsg(`純度 ${tileIvsAt(x, y).purity}`);
@@ -2582,7 +2374,6 @@ export default function WorldBoxClient() {
   };
   const postTileActionRef = useRef(postTileAction);
   postTileActionRef.current = postTileAction;
-  /** 屋台の操作（出品・取り下げ・購入）。結果の出品とプロフィールで表示を更新する。 */
   const postStallAction = async (
     action: "list_item" | "unlist" | "buy",
     x: number,
@@ -2616,7 +2407,6 @@ export default function WorldBoxClient() {
       setTileMsg("できませんでした");
     }
   };
-  /** テント拡張の購入（サーバー側 expand_tent が正）。 */
   const expandTent = async () => {
     try {
       const res = await fetch("/api/worldbox/profile", {
@@ -2638,7 +2428,6 @@ export default function WorldBoxClient() {
       /* noop */
     }
   };
-  /** インベントリ整理: 任意スロット間の移動（サーバー側 moveSlot が正）。 */
   const moveItem = async (from: SlotRef, to: SlotRef) => {
     try {
       const res = await fetch("/api/worldbox/profile", {
@@ -2652,7 +2441,6 @@ export default function WorldBoxClient() {
       /* noop */
     }
   };
-  /** インベントリから直接食べる（サーバー側 eat が正。空腹/HP はプロフィール応答で更新）。 */
   const eatFromInventory = async (itemId: string) => {
     try {
       const res = await fetch("/api/worldbox/profile", {
@@ -2670,8 +2458,6 @@ export default function WorldBoxClient() {
     }
   };
 
-  /** スロットのタップ: 持ち上げ → 置く/交換。同じ枠の再タップで解除。
-   * 食べ物スロットのダブルタップ（350ms 以内の同じ枠2回）だけは食べる。 */
   const tapSlot = (zone: SlotRef["zone"], index: number) => {
     if (!invProfile) return;
     const slot = zone === "hotbar" ? invProfile.hotbar[index] : invProfile.storage[index];
@@ -2706,7 +2492,6 @@ export default function WorldBoxClient() {
     void moveItem(from, { zone, index });
   };
 
-  /** ホットバーのタップ: 選択。食べ物はダブルタップで食べる。 */
   const tapHotbar = (index: number) => {
     setSelSlot(index);
     if (!invProfile) return;
@@ -2723,9 +2508,6 @@ export default function WorldBoxClient() {
     }
   };
 
-  /** 自分の収納コンテナ（樽・宝箱）を開く。中身はサーバーが正。
-   * space が world 以外のときは室内の備え付け樽・木箱（サーバー側で解決する。
-   * ロビーの中身はプレイヤー別）。 */
   const openContainer = async (
     x: number,
     y: number,
@@ -2761,7 +2543,6 @@ export default function WorldBoxClient() {
   };
   const openContainerRef = useRef(openContainer);
   openContainerRef.current = openContainer;
-  /** コンテナ⇔プロフィール間のスロット移動（サーバー側 moveContainerSlot が正）。 */
   const moveContainerItem = async (from: ContainerSlotRef, to: ContainerSlotRef) => {
     if (!containerPanel) return;
     try {
@@ -2792,7 +2573,6 @@ export default function WorldBoxClient() {
       /* noop */
     }
   };
-  /** コンテナパネルのスロットタップ: 持ち上げ → 置く/交換（インベントリ整理と同じ）。 */
   const tapPanelSlot = (ref: ContainerSlotRef) => {
     const slot =
       ref.side === "container"
@@ -2819,8 +2599,6 @@ export default function WorldBoxClient() {
     void refreshInv();
     void refreshTiles();
     const timer = window.setInterval(() => {
-      // WS push が健全な間は nations/tiles が push（poke 含む）で
-      // 届くため取得しない。プロフィールは push 対象外なので従来どおり。
       if (wsHealthyNow()) {
         void refreshInv();
         return;
@@ -2834,7 +2612,6 @@ export default function WorldBoxClient() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // 歩いて取得範囲（128×128）の端に近づいたら先読みで取り直す
   useEffect(() => {
     const timer = window.setInterval(() => {
       const c = tilesCenterRef.current;
@@ -2863,7 +2640,6 @@ export default function WorldBoxClient() {
       }
       return tentData;
     };
-    /** 現在の室内空間（ロビー/テント）のデータ。ワールドでは lobby を返す（使われない）。 */
     let caveCacheKey = "";
     let caveCache: CaveLayer | null = null;
     const caveLayerNow = (): CaveLayer | null => {
@@ -2912,7 +2688,6 @@ export default function WorldBoxClient() {
     const dungeon = loadDungeonTiles();
     const lobbySprites = loadLobbySprites();
     const farmSprites = loadFarmSprites();
-    // アイテムアイコン（設置ブロックの描画用。アイコンの無いアイテムは平色）
     const itemIcons: Record<string, HTMLImageElement> = {};
     for (const item of ITEMS) {
       if (!item.icon) continue;
@@ -2922,8 +2697,6 @@ export default function WorldBoxClient() {
     }
     const avatar = new Image();
     avatar.src = "/img/nomal.png";
-    // ユーザーアイコン（Discord アバター）の画像キャッシュ。URL ごとに1枚だけ読み込む。
-    // プレイヤーのアバターは本人のアイコンで描き、読み込み中・失敗時は従来キャラに寄せる。
     const iconCache = new Map<string, HTMLImageElement>();
     const iconFor = (url: string | null | undefined): HTMLImageElement | null => {
       if (!url) return null;
@@ -2936,7 +2709,6 @@ export default function WorldBoxClient() {
       }
       return img;
     };
-    // 自分のアイコン URL（プレゼンスの自エントリは自分へ返らないので /api/auth/me から取る）
     let myIconUrl: string | null = null;
     void fetch("/api/auth/me")
       .then((res) => (res.ok ? res.json() : null))
@@ -2948,9 +2720,6 @@ export default function WorldBoxClient() {
         /* noop */
       });
 
-    // 地形はチャンク単位で生成してキャッシュする。実効タイル源は
-    // 「チャンク地形＋タイル上書き（伐採・採掘の地形置き換え）」で、
-    // 移動・描画・行為可否はこちらを見る。全体グリッドは持たない。
     const chunkCache = new Map<string, Uint8Array>();
     const baseTileAt = (x: number, y: number): number => {
       const cx = Math.floor(x / CHUNK_SIZE);
@@ -2975,28 +2744,19 @@ export default function WorldBoxClient() {
       if (ov && ov.tile !== undefined && isOverrideActive(ov, Date.now())) return ov.tile;
       return baseTileAt(x, y);
     };
-    /** 素の地形（タイル行為の判定用。上書きは tiles.ts 側で重ねる）。 */
     const terrainMap: TopDownMap = { seed: MAP_SEED, tileAt: (x, y) => tileAt(x, y, MAP_SEED) };
-    /** 実効地形（上書き込み）。 */
     const worldMap: TopDownMap = { seed: MAP_SEED, tileAt: effTileAt };
 
-    // 初期スポーンはサーバー（セーブ初回作成時）が決めるのが正。ここでの
-    // 値はセーブ読込前の仮置きで、同じ規則でランダムに選ぶ。
     const spawn = pickRandomSpawn(Math.random);
     const player: PlayerState = { x: spawn.x, y: spawn.y, vx: 0, vy: 0, face: 1, phase: 0 };
     const cam = { x: player.x, y: player.y };
-    /** 望遠鏡の自由視点（null = 通常追従）。開いた瞬間のプレイヤー位置から始まる。 */
     let telescopeCam: { x: number; y: number } | null = null;
     let telescopeDrag: { pointerId: number; lastX: number; lastY: number } | null = null;
     let telescopeCenterSeen = 0;
-    /** 競馬の観戦アニメ用キャッシュ（発走中のレースの中核は1回だけ作る）。 */
     let raceAnimCache: { postMs: number; core: RaceCore } | null = null;
-    // 空間（ワールド / ロビー）。ロビーでは国家・ミニマップは扱わない。
     let space: SaveSpace = "world";
     let worldReturn: { x: number; y: number } | null = null;
-    // シームレスローディング（B1）: 空間遷移はフェードでつなぐ。切替は
-    // フェードアウトの頂点で1回だけ走る。performance.now() ベース。
-    let transitionStart = -1; // -1 = 非遷移中
+    let transitionStart = -1;
     let transitionKind: TransitionKind = "warp";
     let transitionSwapped = true;
     let transitionPending: (() => void) | null = null;
@@ -3007,11 +2767,9 @@ export default function WorldBoxClient() {
         !transitionDone(performance.now() - transitionStart, "warp")
       ) {
         if (!transitionSwapped) {
-          // フェードアウト中は最新の切替で上書き（連打で二重ワープしない）。
           transitionPending = apply;
           return;
         }
-        // フェードイン中の切替は暗幕の下でそのまま通す。
         apply();
         return;
       }
@@ -3040,7 +2798,6 @@ export default function WorldBoxClient() {
       if (space === "world") return blockedRef.current;
       const ruins = ruinsNow();
       if (ruins) {
-        // 開けた金の鍵の扉は通れる（個人状態が正、ここは表示・移動用）
         const opened = ruinsStateRef.current.doors;
         if (ruins.doors.some((d) => opened[String(d.idx)])) {
           const set = new Set(indoorData().blocked);
@@ -3051,43 +2808,30 @@ export default function WorldBoxClient() {
       return indoorData().blocked;
     };
     const keys = new Set<string>();
-    // 固定式スティック: 基点は左下の固定位置（lib/worldbox/player/stick）。
-    // 基点を持ち歩くのは「スティックが起動したか」と倒し量だけ。
     const joy = { active: false, pointerId: -1, dx: 0, dy: 0 };
     const others = new Map<string, OtherRender>();
-    /** ピアノの打鍵位置（タイルごとの音階ステップ）。 */
     const pianoSteps = new Map<string, number>();
-    /** 設置した噴水の水しぶきを最後に出した時刻（スロットル用）。 */
     let lastFountainFxAt = 0;
-    /** 氷の上の滑り速度（タイル/秒）。氷上では入力へ即追従せず、加速と弱い摩擦で滑る。 */
     let slideVel = { x: 0, y: 0 };
-    // スタミナとダッシュ（キーの2度押し / スティックの強い倒し）
     let stamina: StaminaState = createStamina();
     let tapTracker: TapTracker = createTapTracker();
     let dashKey: string | null = null;
-    /** 最後に立っていた陸の位置（水中で力尽きた際の帰還先）。 */
     let lastLand = { x: spawn.x, y: spawn.y };
     let wasSwimming = false;
-    /** 今フレームの泳ぎ状態（描画の沈み・波紋用）。 */
     let playerSwimming = false;
-    /** 入水/出水時の波紋（中心・発生時刻ミリ秒）。 */
     const splashes: { x: number; y: number; at: number }[] = [];
-    // ---- 演出（パーティクル/揺れ/ポップ/スイング）。計算は lib/worldbox/media/fx.ts ----
     const reducedMotion =
       typeof window.matchMedia === "function" &&
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const fxSys: FxSystem = createFxSystem((Date.now() % 2147483646) + 1);
     if (reducedMotion) fxSys.intensity = 0.35;
     let shake: FxShake = createShake();
-    /** 道具スイング（タップ即時応答）。itemId のアイコンを振る。whiff は空振り（風切りのみ）。 */
     let swing = { startedAt: 0, itemId: null as string | null, face: 1 as 1 | -1, whiff: false };
-    /** 出現ポップ中タイル "x,y" → 開始時刻。 */
     const pops = new Map<string, number>();
     let lastBeat = 0;
     let lastDashFxAt = 0;
     let lastSwimFxAt = 0;
     let lastAmbientAt = 0;
-    /** 直前フレームの時間帯（切り替わった瞬間に環境粒を足す）。 */
     let lastPhaseKind = "";
     const popScaleFor = (key: string, nowMs: number): number => {
       const started = pops.get(key);
@@ -3101,8 +2845,6 @@ export default function WorldBoxClient() {
     };
     let loggedIn = false;
     let disposed = false;
-    // タブ世代（同一アカウントの分身防止）: このタブの識別子と開始時刻。
-    // サーバーは最新のタブだけを有効とし、旧タブのプレゼンス・セーブは受理しない。
     const tabSession = {
       tab:
         typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
@@ -3119,8 +2861,6 @@ export default function WorldBoxClient() {
     let lastSaved = { x: player.x, y: player.y, at: 0 };
     let lastMinimapAt = 0;
     let lastBigMapAt = 0;
-    // 開拓のコンパス: 最寄り入口の再計算はスロットルつき
-    // （計算した地点から 16 タイル以上動いたら探し直す）。
     let compassCache: {
       ax: number;
       ay: number;
@@ -3128,7 +2868,6 @@ export default function WorldBoxClient() {
       dungeon: CompassTarget | null;
     } | null = null;
 
-    // ---- 保存（空間＋位置＋ワールド帰還点） ----
     const currentSave = () => serializeSave({ space, x: player.x, y: player.y, worldReturn });
     const saveLocal = () => {
       try {
@@ -3137,9 +2876,6 @@ export default function WorldBoxClient() {
         /* noop */
       }
     };
-    // オンライン保存は最大で3秒に1回へ間引く（1タイル動くごとの全量PUTが
-    // 移動中のラグの主因だった）。間引き中の最新状態はタイマーで追いつく。
-    // keepalive（退室・ページ離脱）だけは即時送信する。
     let lastOnlineSaveAt = 0;
     let onlineSaveTimer: number | null = null;
     const sendOnlineSave = (keepalive = false) => {
@@ -3155,7 +2891,6 @@ export default function WorldBoxClient() {
     };
     const saveOnline = (keepalive = false) => {
       if (!loggedIn) return;
-      // 別のタブに引き継がれた旧タブは、セーブで現行タブの状態を上書きしない。
       if (tabSuperseded) return;
       if (keepalive) {
         if (onlineSaveTimer !== null) {
@@ -3181,7 +2916,6 @@ export default function WorldBoxClient() {
       lastSaved = { x: player.x, y: player.y, at: performance.now() };
     };
 
-    // ---- 初期位置の読み込み（オンライン優先、無ければローカル、どちらも無ければ中央） ----
     (async () => {
       let local: ReturnType<typeof parseSave> = null;
       try {
@@ -3213,8 +2947,6 @@ export default function WorldBoxClient() {
         cam.x = free.x;
         cam.y = free.y;
         setSpaceUi(space);
-        // 初期位置が決まった時点で、その周辺の設置ブロックを取り直す
-        // （マウント時の取得は初期位置 (0.5, 0.5) 中心で、実際の居場所とずれる）
         void refreshTilesRef.current();
       }
       if (choice.pushLocalToOnline) saveNow();
@@ -3232,22 +2964,15 @@ export default function WorldBoxClient() {
       );
     })();
 
-    // ---- プレゼンス（空間ごとに分ける。他空間の者は受け取らない） ----
-    // エントリの ts はサーバー時刻。受信側の時計ずれを GET の now で補正してから
-    // 外挿に使う（ずれがそのまま描画位置のズレになるため）。
     let clockOffsetMs = 0;
     const presenceNow = () => Date.now() + clockOffsetMs;
-    /** ポーリングで連続して見えなかった回数（1回の欠落では消さない）。 */
     const missedPolls = new Map<string, number>();
-    /** WS 経由で最後に見た時刻（REST の間引きで見えなくても欠落に数えないため）。 */
     const wsSeenAt = new Map<string, number>();
-    /** ダンジョンでは別パーティの者は見せない（ポーリングと WS で同じ規則）。 */
     const isOtherPartyInDungeon = (entry: PresenceEntry) =>
       parseInstanceSpace(space)?.kind === "dungeon" &&
       !!entry.party &&
       !!myPartyKeyRef.current &&
       entry.party !== myPartyKeyRef.current;
-    /** 受信したエントリを他プレイヤーのトラックへ反映する（ポーリングと WS で共用）。 */
     const applyPresenceEntry = (entry: PresenceEntry, now: number) => {
       const cur = others.get(entry.id);
       if (!cur) {
@@ -3256,27 +2981,20 @@ export default function WorldBoxClient() {
         cur.track = updateRemoteTrack(cur.track, entry, now, activeBounds());
       }
     };
-    /** サーバー時刻とのずれサンプルを取り込む（急な振れを抑えるため平滑化する）。 */
     const absorbClockSample = (serverNow: number, before: number, after: number) => {
       const sample = clockOffsetEstimate(serverNow, before, after);
       clockOffsetMs = clockOffsetMs === 0 ? sample : clockOffsetMs + (sample - clockOffsetMs) * 0.3;
     };
-    // ---- リアルタイム中継（WebSocket）。繋がらない間は REST ポーリングが正 ----
     let rtSocket: WebSocket | null = null;
     let rtToken: string | null = null;
     let rtTokenAt = 0;
     let rtRetryAt = 0;
     let rtBackoffMs = 1000;
     let rtReconnectTimer: number | undefined;
-    /** WS で最後にメッセージを受けた時刻（生存判定とポーリング間引き用）。 */
     let lastWsMsgAt = 0;
-    /** プレゼンス集約が有効か（relay の hello/agg 合図で切り替わる）。 */
     let rtAggOn = false;
-    /** プレゼンス REST ポーリングの最終実行時刻（間引き判定用）。 */
     let lastPresencePollAt = 0;
-    // 初回接続と再接続の区別（再接続だけ薄い復帰パルスを出す）。
     let rtEverConnected = false;
-    /** WS 経由のハートビート送信（中継は REST と同じ整形規則で受ける）。 */
     const sendWsHeartbeat = () => {
       if (tabSuperseded) return;
       if (!rtSocket || rtSocket.readyState !== WebSocket.OPEN) return;
@@ -3300,7 +3018,6 @@ export default function WorldBoxClient() {
         /* noop */
       }
     };
-    /** 中継への接続（トークン取得→接続→受信→再接続）。失敗してもポーリングが続く。 */
     const connectRealtime = async () => {
       if (disposed || !loggedIn || rtSocket || tabSuperseded) return;
       try {
@@ -3335,8 +3052,6 @@ export default function WorldBoxClient() {
           rtOpenRef.current = true;
           rtLastMsgRef.current = lastWsMsgAt;
           const reconnected = rtEverConnected;
-          // 再接続の復帰演出: 薄いパルスだけ（暗転しない・入力は止めない）。
-          // ワープ遷移中はそちらを優先して上書きしない。
           if (rtEverConnected && transitionStart < 0) {
             transitionKind = "reconnect";
             transitionSwapped = true;
@@ -3346,8 +3061,6 @@ export default function WorldBoxClient() {
           rtEverConnected = true;
           sendWsHeartbeat();
           if (reconnected) {
-            // 再接続時は push の取りこぼしを REST スナップショットで
-            // 再同期する（取りこぼしが新しい同期バグになるため）。
             void pollOthers();
             void refreshTilesRef.current();
             void refreshPartyRef.current(true);
@@ -3386,12 +3099,10 @@ export default function WorldBoxClient() {
           if (typeof msg.now === "number") absorbClockSample(msg.now, arrivedAt, arrivedAt);
           const now = presenceNow();
           if (msg.t === "hello" && msg.agg === 1) {
-            // プレゼンス集約が有効: 以後の REST ハートビートは止める
             rtAggOn = true;
           } else if (msg.t === "agg") {
             rtAggOn = msg.on === true;
           } else if (msg.t === "note" && Array.isArray(msg.notes)) {
-            // ロビーのピアノ: 誰かが弾いた音をそのまま鳴らす（中継はロビー内だけに配る）
             if (space === "lobby") playPianoNotes(msg.notes);
           } else if (
             msg.t === "jump" &&
@@ -3399,7 +3110,6 @@ export default function WorldBoxClient() {
             typeof msg.y === "number" &&
             typeof msg.space === "string"
           ) {
-            // 中継に却下された位置申告: サーバー保管の正規位置へ戻す
             snapBackToServer(msg.x, msg.y, msg.space);
           } else if (msg.t === "snap") {
             for (const entry of msg.players ?? []) {
@@ -3420,7 +3130,6 @@ export default function WorldBoxClient() {
             missedPolls.delete(msg.id);
             setOthersCount(others.size);
           } else if (msg.t === "kv" && msg.kind === "tiles" && Array.isArray(msg.changes)) {
-            // タイル差分（サーバー側 watch が正。ローカル行為と同じ適用経路）
             const nextTiles: TileOverridesMap = { ...tilesRef.current };
             for (const c of msg.changes) {
               if (!c || typeof c.key !== "string") continue;
@@ -3432,7 +3141,6 @@ export default function WorldBoxClient() {
             tilesVersionRef.current += 1;
             syncBlockBlocked();
           } else if (msg.t === "kv" && msg.kind === "objects" && Array.isArray(msg.changes)) {
-            // 地表オブジェクトの枯渇差分（他人の採取を自分の画面へ即反映）
             for (const c of msg.changes) {
               if (!c || typeof c.key !== "string") continue;
               const n = c.value == null ? NaN : Number(c.value);
@@ -3440,7 +3148,6 @@ export default function WorldBoxClient() {
               else surfaceObjStateRef.current.delete(c.key);
             }
           } else if (msg.t === "kv" && msg.kind === "fishing" && Array.isArray(msg.changes)) {
-            // 他人の釣果差分（釣られた魚影を自分の画面からも消す）
             for (const c of msg.changes) {
               if (!c || typeof c.key !== "string") continue;
               const n = c.value == null ? NaN : Number(c.value);
@@ -3448,7 +3155,6 @@ export default function WorldBoxClient() {
               else fishCaughtRef.current.delete(c.key);
             }
           } else if (msg.t === "kv" && msg.kind === "board") {
-            // 掲示板は単一キーなので全文を差し替える（進行中の REST 取得を無効化）
             const ticket = boardGuardRef.current.begin({ force: true });
             if (ticket !== null) {
               setBoardPosts(parseBoardPosts(msg.value ?? null));
@@ -3460,35 +3166,23 @@ export default function WorldBoxClient() {
           } else if (msg.t === "sync" && msg.kind === "party") {
             void refreshPartyRef.current(true);
           } else if (msg.t === "sync" && msg.kind === "instances") {
-            // インスタンス状態（洞窟の枯渇・遺跡の個人状態・ダンジョンの
-            // ボス進行など）が他人の行為で変わった: 今いる空間の状態を
-            // 取り直す（従来は再ワープするまで古い表示のままだった）
             const instNow = parseInstanceSpace(space);
             if (instNow?.kind === "cave") void refreshCaveStateRef.current(space);
             else if (instNow?.kind === "dungeon") void refreshDungeonStateRef.current(space);
             else if (instNow?.kind === "ruins") void refreshRuinsStateRef.current(space);
           } else if (msg.t === "sync" && msg.kind === "economy") {
-            // 自分の経済オプが確定した: 残高を取り直し、開いている
-            // 経済/カジノ/アリーナパネルへも合図する（金額は push に無い）
             void invRefreshRef.current();
             notifyEconomyApplied();
           } else if (msg.t === "sync" && msg.kind === "requests") {
-            // ギルド依頼が他人の操作で変わった: 開いているギルドボード
-            // パネルへ合図する（パネル側が REST で取り直す）
             notifyGuildRequestsChanged();
           } else if (msg.t === "sync" && msg.kind === "guildShop") {
-            // ギルドショップの区画・出品が変わった: 地図のギルド名表示を
-            // 取り直し、開いているパネルへも合図する
             void guildShopRefreshRef.current(true);
             notifyGuildShopChanged();
           } else if (msg.t === "sync" && msg.kind === "chat") {
-            // ギルドボードの掲示タブ: HUD の表示チャンネルに関係なく、
-            // 自ギルドのユニオン発言が変わったらパネルへ合図する
             if (msg.channel === "union") {
               const myGuild = nationsRef.current.me?.nationId ?? null;
               if (!msg.guildId || !myGuild || msg.guildId === myGuild) notifyGuildBoardChanged();
             }
-            // 自分が見ているチャンネル・空間の変更だけ取り直す
             if (msg.channel === chatChannelRef.current) {
               if (msg.channel === "union") {
                 const myGuild = nationsRef.current.me?.nationId ?? null;
@@ -3502,7 +3196,6 @@ export default function WorldBoxClient() {
         const onGone = () => {
           if (rtSocket === ws) rtSocket = null;
           rtOpenRef.current = false;
-          // 切断時は即座に REST ハートビートへ復帰する（過去の凍結実害の再演防止）
           rtAggOn = false;
           if (disposed) return;
           rtRetryAt = Date.now() + rtBackoffMs;
@@ -3510,7 +3203,6 @@ export default function WorldBoxClient() {
           rtReconnectTimer = window.setTimeout(() => void connectRealtime(), rtBackoffMs);
         };
         ws.onclose = (ev) => {
-          // 4001 = 別のタブに引き継がれた。再接続せず、このタブは無効化する。
           if (ev.code === 4001) {
             if (rtSocket === ws) rtSocket = null;
             markTabSuperseded();
@@ -3554,13 +3246,10 @@ export default function WorldBoxClient() {
               y?: number;
               space?: string;
             };
-            // 409 tab_superseded = 別のタブがこのアカウントで開かれている（このタブは旧世代）
             if (body.error === "tab_superseded") {
               markTabSuperseded();
               return;
             }
-            // 却下（409 position_jump）: サーバー保管の正規位置へ戻す。
-            // 応答の保管位置が現在の空間と違う場合は古い却下として無視する。
             if (
               body.error === "position_jump" &&
               typeof body.x === "number" &&
@@ -3577,9 +3266,6 @@ export default function WorldBoxClient() {
           /* noop */
         });
     };
-    /** サーバーに却下された位置申告の復帰: 保管位置へ直接戻す。
-     * findFreeNear を通さない（着地のずれで再却下の連鎖になるため）。
-     * 次回ハートビートは保管位置と一致し、受け入れられる。 */
     const snapBackToServer = (x: number, y: number, targetSpace: string) => {
       if (targetSpace !== space) return;
       player.x = x;
@@ -3594,12 +3280,8 @@ export default function WorldBoxClient() {
       sendHeartbeat();
     };
     let nearDungeonShown = false;
-    // プレゼンスポーリングのガード（S6）: 1s 間隔で重ねて走らせず、古い
-    // レスポンスで他者のゴースト復活・欠落の二重カウントを起こさない。
     const presenceGuard = createPollGuard();
-    /** ダンジョン入口の近接判定（ローカル計算のみ。1秒 tick で常時回す）。 */
     const checkNearDungeonEntrance = () => {
-      // ダンジョン入口の近接（パーティパネル表示用）
       if (space === "world") {
         const ptx = Math.floor(player.x);
         const pty = Math.floor(player.y);
@@ -3652,8 +3334,6 @@ export default function WorldBoxClient() {
         }
         for (const id of [...others.keys()]) {
           if (seen.has(id)) continue;
-          // WS 経由で最近見えている者は、REST の間引き（ワールド48タイル外）で
-          // 見えなくても欠落に数えない。数えると遠くの他者が消えては戻るチラつきになる。
           if (Date.now() - (wsSeenAt.get(id) ?? 0) < 2500) continue;
           const missed = (missedPolls.get(id) ?? 0) + 1;
           if (missed >= 2) {
@@ -3676,24 +3356,16 @@ export default function WorldBoxClient() {
         /* noop */
       });
     };
-    // ハートビートは適応間隔: 移動中は 500ms、静止中は 2s。
-    // ワープやノックバック等の大きなジャンプは間隔を待たず即送る。
     let lastHeartbeatAt = 0;
     let lastRestHeartbeatAt = 0;
     let lastHeartbeatPos = { x: player.x, y: player.y };
     const heartbeatTick = () => {
       if (!loggedIn) return;
-      // 中継が未接続なら再接続を試みる（再試行時刻を過ぎたときだけ）
       if (!rtSocket && Date.now() >= rtRetryAt) void connectRealtime();
       const now = performance.now();
       const movedDist = Math.hypot(player.x - lastHeartbeatPos.x, player.y - lastHeartbeatPos.y);
       const moving = Math.hypot(player.vx, player.vy) > 0.1 || movedDist > 0.05;
       const wsOpen = rtSocket?.readyState === WebSocket.OPEN;
-      // bot_kv プレゼンスはサーバー検証（カジノ・ステーション・ギルドボード・
-      // モブ距離）の正。Phase 2 以降は集約合図（hello/agg）がある間だけ
-      // relay が WS 受信の位置を bot_kv へ書き、REST ハートビートを止める。
-      // 合図が無い・切断した場合は従来どおり REST を併送して鮮度を保つ
-      // （WS 接続中でも集約なしに止めると全ゲートが死ぬ: 過去の実害）。
       if (!rtAggOn && (movedDist > 4 || now - lastRestHeartbeatAt >= (moving ? 500 : 2000))) {
         lastRestHeartbeatAt = now;
         lastHeartbeatPos = { x: player.x, y: player.y };
@@ -3706,13 +3378,6 @@ export default function WorldBoxClient() {
       sendWsHeartbeat();
     };
     const heartbeatTimer = window.setInterval(heartbeatTick, 250);
-    // プレゼンスポーリングの間引き（Phase 0）: WS 中継が健全な間は他者の
-    // 出現/移動/退室が push で届くため、REST 取得は 15 秒のセーフティに
-    // 落とす（WS だけでは拾えない = 中継に繋がっていない相手の回収用）。
-    // 切断・無応答なら従来の 1 秒に即戻る。入口近接の判定はローカル計算
-    // だけなので 1 秒 tick で常時回す。欠落カウントは取得ごとの回数の
-    // まま（セーフティ中は掃除が最大 2×15 秒まで遅れるが、その間も
-    // WS の bye/prune と鮮度切れが退室を担う）。
     const pollTick = () => {
       checkNearDungeonEntrance();
       const nowMs = Date.now();
@@ -3724,15 +3389,13 @@ export default function WorldBoxClient() {
     const pollTimer = window.setInterval(pollTick, 1000);
     pollOthers();
 
-    // ---- 入力 ----
     const onKeyDown = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement | null)?.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA") return; // 掲示板の入力中は歩かない
-      if (arcadeOpenRef.current) return; // 筐体で遊んでいる間は歩かない（ゲーム側のキー入力を優先）
+      if (tag === "INPUT" || tag === "TEXTAREA") return;
+      if (arcadeOpenRef.current) return;
       const k = e.key.toLowerCase();
       if (["arrowup", "arrowdown", "arrowleft", "arrowright", " "].includes(k)) e.preventDefault();
       keys.add(k);
-      // 同じ移動キーの2度押しでダッシュ（長押しのオートリピートは数えない）
       if (!e.repeat && MOVE_KEYS.has(k)) {
         const r = registerKeyTap(tapTracker, k, performance.now());
         tapTracker = r.tracker;
@@ -3758,7 +3421,6 @@ export default function WorldBoxClient() {
         y: Math.floor(cam.y + (p.y - p.h / 2) / TILE),
       };
     };
-    /** ダンジョン内タップ: 宝箱が対象（検証と付与はサーバー）。 */
     const handleDungeonTap = (t: { x: number; y: number }): boolean => {
       const dfloor = dungeonNow();
       if (!dfloor) return false;
@@ -3787,7 +3449,6 @@ export default function WorldBoxClient() {
       }
       return false;
     };
-    /** 遺跡内タップ: 宝箱と金の鍵の扉が対象（検証と付与はサーバー）。 */
     const handleRuinsTap = (t: { x: number; y: number }): boolean => {
       const ruins = ruinsNow();
       if (!ruins) return false;
@@ -3825,7 +3486,6 @@ export default function WorldBoxClient() {
       }
       return false;
     };
-    /** 洞窟内タップ: 鉱脈と宝箱だけが対象（検証と付与はサーバー）。 */
     const handleCaveTap = (t: { x: number; y: number }): boolean => {
       const cave = caveLayerNow();
       if (!cave) return false;
@@ -3864,8 +3524,6 @@ export default function WorldBoxClient() {
       }
       return false;
     };
-    /** 室内（ロビー各階・テント）のタップ: 座席に座る/立つ、テントの備え付け収納を開く。
-     * ワールドのタイルタップと違い、室内オブジェクト（LobbyObject）が対象。 */
     const handleIndoorTap = (t: { x: number; y: number }): boolean => {
       const px = Math.floor(player.x);
       const py = Math.floor(player.y);
@@ -3875,7 +3533,6 @@ export default function WorldBoxClient() {
       );
       if (!obj) return false;
       if (isSeatItem(obj.sprite)) {
-        // ベンチ・椅子・ソファ: タップで座る/立つ（ワールドの設置家具と同じ）
         const sitting = sitTileRef.current;
         if (sitting && sitting.x === t.x && sitting.y === t.y) {
           sitTileRef.current = null;
@@ -3888,7 +3545,6 @@ export default function WorldBoxClient() {
         return true;
       }
       if (isContainerItem(obj.sprite)) {
-        // 備え付け樽・木箱は自分の収納として開ける（ロビーの中身はプレイヤー別）
         void openContainerRef.current(
           t.x,
           t.y,
@@ -3910,14 +3566,12 @@ export default function WorldBoxClient() {
       const px = Math.floor(player.x);
       const py = Math.floor(player.y);
       if (Math.max(Math.abs(t.x - px), Math.abs(t.y - py)) > 1) {
-        // ブロック選択中の遠いタップは設置のつもりなので、無反応で終わらせない
         if (wantsPlace) {
           setTileMsg(TILE_ERROR_LABEL.too_far);
           denyAtTile(t.x, t.y);
         }
         return false;
       }
-      // 魚影タップ: 釣り（キャスト → 食いつきの窓でもう一度タップで引き上げ）
       if (space === "world" && fishingSpotAt(MAP_SEED, t.x, t.y)) {
         const active = fishingRef.current;
         const nowMs = Date.now();
@@ -3940,9 +3594,6 @@ export default function WorldBoxClient() {
         playWbSe("splash");
         return true;
       }
-      // 地表オブジェクト（採取・採掘・宝箱・温泉・探索）: 検証・付与・
-      // 枯渇の記録は専用 API が担う。枯渇中は理由を出し、ブロックが
-      // 置かれている場合だけ通常のタイル操作へ流す。
       if (space === "world") {
         const sobj = surfaceObjectAt(MAP_SEED, t.x, t.y);
         if (sobj && sobj.objectId !== "fishing_spot") {
@@ -3975,7 +3626,6 @@ export default function WorldBoxClient() {
         }
       }
       const view = tileView(terrainMap, tilesRef.current, t.x, t.y, Date.now(), null);
-      // 自分のブロックかどうかは、サーバーが返した自分の ID で判定する
       if (view.block) {
         const ov = tilesRef.current[tileKey(t.x, t.y)];
         view.block = {
@@ -3984,13 +3634,10 @@ export default function WorldBoxClient() {
         };
       }
       if (view.block && isContainerItem(view.block.itemId)) {
-        // 樽・宝箱は採掘ではなく収納を開く。中身は全員共有（誰でも開けて
-        // 出し入れできる）。回収もパネルのボタンから誰でもできる。
         void openContainerRef.current(t.x, t.y, view.block.itemId);
         return true;
       }
       if (view.block && isMachineItem(view.block.itemId)) {
-        // 自分の装置は採掘ではなくパネルを開く。他人の装置は開けない。
         if (view.block.mine) {
           setMachinePanel({ x: t.x, y: t.y });
         } else {
@@ -3999,7 +3646,6 @@ export default function WorldBoxClient() {
         return true;
       }
       if (view.block && isStallItem(view.block.itemId)) {
-        // 屋台: タップでパネルを開く（出品の確認・出品・取り下げ・購入）
         setStallInfo(undefined);
         setStallPanel({
           x: t.x,
@@ -4021,8 +3667,6 @@ export default function WorldBoxClient() {
         return true;
       }
       if (view.block && isSignItem(view.block.itemId)) {
-        // 看板: 自分のものはタップでテキスト編集。他人の看板は文字を読むだけ（描画に出ている）
-        // 会社の店舗・受付として登録された看板は、タップで店舗（出品と会社情報）を開く。
         const mine = view.block.mine;
         const sx = t.x;
         const sy = t.y;
@@ -4055,7 +3699,6 @@ export default function WorldBoxClient() {
         return true;
       }
       if (view.block && isShelfItem(view.block.itemId)) {
-        // 棚（自分のものだけ）: 展示中なら回収、選択中のアイテムがあれば展示
         if (!view.block.mine) {
           setTileMsg(TILE_ERROR_LABEL.not_owner);
           denyAtTile(t.x, t.y);
@@ -4072,7 +3715,6 @@ export default function WorldBoxClient() {
         return true;
       }
       if (view.block && isWellItem(view.block.itemId)) {
-        // 井戸: バケツを持ってタップすると水を汲める（誰の井戸でも可）
         if ((invRef.current?.items.bucket ?? 0) > 0) {
           void postTileActionRef.current("draw_water", t.x, t.y);
         } else {
@@ -4081,7 +3723,6 @@ export default function WorldBoxClient() {
         return true;
       }
       if (view.block && view.block.itemId === "piano") {
-        // ピアノは誰でも弾ける。タップのたびに音階を一巡する（見た目と音だけ）
         const key = tileKey(t.x, t.y);
         const step = pianoSteps.get(key) ?? 0;
         pianoSteps.set(key, step + 1);
@@ -4090,7 +3731,6 @@ export default function WorldBoxClient() {
         return true;
       }
       if (view.block && isSeatItem(view.block.itemId)) {
-        // ベンチ・椅子・ソファ: タップで座る/立つ。座ると家具のマスへ移動する
         const sitting = sitTileRef.current;
         if (sitting && sitting.x === t.x && sitting.y === t.y) {
           sitTileRef.current = null;
@@ -4103,8 +3743,6 @@ export default function WorldBoxClient() {
         return true;
       }
       if (view.block && isFlowerPotItem(view.block.itemId) && view.block.mine) {
-        // 植木鉢・プランター（自分のものだけ）: 植えてあれば取り除き、
-        // 花を持ってタップしたら植える。それ以外は通常の扱いに流す
         const ovHere = tilesRef.current[tileKey(t.x, t.y)];
         if (ovHere?.deco || selItem?.id === "flower") {
           swing = {
@@ -4118,7 +3756,6 @@ export default function WorldBoxClient() {
           return true;
         }
       }
-      // 会社本社のタイル（素手タップ）: その会社の受付を会社パネルで開く
       if (!selItem) {
         const hqHit = companyHqsRef.current.find((h) => h.x === t.x && h.y === t.y);
         if (hqHit) {
@@ -4136,7 +3773,6 @@ export default function WorldBoxClient() {
             : undefined,
       });
       if (!act) {
-        // 隣接タップで何も起きない場合は理由を出す（素材は置けない・その地形には置けない等）。
         if (selItem) {
           setTileMsg(TILE_ERROR_LABEL.tile_blocked);
           denyAtTile(t.x, t.y);
@@ -4147,7 +3783,6 @@ export default function WorldBoxClient() {
         setSeedPicker({ x: t.x, y: t.y });
         return true;
       }
-      // 入力への即時応答として道具を振る（結果の粒は成功時に別で出す）
       swing = {
         startedAt: performance.now(),
         itemId: selItem?.id ?? null,
@@ -4160,8 +3795,6 @@ export default function WorldBoxClient() {
     };
     const onPointerDown = (e: PointerEvent) => {
       const p = canvasPos(e);
-      // スティックは固定基点の円の中から始まったタッチだけ。それ以外の
-      // タッチはタイル操作に回し、設置・採掘とスティックを干渉させない。
       if (isStickTouch(p.x, p.y, stickBase(p.w, p.h))) {
         joy.active = true;
         joy.pointerId = e.pointerId;
@@ -4171,26 +3804,19 @@ export default function WorldBoxClient() {
         return;
       }
       if (telescopeOpenRef.current) {
-        // 望遠鏡中はドラッグで視点を動かす（タイル操作はしない）。
         telescopeDrag = { pointerId: e.pointerId, lastX: p.x, lastY: p.y };
         canvas.setPointerCapture(e.pointerId);
         return;
       }
       if (space === "lobby" || space === "lobby2" || space === "lobby3" || space === "tent") {
-        // 室内のタップ: 座席とテント収納だけを扱う（移動はスティック）。
         handleIndoorTap(toTile(e));
         return;
       }
       if (space === "world" || parseInstanceSpace(space)) {
         const t = toTile(e);
-        // 他プレイヤーをタップ: PvP 可能な空間（ワールド/洞窟/遺跡）でも
-        // 近接範囲内だけが攻撃で、範囲外と PvP 不可空間（ロビー/テント/
-        // ダンジョン）ではプロフィールチップを出す（招待導線もここから）。
-        // モブ・タイルのタップより優先する。
         if (space === "world" || parseInstanceSpace(space)) {
           for (const [oid, other] of others) {
             if (Math.floor(other.track.rx) === t.x && Math.floor(other.track.ry) === t.y) {
-              // 他プレイヤーをタップ: プロフィールチップを出す（招待導線もここから）。
               showPlayerCardRef.current({
                 id: oid,
                 name: other.track.entry.name || "プレイヤー",
@@ -4201,8 +3827,6 @@ export default function WorldBoxClient() {
             }
           }
         }
-        // ダブルタップ（450ms 以内・同タイル近傍）は冒険役職の技が消費する。
-        // クールタイム中・役職なしでは発動せず通常タップとして処理する。
         const lastTap = lastTapRef.current;
         const nowTap = performance.now();
         if (
@@ -4269,9 +3893,6 @@ export default function WorldBoxClient() {
     };
     window.addEventListener("pagehide", onPageHide);
 
-    // ---- 周辺マップ地形（プレイヤー中心の周辺図。全体図は持たない） ----
-    // 1タイル=1px のオフスクリーンへ範囲分だけ描き、表示キャンバスへ
-    // 拡大転写する。範囲の原点（左上のワールド座標）を引数で受け取る。
     const miniTerrainCanvas = document.createElement("canvas");
     miniTerrainCanvas.width = MINIMAP_TILES;
     miniTerrainCanvas.height = MINIMAP_TILES;
@@ -4289,9 +3910,7 @@ export default function WorldBoxClient() {
       }
     };
 
-    // ---- サイズ追従 ----
     const resize = () => {
-      // 解像度は最大1.5倍に抑える（2倍だとモバイルで毎フレームの描画画素数が重い）
       const dpr = Math.min(1.5, window.devicePixelRatio || 1);
       const rect = canvas.getBoundingClientRect();
       canvas.width = Math.max(1, Math.round(rect.width * dpr));
@@ -4300,7 +3919,6 @@ export default function WorldBoxClient() {
     resize();
     window.addEventListener("resize", resize);
 
-    // ---- 描画ヘルパー（足元 = 位置点） ----
     const drawAvatar = (
       c: CanvasRenderingContext2D,
       sx: number,
@@ -4316,7 +3934,6 @@ export default function WorldBoxClient() {
       icon: HTMLImageElement | null = null,
     ) => {
       const size = TILE * AVATAR_TILES;
-      // 泳ぎ中は体を沈め、歩行の上下動をゆるい浮き沈みに替える。座りは浅く沈んで静止する
       const sink = swim ? size * 0.34 : sit ? size * 0.16 : 0;
       const bob = swim
         ? Math.sin(performance.now() / 280 + phase) * TILE * 0.02
@@ -4339,7 +3956,6 @@ export default function WorldBoxClient() {
           c.globalAlpha = alpha;
           c.translate(sx, sy - bob + sink);
           c.rotate(moveLean(speedRatio) * face);
-          // アイコンは左右反転しない（顔の向きで写真が裏返るのは不自然なため）
           c.scale((iconReady ? 1 : face) * (1 + (1 - squash) * 0.7), squash);
           if (iconReady && icon) {
             c.save();
@@ -4359,7 +3975,7 @@ export default function WorldBoxClient() {
           c.restore();
         };
         if (swim) {
-          paintSprite(0.55, waterline, sy + size); // 水中側は水を通して薄く
+          paintSprite(0.55, waterline, sy + size);
           paintSprite(1, sy - size * 2, waterline);
         } else {
           paintSprite(1, sy - size * 2, sy + size);
@@ -4371,7 +3987,6 @@ export default function WorldBoxClient() {
         c.fill();
       }
       if (swim) {
-        // 水面の波紋（広がって消える輪を2重に）
         const t = performance.now() / 1000;
         for (let i = 0; i < 2; i++) {
           const k = (t * 0.9 + i * 0.5 + phase * 0.13) % 1;
@@ -4391,7 +4006,6 @@ export default function WorldBoxClient() {
         }
       }
       if (name) {
-        // ネームプレート: ユニオン色の枠 + Discord マーク + 役職シンボル + 名前 + 熟練ドット
         c.font = "600 11px sans-serif";
         const nameW = c.measureText(name).width;
         const symbolW = plate ? c.measureText(plate.roleSymbol).width : 0;
@@ -4407,7 +4021,6 @@ export default function WorldBoxClient() {
         c.lineWidth = 1.5;
         c.strokeStyle = nationColor ?? "rgba(255,255,255,0.35)";
         c.stroke();
-        // Discord マーク（白い角丸＋目2つ）
         const gx = left + 5;
         const gy = top + 4;
         c.fillStyle = "#ffffff";
@@ -4430,7 +4043,6 @@ export default function WorldBoxClient() {
         c.fillStyle = "#ffffff";
         c.fillText(name, tx, top + 12.5);
         if (plate && plate.rank > 1) {
-          // 熟練ドット（ランク分だけ金の点）
           const dotsW = plate.rank * 6 - 2;
           let dx = sx - dotsW / 2;
           c.fillStyle = "#f2c53c";
@@ -4445,7 +4057,6 @@ export default function WorldBoxClient() {
       }
     };
 
-    // ---- 首都マーカー（石の櫓＋国の色の旗＋国名） ----
     const drawCapital = (
       c: CanvasRenderingContext2D,
       sx: number,
@@ -4465,11 +4076,9 @@ export default function WorldBoxClient() {
       c.strokeStyle = "rgba(30,34,38,0.8)";
       c.lineWidth = 1.5;
       c.strokeRect(x0, y0, w, h);
-      // 胸壁
       c.fillStyle = "#878d94";
       const bw = w / 5;
       for (let i = 0; i < 3; i++) c.fillRect(x0 + i * bw * 2, y0 - TILE * 0.1, bw, TILE * 0.1);
-      // 旗竿と旗
       c.strokeStyle = "#4c4438";
       c.lineWidth = 2;
       c.beginPath();
@@ -4483,7 +4092,6 @@ export default function WorldBoxClient() {
       c.lineTo(sx, y0 - TILE * 0.32);
       c.closePath();
       c.fill();
-      // 国名
       c.font = "600 11px sans-serif";
       c.textAlign = "center";
       c.lineWidth = 3;
@@ -4497,7 +4105,6 @@ export default function WorldBoxClient() {
       c.fillRect(sx - nw / 2, ly + 3, nw, 2.5);
     };
 
-    // ---- 空間移動（ワープパッド・階段・ハンバーガーメニュー） ----
     let lastTileKey = "";
     let lastStation: LobbyStation | null = null;
     let lastStationGenre: ShopGenreId | null = null;
@@ -4516,14 +4123,12 @@ export default function WorldBoxClient() {
       lastTileKey = `${space}:${Math.floor(free.x)},${Math.floor(free.y)}`;
       saveNow();
       sendHeartbeat();
-      // 移動先エリアの設置ブロックを即時に取り直す（15秒ポーリング待ちにしない）
       void refreshTilesRef.current();
     };
     instanceTeleportRef.current = (x: number, y: number) =>
       beginTransition(() => placePlayer(x, y));
     const doWarp = (target: SaveSpace) => {
       if (target === space) return;
-      // ハードカットしない: 暗転の頂点で空間を切り替える。
       beginTransition(() => {
         if (target === "lobby") {
           worldReturn = { x: player.x, y: player.y };
@@ -4561,8 +4166,6 @@ export default function WorldBoxClient() {
       });
     };
     warpActionRef.current = doWarp;
-    /** ロビー内の階移動（1F⇄2F⇄3F、L2b）。階段を踏んだときだけ発火し、
-     * ワープと同じフェード（B1）でつなぐ。建物内の移動なので worldReturn は触らない。 */
     const FLOOR_LABEL: Record<LobbyFloorSpace, string> = {
       lobby: "中央広場",
       lobby2: "ラウンジ",
@@ -4586,7 +4189,6 @@ export default function WorldBoxClient() {
         void pollOthers();
       });
     };
-    /** インスタンス空間（洞窟など）への遷移。入口の踏破で発火する。 */
     const warpToInstance = (target: string, entry: { x: number; y: number }) => {
       if (target === space) return;
       beginTransition(() => {
@@ -4623,7 +4225,6 @@ export default function WorldBoxClient() {
       });
     };
     instanceWarpRef.current = warpToInstance;
-    /** ダンジョン入場フロー: セッション作成（サーバー検証）を待ってから遷移する。 */
     enterDungeonRef.current = (ex: number, ey: number) => {
       void (async () => {
         const result = await postPartyRef.current("enter", { entrance: { x: ex, y: ey } });
@@ -4635,7 +4236,6 @@ export default function WorldBoxClient() {
         warpToInstance(result.space, { x: floor.portal.x + 0.5, y: floor.portal.y + 0.5 });
       })();
     };
-    /** 構造物（入口など）をタイル座標で探す（自チャンク+隣接）。 */
     const structureAt = (tx: number, ty: number): PlacedStructure | null => {
       const ccx = Math.floor(tx / CHUNK_SIZE);
       const ccy = Math.floor(ty / CHUNK_SIZE);
@@ -4648,7 +4248,6 @@ export default function WorldBoxClient() {
       }
       return null;
     };
-    /** 所属国への移動: サーバーが決めた移動先へそのままテレポートする。 */
     teleportActionRef.current = (x: number, y: number) => {
       beginTransition(() => {
         if (space !== "world") {
@@ -4680,7 +4279,6 @@ export default function WorldBoxClient() {
         void pollOthers();
       });
     };
-    /** タイルへ「踏み込んだ」ときだけ発火する（着地したタイルでは再発火しない）。 */
     const checkTileTriggers = () => {
       const tx = Math.floor(player.x);
       const ty = Math.floor(player.y);
@@ -4692,7 +4290,6 @@ export default function WorldBoxClient() {
       if (key === lastTileKey) return;
       lastTileKey = key;
       if (space === "world") {
-        // ロビー行きは ≡ メニュー。ワールド側の踏むトリガーはテント入場。
         if (tilesRef.current[tileKey(tx, ty)]?.block?.itemId === "tent") doWarp("tent");
         else {
           const st = structureAt(tx, ty);
@@ -4803,9 +4400,6 @@ export default function WorldBoxClient() {
         if (tx === exit.x && ty === exit.y) doWarp("world");
         return;
       }
-      // ロビーの階移動（1F⇄2F⇄3F、L2b）: 階段タイルを踏んだら対応する階へ。
-      // 判定は floorWarpAt（lobby-floors.ts）が正。着地点は行き先の階段の前で、
-      // 着地タイルでは再発火しない（placePlayer が lastTileKey を着地先へ進める）。
       const floorWarp = floorWarpAt(space, tx, ty);
       if (floorWarp) {
         doFloorWarp(floorWarp.to, floorWarp.entry);
@@ -4825,18 +4419,14 @@ export default function WorldBoxClient() {
       }
     };
 
-    // ---- メインループ ----
     let raf = 0;
     let lastT = performance.now();
     const loop = (now: number) => {
       raf = requestAnimationFrame(loop);
       const dt = Math.min(0.05, Math.max(0.001, (now - lastT) / 1000));
       lastT = now;
-      // ヒットストップ中はシミュレーション（移動・モブ・粒）だけを止める。
-      // 壁時計ベースの処理（遷移・タイマー）は dt のまま進める。
       let sdt = dt;
 
-      // 遷移の切替: フェードアウトの頂点で1回だけ走る。
       if (
         transitionStart >= 0 &&
         transitionKind === "warp" &&
@@ -4849,7 +4439,6 @@ export default function WorldBoxClient() {
         apply?.();
       }
 
-      // 入力ベクトル
       let ix = 0;
       let iy = 0;
       if (keys.has("a") || keys.has("arrowleft")) ix -= 1;
@@ -4860,7 +4449,6 @@ export default function WorldBoxClient() {
         ix += joy.dx;
         iy += joy.dy;
       }
-      // ワープ遷移中は入力を止める（暗転の間に歩き出さない）。
       if (
         transitionStart >= 0 &&
         transitionKind === "warp" &&
@@ -4874,8 +4462,6 @@ export default function WorldBoxClient() {
         ix /= ilen;
         iy /= ilen;
       }
-      // 望遠鏡: 開いている間は移動入力を視点へ回し、プレイヤーは止まる。
-      // 視点は今いる空間の範囲内だけを自由に動ける（ドラッグでも動く）。
       if (telescopeOpenRef.current) {
         if (!telescopeCam) telescopeCam = { x: player.x, y: player.y };
         if (telescopeCenterSeen !== telescopeCenterRef.current) {
@@ -4896,7 +4482,6 @@ export default function WorldBoxClient() {
         telescopeCam = null;
         telescopeDrag = null;
       }
-      // 足元の床ブロック（小道・氷・はちみつ・スライム・橋）。橋の上では水でも泳がない。
       const floorOv =
         space === "world"
           ? tilesRef.current[tileKey(Math.floor(player.x), Math.floor(player.y))]
@@ -4904,7 +4489,6 @@ export default function WorldBoxClient() {
       const floorRaw =
         floorOv?.block && isOverrideActive(floorOv, Date.now()) ? floorOv.block.itemId : null;
       const onFloor = floorRaw !== null && isFloorItem(floorRaw) ? floorRaw : null;
-      // ダッシュ（キーの2度押しを持ち続け / スティックの強い倒し）と泳ぎで速さと消費が変わる
       const swimming =
         space === "world" && onFloor !== "bridge_block" && isWaterAt(worldMap, player.x, player.y);
       const wantDash =
@@ -4920,12 +4504,7 @@ export default function WorldBoxClient() {
         moveSpeed = DASH_SPEED;
         staminaUse = "dash";
       }
-      // 床の速度倍率（小道は速く、はちみつは遅い。泳ぎには掛けない）
       if (!swimming) moveSpeed *= floorSpeedMultiplier(onFloor);
-      // 埋没救済: タイル読み込みの完了で固体が増えた等により、自分の円が
-      // 固体へ深く重なっていたら近くの立てる場所へ出す（読み込み後に
-      // 壁に埋まるケースの対策）。壁に密着しただけの浅い重なりでは
-      // 発火しないよう、半分の半径で重なりを判定する。
       if (
         circleHitsSolid(activeMap(), player.x, player.y, PLAYER_RADIUS * 0.5, activeBlocked(), {
           swim: space === "world",
@@ -4939,7 +4518,6 @@ export default function WorldBoxClient() {
           player.y = free.y;
         }
       }
-      // 座っている間は動かない。移動入力が入るか、家具のマスから外れたら立ち上がる
       if (sitTileRef.current) {
         if (
           ilen > 0.01 ||
@@ -4949,8 +4527,6 @@ export default function WorldBoxClient() {
           sitTileRef.current = null;
         }
       }
-      // 氷の上: 速度は入力へ即追従せず、加速（14/秒）と弱い摩擦（0.8/秒）で滑る。
-      // 氷を離れたら滑り速度を通常の速度へ同期し直す（滑りを持ち出さない）。
       let vel: { x: number; y: number };
       if (sitTileRef.current) {
         vel = { x: 0, y: 0 };
@@ -4977,7 +4553,6 @@ export default function WorldBoxClient() {
       });
       player.x = moved.x;
       player.y = moved.y;
-      // スタミナ増減・陸の記録・入出水の波紋・水中で力尽きたら陸へ帰還
       const floorOvNow =
         space === "world"
           ? tilesRef.current[tileKey(Math.floor(player.x), Math.floor(player.y))]
@@ -4997,7 +4572,6 @@ export default function WorldBoxClient() {
         invRef.current?.role === "scout" && staminaUse !== "none" ? sdt * SCOUT_STAMINA_MULT : sdt;
       stamina = stepStamina(stamina, staminaUse, staminaDt).state;
       if (staminaBoostRef.current) {
-        // 噴水・休憩の回復（サーバー許可済み）
         stamina = createStamina();
         staminaBoostRef.current = false;
       }
@@ -5043,8 +4617,6 @@ export default function WorldBoxClient() {
         }
       }
       if (space === "world") {
-        // 設置した作業施設（作業台・かまど・焚き火・織り機等）の近くでは、
-        // その種別の作業ができる（サーバー側でも同じ範囲で検証される）
         const kinds = new Set<string>();
         const px = Math.floor(player.x);
         const py = Math.floor(player.y);
@@ -5071,10 +4643,8 @@ export default function WorldBoxClient() {
       player.phase = advanceWalkPhase(player.phase, speed, sdt);
       const speedRatio = Math.min(1, speed / WALK_SPEED);
 
-      // ---- 演出の更新（行為イベントの消化・粒の前進・移動の副産物） ----
       for (const ev of fxEventsRef.current.splice(0)) {
         if (ev.kind === "whiff") {
-          // 空振り: 風切りだけのスイングを再生する（粒も道具アイコンも出さない）
           swing = { startedAt: now, itemId: null, face: player.face, whiff: true };
           playWbSe("swing");
           continue;
@@ -5097,7 +4667,6 @@ export default function WorldBoxClient() {
             playWbSe("splash");
           } else {
             spawnBurst(fxSys, "step", player.x, player.y + 0.05);
-            // 足音はバイオーム/空間で素材を変える（B4）
             playWbStep(
               footstepMaterialFor({
                 biome:
@@ -5123,13 +4692,11 @@ export default function WorldBoxClient() {
       playerPosRef.current.x = player.x;
       playerPosRef.current.y = player.y;
 
-      // カメラ（向き先読みつきのなめらか追従。望遠鏡中は自由視点へ寄せる）
       const lookX = telescopeCam ? telescopeCam.x : player.x + player.vx * 0.35;
       const lookY = telescopeCam ? telescopeCam.y : player.y + player.vy * 0.35;
       cam.x = damp(cam.x, lookX, telescopeCam ? 14 : 6, dt);
       cam.y = damp(cam.y, lookY, telescopeCam ? 14 : 6, dt);
 
-      // 他プレイヤーの描画位置（スナップショット予測へバネでなめらかに寄せる）
       const nowMs = Date.now();
       const presenceNowMs = presenceNow();
       for (const o of others.values()) {
@@ -5138,24 +4705,20 @@ export default function WorldBoxClient() {
         o.phase = advanceWalkPhase(o.phase, ospeed, sdt);
       }
 
-      // 位置の自動保存（1タイル動いた or 5秒経過で少し動いた）
       const distFromSave = Math.hypot(player.x - lastSaved.x, player.y - lastSaved.y);
       if (distFromSave >= 1 || (distFromSave >= 0.25 && now - lastSaved.at > 5000)) {
         saveNow();
       }
 
-      // ---- 描画 ----
       const cw = canvas.clientWidth;
       const ch = canvas.clientHeight;
       const dpr = Math.min(1.5, window.devicePixelRatio || 1);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, cw, ch);
-      // 画面の揺れ（ワールドのみ。ロビーはピクセル固定のため揺らさない）
       const shakeOff =
         space === "world" && !reducedMotion ? shakeOffsetAt(shake, now) : { x: 0, y: 0 };
       const toScreenX = (wx: number) => (wx - cam.x) * TILE + cw / 2 + shakeOff.x;
       const toScreenY = (wy: number) => (wy - cam.y) * TILE + ch / 2 + shakeOff.y;
-      // ロビー描画用: カメラを整数ピクセルへスナップした原点（ピクセル固定）
       let lobbyOx = 0;
       let lobbyOy = 0;
       let drawLobbySprite: (o: LobbyObject) => void = () => {};
@@ -5164,10 +4727,7 @@ export default function WorldBoxClient() {
         const tx1 = Math.ceil(cam.x + cw / TILE / 2 + 1);
         const ty0 = Math.floor(cam.y - ch / TILE / 2 - 1);
         const ty1 = Math.ceil(cam.y + ch / TILE / 2 + 1);
-        // 流用タイルはピクセルアートなので補間を切ってクッキリ描く（アバター側は後で戻す）
         ctx.imageSmoothingEnabled = false;
-        // 地形は整数ピクセルへスナップして描く。小数座標のままだとタイルごとに
-        // 毎フレーム再サンプルされて重く、滲んで見える（ピクセル固定の原則どおり）。
         const tileOriginX = Math.round(toScreenX(tx0));
         const tileOriginY = Math.round(toScreenY(ty0));
         const tileSx = (tx: number) => tileOriginX + (tx - tx0) * TILE;
@@ -5187,7 +4747,6 @@ export default function WorldBoxClient() {
           }
         }
 
-        // 構造物（入口・遺構）: 決定的配置をそのまま描く。入口は踏むと遷移する。
         {
           const ccx0 = Math.floor(tx0 / CHUNK_SIZE);
           const ccx1 = Math.floor(tx1 / CHUNK_SIZE);
@@ -5228,7 +4787,6 @@ export default function WorldBoxClient() {
           }
         }
 
-        // タイル上書きの重ね描き（畑・切り株・作物の成長段階）。地形と同じスナップ座標で重ねる
         for (let ty = ty0; ty <= ty1; ty++) {
           for (let tx = tx0; tx <= tx1; tx++) {
             const ov = tilesRef.current[tileKey(tx, ty)];
@@ -5252,18 +4810,14 @@ export default function WorldBoxClient() {
               if (texReady(img)) ctx.drawImage(img, sx, sy, TILE, TILE);
             }
             if (ov!.hp !== undefined) {
-              // 地形（岩・木）の HP 制: 削れた分だけひび割れを重ねる
               const frac = terrainHpFraction(ov!, mapTileAt(worldMap, tx, ty));
               if (frac < 1) drawBlockCracks(ctx, sx, sy, tx, ty, frac);
             }
             if (ov!.block) {
-              // 設置ブロックはアイコンをタイル大で描く（ピクセル固定: 整数座標）
-              // 設置直後は出現ポップ（小さく生まれて行き過ぎて収まる）
               const img = itemIcons[ov!.block.itemId];
               const bx = Math.round(sx);
               const by = Math.round(sy);
               const isRug = ov!.block.itemId === "rug";
-              // 床ブロック（橋以外）も床に敷く物として平たく描く
               const isFlat =
                 isRug || (isFloorItem(ov!.block.itemId) && ov!.block.itemId !== "bridge_block");
               const ps = isFlat ? 1 : popScaleFor(tileKey(tx, ty), now);
@@ -5274,7 +4828,6 @@ export default function WorldBoxClient() {
                 ctx.translate(-(bx + TILE / 2), -(by + TILE / 2));
               }
               if (isFlat) {
-                // じゅうたん・床は平たく描く（立体アイコンのままにしない）
                 if (texReady(img))
                   ctx.drawImage(
                     img,
@@ -5293,7 +4846,6 @@ export default function WorldBoxClient() {
                   );
                 }
               } else if (isGateItem(ov!.block.itemId) && ov!.gateOpen === true) {
-                // 開いている門は端に寄せて細く描く（開いた扉の見た目）
                 if (texReady(img)) ctx.drawImage(img, bx, by, Math.round(TILE * 0.28), TILE);
                 else {
                   ctx.fillStyle = "#8a6a42";
@@ -5304,9 +4856,7 @@ export default function WorldBoxClient() {
                 ctx.fillStyle = "#9a7b4f";
                 ctx.fillRect(bx + 5, by + 5, TILE - 10, TILE - 10);
               }
-              // HP制: ダメージが入ったブロックにはひび割れを重ねる
               drawBlockCracks(ctx, bx, by, tx, ty, blockHpFraction(ov!.block));
-              // 植木鉢・プランターに植えた飾り（花）を上に重ねる
               if (ov!.deco) {
                 const decoImg = itemIcons[ov!.deco];
                 if (texReady(decoImg)) {
@@ -5320,7 +4870,6 @@ export default function WorldBoxClient() {
                   );
                 }
               }
-              // 棚の展示品を上に重ねる
               if (ov!.display) {
                 const dispImg = itemIcons[ov!.display];
                 if (texReady(dispImg)) {
@@ -5334,7 +4883,6 @@ export default function WorldBoxClient() {
                   );
                 }
               }
-              // 看板のテキストを板の上に描く
               if (ov!.signText) {
                 ctx.save();
                 ctx.font = "bold 10px sans-serif";
@@ -5361,7 +4909,6 @@ export default function WorldBoxClient() {
           }
         }
 
-        // ブロック/施設を選択中は、置ける隣接タイルを薄く光らせる（置ける場所を構造で示す）
         const prof = invRef.current;
         const slot = prof?.hotbar[selSlotRef.current] ?? null;
         const selDef = slot ? itemById(slot.id) : null;
@@ -5389,7 +4936,6 @@ export default function WorldBoxClient() {
 
         ctx.imageSmoothingEnabled = true;
 
-        // 首都マーカー
         for (const n of nationsRef.current.nations) {
           const csx = toScreenX(n.capital.x + 0.5);
           const csy = toScreenY(n.capital.y + 1);
@@ -5398,7 +4944,6 @@ export default function WorldBoxClient() {
           drawCapital(ctx, csx, csy, n);
         }
       } else {
-        // ---- ロビー描画（ピクセル固定: 整数原点・整数座標・補間オフ） ----
         ctx.fillStyle = "#14121c";
         ctx.fillRect(0, 0, cw, ch);
         lobbyOx = Math.round(cw / 2 - cam.x * TILE);
@@ -5432,7 +4977,7 @@ export default function WorldBoxClient() {
                   : space === "lobby3"
                     ? lobby3TileAt(indoor.tiles, tx, ty)
                     : lobbyTileAt(indoor.tiles, tx, ty);
-            if (id === L_VOID) continue; // 図形の外は背景のまま
+            if (id === L_VOID) continue;
             const sx = lobbyOx + tx * TILE;
             const sy = lobbyOy + ty * TILE;
             const key = LOBBY_FLOOR_SPRITE[id];
@@ -5443,14 +4988,11 @@ export default function WorldBoxClient() {
               ctx.fillRect(sx, sy, TILE, TILE);
             }
             if (id === L_PLAZA) {
-              // 広場は大理石より一段明るくする
               ctx.fillStyle = "rgba(255,255,255,0.10)";
               ctx.fillRect(sx, sy, TILE, TILE);
             }
           }
         }
-        // 遺跡の床罠は薄いヒビとしてだけ見える（発動済みは消える）。
-        // 斥候は 3 タイル以内の罠をはっきり視認できる（専門行為の可視化）。
         {
           const ruinsDraw = ruinsNow();
           if (ruinsDraw) {
@@ -5473,7 +5015,6 @@ export default function WorldBoxClient() {
             }
           }
         }
-        // 採掘者は洞窟の鉱脈が脈打って見える（専門行為の可視化）
         {
           const caveDraw2 = caveLayerNow();
           if (caveDraw2 && invRef.current?.role === "miner") {
@@ -5492,7 +5033,6 @@ export default function WorldBoxClient() {
             }
           }
         }
-        // 平置きオブジェクト（ワープパッド・階段・タペストリー）は足元レイヤー
         for (const o of indoor.objects) {
           if (!FLAT_LOBBY_SPRITES.has(o.sprite)) continue;
           if (o.x + o.w < lx0 || o.x > lx1 || o.y + o.h < ly0 || o.y > ly1) continue;
@@ -5501,7 +5041,6 @@ export default function WorldBoxClient() {
         ctx.imageSmoothingEnabled = true;
       }
 
-      // プレイヤー群（y 順で奥行き感）
       const drawList: { y: number; draw: () => void }[] = [];
       for (const o of others.values()) {
         const nationColor = nationsRef.current.playerNations[o.track.entry.id]?.color ?? null;
@@ -5512,7 +5051,6 @@ export default function WorldBoxClient() {
             drawAvatar(
               ctx,
               space !== "world" ? Math.round(lobbyOx + o.track.rx * TILE) : toScreenX(o.track.rx),
-              // 足元は当たり円の底（中心 + 半径）に合わせる（中心に置くと手前で止まって見える）
               space !== "world"
                 ? Math.round(lobbyOy + o.track.ry * TILE) + TILE * PLAYER_RADIUS
                 : toScreenY(o.track.ry) + TILE * PLAYER_RADIUS,
@@ -5572,7 +5110,6 @@ export default function WorldBoxClient() {
             (o.sprite === "cave_chest" ||
               caveDraw.veins.some((v) => v.objectId === o.sprite && v.x === o.x && v.y === o.y))
           ) {
-            // 洞窟の鉱脈・宝箱は色つき図形で描く（枯渇中は鉱脈を出さない）
             const vein = caveDraw.veins.find((v) => v.x === o.x && v.y === o.y);
             const takenAt = vein
               ? (caveStateRef.current.veins[vein.key] ?? 0)
@@ -5620,7 +5157,6 @@ export default function WorldBoxClient() {
           }
           drawList.push({ y: o.y + o.h, draw: () => drawLobbySprite(o) });
         }
-        // 店員NPC（あごむに。静止・当たり判定なし）
         for (const n of indoorData().npcs) {
           drawList.push({
             y: n.y + 1,
@@ -5637,7 +5173,6 @@ export default function WorldBoxClient() {
           });
         }
       }
-      // スライムブロックの上では弾む（見た目だけの上下動。移動には影響しない）
       const selfFloorOv =
         space === "world"
           ? tilesRef.current[tileKey(Math.floor(player.x), Math.floor(player.y))]
@@ -5652,7 +5187,6 @@ export default function WorldBoxClient() {
           drawAvatar(
             ctx,
             space !== "world" ? Math.round(lobbyOx + player.x * TILE) : toScreenX(player.x),
-            // 足元は当たり円の底（中心 + 半径）に合わせる（中心に置くと手前で止まって見える）
             (space !== "world"
               ? Math.round(lobbyOy + player.y * TILE) + TILE * PLAYER_RADIUS
               : toScreenY(player.y) + TILE * PLAYER_RADIUS) - slimeBouncePx,
@@ -5667,8 +5201,6 @@ export default function WorldBoxClient() {
             iconFor(myIconUrl),
           ),
       });
-      // 競馬: 発走中のレースはトラック上に馬を描く（位置は見せ方専用、
-      // 真値はサーバーの着順。pose が脚質の隊列→最終着順へ補間する）。
       if (space === "lobby") {
         const sched = scheduleAt(Date.now());
         if (sched.runningPostMs !== null) {
@@ -5715,8 +5247,6 @@ export default function WorldBoxClient() {
       drawList.sort((a, b) => a.y - b.y);
       for (const d of drawList) d.draw();
 
-      // ギルドショップ区画: 借りている区画はカウンター上にギルド名を出す
-      // （空き区画は汎用カウンターのまま。首都マーカーの国名と同じ流儀）
       if (space === "lobby") {
         for (const plot of guildShopPlotsRef.current) {
           const anchor = GUILD_PLOT_ANCHORS[plot.idx];
@@ -5735,8 +5265,6 @@ export default function WorldBoxClient() {
         }
       }
 
-      // 会社本社のマーカー: 本社タイルに札（会社名＋本社）を出す。
-      // タップすると受付が開く（タイルタップ側で companyHqsRef と照合）。
       for (const hq of companyHqsRef.current) {
         const gx =
           space === "world"
@@ -5766,9 +5294,6 @@ export default function WorldBoxClient() {
         ctx.fillText(label, gx, gy - 15);
       }
 
-      // ---- アフォーダンス（B2）: 近くの「使えるもの」に脈動する輪を出す ----
-      // 対象は施設・出入口・宝箱/扉。鉱脈は斥候/採掘者の既存の脈動があるので対象外。
-      // 初回だけ誘導バウンス（強めの脈動＋上下の揺れ）。reducedMotion では静止した輪だけ。
       if (space !== "world") {
         const indoor = indoorData();
         const ruinsDraw = ruinsNow();
@@ -5813,7 +5338,6 @@ export default function WorldBoxClient() {
         }
       }
 
-      // ---- 無効操作のフィードバック（B2）: タップしたタイルに赤い輪＋揺れ ----
       {
         const deny = denyFxRef.current;
         if (deny) {
@@ -5835,7 +5359,6 @@ export default function WorldBoxClient() {
         }
       }
 
-      // 魚影（釣りスポット）と釣りの演出
       if (space === "world") {
         const activeFish = fishingRef.current;
         if (activeFish && now > activeFish.biteAt + 1100) fishingRef.current = null;
@@ -5865,9 +5388,6 @@ export default function WorldBoxClient() {
             }
           }
         }
-        // 地表オブジェクト（採取・採掘・宝箱・温泉・探索）。再出現する
-        // ものは枯渇中は隠し、一回きりは使い終わりの姿で残す。近くの
-        // 使えるものにはアフォーダンスの輪（B2 と同じ様式）を出す。
         for (let fcy = fcy0; fcy <= fcy1; fcy++) {
           for (let fcx = fcx0; fcx <= fcx1; fcx++) {
             for (const o of objectsForChunk(MAP_SEED, fcx, fcy)) {
@@ -5894,7 +5414,6 @@ export default function WorldBoxClient() {
         if (f) {
           const sx = toScreenX(f.x + 0.5);
           const sy = toScreenY(f.y + 0.5);
-          // 糸とウキ
           ctx.strokeStyle = "rgba(255,255,255,0.5)";
           ctx.lineWidth = 1;
           ctx.beginPath();
@@ -5925,9 +5444,6 @@ export default function WorldBoxClient() {
         }
       }
 
-      // 洞窟の闇: 明かりの半径の外を暗くする（松明 6 / ランプ 9 タイル）。
-      // 設置した明かり（松明/ランプ/焚き火）も実際に周りを照らす:
-      // 闇はオフスクリーンに描き、明かりの位置に穴を開けてから重ねる。
       if (
         parseInstanceSpace(space)?.kind === "cave" ||
         parseInstanceSpace(space)?.kind === "dungeon"
@@ -5975,7 +5491,6 @@ export default function WorldBoxClient() {
         }
       }
 
-      // 入水/出水の波紋（広がって消える輪）
       if (space === "world" && splashes.length > 0) {
         for (let i = splashes.length - 1; i >= 0; i--) {
           const s = splashes[i];
@@ -6000,7 +5515,6 @@ export default function WorldBoxClient() {
         }
       }
 
-      // ---- パーティクル（形は fx.ts の shape、描き分けはここだけ） ----
       const drawParticles = (glowPass: boolean) => {
         for (const p of fxSys.particles) {
           const isGlow = p.shape === "glow";
@@ -6059,7 +5573,6 @@ export default function WorldBoxClient() {
             ctx.fill();
             ctx.restore();
           } else {
-            // drop / snow: 小さな丸（暗色も混ぜてあるので背景を選ばない）
             ctx.save();
             ctx.globalAlpha = Math.min(1, ratio * 1.7);
             ctx.beginPath();
@@ -6069,16 +5582,12 @@ export default function WorldBoxClient() {
           }
         }
       };
-      // 環境パーティクル（雪原=雪、雨天=雨、森=落葉、夜=蛍、それ以外=花粉。ワールドのみ）
-      // 天候は fx.ts の決定的サイクルで全員一致。時間帯が切り替わったフレームは数粒追加で出す
       if (space === "world" && now - lastAmbientAt > 150 && !reducedMotion) {
         lastAmbientAt = now;
         const ptile = mapTileAt(worldMap, Math.floor(player.x), Math.floor(player.y));
         const nowSec = nowMs / 1000;
         const phase = phaseAtTime(nowSec);
         const isTreeTile = ptile === T_TREE || ptile === T_SNOW_TREE;
-        // 天候は区間境界で混ぜる（雨の強さ 0〜1、fx.ts の weatherBlendAt が正）。
-        // 雪バイオームでは従来どおり雪が優先する。
         const blend = weatherBlendAt(nowSec);
         const dryKind = weatherAmbientKind("clear", ptile, isTreeTile, nightAmount(phase));
         const kind = dryKind === "snow" ? "snow" : blend.rainStrength >= 0.5 ? "rain" : dryKind;
@@ -6093,8 +5602,6 @@ export default function WorldBoxClient() {
         if (dryKind === "snow") {
           spawnAmbient(fxSys, "snow", ax0, ax1, ay0);
         } else {
-          // 雨の粒数は強さに比例させる（満強度で従来どおり3粒/回）。
-          // 弱い間は通常の環境粒も続けて、空が徐々に移るようにする
           const rainN = Math.round(3 * blend.rainStrength);
           for (let i = 0; i < rainN; i++) spawnAmbient(fxSys, "rain", ax0, ax1, ay0);
           if (blend.rainStrength < 0.5) spawnAmbient(fxSys, dryKind, ax0, ax1, ay0);
@@ -6102,7 +5609,6 @@ export default function WorldBoxClient() {
       }
       drawParticles(false);
 
-      // 冒険役職の技演出: 段階遷移で粒を出し、形を描く
       {
         const inCaveFx = space !== "world";
         const sx = (wx: number) => (inCaveFx ? Math.round(lobbyOx + wx * TILE) : toScreenX(wx));
@@ -6122,7 +5628,6 @@ export default function WorldBoxClient() {
           const cyp = sy(eff.y);
           ctx.save();
           {
-            // 立ち上る光柱＋広がるリング（ポーター設置）
             const rise = Math.min(1, prog * 1.5);
             const colW = TILE * 0.55 * (1 - prog * 0.35);
             ctx.globalAlpha = 0.5 * (1 - prog * 0.55);
@@ -6147,7 +5652,6 @@ export default function WorldBoxClient() {
         }
       }
 
-      // 道具スイングと風切り（自分のタップへの応答）
       if (space === "world" || parseInstanceSpace(space)) {
         const sk = swingProgress(swing.startedAt, now);
         if (sk < 1) {
@@ -6159,13 +5663,11 @@ export default function WorldBoxClient() {
           ctx.save();
           ctx.translate(cxp, cyp);
           ctx.scale(swing.face, 1);
-          // 風切り（振り抜きの瞬間だけ出る弧。空振りは薄く・細く）
           ctx.strokeStyle = `rgba(255,255,255,${(slashAlpha(sk) * 0.85 * (swing.whiff ? WHIFF_ALPHA_SCALE : 1)).toFixed(3)})`;
           ctx.lineWidth = swing.whiff ? 1.5 : 3;
           ctx.beginPath();
           ctx.arc(0, 0, TILE * 0.78, ang - 1.15, ang + 0.35);
           ctx.stroke();
-          // 道具アイコンを振る（空振りと、無い道具は弧だけ）
           const img = !swing.whiff && swing.itemId ? itemIcons[swing.itemId] : undefined;
           if (texReady(img)) {
             ctx.rotate(ang);
@@ -6175,7 +5677,6 @@ export default function WorldBoxClient() {
         }
       }
 
-      // 設置した噴水は水しぶきを上げる（約0.5秒に1回、近くのものだけ）
       if (space === "world" && nowMs - lastFountainFxAt > 500) {
         lastFountainFxAt = nowMs;
         for (const [key, ov] of Object.entries(tilesRef.current)) {
@@ -6188,9 +5689,6 @@ export default function WorldBoxClient() {
         }
       }
 
-      // 昼夜の薄い色づけ（共有時計。ロビーは屋内なので付けない）。
-      // 夜はオフスクリーンに描いて、自分の明かりと設置した明かりの周りに
-      // 穴を開けてから重ねる（明かりが実際に周りを照らす）。
       const night = nightAmount(phaseAtTime(nowMs / 1000));
       if (space === "world" && night > 0.01) {
         if (!darkCanvasRef.current) darkCanvasRef.current = document.createElement("canvas");
@@ -6233,10 +5731,8 @@ export default function WorldBoxClient() {
           ctx.fillRect(0, 0, cw, ch);
         }
       }
-      // 光る粒（蛍・ワープの光）は夜の色づけの上に出す
       if (space === "world") drawParticles(true);
 
-      // スティック（固定基点）
       const base = stickBase(cw, ch);
       ctx.fillStyle = joy.active ? "rgba(255,255,255,0.16)" : "rgba(255,255,255,0.08)";
       ctx.beginPath();
@@ -6253,7 +5749,6 @@ export default function WorldBoxClient() {
       );
       ctx.fill();
 
-      // スタミナ（ゼルダ式の円形ゲージをキャラの左上に。満タンで放置すると消える）
       if (staminaGaugeVisible(stamina)) {
         const px = space !== "world" ? Math.round(lobbyOx + player.x * TILE) : toScreenX(player.x);
         const py = space !== "world" ? Math.round(lobbyOy + player.y * TILE) : toScreenY(player.y);
@@ -6273,7 +5768,6 @@ export default function WorldBoxClient() {
         ctx.stroke();
       }
 
-      // 遷移の暗幕（シェル背景と同色。ワープ/入場/再接続の継ぎ目を消す）。
       if (transitionStart >= 0) {
         const overlayAlpha = transitionAlpha(now - transitionStart, transitionKind);
         if (overlayAlpha > 0) {
@@ -6288,7 +5782,6 @@ export default function WorldBoxClient() {
         }
       }
 
-      // ミニマップ（プレイヤー中心の周辺図、約5Hz。ロビーでは出さない）
       if (space === "world" && showMapRef.current && now - lastMinimapAt > 200) {
         lastMinimapAt = now;
         const mm = minimapRef.current;
@@ -6303,7 +5796,6 @@ export default function WorldBoxClient() {
           mctx.imageSmoothingEnabled = false;
           mctx.drawImage(miniTerrainCanvas, 0, 0, mm.width, mm.height);
           mctx.imageSmoothingEnabled = true;
-          // 首都（範囲内だけ）
           for (const n of nationsRef.current.nations) {
             const mx = toMapX(n.capital.x);
             const my = toMapY(n.capital.y);
@@ -6326,9 +5818,6 @@ export default function WorldBoxClient() {
           mctx.arc(toMapX(player.x), toMapY(player.y), 2.6, 0, Math.PI * 2);
           mctx.fill();
           mctx.stroke();
-          // 開拓のコンパス（所持時のみ）: 最寄り入口のマーカー/方向矢印と
-          // HUD の矢印・距離。入口の位置は決定的生成から誰でも計算できる
-          // 公開情報なので、所持判定だけ本人プロフィールで見る。
           if (invRef.current && countItem(invRef.current, "explorer_compass") > 0) {
             if (
               !compassCache ||
@@ -6373,7 +5862,6 @@ export default function WorldBoxClient() {
         }
       }
 
-      // マップ表示モード（プレイヤー中心の周辺図を大きく、約5Hz。ロビーでは出さない）
       if (space === "world" && mapViewRef.current && now - lastBigMapAt > 200) {
         lastBigMapAt = now;
         const bm = bigMapRef.current;
@@ -6388,7 +5876,6 @@ export default function WorldBoxClient() {
           bctx.imageSmoothingEnabled = false;
           bctx.drawImage(bigTerrainCanvas, 0, 0, bm.width, bm.height);
           bctx.imageSmoothingEnabled = true;
-          // 首都（国の色の四角＋白枠）
           for (const n of nationsRef.current.nations) {
             const mx = toMapX(n.capital.x);
             const my = toMapY(n.capital.y);
@@ -6398,7 +5885,6 @@ export default function WorldBoxClient() {
             bctx.fillRect(mx - 3, my - 3, 7, 7);
             bctx.strokeRect(mx - 3, my - 3, 7, 7);
           }
-          // 自ユニオンのポーター（金色の菱形＋白枠。タップで移動できる）
           const porter = porterRef.current;
           if (porter) {
             const mx = toMapX(porter.x + 0.5);
@@ -6416,14 +5902,12 @@ export default function WorldBoxClient() {
               bctx.stroke();
             }
           }
-          // 他のプレイヤー
           bctx.fillStyle = "#ffffff";
           for (const o of others.values()) {
             bctx.beginPath();
             bctx.arc(toMapX(o.track.rx), toMapY(o.track.ry), 2.6, 0, Math.PI * 2);
             bctx.fill();
           }
-          // 自分
           bctx.fillStyle = "#ffd23e";
           bctx.strokeStyle = "rgba(0,0,0,0.65)";
           bctx.beginPath();
@@ -6433,7 +5917,6 @@ export default function WorldBoxClient() {
         }
       }
     };
-    // 初回入場は暗転から明ける（初フレームのチラつきを消す）。
     transitionKind = "enter";
     transitionSwapped = true;
     transitionPending = null;
@@ -6482,7 +5965,6 @@ export default function WorldBoxClient() {
     WebkitTouchCallout: "none",
   };
 
-  /** パネルは全てゲームステージ内のオーバーレイにする（ページ側へはみ出さない）。 */
   const panelOverlay: React.CSSProperties = {
     position: "absolute",
     left: "50%",
@@ -6502,8 +5984,6 @@ export default function WorldBoxClient() {
     color: "#f2f2f2",
     boxShadow: "0 12px 36px rgba(0,0,0,0.5)",
   };
-  /** パネル先頭の固定ヘッダー: パネル内をスクロールしても「閉じる」が
-   * 見えなくならないよう、先頭行に重ねて常時表示する（panelOverlay 用）。 */
   const stickyPanelHead: React.CSSProperties = {
     position: "sticky",
     top: -12,
@@ -6512,8 +5992,6 @@ export default function WorldBoxClient() {
     padding: "12px 12px 6px",
     background: "rgba(10,12,18,0.98)",
   };
-  /** スロット枠（中身はスプライトのみ。SlotContent と対で使う）。
-   *  サイズは --slot（ホットバー側で画面幅に合わせて決める）に従い、狭い画面では縮む。 */
   const slotBox: React.CSSProperties = {
     ...btn,
     position: "relative",
@@ -6528,7 +6006,6 @@ export default function WorldBoxClient() {
     color: "#fff",
     background: "rgba(255,255,255,0.08)",
   };
-  /** 開拓のコンパスの HUD の矢印（右向き三角。回転は描画ループが付ける）。 */
   const compassArrow = (color: string): React.CSSProperties => ({
     width: 9,
     height: 10,
@@ -6536,7 +6013,6 @@ export default function WorldBoxClient() {
     background: color,
     clipPath: "polygon(0 0, 100% 50%, 0 100%)",
   });
-  /** インベントリパネルの1枠（持ち上げ中は金枠）。 */
   const renderInvSlot = (zone: SlotRef["zone"], index: number, slot: ItemSlot) => {
     const held = heldSlot?.zone === zone && heldSlot?.index === index;
     return (
@@ -6562,14 +6038,12 @@ export default function WorldBoxClient() {
       </button>
     );
   };
-  /** 持ち上げ中のスタック（パネル見出しの識別表示用）。 */
   const heldStack: ItemSlot =
     heldSlot && invProfile
       ? ((heldSlot.zone === "hotbar"
           ? invProfile.hotbar[heldSlot.index]
           : invProfile.storage[heldSlot.index]) ?? null)
       : null;
-  /** コンテナパネルの1枠（コンテナ側・プロフィール側共通、持ち上げ中は金枠）。 */
   const renderPanelSlot = (side: ContainerSlotRef["side"], index: number, slot: ItemSlot) => {
     const held = heldPanelSlot?.side === side && heldPanelSlot?.index === index;
     return (
@@ -6599,7 +6073,6 @@ export default function WorldBoxClient() {
       </button>
     );
   };
-  /** コンテナパネルで持ち上げ中のスタック（見出しの識別表示用）。 */
   const heldPanelStack: ItemSlot = heldPanelSlot
     ? heldPanelSlot.side === "container"
       ? (containerSlots?.[heldPanelSlot.index] ?? null)
@@ -6607,7 +6080,6 @@ export default function WorldBoxClient() {
         ? (invProfile?.hotbar[heldPanelSlot.index] ?? null)
         : (invProfile?.storage[heldPanelSlot.index] ?? null)
     : null;
-  /** コンテナ側グリッドの表示枠（容量ぶん、未読込は空き枠）。 */
   const containerGridSlots: ItemSlot[] = containerPanel
     ? Array.from(
         { length: containerCapacity(containerPanel.itemId) },
@@ -6617,8 +6089,6 @@ export default function WorldBoxClient() {
   const containerEmpty =
     containerPanel !== null && containerSlots !== null && containerSlots.every((s) => s === null);
 
-  // ハンバーガーはアクションの集約場所。項目はデータ駆動のリストで持ち、
-  // アクションの追加はここへ1件足すだけで済む。
   type MenuAction = { id: string; label: string; show: boolean; run: () => void };
   const menuActions: MenuAction[] = [
     {
@@ -6688,8 +6158,6 @@ export default function WorldBoxClient() {
     { id: "close", label: "閉じる", show: true, run: () => {} },
   ];
 
-  // 入場ゲート: Discord ログインかゲスト入場が確認できるまではワールドを描画しない。
-  // ゲートも独立シェル（100svh・中央寄せ）で完結させる。
   if (!gateOk) {
     return (
       <div
@@ -6716,14 +6184,9 @@ export default function WorldBoxClient() {
               ログインが必要
             </p>
             {embedded ? (
-              // Activity 内では通常の OAuth 画面遷移が使えない（押すと白画面で
-              // 詰まる）。認証は GamesShell の SDK 認証が担うので、ここは
-              // ゲートの引き直しだけを置く。
               <button
                 type="button"
                 onClick={() => {
-                  // ゲートの引き直しだけでは、本人情報そのものが届いて
-                  // いない場合は永久に通らない。本人確認も一緒にやり直す。
                   retryIdentity?.();
                   setGateTry((t) => t + 1);
                 }}
@@ -6755,9 +6218,6 @@ export default function WorldBoxClient() {
                     if (guestBusy) return;
                     setGuestBusy(true);
                     try {
-                      // ゲストセッションを張ってから、ログイン直後と同じく
-                      // ゲートを引き直す（サーバー側は冪等: 既存のゲスト
-                      // セッションがあればそれが返る）。
                       const res = await fetch("/api/auth/guest", {
                         method: "POST",
                         headers: { Accept: "application/json" },
@@ -6795,9 +6255,6 @@ export default function WorldBoxClient() {
       className="wb-shell"
       onContextMenu={(e) => e.preventDefault()}
       onClickCapture={(e) => {
-        // UI クリック SE の一本化: シェル内のボタン押下はここで click を鳴らす。
-        // 固有の SE を持つ領域（≡メニュー・経済/カジノ/アーケードのパネル）は
-        // data-wb-se="self" で除外し、二重に鳴らさない。
         const t = e.target as HTMLElement | null;
         if (!t || typeof t.closest !== "function") return;
         if (!t.closest("button")) return;
@@ -6929,7 +6386,6 @@ export default function WorldBoxClient() {
               background: "rgba(0,0,0,0.72)",
               color: "#fff",
               zIndex: 8,
-              // 項目が増えてもステージ下端からはみ出さない（収まらない分はメニュー内スクロール）
               maxHeight: "calc(100% - 68px)",
               maxWidth: "calc(100% - 20px)",
               boxSizing: "border-box",
@@ -7324,8 +6780,6 @@ export default function WorldBoxClient() {
         {invProfile &&
           gaugeSkill &&
           (() => {
-            // 左隅の技チャージゲージ: 円の金リングが回復した分だけ満ち、
-            // 満タン（発動可能）で光る。クールタイム表示はここに一本化する。
             const role = roleById(invProfile.role);
             const total = SKILLS[gaugeSkill.id].cooldownMs;
             const left = skillCooldownLeft(invProfile, gaugeSkill.id, gaugeNow);
@@ -7389,7 +6843,6 @@ export default function WorldBoxClient() {
               zIndex: 4,
               maxWidth: "calc(100% - 16px)",
               boxSizing: "border-box",
-              // スロットは画面幅でスケーリングする（縦画面ではみ出さない）
               ...({ "--slot": hud.hotbarSlotCss } as React.CSSProperties),
             }}
           >
@@ -7627,8 +7080,6 @@ export default function WorldBoxClient() {
             zIndex: 5,
             flexDirection: "column",
             gap: 4,
-            // スマホでは左下のスティック基点を避けて右下ドック（ホットバーの上）に逃がす。
-            // パーティカードが出ている間は同じドックを譲る（同時表示を減らす）。
             display: hud.chatOnRight && nearDungeonEntrance ? "none" : "flex",
             ...(hud.chatOnRight
               ? {
@@ -8317,7 +7768,6 @@ export default function WorldBoxClient() {
               height={BIGMAP_SIZE}
               aria-label="周辺マップ（大きく表示）"
               onClick={(e) => {
-                // ポーターのマーカー付近のタップでも移動できる
                 const porter = porterUi;
                 if (!porter) return;
                 const rect = e.currentTarget.getBoundingClientRect();

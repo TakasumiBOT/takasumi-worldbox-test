@@ -1,6 +1,3 @@
-// AGO WORLD BOX の屋台（個人商店）の保存（サーバー専用）。
-// 保存先は bot_kv（名前空間 "worldbox_stalls"）。キーはワールドの
-// タイル座標（"x,y"）。屋台はワールド空間にだけ設置される前提。
 import { isBotApiConfigured, kvDelete, kvGet, kvSet } from "../../bot-api";
 import { parseStall, serializeStall, type StallState } from "./stalls";
 import { tileKey } from "../world/tiles";
@@ -11,7 +8,6 @@ export function isStallsEnabled(): boolean {
   return isBotApiConfigured();
 }
 
-/** 1タイルの出品を読む。無い・読めない・未設定なら null。 */
 export async function loadStall(x: number, y: number): Promise<StallState | null> {
   if (!isBotApiConfigured()) return null;
   try {
@@ -21,7 +17,6 @@ export async function loadStall(x: number, y: number): Promise<StallState | null
   }
 }
 
-/** 1タイルの出品を保存する（null は削除）。成功したら true。 */
 export async function storeStall(x: number, y: number, state: StallState | null): Promise<boolean> {
   if (!isBotApiConfigured()) return false;
   try {

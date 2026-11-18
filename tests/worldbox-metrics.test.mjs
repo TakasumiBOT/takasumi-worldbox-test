@@ -1,4 +1,3 @@
-// WORLD BOX バッチ9a: 計測基盤（日次・ファネル・継続率）とスポーン保護のテスト。
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";

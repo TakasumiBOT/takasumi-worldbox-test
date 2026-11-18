@@ -1,7 +1,3 @@
-// WORLD BOX ポーリング WS push 化 Phase 2（heartbeat 書き込みの relay 集約）。
-// relay-core の書き込み整形が putPresence と完全互換であること（Next 側の
-// parsePresenceEntry で読み戻せる）、スロットル判定、トークンの所有者キー、
-// クライアントの REST 停止条件を固定する。
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
@@ -43,7 +39,6 @@ function loadTsModule(rel, requireStub) {
   return mod.exports;
 }
 
-// parsePresenceEntry は presence.ts にある（presence-online.ts が再輸出）。
 const presence = loadTsModule("../lib/worldbox/player/presence.ts", () => ({}));
 
 test("presenceKvValue は putPresence 互換: parsePresenceEntry で読み戻せる", () => {
@@ -75,7 +70,6 @@ test("presenceKvValue は putPresence 互換: parsePresenceEntry で読み戻せ
   assert.equal(parsed.party, "party:9");
   assert.equal(parsed.sit, true);
   assert.equal(parsed.ts, 1_700_000_000_000);
-  // sit が無いエントリはキー自体を持たない（REST 側 sanitize と同じ）
   const noSit = JSON.parse(core.presenceKvValue({ ...entry, sit: undefined }));
   assert.equal("sit" in noSit, false);
 });
@@ -98,17 +92,12 @@ test("planPresenceWrite: 初回・遷移・ジャンプは即時、移動1秒/�
   const agg = core.createAggregator();
   const base = { x: 10, y: 10, vx: 0, vy: 0, space: "world" };
   assert.equal(core.planPresenceWrite(agg, "p", base, 0), true, "初回は即時");
-  // 静止: 2秒未満は書かない、2秒で書く
   assert.equal(core.planPresenceWrite(agg, "p", base, 1500), false);
   assert.equal(core.planPresenceWrite(agg, "p", base, 2000), true);
-  // 移動中（少し動いた）: 1秒で書く
   assert.equal(core.planPresenceWrite(agg, "p", { ...base, x: 10.4, vx: 1 }, 2500), false);
   assert.equal(core.planPresenceWrite(agg, "p", { ...base, x: 10.4, vx: 1 }, 3000), true);
-  // 空間遷移は即時
   assert.equal(core.planPresenceWrite(agg, "p", { ...base, x: 10.4, space: "cave" }, 3100), true);
-  // 4タイル超のジャンプは即時
   assert.equal(core.planPresenceWrite(agg, "p", { ...base, x: 20, space: "cave" }, 3200), true);
-  // force（切断時の最終書き込み）は常に書く
   assert.equal(
     core.planPresenceWrite(agg, "p", { ...base, x: 20, space: "cave" }, 3300, true),
     true,

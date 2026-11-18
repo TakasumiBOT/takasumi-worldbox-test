@@ -1,12 +1,3 @@
-// AGO WORLD BOX 競馬の永続化と精算（bot_kv の worldbox_racing 名前空間）。
-// レースそのもの（出走表・着順・オッズ）は racing.ts の決定的ロジックで
-// いつでも再計算できるため、ここに保存するのは「馬券」と「人気集計」と
-// 「オッズのキャッシュ」だけ。
-// お金の移動は経済ブリッジのオプ経由のみ（Web が残高を直接動かさない）:
-// - 購入: spend オプ race-bet-<betId>（先払い、理由 horse_racing_bet）
-// - 的中: gamble オプ race-settle-<betId>（prepaid、理由 horse_racing）
-// 精算は GET のたびに自分の分だけ遅延実行する。先払いが done の馬券だけを
-// 精算し、failed の馬券は無効（お金は動いていない）、pending は次回に回す。
 import { kvGet, kvSet } from "../../bot-api";
 import { findEconomyOp } from "../economy/economy-bridge-online";
 import {
@@ -32,7 +23,6 @@ export interface RaceBet {
   oddsPlace: number;
   spendOpId: string;
   settle: BetSettleState;
-  /** 精算結果（settled のとき）: 払戻額。0 はハズレ。 */
   payout: number | null;
   createdAt: number;
 }
@@ -113,7 +103,6 @@ export async function appendPopularity(postMs: number, row: PopularityRow): Prom
   await kvSet(RACING_NAMESPACE, `bets:${postMs}`, JSON.stringify(rows));
 }
 
-/** 人気集計: 馬ごとの単勝/複勝の票数（実プレイヤーの馬券だけ。NPC はいない）。 */
 export function popularityCounts(
   rows: readonly PopularityRow[],
 ): Map<number, { win: number; place: number }> {
@@ -126,7 +115,6 @@ export function popularityCounts(
   return map;
 }
 
-/** オッズはレース生成時に1回だけ推定してキャッシュする（仕様 §8）。 */
 export async function loadOrEstimateOdds(postMs: number): Promise<Record<number, HorseOdds>> {
   try {
     const raw = parseJson(await kvGet(RACING_NAMESPACE, `odds:${postMs}`));
@@ -155,11 +143,6 @@ export async function loadOrEstimateOdds(postMs: number): Promise<Record<number,
   return odds;
 }
 
-/**
- * 終了したレースの自分の馬券を精算する（呼び出し側でユーザーロック内）。
- * 戻り値: 更新があれば true。精算オプの登録は決定的 ID で冪等
- * （enqueueSettle は呼び出し側が渡す）。
- */
 export async function settleMyBets(
   ownerKey: string,
   bets: RaceBet[],
@@ -175,7 +158,7 @@ export async function settleMyBets(
     }
     const spend = await findEconomyOp(ownerKey, bet.spendOpId);
     if (spend === null || spend.status === "pending") {
-      out.push(bet); // まだ確定していない先払いは次回に回す
+      out.push(bet);
       continue;
     }
     if (spend.status === "failed") {
@@ -194,7 +177,7 @@ export async function settleMyBets(
     if (payout > 0) {
       const ok = await enqueueSettle(bet, payout);
       if (!ok) {
-        out.push(bet); // 登録できなかったら未精算のまま次回リトライ
+        out.push(bet);
         continue;
       }
     }

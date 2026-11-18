@@ -27,17 +27,6 @@ import { withUserLock } from "@/lib/worldbox/core/user-lock";
 
 export const runtime = "nodejs";
 
-// AGO WORLD BOX の屋台（個人商店）。
-// 出品は bot_kv（名前空間 worldbox_stalls、キー "x,y"）にタイル単位で持ち、
-// 設置ブロック（worldbox_tiles の上書き）が所有と種類の正。
-// GET ?x&y: そのタイルの出品を返す（無ければ stall: null）。
-// POST { action: "list_item", x, y, itemId, price, count }: 店主だけ。
-//   アイテムを所持から預かり（escrow）として出品する。既存の出品があれば不可。
-// POST { action: "unlist", x, y }: 店主だけ。出品をすべて手元へ戻す。
-// POST { action: "buy", x, y }: 誰でも（店主以外）。残高を確認し、経済
-//   ブリッジの transfer オプ（買手→店主）が積めたらアイテムを渡す。
-// 隣接検証はタイル行為と同じ（プレゼンス → セーブ、チェビシェフ ≤2）。
-
 const NO_STORE = { "Cache-Control": "no-store, max-age=0" };
 const MAX_ACTION_DISTANCE = 2;
 
@@ -59,7 +48,6 @@ function checkedCoord(xRaw: unknown, yRaw: unknown): { x: number; y: number } | 
   return { x, y };
 }
 
-/** サーバーが知る本人のワールド位置（プレゼンス → セーブの順）。無ければ null。 */
 async function actorWorldPosition(ownerKey: string): Promise<{ x: number; y: number } | null> {
   const selfId = presenceIdFor(ownerKey);
   const entries = await listPresence();
@@ -73,14 +61,13 @@ async function actorWorldPosition(ownerKey: string): Promise<{ x: number; y: num
 
 async function nearTile(ownerKey: string, x: number, y: number): Promise<boolean> {
   const pos = await actorWorldPosition(ownerKey);
-  if (!pos) return true; // 位置が分からない場合は従来どおり通す（タイル行為と同じ方針）
+  if (!pos) return true;
   return (
     Math.max(Math.abs(Math.floor(pos.x) - x), Math.abs(Math.floor(pos.y) - y)) <=
     MAX_ACTION_DISTANCE
   );
 }
 
-/** そのタイルに屋台が設置されていて、設置者が ownerKey か（設置者の presence ID で照合）。 */
 async function stallTileOwner(
   x: number,
   y: number,
@@ -145,7 +132,6 @@ export async function POST(request: Request) {
   const ownerKey = sessionOwnerKey(session);
   if (!(await nearTile(ownerKey, x, y))) return errorResponse("too_far", 409);
 
-  // タイル単位＋ユーザー単位で直列化する（タイル行為と同じ二重ロック）
   return withUserLock(`tile:${x},${y}`, () =>
     withUserLock(ownerKey, async () => {
       const tile = await stallTileOwner(x, y);

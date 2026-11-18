@@ -1,13 +1,3 @@
-// AGO WORLD BOX のアニメーション/モーション/パーティクル基盤（純粋ロジック、DOM 非依存）。
-// 描画側（WorldBoxClient）は canvas に形を描くだけで、粒の生成・寿命・物理と
-// 画面の揺れ・出現ポップの計算はここに寄せてテスト可能にする。
-// 方針（桜井流エフェクト原則の読み替え）:
-// - 粒は寿命を短く、同時数を絞る（上限で頭打ち。重ねて無駄を出さない）。
-// - 明色だけでなく暗色も混ぜ、明るい地面でも暗い地面でも見えるようにする。
-// - 形ははっきり描く（chip=破片 / spark=火花 / drop=水滴 / ring=波紋 / puff=煙）。
-// - 乱数はシステム内の決定的シードで持つ（同じ種からは同じ飛び方＝テスト可能）。
-
-/** パーティクルの形。描画側はこの形だけを見て描き分ける。 */
 export type FxShape = "chip" | "spark" | "drop" | "ring" | "puff" | "leaf" | "snow" | "glow";
 
 export type FxParticle = {
@@ -15,40 +5,27 @@ export type FxParticle = {
   y: number;
   vx: number;
   vy: number;
-  /** 経過秒。 */
   age: number;
-  /** 寿命秒。age がこれに達したら消える。 */
   life: number;
-  /** 1タイル=1 とした大きさ（直径相当）。 */
   size: number;
-  /** 重力（タイル/秒^2、下向き正）。 */
   gravity: number;
-  /** 速度の減衰率（1/秒）。 */
   drag: number;
-  /** 回転角と角速度（chip/leaf の転がり）。 */
   rot: number;
   vrot: number;
   shape: FxShape;
-  /** 描画色。明暗を混ぜるため配列で持ち、粒ごとに1つ選ばれている。 */
   color: string;
 };
 
 export type FxSystem = {
   particles: FxParticle[];
-  /** 同時上限。これを超える生成は古い粒から間引く。 */
   cap: number;
-  /** 決定的乱数の状態。 */
   rngState: number;
-  /** 生成を絞る倍率（0〜1、prefers-reduced-motion 時は小さくする）。 */
   intensity: number;
 };
 
-/** 同時パーティクル上限（負荷の天井）。 */
 export const FX_CAP = 260;
-/** 1バーストの最大粒数（1回の行為で出す上限）。 */
 export const FX_BURST_MAX = 26;
 
-/** 決定的乱数（mulberry32 系）。0〜1 を返す。 */
 export function fxRand(sys: FxSystem): number {
   sys.rngState = (sys.rngState + 0x6d2b79f5) | 0;
   let t = sys.rngState;
@@ -61,7 +38,6 @@ export function createFxSystem(seed = 1, cap = FX_CAP): FxSystem {
   return { particles: [], cap: Math.max(8, Math.floor(cap)), rngState: seed | 0, intensity: 1 };
 }
 
-/** 粒の残り割合（1=生まれたて、0=消滅直前）。 */
 export function fxLifeRatio(p: FxParticle): number {
   if (p.life <= 0) return 0;
   const r = 1 - p.age / p.life;
@@ -70,7 +46,6 @@ export function fxLifeRatio(p: FxParticle): number {
 
 function pushParticle(sys: FxSystem, p: FxParticle): void {
   if (sys.particles.length >= sys.cap) {
-    // 上限では一番古い（残り割合が小さい）粒から捨てる
     let worst = 0;
     let worstRatio = Infinity;
     for (let i = 0; i < sys.particles.length; i++) {
@@ -85,7 +60,6 @@ function pushParticle(sys: FxSystem, p: FxParticle): void {
   sys.particles.push(p);
 }
 
-/** 粒を1ステップ進める。寿命が尽きた粒は除く。 */
 export function stepFx(sys: FxSystem, dt: number): void {
   if (dt <= 0) return;
   const d = Math.min(dt, 0.05);
@@ -105,32 +79,29 @@ export function stepFx(sys: FxSystem, dt: number): void {
   }
 }
 
-// ---- バースト（行為への払い戻し） ----
-
 export type FxBurstKind =
-  | "chop" // 伐採: 木片
-  | "mine" // 採掘: 石片
-  | "debris" // 設置ブロック/建物の破壊: 破片
-  | "till" // 耕す: 土塊
-  | "plant" // 植える: 土＋若葉のきらめき
-  | "harvest" // 収穫:実りのきらめき（上へ弾けて落ちる）
-  | "place" // 設置: 土煙＋収まる輪
-  | "build" // 建築: 木/石片＋土煙
-  | "splash" // 入水/出水: 水滴
-  | "step" // 足元: 小さな土ぼこり/水しぶき
-  | "dash" // ダッシュ: 風の筋
-  | "warp" // ワープ: 立ち上る光
-  | "poof" // 消滅: 煙
-  | "hit" // 被ダメージ: 赤い火花（短命）
-  | "death" // 死亡: 大きめの破片と煙
-  | "spawn"; // 出現: 煙と光が立ち上る
+  | "chop"
+  | "mine"
+  | "debris"
+  | "till"
+  | "plant"
+  | "harvest"
+  | "place"
+  | "build"
+  | "splash"
+  | "step"
+  | "dash"
+  | "warp"
+  | "poof"
+  | "hit"
+  | "death"
+  | "spawn";
 
 type BurstSpec = {
   count: number;
   shapes: FxShape[];
   colors: string[];
   speed: [number, number];
-  /** 発射方向の中心角（ラジアン、-Math.PI/2 が上）。null は全方位。 */
   dir: number | null;
   spread: number;
   life: [number, number];
@@ -351,13 +322,11 @@ const BURSTS: Record<FxBurstKind, BurstSpec> = {
   },
 };
 
-/** パレットから決定的乱数で1色選ぶ。空なら白。 */
 function pickPalette(colors: readonly string[], sys: FxSystem): string {
   if (colors.length === 0) return "#ffffff";
   return colors[Math.floor(fxRand(sys) * colors.length) % colors.length];
 }
 
-/** バーストの実生成（粒数・大きさ・散らばりを差し替え可能にした共通部）。 */
 function emitBurst(
   sys: FxSystem,
   spec: BurstSpec,
@@ -403,10 +372,6 @@ function emitBurst(
   return n;
 }
 
-/**
- * 行為の払い戻しとして粒を出す。x/y はワールド座標（タイル単位）。
- * 返り値は実際に出た粒数（intensity で絞られる）。
- */
 export function spawnBurst(
   sys: FxSystem,
   kind: FxBurstKind,
@@ -423,15 +388,6 @@ export function spawnBurst(
   });
 }
 
-// ---- 素材別パレット（対象の素材で破片の色を変える） ----
-
-/**
- * 対象（鉱脈・設置ブロック・採取物）の ID から破片パレットを引く。
- * 行為バーストの既定色は「石」「木」の汎用色なので、鉱石・金属・宝石・
- * 採取物など素材が分かる対象では、その素材らしい色で返す。
- * 該当が無ければ null（バースト既定色を使う）。判定は部分一致で、
- * 具体的なもの（ミスリル・宝石種）を汎用（鉄・石）より先に並べる。
- */
 const MATERIAL_PALETTES: readonly (readonly [string, readonly string[]])[] = [
   ["mithril", ["#bfeef2", "#7fd4dc", "#e8ffff", "#4fa8b8"]],
   ["crystal", ["#e6dcff", "#b79cff", "#ffffff", "#8f7fe0"]],
@@ -461,7 +417,6 @@ const MATERIAL_PALETTES: readonly (readonly [string, readonly string[]])[] = [
   ["rock", ["#8d8d93", "#55555c", "#c9c9cf", "#3c3c42"]],
 ];
 
-/** ID から素材パレットを引く（コピーを返す）。無ければ null。 */
 export function burstPaletteFor(id: string | null | undefined): string[] | null {
   if (!id) return null;
   for (const [key, palette] of MATERIAL_PALETTES) {
@@ -470,33 +425,19 @@ export function burstPaletteFor(id: string | null | undefined): string[] | null 
   return null;
 }
 
-// ---- 環境パーティクル（バイオームと時刻で決まる漂い） ----
-
 export type FxAmbientKind = "snow" | "leaf" | "pollen" | "firefly" | "rain";
 
-/**
- * その場所で漂う環境粒の種類。雪原は雪、森は落葉、夜は蛍、それ以外は花粉。
- * tile は実効地形 ID（mapgen の T_*）。優先順位は 雪 > 森 > 夜 > 花粉。
- */
 export function ambientKindFor(tile: number, isTree: boolean, night: number): FxAmbientKind {
-  // T_SNOW=6 / T_SNOW_TREE=7（mapgen の定義と一致させる。循環import回避のため数値で受ける）
   if (tile === 6 || tile === 7) return "snow";
   if (isTree) return "leaf";
   if (night > 0.45) return "firefly";
   return "pollen";
 }
 
-// ---- 天候（決定的サイクル。全員が同じ空を見る） ----
-
 export type FxWeather = "clear" | "rain";
 
-/** 天候1区間の長さ（秒）。昼夜サイクル（240秒）とは独立に切り替わる。 */
 export const WEATHER_PERIOD_SEC = 360;
 
-/**
- * unix 時刻からその区間の天候を決める（決定的）。
- * 区間インデックスのハッシュで決めるため、サーバーを介さず全クライアントが一致する。
- */
 export function weatherAt(unixSec: number): FxWeather {
   const idx = Math.floor(unixSec / WEATHER_PERIOD_SEC);
   let h = idx | 0;
@@ -507,14 +448,8 @@ export function weatherAt(unixSec: number): FxWeather {
   return (h >>> 0) / 4294967296 < 0.35 ? "rain" : "clear";
 }
 
-/** 天候の切り替わりをなだらかにする長さ（秒）。境界の直後は雨の強さが線形に変わる。 */
 export const WEATHER_BLEND_SEC = 30;
 
-/**
- * 天候と雨の強さ（0〜1）。weatherAt は区間境界でハードに切り替わるため、
- * 境界から WEATHER_BLEND_SEC の間は前区間の天候と線形に混ぜ、
- * 雨が突然降り出したり止んだりしないようにする。決定的（全クライアント一致）。
- */
 export function weatherBlendAt(unixSec: number): { weather: FxWeather; rainStrength: number } {
   const cur = weatherAt(unixSec);
   const idx = Math.floor(unixSec / WEATHER_PERIOD_SEC);
@@ -526,10 +461,6 @@ export function weatherBlendAt(unixSec: number): { weather: FxWeather; rainStren
   return { weather: cur, rainStrength: cur === "rain" ? k : 1 - k };
 }
 
-/**
- * 天候つきの環境粒の種類。優先順位は 雪 > 雨 > 森 > 夜 > 花粉
- * （雪バイオームでは雨でなく雪が降り続ける）。
- */
 export function weatherAmbientKind(
   weather: FxWeather,
   tile: number,
@@ -541,17 +472,9 @@ export function weatherAmbientKind(
   return ambientKindFor(tile, isTree, night);
 }
 
-// ---- 時間帯（daynight の位相の名前づけ） ----
-
 export type FxPhaseKind = "day" | "dusk" | "night" | "dawn";
 
-/**
- * 昼夜位相（0〜1、daynight.ts と同じ時計）の時間帯名。
- * nightAmount と整合させる: 真夜中は 0.86〜0.18、朝の移行が dawn（0.18〜0.30）、
- * 昼が day（0.30〜0.68）、夕方〜日没の移行が dusk（0.68〜0.86）。
- */
 export function phaseKind(phase: number): FxPhaseKind {
-  // 範囲外だけを 0〜1 へ畳む（0.18+1 の %1 で境界がずれる浮動小数誤差を避ける）
   let p = phase % 1;
   if (p < 0) p += 1;
   if (p >= 0.18 && p < 0.3) return "dawn";
@@ -607,7 +530,6 @@ const AMBIENT_SPEC: Record<
   },
 };
 
-/** 画面範囲 [x0,x1]×[y0,y1] の上辺付近に環境粒を1つ出す。 */
 export function spawnAmbient(
   sys: FxSystem,
   kind: FxAmbientKind,
@@ -636,22 +558,18 @@ export function spawnAmbient(
   return p;
 }
 
-// ---- 画面の揺れ（ヒット感） ----
-
 export type FxShake = { amp: number; startedAt: number; durationMs: number };
 
 export function createShake(): FxShake {
   return { amp: 0, startedAt: 0, durationMs: 0 };
 }
 
-/** 揺れを開始する。amp はピクセル。既存より弱い揺れでは上書きしない。 */
 export function startShake(shake: FxShake, amp: number, nowMs: number, durationMs = 180): FxShake {
   const remain = shake.durationMs > 0 ? 1 - (nowMs - shake.startedAt) / shake.durationMs : 0;
   if (remain > 0 && shake.amp * remain >= amp) return shake;
   return { amp: Math.max(0, amp), startedAt: nowMs, durationMs: Math.max(1, durationMs) };
 }
 
-/** 時刻における揺れオフセット（px）。最初に強く、徐々に収束し、終われば 0。 */
 export function shakeOffsetAt(shake: FxShake, nowMs: number): { x: number; y: number } {
   if (shake.amp <= 0 || shake.durationMs <= 0) return { x: 0, y: 0 };
   const k = (nowMs - shake.startedAt) / shake.durationMs;
@@ -664,60 +582,40 @@ export function shakeOffsetAt(shake: FxShake, nowMs: number): { x: number; y: nu
   };
 }
 
-// ---- 出現ポップ（設置・建築の「収まった」感） ----
-
-/** 出現の拡大率。0.55 から行き過ぎて（最大 ~1.13）1 に収まる（k は 0〜1）。 */
 export function popScale(k: number): number {
   const c = k < 0 ? 0 : k > 1 ? 1 : k;
   if (c >= 1) return 1;
-  // 減衰振動のバネ: 小さく生まれ、一度膨らみ過ぎてから等倍に落ち着く
   return 1 - 0.45 * Math.exp(-3.5 * c) * Math.cos(9 * c);
 }
 
-/** ポップの経過比（開始時刻と現在時刻から、長さ ms）。 */
 export function popProgress(startedAt: number, nowMs: number, durationMs = 240): number {
   if (durationMs <= 0) return 1;
   const k = (nowMs - startedAt) / durationMs;
   return k < 0 ? 0 : k > 1 ? 1 : k;
 }
 
-// ---- 道具スイング（タップへの即時応答） ----
-
-/** スイング全体の長さ（ms）。構え→振り抜き→戻り。 */
 export const SWING_DURATION_MS = 230;
 
-/** スイングの経過比（開始していなければ 1=終了）。 */
 export function swingProgress(startedAt: number, nowMs: number): number {
   if (startedAt <= 0) return 1;
   const k = (nowMs - startedAt) / SWING_DURATION_MS;
   return k < 0 ? 0 : k > 1 ? 1 : k;
 }
 
-/** 空振り（行為の失敗）時の風切りの濃さ係数。成功時のスイングより薄く・細く出す。 */
 export const WHIFF_ALPHA_SCALE = 0.45;
 
-/** 風切りの弧の不透明度（振り抜きの瞬間だけ濃く、すぐ消える）。 */
 export function slashAlpha(k: number): number {
   const c = k < 0 ? 0 : k > 1 ? 1 : k;
   if (c < 0.25) return c / 0.25;
   return Math.max(0, 1 - (c - 0.25) / 0.5);
 }
 
-/* ================= スキル演出プリセット（バッチ4） =================
- * プレビュー9種の仕様を fx.ts に preset 化したもの。
- * 描画はクライアントが SkillFxEffect の進行度から行い、粒は spawnSkillFx が
- * 段階遷移時に spawnBurst へ委譲する。予告系（thunder/meteor）は2段構成。
- * warp はテレポーターのポーター設置用に追加したプリセット（立ち上る光柱＋リング）。
- */
-
 export type SkillFxKind = "warp";
 
 export type SkillFxEffect = {
   kind: SkillFxKind;
-  /** 中心（ワールド座標）。 */
   x: number;
   y: number;
-  /** 発動者（投射物の起点）。 */
   fromX: number;
   fromY: number;
   startedAt: number;
@@ -728,21 +626,17 @@ export const SKILL_FX_DURATION_MS: Record<SkillFxKind, number> = {
   warp: 1200,
 };
 
-/** 進行度（0..1）。終了したら 1 以上。 */
 export function skillFxProgress(effect: SkillFxEffect, nowMs: number): number {
   return (nowMs - effect.startedAt) / SKILL_FX_DURATION_MS[effect.kind];
 }
 
-/** 段階番号（導入=0、本体=1）。クライアントの描画・粒発生の切り替えに使う。 */
 export function skillFxStage(effect: SkillFxEffect, nowMs: number): number {
   const p = skillFxProgress(effect, nowMs);
   return p < 0.15 ? 0 : 1;
 }
 
-/** 段階遷移時の粒を出す（クライアントが前回段階を覚えて呼ぶ）。 */
 export function spawnSkillFx(sys: FxSystem, effect: SkillFxEffect, stage: number): void {
   const { x, y } = effect;
-  // warp: 立ち上る光（ワープバースト）を重ねて柱らしくする
   if (stage === 1) {
     spawnBurst(sys, "warp", x, y);
     spawnBurst(sys, "warp", x, y);

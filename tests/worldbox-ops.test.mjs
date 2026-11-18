@@ -1,4 +1,3 @@
-// WORLD BOX バッチ9b: 運用（タイルジャーナル・巻き戻し・通報）のテスト。
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";

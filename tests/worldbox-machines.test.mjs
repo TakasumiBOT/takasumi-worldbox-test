@@ -1,4 +1,3 @@
-// WORLD BOX バッチ10a: 機械基盤（プログラム/共有コード/自動収穫の評価）のテスト。
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -127,14 +126,12 @@ test("machines: evaluation harvests only own mature crops, respects interval", (
   ]);
   const r = M.evaluateMachine(state, neighbors, now);
   assert.equal(r.evaluated, true);
-  assert.equal(r.harvested, 2); // wheat produceCount = 2
+  assert.equal(r.harvested, 2);
   assert.deepEqual(r.state.buffer, { wheat: 2 });
   assert.equal(r.changed.size, 1);
   assert.equal(r.changed.get("0,1").crop, null);
-  // 間隔内は評価しない
   const r2 = M.evaluateMachine(r.state, neighbors, now + 30_000);
   assert.equal(r2.evaluated, false);
-  // 停止中は評価しない
   const stopped = { ...state, program: { ...M.defaultProgram(), enabled: false } };
   assert.equal(M.evaluateMachine(stopped, neighbors, now).evaluated, false);
 });

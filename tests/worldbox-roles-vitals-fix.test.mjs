@@ -1,11 +1,3 @@
-// WORLD BOX「役職・強化・バイタル」の回帰テスト（Phase 1 後の現実）。
-// - 道具強化の実効ティア（ティア+強化レベル）がツルハシ/斧にも効く
-// - 食事効果は vitals.consumeEffect に一本化（eatItem は消費とゲートだけ）
-//   効果は空腹と warm バフのみ（HP・解毒は存在しない）
-// - バフ duration はアイテム定義（buff.minutes）が正で、vitals 側は導出する
-// - 配線: instances のティアゲート/斥候の罠軽減、vitals は sync のみ、
-//   roles の技は porter 設置のみでユーザーロック内
-// - クライアント配線: 食事バフ（warm）の残り時間表示、毒チップは無い
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -61,7 +53,6 @@ function readApp(rel) {
   return fs.readFileSync(path.join(appDir, rel), "utf8");
 }
 
-// ---------------------------------------------------------------- 道具強化
 const T = await loadBundle(
   [
     "worldbox/core/rng.ts",
@@ -84,24 +75,21 @@ test("enhance: bestToolTier adds enhancement levels (pickaxe/axe)", () => {
   assert.equal(T.bestToolTier(plain, "pickaxe"), 1);
   const enhanced = profileWith({ items: { wooden_pickaxe: 1 }, enhance: { wooden_pickaxe: 2 } });
   assert.equal(T.bestToolTier(enhanced, "pickaxe"), 3);
-  // 強化はその道具だけに効く（斧には漏れない）
   assert.equal(T.bestToolTier(enhanced, "axe"), 0);
   const axe = profileWith({ items: { stone_axe: 1 }, enhance: { stone_axe: 1 } });
   assert.equal(T.bestToolTier(axe, "axe"), 3);
-  // 持っていない道具の強化は数えない
   const notHeld = profileWith({ items: {}, enhance: { iron_pickaxe: 3 } });
   assert.equal(T.bestToolTier(notHeld, "pickaxe"), 0);
 });
 
 test("enhance: blockMineDamage follows the effective pickaxe tier", () => {
-  const brick = T.itemById("brick_block"); // durability 55, mineTool pickaxe
+  const brick = T.itemById("brick_block");
   const plain = profileWith({ items: { wooden_pickaxe: 1 } });
   assert.equal(T.blockMineDamage(plain, brick), T.BLOCK_MINE_DAMAGE[1]);
   const enhanced = profileWith({ items: { wooden_pickaxe: 1 }, enhance: { wooden_pickaxe: 2 } });
   assert.equal(T.blockMineDamage(enhanced, brick), T.BLOCK_MINE_DAMAGE[3]);
 });
 
-// ---------------------------------------------------------------- 食事まわり
 const E = await loadBundle(
   [
     "worldbox/economy/items.ts",
@@ -129,15 +117,13 @@ test("eat: eatItem applies exactly the consumeEffect formula (single source)", (
   const base = { ...E.parseProfile(null), hunger: 10, items: { stew: 1, honey_tea: 1 } };
   const ate = E.eatItem(base, "stew", NOW);
   assert.equal(ate.ok, true);
-  assert.equal(ate.profile.hunger, 75); // 10 + 65
+  assert.equal(ate.profile.hunger, 75);
   const warm = ate.profile.status.find((e) => e.kind === "warm");
   assert.equal(warm.until, NOW + 10 * 60_000);
-  // consumeEffect 単体と結果が一致する（消費だけが eatItem の仕事）
   const removed = { ...base, items: { honey_tea: 1 } };
   const viaEffect = E.consumeEffect(removed, "stew", NOW);
   assert.equal(viaEffect.profile.hunger, ate.profile.hunger);
   assert.deepEqual(viaEffect.profile.status, ate.profile.status);
-  // はちみつティーは空腹だけ（解毒・alert バフは無い）
   const drank = E.eatItem(
     { ...E.parseProfile(null), hunger: 50, items: { honey_tea: 1 } },
     "honey_tea",
@@ -154,7 +140,6 @@ test("buffs: BUFF_DURATION_MS is derived from the item catalog (warm only)", () 
   assert.deepEqual(Object.keys(E.BUFF_DURATION_MS), ["warm"]);
 });
 
-// ---------------------------------------------------------------- 配線検証
 test("wiring: instances route counts enhancement in the cave tier gate and scout mitigation covers traps", () => {
   const src = readApp("api/worldbox/instances/route.ts");
   assert.match(src, /function bestToolTier\([\s\S]*?profile\.enhance/);

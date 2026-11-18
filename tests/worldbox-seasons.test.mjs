@@ -1,4 +1,3 @@
-// WORLD BOX バッチ8a: 季節・作物適季・インスタンスバイオームのテスト。
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";

@@ -1,10 +1,6 @@
-// AGO WORLD BOX のパーティ編成（純粋ロジック）。
-// 編成はダンジョン入口の前だけ（場面単位で、永続化しない）。
-// リーダー + 最大3人 = 4人まで。ユニオンが違っても組める。ルートは全て個人別。
 import type { AdventureRoleId } from "../player/profile";
 
 export const MAX_PARTY_MEMBERS = 4;
-/** 招待の有効期限。 */
 export const PARTY_INVITE_TTL_MS = 60_000;
 
 export type PartyMember = {
@@ -23,7 +19,6 @@ export type PartyInvite = {
 export type Party = {
   id: string;
   leaderKey: string;
-  /** 編成したダンジョン入口（ワールド座標）。 */
   entrance: { x: number; y: number };
   members: PartyMember[];
   invites: PartyInvite[];
@@ -37,7 +32,6 @@ export function makePartyId(leaderKey: string, now: number): string {
   return `p${(h >>> 0).toString(36)}${(now % 1296).toString(36)}`;
 }
 
-/** ダンジョンのセッションキー（パーティ ID、ソロは solo:<ownerKey>）。 */
 export function partyKeyOf(party: Party | null, ownerKey: string): string {
   return party ? party.id : `solo:${ownerKey}`;
 }
@@ -68,7 +62,6 @@ export function isPartyLeader(party: Party, ownerKey: string): boolean {
 
 export type PartyJoinError = "full" | "already_member";
 
-/** 参加する。成功したら新しい Party、失敗したら理由を返す。 */
 export function joinParty(
   party: Party,
   member: PartyMember,
@@ -84,13 +77,11 @@ export function joinParty(
   };
 }
 
-/** 退出する。リーダーが抜けたら解散（null）。 */
 export function leaveParty(party: Party, ownerKey: string): Party | null {
   if (party.leaderKey === ownerKey) return null;
   return { ...party, members: party.members.filter((m) => m.ownerKey !== ownerKey) };
 }
 
-/** 招待を出す（同じ相手への再送は時刻を更新する）。 */
 export function addInvite(party: Party, invite: PartyInvite): Party {
   return {
     ...party,
@@ -98,14 +89,12 @@ export function addInvite(party: Party, invite: PartyInvite): Party {
   };
 }
 
-/** 自分宛ての有効な招待。 */
 export function inviteFor(party: Party, ownerKey: string, now: number): PartyInvite | null {
   const inv = party.invites.find((i) => i.toKey === ownerKey);
   if (!inv) return null;
   return now - inv.at <= PARTY_INVITE_TTL_MS ? inv : null;
 }
 
-/** 保存値の検証つきパース。壊れていたら null。 */
 export function parseParty(raw: unknown): Party | null {
   let data: Record<string, unknown> | null = null;
   if (typeof raw === "string") {

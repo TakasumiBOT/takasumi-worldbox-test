@@ -1,53 +1,20 @@
-// WEB ゲームジャンル（/games）のカタログ。純粋データ＋参照だけのモジュール。
-//
-// ゲームを1本足すときは、ここに1エントリ追加し、対局コンポーネントを
-// app/games/<slug>/ に置いて app/games/[id]/page.tsx の振り分けに足す。
-// 一覧ハブ（/games）と sitemap はこのカタログから自動で生成される。
-
 export type WebGameStatus = "playable" | "coming-soon";
 
 export type WebGame = {
-  /** URL スラッグ（/games/<slug>）。 */
   slug: string;
-  /** 表示名。 */
   title: string;
-  /** 一覧と詳細に出す短い説明。 */
   description: string;
-  /** 遊べる状態か、準備中か。 */
   status: WebGameStatus;
-  /** Discord アクティビティ（埋め込み）内でもプレイできるか。 */
   activity: boolean;
-  /** プレイ人数の目安表示。 */
   players: string;
-  /**
-   * 格下げタイトルか（削減監査 2026-11-15 で決定）。
-   * 一覧ハブでは通常タイトルの後ろに分離表示され、日替わりおすすめの候補からも外れる。
-   * 検索・絞り込み・直接 URL では通常どおり辿れる。
-   */
   demoted?: boolean;
-  /**
-   * ジャンルセクションへの所属（GAME_GENRES の id）。
-   * 指定したタイトルは通常の一覧から外れ、ハブ先頭のジャンルセクションに分離表示される。
-   */
   genre?: string;
-  /**
-   * 詳細ヘッダーに出す関連ガイドへの導線（任意）。
-   * 図鑑・ルール解説など、そのゲームを遊ぶ前に読む1本だけを置く。
-   * サイト内に行き先がないページ（/jinrou/roles など）の唯一の入口にもなる。
-   */
   guide?: { href: string; label: string };
 };
 
-/**
- * ハブ先頭に専用セクションを出すジャンル。並び順がそのまま表示順で、
- * 先頭の WORLD BOX がハブの一番上に来る。
- */
 export type GameGenre = {
-  /** ジャンル id（WebGame.genre と対応）。 */
   id: string;
-  /** セクション見出しと絞り込みチップの表示名。 */
   label: string;
-  /** セクションに出す短い説明（1行）。 */
   description: string;
 };
 
@@ -964,12 +931,10 @@ export function getGameGenre(id: string): GameGenre | undefined {
   return GAME_GENRES.find((genre) => genre.id === id);
 }
 
-/** そのジャンルに所属するタイトル（カタログ順）。 */
 export function gamesInGenre(id: string): WebGame[] {
   return WEB_GAMES.filter((game) => game.genre === id);
 }
 
-/** 日付キー（Asia/Tokyo の YYYY-MM-DD）。ハブの「今日のデイリー」選出の基準。 */
 export function jstDateKey(date: Date): string {
   const jst = new Date(date.getTime() + 9 * 60 * 60 * 1000);
   const y = jst.getUTCFullYear();
@@ -978,7 +943,6 @@ export function jstDateKey(date: Date): string {
   return `${y}-${m}-${d}`;
 }
 
-/** 文字列から決定的なハッシュを作る（ワードルの日付シードと同じ FNV-1a）。 */
 function dailyHash(key: string): number {
   let h = 2166136261;
   for (let i = 0; i < key.length; i++) {
@@ -988,18 +952,11 @@ function dailyHash(key: string): number {
   return h >>> 0;
 }
 
-/**
- * その日のおすすめ（日替わり選出）。JST の日付だけから決定的に選ぶため、
- * 同じ日は誰が見ても同じ顔ぶれになり、翌日には変わる。
- * デイリー帯で別枠表示するワードル、格下げタイトル、ジャンルセクションに
- * 常設されるタイトルは候補から除く。
- */
 export function dailyPicksFor(date: Date, count = 3): WebGame[] {
   const pool = playableGames().filter(
     (game) => game.slug !== "wordle" && !game.demoted && !game.genre,
   );
   let seed = dailyHash(jstDateKey(date));
-  // mulberry32: シード付き疑似乱数。選出の再現性だけが目的なので軽いもので足りる。
   const rand = (): number => {
     seed = (seed + 0x6d2b79f5) | 0;
     let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);

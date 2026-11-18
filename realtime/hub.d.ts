@@ -1,4 +1,3 @@
-// hub.js（CommonJS）の型宣言。実装は realtime/hub.js。
 export interface RealtimeAuth {
   pid: string;
   name: string;
@@ -7,7 +6,6 @@ export interface RealtimeAuth {
   tabAt?: number;
 }
 
-/** ws パッケージの WebSocket が満たす最小の形（ハブが使う分だけ）。 */
 export interface RelaySocket {
   readyState: number;
   send(data: string): void;

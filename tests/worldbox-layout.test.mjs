@@ -1,8 +1,3 @@
-// AGO WORLD BOX スマホ向けレイアウト分岐の検証:
-// - モード判定は典型サイズと境界値で正しく切り替わる
-// - ブレークポイントは globals.css の .wb-panel メディアクエリと一致する
-// - スマホではタップ下限 44px・スティック回避・パネルのシート化が担保される
-// - wide（PC）のメトリクスは従来値のまま（退行なし）
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -65,13 +60,10 @@ const layout = await loadBundle(
 );
 
 test("layout: 典型サイズのモード判定", () => {
-  // スマホ縦
   assert.equal(layout.wbLayoutMode(390, 844), "portrait");
   assert.equal(layout.wbLayoutMode(360, 740), "portrait");
-  // スマホ横（低丈）
   assert.equal(layout.wbLayoutMode(844, 390), "landscape");
   assert.equal(layout.wbLayoutMode(740, 360), "landscape");
-  // PC・タブレットは従来レイアウト
   assert.equal(layout.wbLayoutMode(1280, 800), "wide");
   assert.equal(layout.wbLayoutMode(768, 1024), "wide", "iPad 縦は wide");
   assert.equal(layout.wbLayoutMode(1024, 768), "wide");
@@ -103,20 +95,16 @@ test("layout: スマホのタップ下限とホットバー寸法", () => {
     assert.equal(hud.minimapPx, 88, `${mode} のミニマップは縮小`);
   }
   const portrait = layout.wbHudMetrics("portrait");
-  // 360px 幅: スロットは 12vw = 43.2px（44 上限に近い）、下限 38px を割らない
   assert.ok(portrait.hotbarSlotCss.includes("44px"));
   assert.ok(portrait.hotbarSlotCss.includes("38px"));
   assert.equal(layout.wbHudMetrics("landscape").hotbarSlotCss, "44px");
 });
 
 test("layout: チャットはスティック基点を避け、パーティカードとドックを共有する", () => {
-  // スティック: 中心は端から 78px・当たり半径 68px → 左端 146px が侵入境界
   assert.ok(layout.WB_CHAT_LEFT_CLEARANCE_PX >= 146);
   for (const mode of ["portrait", "landscape"]) {
     const hud = layout.wbHudMetrics(mode);
     assert.equal(hud.chatOnRight, true, `${mode} のチャットは右ドック`);
-    // チャット（下端 chatBottomPx + メッセージ chatMessagesPx + 入力行 ~38px）より
-    // プレイヤーカードが上に来ること
     assert.ok(
       hud.playerCardBottomPx >= hud.chatBottomPx + hud.chatMessagesPx + 38,
       `${mode} のプレイヤーカードはチャットの積み上げと重ならない`,
@@ -127,7 +115,6 @@ test("layout: チャットはスティック基点を避け、パーティカー
       `${mode} のパーティカードはチャットと同じドック`,
     );
   }
-  // 低丈の横持ちではメッセージの積み上げを絞る
   assert.ok(
     layout.wbHudMetrics("landscape").chatMessagesPx <
       layout.wbHudMetrics("portrait").chatMessagesPx,
@@ -171,7 +158,6 @@ test("layout: クライアント配線と CSS シート化", () => {
   assert.ok(css.includes(".wb-shell .wb-panel"), "wb-panel のシート規則が無い");
   assert.ok(css.includes("env(safe-area-inset-bottom"), "シート下端に safe-area が無い");
 
-  // 全パネルのルートに wb-panel が付いている
   for (const f of [
     "WorldBoxEconomyPanel.tsx",
     "WorldBoxCasinoPanel.tsx",
@@ -183,12 +169,10 @@ test("layout: クライアント配線と CSS シート化", () => {
     const src = fs.readFileSync(path.join(rootDir, "app/games/worldbox", f), "utf8");
     assert.ok(src.includes("wb-panel"), `${f} に wb-panel が無い`);
   }
-  // クライアント内蔵パネル（インベントリ等）もシート対象
   assert.ok(
     (client.match(/className="wb-panel"/g) ?? []).length >= 6,
     "内蔵パネルの wb-panel が足りない",
   );
-  // 装置パネルは高さ制限を持つ（低丈で溢れない）
   const machine = fs.readFileSync(
     path.join(rootDir, "app/games/worldbox/WorldBoxMachinePanel.tsx"),
     "utf8",

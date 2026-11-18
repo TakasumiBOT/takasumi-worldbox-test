@@ -6,23 +6,18 @@ import { effectiveHost } from "./subdomain";
 export const SESSION_COOKIE = "ago_session";
 export const OAUTH_STATE_COOKIE = "ago_discord_oauth_state";
 export const GOOGLE_STATE_COOKIE = "ago_google_oauth_state";
-/** OAuth 完了後の戻り先（同一サイト内のパス）を認可開始→コールバックへ運ぶ Cookie。 */
 export const OAUTH_NEXT_COOKIE = "ago_oauth_next";
 
 const SESSION_MAX_AGE = 60 * 60 * 24 * 7;
 
-/** ログインに使ったプロバイダ。旧セッション（フィールドなし）は discord として読む。 */
 export type AuthProvider = "discord" | "google" | "guest";
 
 type SessionPayload = {
   id: string;
   username: string;
   expiresAt: number;
-  // サーバー側セッションレコード（lib/dashboard.ts）のキー。ダッシュボード用ログインでのみ付く。
   sid?: string;
-  // Discord ではアバターハッシュ、Google ではプロフィール画像の完全な URL（無い/未取得なら null。旧セッションには含まれない）
   avatar?: string | null;
-  // ログインプロバイダ（旧セッションには含まれない。その場合は discord として扱う）
   provider?: AuthProvider;
 };
 
@@ -33,17 +28,10 @@ export type DiscordUser = Pick<SessionPayload, "id" | "username"> & {
 
 export type SessionInfo = DiscordUser & { sid?: string; provider: AuthProvider };
 
-/** プロバイダ種別＋プロバイダ側ユーザーID で一意になる内部の所有者キー（キー保存等の所有者識別に使う）。 */
 export function sessionOwnerKey(info: { provider: AuthProvider; id: string }): string {
   return `${info.provider}:${info.id}`;
 }
 
-/**
- * Discord OAuth 設定の解決。環境変数があればそちらを優先し、無ければ
- * リポジトリ内蔵の設定（lib/deploy-config.ts）にフォールバックする。
- * Vercel の環境変数を触れない運用でも、deploy-config に値を記入すれば
- * ログインが成立するようにするための二段構え。
- */
 export function discordClientId() {
   return process.env.DISCORD_CLIENT_ID || DEPLOY_CONFIG.discordClientId || "";
 }
@@ -56,10 +44,6 @@ export function discordRedirectUri() {
   return process.env.DISCORD_REDIRECT_URI || DEPLOY_CONFIG.discordRedirectUri || "";
 }
 
-/**
- * セッション署名鍵の解決順: DISCORD_SESSION_SECRET（env）→
- * DISCORD_CLIENT_SECRET（env）→ deploy-config の secret。
- */
 export function sessionSecret() {
   return (
     process.env.DISCORD_SESSION_SECRET ||
@@ -69,14 +53,6 @@ export function sessionSecret() {
   );
 }
 
-/**
- * ゲストセッション専用のフォールバック署名鍵。セッション秘密が未設定の
- * 環境でもゲストだけは入れるようにするためのもので、provider が "guest" の
- * ペイロードの署名・検証にだけ使う。discord / google のペイロードでは
- * 絶対に受理しない（受理すると Discord ユーザーへのなりすましが可能になる）。
- * ゲストはコイン経済の対象外で、推測不能な UUID がそのまま資格になるため、
- * この鍵で署名できても得られるのは「自分専用のゲスト枠」だけ。
- */
 const GUEST_SESSION_FALLBACK_SECRET = "ago-worldbox-guest-session-fallback";
 
 function signWith(secret: string, value: string) {
@@ -118,8 +94,6 @@ export function createSession(user: DiscordUser, sid?: string) {
     ...(user.provider ? { provider: user.provider } : {}),
   };
   const encoded = Buffer.from(JSON.stringify(payload)).toString("base64url");
-  // ゲストだけは、セッション秘密が未設定でもフォールバック鍵で署名する
-  // （Discord OAuth が一切未設定の環境でもゲスト入場を成立させるため）。
   const secret =
     sessionSecret() || (user.provider === "guest" ? GUEST_SESSION_FALLBACK_SECRET : "");
   const signature = signWith(secret, encoded);
@@ -149,10 +123,6 @@ export function readSessionInfo(value?: string): SessionInfo | null {
   } catch {
     return null;
   }
-  // 署名検証。鍵の候補はペイロードの provider で決める: ゲストだけは
-  // フォールバック鍵も候補に入れる（未検証ペイロードは鍵の選択にしか
-  // 使わない。discord / google のつもりでフォールバック鍵の署名を
-  // 受理することは決してない）。
   const candidates =
     payload.provider === "guest"
       ? [sessionSecret(), GUEST_SESSION_FALLBACK_SECRET]
@@ -161,10 +131,8 @@ export function readSessionInfo(value?: string): SessionInfo | null {
     return null;
 
   try {
-    // provider が無い旧セッションは Discord ログインとして扱う（後方互換）
     const provider: AuthProvider =
       payload.provider === "google" ? "google" : payload.provider === "guest" ? "guest" : "discord";
-    // id の形はプロバイダで違う: Discord / Google は数字、ゲストは UUID。
     const idOk =
       typeof payload.id === "string" &&
       (provider === "guest" ? GUEST_ID_RE.test(payload.id) : /^\d+$/.test(payload.id));
@@ -207,11 +175,6 @@ export async function getCurrentSession() {
   return readSessionInfo(cookieStore.get(SESSION_COOKIE)?.value);
 }
 
-/**
- * Discord アバターの CDN URL（dashboard-core の userAvatarUrl と同じ規則。
- * auth.ts は単体で読み込まれる場面が多いため、依存を増やさずここに複製する）。
- * ハッシュが無ければ ID から決まる既定アバター。
- */
 function discordAvatarUrl(userId: string, avatarHash: string | null): string {
   if (avatarHash) {
     const ext = avatarHash.startsWith("a_") ? "gif" : "png";
@@ -226,16 +189,9 @@ function discordAvatarUrl(userId: string, avatarHash: string | null): string {
   return `https://cdn.discordapp.com/embed/avatars/${index}.png`;
 }
 
-/**
- * セッションから本人のアバター画像 URL を組み立てる（/api/auth/me と同じ規則）。
- * Discord はハッシュから CDN URL（無ければ既定アバター）、Google はプロフィール
- * 画像の完全な URL をそのまま、Google で画像が無い場合とゲストは null。
- */
 export function sessionAvatarUrl(session: SessionInfo): string | null {
   const avatar = session.avatar ?? null;
   if (avatar && avatar.startsWith("http")) return avatar;
-  // Google（画像が無い）とゲストはアイコン無し（クライアントが従来キャラで描く）。
-  // ゲストの id は UUID で、Discord CDN の URL を組み立てても実在しない。
   if (session.provider === "google" || session.provider === "guest") return null;
   return discordAvatarUrl(session.id, avatar);
 }
@@ -244,12 +200,6 @@ export function getRequestSession(request: Request) {
   return readSessionInfo(readCookie(request, SESSION_COOKIE));
 }
 
-/**
- * リダイレクト先URLの基点になる公開オリジン。
- * Cloudflare Tunnel 等のプロキシ配下では request.url のホストが内部向け
- * （localhost:3000）になり、そのまま使うと利用者を localhost へ飛ばしてしまう。
- * Discord に登録した redirect_uri（=公開URL）から取得するのが確実。
- */
 export function publicOrigin(request: Request): string {
   const redirectUri = discordRedirectUri();
   if (redirectUri) {
@@ -288,11 +238,6 @@ export function stateCookieOptions(request: Request, maxAge = 600) {
   };
 }
 
-/**
- * OAuth 完了後の戻り先を検証する。同一サイト内のパス（"/" 始まり）だけを許可し、
- * それ以外は fallback に倒す（オープンリダイレクト防止）。"//host" 形式や
- * バックスラッシュ混じりはプロトコル相対 URL として解釈され得るため弾く。
- */
 export function resolveOAuthNext(
   value: string | null | undefined,
   fallback = "/dashboard",
@@ -311,13 +256,6 @@ export function resolveOAuthNext(
   return fallback;
 }
 
-/**
- * 認可開始は、登録済み redirect_uri と同じホスト（正規ホスト）で始める必要がある。
- * state / next の Cookie はホスト単位でしか残らず、コールバックは redirect_uri の
- * ホストへ着地するため、別ホスト（例: One Prompter 専用サブドメイン）から
- * 始まると state が照合できない。別ホストからのリクエストなら、正規ホスト側の
- * 認可 URL（クエリ引き継ぎ）へ飛ばす絶対 URL を返す。正規ホストなら null。
- */
 export function canonicalAuthorizeRedirect(
   request: Request,
   pathname: string,

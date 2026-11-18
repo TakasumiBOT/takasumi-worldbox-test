@@ -1,4 +1,3 @@
-// カジノ演出階級（casino-fx）の検証と、パネルの演出配線の確認。
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -23,15 +22,15 @@ const fx = await import(dataUrl(transpile("worldbox/activity/casino-fx.ts")));
 test("casino-fx: 配当倍率で階級が上がる", () => {
   assert.equal(fx.winTier(0, 100), 0);
   assert.equal(fx.winTier(-5, 100), 0);
-  assert.equal(fx.winTier(100, 100), 1); // 等倍
-  assert.equal(fx.winTier(120, 100), 1); // ペア 1.2 倍
+  assert.equal(fx.winTier(100, 100), 1);
+  assert.equal(fx.winTier(120, 100), 1);
   assert.equal(fx.winTier(200, 100), 2);
   assert.equal(fx.winTier(999, 100), 2);
   assert.equal(fx.winTier(1000, 100), 3);
   assert.equal(fx.winTier(4999, 100), 3);
   assert.equal(fx.winTier(5000, 100), 4);
-  assert.equal(fx.winTier(30000, 100), 4); // 7 揃い ×300
-  assert.equal(fx.winTier(100, 0), 0); // ベット不正は 0
+  assert.equal(fx.winTier(30000, 100), 4);
+  assert.equal(fx.winTier(100, 0), 0);
 });
 
 test("casino-fx: 階級が上がるほど演出が強い（単調）", () => {
@@ -50,7 +49,7 @@ test("casino-fx: 階級が上がるほど演出が強い（単調）", () => {
 test("casino-fx: カウントアップは単調増加で終端が一致", () => {
   assert.equal(fx.countUpValue(0, 1000, 0), 0);
   assert.equal(fx.countUpValue(0, 1000, 1), 1000);
-  assert.equal(fx.countUpValue(0, 1000, 2), 1000); // クランプ
+  assert.equal(fx.countUpValue(0, 1000, 2), 1000);
   let prev = -1;
   for (let t = 0; t <= 1.0001; t += 0.1) {
     const v = fx.countUpValue(0, 777, t);

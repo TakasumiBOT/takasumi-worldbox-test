@@ -1,9 +1,3 @@
-// WORLD BOX プレイヤーバイタル（空腹のみ）のテスト。
-// この世界に HP・毒・死亡・リスポーンは存在しない（Phase 1 で撤去）。
-// - profile: 旧形式（hp 等を含む）JSON は余分なフィールドを落として読める
-// - stepVitals: 空腹の減少（活動クラス・warm バフ・精算キャップ・端数保持）
-// - consumeEffect / eatItem: 空腹と warm バフだけが効果
-// - API ルートは action "sync" のみ、クライアントは HP バーを持たない
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -93,7 +87,6 @@ test("vitals: 旧形式プロフィール（HP・死亡記録つき）は余分�
   assert.equal("deaths" in p, false);
   assert.equal("respawn" in p, false);
   assert.equal(p.hunger, 55);
-  // 毒ステータスは読み込まれない（warm だけが残る）
   assert.deepEqual(
     p.status.map((e) => e.kind),
     ["warm"],
@@ -106,7 +99,6 @@ test("vitals: 空腹は活動で減り方が変わる（飢えても死亡しな
   const move = v.stepVitals(base, T0 + 3600_000, "move").profile;
   const dash = v.stepVitals(base, T0 + 3600_000, "dash").profile;
   assert.ok(idle.hunger > move.hunger && move.hunger > dash.hunger);
-  // 精算を繰り返せば空腹は 0 で止まり、戻り値に死亡の概念は無い
   let p = base;
   for (let i = 1; i <= 200; i++) p = v.stepVitals(p, T0 + i * 1800_000, "dash").profile;
   assert.equal(p.hunger, 0);
@@ -203,13 +195,11 @@ test("vitals: 食事は空腹と warm だけ（consumeEffect / eatItem）", () =
     eff.profile.status.map((e) => e.kind),
     ["warm"],
   );
-  // 食べ物でないものは効果なし
   assert.equal(v.consumeEffect(base, "wood", T0), null);
   const ate = v.eatItem(base, "stew", T0);
   assert.equal(ate.ok, true);
   assert.equal(ate.profile.items.stew ?? 0, 0);
   assert.equal(ate.profile.hunger, 75);
-  // 満腹で hunger 持ちを食べると hunger_full
   const full = { ...v.parseProfile(null), hunger: 100, status: [], items: { onigiri: 1 } };
   assert.equal(v.eatItem(full, "onigiri", T0).error, "hunger_full");
 });

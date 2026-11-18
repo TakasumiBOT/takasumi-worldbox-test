@@ -55,14 +55,6 @@ import { makeRng } from "@/lib/worldbox/core/rng";
 
 export const runtime = "nodejs";
 
-// AGO WORLD BOX のインスタンス内アクション（洞窟の採掘・宝箱・温泉）。
-// 配置は instances.ts の決定的生成が正で、サーバーは毎回再生成して検証する。
-// 位置検証は REST ハートビート（プレゼンス）の自空間エントリで行い、
-// 無ければセーブ位置で代替する（WS 中継中は bot_kv プレゼンスが凍結するため）。
-// GET ?space=cave:x,y:層: 枯渇状態 { veins, chest }。
-// POST { action: "mine", space, veinKey } / { action: "open_chest", space }
-//      / { action: "onsen", space }。
-
 const NO_STORE = { "Cache-Control": "no-store, max-age=0" };
 const REACH = 2.4;
 
@@ -80,8 +72,6 @@ function bestToolTier(
     if (count <= 0) continue;
     const def = itemById(id);
     if (def?.tool !== tool) continue;
-    // 実効ティア = ティア + 強化レベル。
-    // ツルハシ強化は洞窟鉱脈のティアゲートにも効く。
     const effective = (def.tier ?? 0) + (profile.enhance?.[id] ?? 0);
     if (effective > best) best = effective;
   }
@@ -113,7 +103,6 @@ export async function GET(request: Request) {
   if (!inst)
     return NextResponse.json({ error: "invalid_space" }, { status: 400, headers: NO_STORE });
   if (inst.kind === "ruins") {
-    // 期間ダンジョン（予約入口の遺跡）は開催中だけ入場データを返す
     if (
       isEventDungeonEntrance(inst.entranceX, inst.entranceY) &&
       !activeLimitedDungeon(Date.now())
@@ -155,7 +144,6 @@ export async function GET(request: Request) {
 
 type SessionT = NonNullable<ReturnType<typeof getRequestSession>>;
 
-/** 遺跡内アクション（個人別状態。週次リセット、主宝箱は ruins_complete）。 */
 async function handleRuins(
   request: Request,
   session: SessionT,
@@ -198,10 +186,6 @@ async function handleRuins(
       );
     }
     if (teleport) {
-      // 転移先はサーバーが決めた移動: ワープ/蘇生と同じく、プレゼンスと
-      // セーブの両方を転移先へそろえる（B4 の連続性検証の新しい基準にする）。
-      // クライアントの申告だけに任せると同一空間内の跳躍として却下され、
-      // 転移が巻き戻ってしまう（ロビー擬似2F階段バグと同じ構図）。
       const prevSave = parseSave(await loadWorldBoxSave(ownerKey));
       await storeWorldBoxSave(
         ownerKey,
@@ -262,7 +246,6 @@ async function handleRuins(
       const loot = rollObjectLoot(def, rng);
       gained = loot.gained;
       trapped = loot.trapped;
-      // 斥候の専門: 宝箱の罠率を半減する
       if (trapped && profile.role === "scout" && rng() < 0.5) trapped = false;
     }
     let next = profile;
@@ -282,7 +265,6 @@ async function handleRuins(
       );
     }
     if (completedNow && session.provider === "discord" && isEconomyEnabled()) {
-      // 初回開封の earn は決定的 ID で冪等に積む（1遺跡×1人 = 最大1件）
       const op = buildEconomyOp(
         {
           kind: "earn",
@@ -312,7 +294,6 @@ async function handleRuins(
   return NextResponse.json({ error: "invalid_request" }, { status: 400, headers: NO_STORE });
 }
 
-/** ダンジョン内アクション（パーティ別セッション。宝箱は個人別）。 */
 async function handleDungeon(
   request: Request,
   session: SessionT,
@@ -365,9 +346,7 @@ async function handleDungeon(
     if (!def) return NextResponse.json({ error: "no_chest" }, { status: 404, headers: NO_STORE });
     const rng = makeRng((now ^ (chest.x * 131) ^ (chest.y * 17) ^ (inst.layer * 7)) >>> 0);
     const loot = rollObjectLoot(def, rng);
-    // 主宝箱では罠は無効（最奥の報酬を汚さない）
     let trapped = chest.main ? false : loot.trapped;
-    // 斥候の専門: 宝箱の罠率を半減する（遺跡と同じ）
     if (trapped && profile.role === "scout" && rng() < 0.5) trapped = false;
     let next = profile;
     for (const [id, count] of Object.entries(loot.gained)) next = addItem(next, id, count);
@@ -376,7 +355,6 @@ async function handleDungeon(
       return NextResponse.json({ error: "store_failed" }, { status: 503, headers: NO_STORE });
     if (!(await storeProfile(ownerKey, next)))
       return NextResponse.json({ error: "store_failed" }, { status: 503, headers: NO_STORE });
-    // 最奥フロアの主宝箱 = クリア。週1回だけ earn（クリア週を記録して判定）。
     let cleared = false;
     if (
       chest.main &&
@@ -441,9 +419,6 @@ export async function POST(request: Request) {
   const inst = parseInstanceSpace(space);
   if (!inst)
     return NextResponse.json({ error: "invalid_space" }, { status: 400, headers: NO_STORE });
-  // 空間単位で直列化する（カジノ #943 と同型の対策）。洞窟の枯渇状態は
-  // プレイヤー間で共有され、遺跡の個人状態も read-modify-write のため、
-  // 並行リクエストが同じ鉱脈・宝箱・主宝箱を二重に開けてしまう。
   return withUserLock(`instance:${space}`, () =>
     handleInstancePost(request, session, space, inst, fields),
   );
@@ -487,7 +462,6 @@ async function handleInstancePost(
         { error: "profile_unavailable" },
         { status: 503, headers: NO_STORE },
       );
-    // 温泉は休憩スポット: 戻り先（入口の外、ワールド座標）をセーブに記録する。
     const saved = parseSave(await loadWorldBoxSave(ownerKey));
     if (saved) {
       saved.worldReturn = { x: inst.entranceX + 0.5, y: inst.entranceY + 0.5 };
@@ -526,14 +500,12 @@ async function handleInstancePost(
       let next = profile;
       for (const [id, count] of Object.entries(loot.gained)) next = addItem(next, id, count);
       if (profile.role === "miner") {
-        // 採掘者の常時効果: 追加ドロップ抽選 + 熟練（希少以上は多め）
         if (Math.random() < MINER_BONUS_CHANCE) {
           const bonus = rollObjectLoot(def, makeRng((now ^ 0x5eed) >>> 0));
           for (const [id, count] of Object.entries(bonus.gained)) next = addItem(next, id, count);
         }
         next = addMasteryXp(next, "miner", (def.minTier ?? 0) >= 2 ? 4 : 1).profile;
       }
-      // 道具の耐久: 採掘で最良のツルハシが摩耗する
       const worn = wearTool(next, "pickaxe");
       next = worn.profile;
       state.veins[vein.key] = now;
@@ -555,7 +527,6 @@ async function handleInstancePost(
       );
     }
 
-    // open_chest
     if (!cave.chest)
       return NextResponse.json({ error: "no_chest" }, { status: 404, headers: NO_STORE });
     if (!near(cave.chest.x, cave.chest.y))
@@ -570,7 +541,6 @@ async function handleInstancePost(
     let next = profile;
     for (const [id, count] of Object.entries(loot.gained)) next = addItem(next, id, count);
     let trapped = loot.trapped;
-    // 斥候の専門: 宝箱の罠率を半減する（遺跡と同じ）
     if (trapped && profile.role === "scout" && rng() < 0.5) trapped = false;
     state.chest = now;
     await storeInstanceState(space, state);

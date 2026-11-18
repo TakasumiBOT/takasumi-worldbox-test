@@ -1,11 +1,3 @@
-// AGO WORLD BOX カジノ（ロビー右翼）の検証:
-// - 純粋ロジック: スロット（倍率・RTP・抽選）、ルーレット（色・配当・RTP）、
-//   ベット検証、機器の隣接判定（ロビーの実配置に対して）
-// - ブリッジ: gamble オプの検証と解釈（理由ホワイトリスト・配当必須）
-// - API: 位置検証（プレゼンスがロビーの機器の前でなければ遊べない）、
-//   実質残高（処理中ベット差し引き）、プレイで gamble オプが積まれること、
-//   Web が残高を直接動かさないこと
-// - クライアント配線: ステーションチップの「遊ぶ」とパネルの存在
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -49,8 +41,6 @@ const eco = await import(economyUrl);
 
 const ME = "611111111111111111";
 const MY_KEY = `discord:${ME}`;
-
-// ---------- 純粋ロジック ----------
 
 test("casino: ベットは整数 10..1,000,000 だけ通る", () => {
   assert.equal(casino.validateCasinoBet(10), 10);
@@ -106,21 +96,15 @@ test("casino: ルーレットの色と配当", () => {
 
 test("casino: 機器の隣接判定はロビーの実配置で決まる", () => {
   const { objects } = lobby.buildLobby();
-  // スロットマシン (39,19) の前
   assert.equal(casino.casinoMachineNear(objects, 39, 20), "slot");
-  // カジノテーブル (41,23) の前
   assert.equal(casino.casinoMachineNear(objects, 41, 24), "roulette");
   assert.equal(casino.casinoMachineNear(objects, 46, 20), "slot7");
   assert.equal(casino.casinoMachineNear(objects, 44, 23), "dice");
   assert.equal(casino.casinoMachineNear(objects, 48, 23), "blackjack");
   assert.equal(casino.casinoMachineNear(objects, 40, 28), "double");
-  // 広場の中央はどの機器でもない
   assert.equal(casino.casinoMachineNear(objects, 28, 28), null);
-  // ショップカウンターの前では遊べない
   assert.equal(casino.casinoMachineNear(objects, 5, 21), null);
 });
-
-// ---------- ブリッジ: gamble オプ ----------
 
 test("casino: gamble オプは理由ホワイトリストと配当が必須", () => {
   const op = eco.buildEconomyOp(
@@ -137,7 +121,6 @@ test("casino: gamble オプは理由ホワイトリストと配当が必須", ()
   );
   assert.equal(op?.kind, "gamble");
   assert.equal(op?.payout, 0);
-  // 理由がホワイトリスト外なら不可
   assert.equal(
     eco.buildEconomyOp(
       { kind: "gamble", userKey: MY_KEY, discordId: ME, amount: 100, reason: "cheat", payout: 0 },
@@ -146,7 +129,6 @@ test("casino: gamble オプは理由ホワイトリストと配当が必須", ()
     ),
     null,
   );
-  // 配当が欠けたら不可
   assert.equal(
     eco.buildEconomyOp(
       { kind: "gamble", userKey: MY_KEY, discordId: ME, amount: 100, reason: "casino_slot" },
@@ -155,7 +137,6 @@ test("casino: gamble オプは理由ホワイトリストと配当が必須", ()
     ),
     null,
   );
-  // 解釈でも配当を保持し、欠けた gamble は落とす
   const raw = {
     id: "12345678-abcd-4abc-8abc-1234567890ab",
     kind: "gamble",
@@ -171,8 +152,6 @@ test("casino: gamble オプは理由ホワイトリストと配当が必須", ()
   const { payout: _p, ...broken } = raw;
   assert.equal(eco.parseEconomyOp(broken), null);
 });
-
-// ---------- API ----------
 
 const botApiStubUrl = dataUrl(`
 const store = new Map();
@@ -348,25 +327,21 @@ test("API(casino): 機器の前にいなければ遊べない（位置検証）"
   );
   assert.equal(noPresence.status, 409);
   assert.equal((await noPresence.json()).error, "not_at_casino");
-  // ワールドにいてもダメ
   setPresence(39.5, 20.5, "world");
   const inWorld = await casinoRoute.POST(
     apiRequest(URL_C, "POST", cookie, { game: "slot", bet: 10 }),
   );
   assert.equal(inWorld.status, 409);
-  // ロビーでも広場ではダメ
   setPresence(28.5, 28.5, "lobby");
   const atPlaza = await casinoRoute.POST(
     apiRequest(URL_C, "POST", cookie, { game: "slot", bet: 10 }),
   );
   assert.equal(atPlaza.status, 409);
-  // 鮮度切れのプレゼンスは「いない」扱い
   setPresence(39.5, 20.5, "lobby", Date.now() - 60_000);
   const stale = await casinoRoute.POST(
     apiRequest(URL_C, "POST", cookie, { game: "slot", bet: 10 }),
   );
   assert.equal(stale.status, 409);
-  // スロットの前でルーレットは遊べない
   setPresence(39.5, 20.5, "lobby");
   const wrong = await casinoRoute.POST(
     apiRequest(URL_C, "POST", cookie, { game: "roulette", bet: 10, pick: "red" }),
@@ -394,7 +369,6 @@ test("API(casino): スロットを回すと gamble オプが積まれ、残高�
   const after = await (await casinoRoute.GET(apiRequest(URL_C, "GET", cookie))).json();
   assert.equal(after.balance, 10000, "Web は残高を直接動かさない");
   assert.equal(after.machine, "slot");
-  // 処理中ベットは実質残高から引かれる
   assert.equal(after.effectiveBalance, 10000 - 100);
   assert.equal(after.ops[0].id, data.opId);
 });
@@ -406,10 +380,7 @@ test("API(casino): 大会スコアは gamble オプの確定後にだけ記録�
   const res = await casinoRoute.POST(apiRequest(URL_C, "POST", cookie, { game: "slot", bet: 100 }));
   assert.equal(res.status, 200);
   const data = await res.json();
-  // 登録直後（pending）ではスコアは記録されない。後から failed に
-  // なりうるオプの純益を順位に入れないため。
   assert.equal(globalThis.__wbCasinoTournamentScores.length, 0);
-  // ワーカーが適用して done になった後の照合で初めて記録される
   const stored = globalThis.__wbCasinoStore.get(`worldbox_economy ${data.opId}`);
   stored.status = "done";
   await casinoRoute.GET(apiRequest(URL_C, "GET", cookie));
@@ -442,7 +413,6 @@ test("API(casino): ルーレットはテーブルの前で pick 必須", async (
 test("API(casino): 実質残高を超えるベットは 409、ベット検証は 400", async () => {
   globalThis.__wbCasinoUsers.set(ME, 150);
   setPresence(39.5, 20.5, "lobby");
-  // 既存の処理中ベット 100 があるため実質残高は 50
   const tooMuch = await casinoRoute.POST(
     apiRequest(URL_C, "POST", cookie, { game: "slot", bet: 100 }),
   );
@@ -463,29 +433,22 @@ test("API(casino): 実質残高を超えるベットは 409、ベット検証は
   assert.equal(cross.status, 403);
 });
 
-// ---------- 移行ゲームの純粋ロジック（Bot ギャンブル原典） ----------
-
 test("casino-games: セブンスロットの配当（7つ揃い・天井・6ペナルティ）", () => {
-  // rng=0 は常に数字0 → 7つ揃いで基本倍率 2000
   const st1 = games.emptyCasinoUserState();
   const all0 = games.spinSlot7(st1, 10, () => 0);
   assert.deepEqual(all0.reels, [0, 0, 0, 0, 0, 0, 0]);
   assert.equal(all0.reward, 10 * 2000);
-  // 連敗3の次は天井（ベット×50）
   const st2 = games.emptyCasinoUserState();
   st2.loseStreak = 3;
   const pity = games.spinSlot7(st2, 10, () => 0.13);
   assert.equal(pity.reward, 10 * 50);
   assert.ok(pity.events.includes("pity"));
   assert.equal(st2.loseStreak, 0);
-  // 7が7つ揃うと ×2000×5 と確変7
   const st3 = games.emptyCasinoUserState();
   const sevens = games.spinSlot7(st3, 10, () => 0.78);
   assert.deepEqual(sevens.reels, [7, 7, 7, 7, 7, 7, 7]);
   assert.equal(sevens.reward, 10 * 2000 * 5);
   assert.equal(st3.kakuhen, games.SLOT7_KAKUHEN_SPINS);
-  // 6が2つだけ揃うとペナルティ（ベット×9 の追加引き落とし）。
-  // 先頭の 0.99 は six カウンタ判定が消費する分。
   const st4 = games.emptyCasinoUserState();
   const seq = [0.99, 0.6, 0.6, 0, 0.1, 0.2, 0.3, 0.45];
   let i = 0;
@@ -506,7 +469,6 @@ test("casino-games: ダブルアップの倍率・内部モード・キャッシ
   const lose = games.doubleGo(s, st, () => 0.9);
   assert.equal(lose.win, false);
   assert.equal(lose.finished, true);
-  // キャッシュアウトが 500 超で HELL 落ち（原典どおり）
   const st2 = games.emptyCasinoUserState();
   const payout = games.doubleCashout({ bet: 1000, multiplier: 1, streak: 0 }, st2);
   assert.equal(payout, 1000);
@@ -596,7 +558,6 @@ test("casino: prepaid な gamble オプと新理由がブリッジを通る", ()
     assert.equal(op?.prepaid, true, reason);
     assert.equal(eco.parseEconomyOp(op)?.prepaid, true, reason);
   }
-  // prepaid でないオプには付けない
   const plain = eco.buildEconomyOp(
     {
       kind: "gamble",
@@ -611,8 +572,6 @@ test("casino: prepaid な gamble オプと新理由がブリッジを通る", ()
   );
   assert.equal(plain?.prepaid, undefined);
 });
-
-// ---------- API: 移行ゲーム ----------
 
 function markPendingSpendsDone() {
   for (const [k, v] of globalThis.__wbCasinoStore) {
@@ -683,10 +642,8 @@ test("API(casino): ダブルアップは先払い→キャッシュアウトで 
   const spends = findOps((o) => o.kind === "spend" && o.reason === "casino_double_bet");
   assert.equal(spends.length, 1);
   assert.equal(spends[0].amount, 100);
-  // コイン API 直接化: 先払い spend は登録と同時に適用され、残高もその場で減る
   assert.equal(spends[0].status, "done");
   assert.equal(globalThis.__wbCasinoUsers.get(ME), 10000 - 100);
-  // そのままキャッシュアウトできる（倍率1 → ベット返し）
   const cash = await casinoRoute.POST(
     apiRequest(URL_C, "POST", cookie, { action: "double_cashout" }),
   );
@@ -711,9 +668,6 @@ test("API(casino): ブラックジャックは配ってスタンドすると精�
   const startData = await start.json();
   markPendingSpendsDone();
   if (startData.session === null) {
-    // ナチュラル（配った時点で決着）: セッションは作られず final が返り、
-    // そのまま精算される（API の契約。パネルも final を表示に使う）。
-    // この分岐を想定していなかったため、約5%の確率で落ちる flake だった。
     assert.ok(startData.final, "ナチュラルでは final が返る");
     assert.equal(startData.final.playerHand.length, 2);
   } else {
@@ -753,7 +707,6 @@ test("API(casino): セブンスロットは1回分を先払いして回すと精
   const spends = findOps((o) => o.kind === "spend" && o.reason === "casino_slot7_prepay");
   assert.equal(spends.length, 1);
   assert.equal(spends[0].amount, 10, "先払いはベット1回分だけ");
-  // セッション中は別のセッションを始められない
   const dup = await casinoRoute.POST(
     apiRequest(URL_C, "POST", cookie, { action: "slot7_start", bet: 10 }),
   );
@@ -792,12 +745,10 @@ test("API(casino): 精算は並行 GET が重なっても1回だけ（二重精�
   );
   assert.equal(start.status, 200);
   markPendingSpendsDone();
-  // バースト済みにして精算待ちの状態を作る
   const key = `worldbox_casino session:${MY_KEY}`;
   const session = JSON.parse(globalThis.__wbCasinoStore.get(key));
   session.busted = true;
   globalThis.__wbCasinoStore.set(key, JSON.stringify(session));
-  // パネルの3秒ポーリングが重なった想定で GET を並行に叩く
   const results = await Promise.all([
     casinoRoute.GET(apiRequest(URL_C, "GET", cookie)),
     casinoRoute.GET(apiRequest(URL_C, "GET", cookie)),
@@ -814,8 +765,6 @@ test("API(casino): 精算は並行 GET が重なっても1回だけ（二重精�
   const after = await (await casinoRoute.GET(apiRequest(URL_C, "GET", cookie))).json();
   assert.equal(after.session, null);
 });
-
-// ---------- クライアント配線 ----------
 
 test("casino: クライアントはステーションチップからパネルを開き、パネルは API を使う", () => {
   const client = fs.readFileSync(

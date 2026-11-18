@@ -1,4 +1,3 @@
-// AGO WORLD BOX のギルドショップ状態の保存（bot_kv）。
 import { isBotApiConfigured, kvGet, kvSet } from "../../bot-api";
 import { parseGuildShopState, type GuildShopState } from "./guild-shop";
 

@@ -1,10 +1,3 @@
-// AGO WORLD BOX 音響基盤（BGM/SE）の検証:
-// - BGM 譜面の整合（32ステップ・度数の範囲・場面ごとの密度とテンポ）
-// - 場面選択（カジノ > ロビー > 夜 > 昼）
-// - 周波数計算（半音・度数）
-// - SE の優先度階層と fx バースト → SE の対応
-// - opus っぽさ回避（音声ファイルを使わない・BGM にパッド wash を使わない）
-// - クライアント配線（解錠・場面切替・行為→SE・経済パネル・ミュート切替）
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -97,7 +90,6 @@ test("sound: 全曲が32ステップで、度数と半音が範囲内に収ま�
       if (s === null) continue;
       assert.ok(s >= -12 && s <= 24, `${scene}: ベース半音 ${s}`);
     }
-    // 音階はペンタトニック（5音＋オクターブ展開）で単調増加
     for (let i = 1; i < track.scale.length; i++) {
       assert.ok(track.scale[i] > track.scale[i - 1], `${scene}: 音階が単調`);
     }
@@ -158,7 +150,6 @@ test("sound: 場面遷移はクロスフェードで、SE/BGM はマスターで
   assert.match(src, /masterBus/, "マスターバスがある");
   assert.match(src, /seBus\.connect\(masterBus\)/, "SE はマスター経由");
   assert.match(src, /gain\.connect\(masterBus\)/, "BGM の声はマスター経由");
-  // タイマー遅延時は過去のステップを束で鳴らさない（ループ継ぎ目の段差を消す）
   assert.match(src, /nextStepAt < ctx\.currentTime - stepSec/, "遅延分の飛ばしがある");
   assert.ok(!src.includes("tension"), "緊張レイヤー（心拍）が残っている");
   const client = fs.readFileSync(
@@ -195,7 +186,6 @@ test("sound: 周波数計算（半音は2の12乗根、度数は音階を引く�
   assert.equal(sound.degreeFreq(track, 0), track.root);
   assert.ok(sound.degreeFreq(track, 5) > sound.degreeFreq(track, 4), "度数が上がれば音も上がる");
   assert.ok(Math.abs(sound.degreeFreq(track, 0, 1) - track.root * 2) < 0.001, "オクターブ指定");
-  // 範囲外の度数は端に丸める（落ちない）
   assert.equal(sound.degreeFreq(track, 999), sound.degreeFreq(track, track.scale.length - 1));
 });
 
@@ -298,7 +288,6 @@ test("sound: opus っぽさ回避（音声ファイルなし・BGM パッドな�
   assert.ok(!/\.(opus|mp3|ogg|wav|m4a)["'`]/i.test(src), "音声ファイルの参照を持たない");
   assert.ok(!/new Audio\(|<audio/i.test(src), "ファイル再生を使わない");
   assert.ok(!/function pad\(/.test(src), "BGM にパッド wash を使わない");
-  // BGM バスにローパスを掛ける記述がない（SE の素材ノイズの lowpass は対象外）
   assert.ok(!/bgmFilter/.test(src), "BGM 専用ローパスを持たない");
 });
 

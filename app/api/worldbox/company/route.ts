@@ -66,23 +66,6 @@ import { loadTileOverride } from "@/lib/worldbox/world/tiles-online";
 
 export const runtime = "nodejs";
 
-// WORLD BOX（Takasumi 版）の会社システム。
-// GET: 自分の会社（資産・メンバー・履歴・出品）と全会社の一覧・残高。
-//   ?id=<会社ID> で他社の詳細（出品一覧。内容テキストは含めない）。
-//   ?hqs=<空間ID> でその空間に本社を置く会社の一覧（マーカー用）。
-// POST: 会社の全操作（設立・招待・入社・脱退・解雇・設定・ボーナス・
-//   商品の作成と購入・解散）。お金の個人残高との出入りは経済ブリッジ
-//   のオプ経由だけ（company-online.ts）。会社所属は Discord ログイン
-//   必須（ゲストはオプの入口でも guest_not_allowed で終端する）。
-// Phase 4（空間化）の操作: 本社の登録・解除（hq_set / hq_clear、
-//   オーナーの現在位置で登録）、出社・退社（clock_in / clock_out）、
-//   勤務（work: 勤務中かつ本社近くでのみ。報酬は会社資産へ台帳だけ
-//   で入金され、個人残高は増えない）、店舗看板の登録・解除
-//   （sign_register / sign_unregister: 自分の看板だけ）。位置の正は
-//   プレゼンス→セーブ（loadActorPosition）で、クライアントの自己
-//   申告は使わない。看板の所有はタイル上書きの block.ownerId
-//   （プレゼンス ID）で照合する（屋台と同じ方式）。
-
 const NO_STORE = { "Cache-Control": "no-store, max-age=0" };
 const HISTORY_VIEW_LIMIT = 30;
 
@@ -95,7 +78,6 @@ function err(error: string, status = 409) {
   return NextResponse.json({ error }, { status, headers: NO_STORE });
 }
 
-/** ワールドのタイル座標の検証（屋台ルートと同じ範囲）。 */
 function checkedTileCoord(xRaw: unknown, yRaw: unknown): { x: number; y: number } | null {
   if (typeof xRaw !== "number" || typeof yRaw !== "number") return null;
   if (!Number.isFinite(xRaw) || !Number.isFinite(yRaw)) return null;
@@ -161,7 +143,6 @@ function companySummary(company: Company) {
   };
 }
 
-/** 寿命切れ商品を会社の出品一覧から落とした最新状態を返す。 */
 async function pruneExpiredProducts(company: Company, now: number): Promise<Company> {
   const live = await loadLiveProducts(company, now);
   if (live.expiredIds.length === 0) return company;
@@ -206,7 +187,6 @@ export async function GET(request: Request) {
     const pruned = await pruneExpiredProducts(mine, now);
     const { products } = await loadLiveProducts(pruned, now);
     const history = (await loadCompanyHistory(pruned.id)).slice(0, HISTORY_VIEW_LIMIT);
-    // 勤務中状態（自分の分と、自社の勤務中メンバー一覧）。
     const duties = await Promise.all(
       pruned.members.map(async (m) => ({ key: m.ownerKey, duty: await loadDuty(m.ownerKey) })),
     );
@@ -323,7 +303,6 @@ export async function POST(request: Request) {
     });
   }
 
-  // 以降は自分の会社に対する操作。
   const mine = await loadCompanyOf(actor.ownerKey);
 
   if (action === "leave") {
@@ -383,15 +362,12 @@ export async function POST(request: Request) {
     });
   }
 
-  // 退社は所属が無くても掃除として通す（古い勤務状態を残さない）。
   if (action === "clock_out") {
     await deleteDuty(actor.ownerKey);
     return NextResponse.json({ ok: true }, { headers: NO_STORE });
   }
 
   if (!mine) return err("not_in_company");
-
-  // ---- Phase 4: 本社・出社・勤務・店舗看板 ----
 
   if (action === "hq_set") {
     if (!isCompanyOwner(mine, actor.ownerKey)) return err("not_owner");
@@ -441,7 +417,6 @@ export async function POST(request: Request) {
       if (!fresh) return err("not_in_company");
       const member = fresh.members.find((m) => m.ownerKey === actor.ownerKey);
       if (!member) return err("not_in_company");
-      // ロック内で勤務状態とクールダウンを再検証する（二重勤務の防止）。
       const freshDuty = await loadDuty(actor.ownerKey);
       if (!isDutyActive(freshDuty, mine.id, Date.now())) return err("not_on_duty");
       const plan = planWork(fresh, member, freshDuty, Date.now());
@@ -466,7 +441,6 @@ export async function POST(request: Request) {
     ) {
       return err("not_your_sign");
     }
-    // 看板の隣にいること（位置が分かる場合だけ検証する。屋台と同じ方針）。
     const pos = await loadActorPosition(actor.ownerKey);
     if (
       pos &&
@@ -566,7 +540,6 @@ export async function POST(request: Request) {
         "company_bonus",
       );
       if (paid.state !== "done") {
-        // 払い出しが終端失敗したら台帳を巻き戻す（履歴の記録だけが残る）。
         await storeCompany(fresh);
         return err("economy_failed");
       }
@@ -609,8 +582,6 @@ export async function POST(request: Request) {
     return withUserLock(`company:${mine.id}`, async () => {
       const fresh = await loadCompany(mine.id);
       if (!fresh || !canDissolve(fresh, actor.ownerKey)) return err("cannot_dissolve");
-      // 残資産はオプ上限で分割して返還する。途中で終端失敗したら、
-      // 返還済みの分だけ資産を減らして会社を残す（金を消さない）。
       let remaining = fresh.assets;
       while (remaining > 0) {
         const chunk = Math.min(remaining, ECONOMY_AMOUNT_MAX);

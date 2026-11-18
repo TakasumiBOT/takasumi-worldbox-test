@@ -42,14 +42,6 @@ import { withUserLock } from "@/lib/worldbox/core/user-lock";
 
 export const runtime = "nodejs";
 
-// AGO WORLD BOX のパーティ編成とダンジョン入場。
-// GET: 自分のパーティと自分宛ての招待。
-// POST create: ダンジョン入口の前で編成を開始する（リーダーになる）。
-// POST invite { targetId }: 近くのプレイヤーへ招待（リーダーのみ、プレゼンス検証）。
-// POST accept / decline: 招待への応答（入口の近くにいることを検証）。
-// POST leave: 退出（リーダーは解散）。
-// POST enter: ダンジョン入場。セッションを作り（リーダー/ソロ）、空間 ID を返す。
-
 const NO_STORE = { "Cache-Control": "no-store, max-age=0" };
 const ENTRANCE_RANGE = 5;
 const INVITE_RANGE = 7;
@@ -63,7 +55,6 @@ function err(error: string, status = 409) {
   return NextResponse.json({ error }, { status, headers: NO_STORE });
 }
 
-/** ワールド座標の近くにあるダンジョン入口を探す。 */
 function dungeonEntranceNear(x: number, y: number, range: number): { x: number; y: number } | null {
   const ccx = Math.floor(x / CHUNK_SIZE);
   const ccy = Math.floor(y / CHUNK_SIZE);
@@ -100,12 +91,6 @@ async function memberOf(ownerKey: string, name: string): Promise<PartyMember> {
   };
 }
 
-/**
- * ダンジョン内にいるメンバーを入口前へ戻す予約を積む。移動そのものは
- * 本人の次回 vitals sync が pendingTeleport として配送し、プレゼンスと
- * セーブの整合もそちらで取る（PvP 被害者の死亡通知と同じ仕組み）。
- * 既に配送予定（蘇生など）がある場合はそちらを優先する。
- */
 async function queueDungeonExitTeleport(
   memberKey: string,
   entrance: { x: number; y: number },
@@ -135,16 +120,6 @@ async function queueDungeonExitTeleport(
   }
 }
 
-/**
- * パーティ退出時のダンジョンセッション後始末。セッションは partyKey
- * （パーティ ID）に紐づくため、退出した人は二度とアドレスできなくなる。
- * 何もしないと、中にいる全員の操作が no_session になり、セッション
- * 自体も消えずに残り続ける（孤児化）。
- * - 退出者を departed に入れ、残りのメンバーの閉鎖判定を正しくする。
- * - 解散（リーダー退出）ならセッション自体を削除する。
- * - セッションへアクセスを失う人（退出者本人は常時、解散時は中にいる
- *   全員）は pendingTeleport で入口前へ戻す。
- */
 async function settleDungeonSessionOnLeave(
   party: Party,
   ownerKey: string,
@@ -207,7 +182,6 @@ export async function GET(request: Request) {
       invite = { partyId: invited.id, leaderName: leader?.name ?? "", entrance: invited.entrance };
     }
   }
-  // ダンジョン内ならセッションの要約も返す
   let dungeon: { size: number } | null = null;
   const url = new URL(request.url);
   const space = url.searchParams.get("space");
@@ -290,10 +264,6 @@ export async function POST(request: Request) {
   if (fields.action === "accept") {
     const invited = await loadInvitedParty(ownerKey);
     if (!invited || !inviteFor(invited, ownerKey, now)) return err("no_invite", 409);
-    // 既に別のパーティに所属している場合は受け入れない。所属の索引だけ
-    // 上書きすると旧パーティに幽霊メンバーが残り、人数とダンジョンの
-    // セッションに数えられ続ける。所属の変更は leave を明示的に挟む
-    // （create が既存パーティを返すのと同じ方針）。
     const existing = await loadPartyOf(ownerKey);
     if (existing && existing.id !== invited.id) return err("already_in_party", 409);
     if (!pos || pos.space !== "world") return err("not_at_entrance", 409);
@@ -326,8 +296,6 @@ export async function POST(request: Request) {
     const party = await loadPartyOf(ownerKey);
     if (!party) return NextResponse.json({ ok: true }, { headers: NO_STORE });
     const next = leaveParty(party, ownerKey);
-    // ダンジョンのセッションを畳む（中にいる人を入口前へ戻す予約込み）。
-    // パーティの削除・保存より先に、partyKey が生きているうちに行う。
     await settleDungeonSessionOnLeave(party, ownerKey, next === null);
     if (!next) {
       await deleteParty(party);
@@ -351,7 +319,6 @@ export async function POST(request: Request) {
     const floor1 = makeInstanceSpace("dungeon", entrance.x, entrance.y, 0);
     let ds = await loadDungeonSession(floor1, partyKey);
     if (!ds) {
-      // セッション作成はリーダー（またはソロ）だけ。メンバーはリーダーの入場を待つ。
       if (inParty && !isPartyLeader(inParty, ownerKey)) return err("leader_not_entered", 409);
       const members = inParty ? inParty.members.map((m) => m.ownerKey) : [ownerKey];
       ds = {

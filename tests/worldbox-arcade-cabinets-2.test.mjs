@@ -1,11 +1,3 @@
-// AGO WORLD BOX ロビーのアーケード筐体配置（L6 第2弾・データ先行）の検証:
-// - 残り20タイトル（ARCADE_SECOND_WAVE）が 2F 南弧6台＋3F 14台に 1タイル1ゲームで並ぶ
-// - 26タイトル全てが 2F/3F のどこかにちょうど1台ずつ置かれている（重複・欠落なし）
-// - 筐体は床の上にあり重ならず、固体で blocked に載る
-// - 前列（円の中心側）に立て、入口から届く。列の隙間も歩行可（階段への動線を塞がない）
-// - 筐体スプライトは 64x64 RGBA の PNG として存在し、textures.ts に登録済み
-// - station "arcade" とゲーム ID が付く（L4 で配線済み）
-// - 3F の既存家具（南の休憩コーナー・L5 アンカー本棚）は動かさない
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -48,31 +40,25 @@ const floorsUrl = dataUrl(
 );
 const floors = await import(floorsUrl);
 
-// 第2弾の配置表: [id, 階, x, y, 前列x, 前列y]（前列は円の中心側）
 const SECOND_WAVE_PLACEMENT = [
-  // 2F 南弧（y=19、前は北側 y=18）
   ["territory", 2, 15, 19, 15, 18],
   ["drawguess", 2, 17, 19, 17, 18],
   ["daifugo", 2, 19, 19, 19, 18],
   ["babanuki", 2, 21, 19, 21, 18],
   ["quizbattle", 2, 23, 19, 23, 18],
   ["bombpass", 2, 25, 19, 25, 18],
-  // 3F 西弧（x=9、前は東側 x=10）
   ["shiritori", 3, 9, 10, 10, 10],
   ["nanja", 3, 9, 12, 10, 12],
   ["liarsdice", 3, 9, 14, 10, 14],
   ["cheat", 3, 9, 16, 10, 16],
-  // 3F 東弧（x=23、前は西側 x=22）
   ["hagetaka", 3, 23, 10, 22, 10],
   ["burst", 3, 23, 12, 22, 12],
   ["texas", 3, 23, 14, 22, 14],
   ["countdown", 3, 23, 16, 22, 16],
-  // 3F 南弧（y=18、前は北側 y=17）
   ["musicalchairs", 3, 10, 18, 10, 17],
   ["wordbasket", 3, 12, 18, 12, 17],
   ["speed", 3, 20, 18, 20, 17],
   ["typerace", 3, 22, 18, 22, 17],
-  // 3F 北デッキ（y=3、前は南側 y=4）
   ["calcrace", 3, 17, 3, 17, 4],
   ["stopbattle", 3, 19, 3, 19, 4],
 ];
@@ -164,7 +150,6 @@ test("cabinets2: 筐体は床の上にあり重ならず、固体で blocked に
       assert.ok(data.blocked.has(`${o.x},${o.y}`), `${o.sprite} が blocked に載っていない`);
     }
   }
-  // 2F 南弧はカーペット、3F 西・東・南弧は大理石/広場、北デッキは木の上
   const data2 = floors.buildLobby2();
   for (const o of cabinets2().filter((c) => c.y === 19)) {
     assert.equal(
@@ -196,26 +181,22 @@ test("cabinets2: 前列（円の中心側）に立て、入口から届く。列
     assert.ok(walk.has(`${fx},${fy}`), `arcade_${id} の前 (${fx},${fy}) に立てない`);
     assert.ok(reach.has(`${fx},${fy}`), `arcade_${id} の前 (${fx},${fy}) に入口から行けない`);
   }
-  // 2F 南弧の隙間（x=16,18,20,22,24）は通路として歩行可で、南踊り場への動線を塞がない
   for (const x of [16, 18, 20, 22, 24]) {
     assert.ok(walk2.has(`${x},19`), `2F 南弧の隙間 (${x},19) が歩行不可`);
     assert.ok(reach2.has(`${x},19`), `2F 南弧の隙間 (${x},19) に入口から行けない`);
   }
   assert.ok(reach2.has("19,22"), "2F 南弧の先の南踊り場に入口から行けない");
-  // 3F 西・東弧の隙間（y=11,13,15）は通路として歩行可
   for (const y of [11, 13, 15]) {
     assert.ok(walk3.has(`9,${y}`), `3F 西弧の隙間 (9,${y}) が歩行不可`);
     assert.ok(reach3.has(`9,${y}`), `3F 西弧の隙間 (9,${y}) に入口から行けない`);
     assert.ok(walk3.has(`23,${y}`), `3F 東弧の隙間 (23,${y}) が歩行不可`);
     assert.ok(reach3.has(`23,${y}`), `3F 東弧の隙間 (23,${y}) に入口から行けない`);
   }
-  // 3F 南弧の隙間（x=11,13..19,21）は歩行可で、南の休憩コーナーへ行ける
   for (const x of [11, 14, 16, 19, 21]) {
     assert.ok(walk3.has(`${x},18`), `3F 南弧の隙間 (${x},18) が歩行不可`);
     assert.ok(reach3.has(`${x},18`), `3F 南弧の隙間 (${x},18) に入口から行けない`);
   }
   assert.ok(reach3.has("17,19"), "3F 南の休憩コーナーに入口から行けない");
-  // 3F 北デッキの階段（15,3)(16,3）と入口（15,5）が塞がれていない
   assert.ok(reach3.has("15,3"), "3F の階段に入口から行けない");
   assert.ok(reach3.has("16,5"), "3F の入口付近に立てない");
 });

@@ -19,12 +19,6 @@ import { withUserLock } from "@/lib/worldbox/core/user-lock";
 
 export const runtime = "nodejs";
 
-// AGO WORLD BOX の釣り。
-// POST { x, y }: 魚影のある座標で釣る。検証はサーバー側: 魚影の存在
-// （決定的配置）、釣り竿の所持、本人の隣接（プレゼンス→セーブ、
-// チェビシェフ ≤2）、再出現（10分）。ルートは座標とサイクルから決定的。
-// 食いつきのタイミング勝負はクライアント側の演出で、結果はここが正。
-
 const NO_STORE = { "Cache-Control": "no-store, max-age=0" };
 const MAX_ACTION_DISTANCE = 2;
 const MAX_RECT_SPAN = 128;
@@ -33,11 +27,6 @@ function err(error: string, status: number) {
   return NextResponse.json({ error }, { status, headers: NO_STORE });
 }
 
-/**
- * GET ?x0&y0&x1&y1: 範囲内の釣果時刻を返す。他プレイヤーが釣った魚影を
- * 自分の画面でも消すための表示同期（従来は共有状態なのに読む経路が
- * 無く、タップして初めて弾かれていた）。
- */
 export async function GET(request: Request) {
   const session = getRequestSession(request);
   if (!session) return err("unauthorized", 401);
@@ -98,7 +87,6 @@ export async function POST(request: Request) {
   return withUserLock(ownerKey, async () => {
     const profile = await loadProfile(ownerKey);
     if ((profile.items["fishing_rod"] ?? 0) <= 0) return err("tool_required", 409);
-    // 隣接検証（プレゼンス → セーブ）
     const selfId = presenceIdFor(ownerKey);
     const now = Date.now();
     const entries = await listPresence();

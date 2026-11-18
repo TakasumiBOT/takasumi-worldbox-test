@@ -1,9 +1,3 @@
-// AGO WORLD BOX ブロック動作B（設置した作業施設とレシピ種別）の検証:
-// - レシピ種別（craft/smelt/cook/weave）の分類と新規レシピ（精錬・織り）
-// - 設置物→作業種別の対応（PLACED_STATION_KINDS）
-// - craftItem が新規レシピでも素材を消費して成果物を出すこと
-// - サーバー配線（profile ルートの workGate、station-online のワールド検証）
-// - クライアント/パネル配線（設置施設の検出と種別ごとのボタン）
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -73,8 +67,6 @@ const tilesUrl = bundleModule(
 );
 const T = await import(tilesUrl);
 
-// ---------- レシピ種別 ----------
-
 test("種別: 既存レシピの分類（調理・織り・既定は合成）", () => {
   assert.equal(E.recipeKind(E.recipeById("grilled_meat")), "cook");
   assert.equal(E.recipeKind(E.recipeById("stew")), "cook");
@@ -115,8 +107,6 @@ test("種別: レシピ総数は 163", () => {
   assert.equal(kinds.weave, 5);
 });
 
-// ---------- 合成の実処理 ----------
-
 test("精錬: craftItem が鉱石と石炭を消費してインゴットを出す", () => {
   const profile = E.parseProfile({ items: { iron_ore: 2, coal: 1 } });
   const r = E.craftItem(profile, "iron_ingot");
@@ -135,8 +125,6 @@ test("織り: craftItem が繊維を消費して布を出す／素材不足は�
   assert.equal(poor.ok, false);
 });
 
-// ---------- 設置物 → 作業種別 ----------
-
 test("設置施設: 作業種別の対応", () => {
   assert.deepEqual([...T.placedStationKinds("workbench")], ["craft"]);
   assert.deepEqual([...T.placedStationKinds("smithing_table")], ["craft", "enhance"]);
@@ -149,8 +137,6 @@ test("設置施設: 作業種別の対応", () => {
   assert.deepEqual([...T.placedStationKinds(null)], []);
   assert.deepEqual([...T.placedStationKinds("nope")], []);
 });
-
-// ---------- 配線 ----------
 
 const routeSrc = fs.readFileSync(path.join(rootDir, "app/api/worldbox/profile/route.ts"), "utf8");
 const stationSrc = fs.readFileSync(path.join(libDir, "worldbox/world/station-online.ts"), "utf8");

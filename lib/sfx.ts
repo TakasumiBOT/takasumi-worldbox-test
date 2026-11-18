@@ -1,8 +1,3 @@
-// 簡易シンセ効果音（Web Audio API、外部ファイルなし）。
-// AudioContext はモジュール内で1つだけ共有する。ミュート状態は
-// localStorage `ago-sfx-muted` に保存し、他ゲームとは干渉しない。
-// すべての関数は失敗しても例外を投げない（音が出ないだけ）。
-
 const MUTE_KEY = "ago-sfx-muted";
 
 let ctx: AudioContext | null = null;
@@ -55,7 +50,6 @@ function getNoise(c: AudioContext): AudioBuffer {
   return buf;
 }
 
-/** 短いトーン（サイン波＋指数減衰）。 */
 function tone(
   freq: number,
   dur: number,
@@ -84,7 +78,6 @@ function tone(
   }
 }
 
-/** ノイズバースト（フィルタ付き）。 */
 function noise(
   dur: number,
   vol: number,
@@ -114,19 +107,16 @@ function noise(
   }
 }
 
-/** 歯やボタンの軽いクリック/ポップ。 */
 export function sfxPop(pitch = 1): void {
   tone(340 * pitch, 0.09, 0.11, "triangle");
   noise(0.05, 0.04, 2400, "bandpass");
 }
 
-/** 安全な歯を押したときの柔らかい音。 */
 export function sfxSafePress(): void {
   tone(520, 0.08, 0.08, "sine");
   tone(760, 0.1, 0.06, "sine", 0.05);
 }
 
-/** ワニの顎が閉じる音（低いドン＋カチッ）。 */
 export function sfxJawSnap(): void {
   tone(140, 0.22, 0.3, "sine", 0, 55);
   noise(0.12, 0.22, 900, "lowpass");
@@ -134,7 +124,6 @@ export function sfxJawSnap(): void {
   noise(0.06, 0.15, 3200, "highpass", 0.02);
 }
 
-/** ボールがレーンを転がる音。止める関数を返す（不要なら空関数）。 */
 export function sfxRollStart(): () => void {
   const c = ac();
   if (!c) return () => undefined;
@@ -168,13 +157,11 @@ export function sfxRollStart(): () => void {
   }
 }
 
-/** ボールがピンに当たった瞬間の木の当たる音。 */
 export function sfxPinHit(): void {
   tone(210, 0.09, 0.2, "triangle");
   noise(0.07, 0.14, 1600, "bandpass");
 }
 
-/** 倒れたピンのカラカラという連鎖音。本数が多いほど長く鳴らす。 */
 export function sfxPinsDown(count: number): void {
   const n = Math.max(1, Math.min(6, count));
   for (let i = 0; i < n; i++) {
@@ -183,31 +170,18 @@ export function sfxPinsDown(count: number): void {
     noise(0.05, 0.06, 2600, "bandpass", delay);
   }
   if (count >= 8) {
-    // ストライク級は少し派手に。
     tone(880, 0.16, 0.08, "triangle", 0.05);
     tone(1320, 0.2, 0.08, "triangle", 0.14);
   }
 }
 
-/** ガターに落ちたときの鈍い音。 */
 export function sfxGutter(): void {
   tone(120, 0.18, 0.14, "sine", 0, 70);
   noise(0.14, 0.08, 500, "lowpass");
 }
 
-// ---------------------------------------------------------------------------
-// 汎用 SE 語彙（全ゲーム共通）。意味ベースの名前で、ゲーム側は素材ではなく
-// 「何が起きたか」で選ぶ。すべて上の tone/noise ヘルパー経由なので、
-// ミュート時・AudioContext が無い環境では自動的に no-op になる。
-// ---------------------------------------------------------------------------
-
-// SE 優先度階層（sakurai #032「重要度で効果音バランスを取る」/#165
-// 「アタック強め、残響ほどほど」）。プレイヤーへの影響度で音量を配分する:
-// tier1 撃墜・勝敗 ＞ tier2 ヒット・正解 ＞ tier3 配置・配布・めくり ＞
-// tier4 タップ・出現・移動 ＞ tier5 刻み・環境。アタック 8ms は tone 側で維持。
 export type SfxTier = 1 | 2 | 3 | 4 | 5;
 
-/** tier ごとの基準ゲイン（単調に下がること）。 */
 export const SFX_TIER_GAIN: Record<SfxTier, number> = {
   1: 0.19,
   2: 0.145,
@@ -216,7 +190,6 @@ export const SFX_TIER_GAIN: Record<SfxTier, number> = {
   5: 0.035,
 };
 
-/** 語彙ごとの tier 対応表（テストと監査用）。 */
 export const SFX_VOCAB_TIERS: Record<string, SfxTier> = {
   sfxWin: 1,
   sfxLose: 1,
@@ -236,37 +209,31 @@ export const SFX_VOCAB_TIERS: Record<string, SfxTier> = {
   sfxTick: 5,
 };
 
-/** tier の基準ゲインに局所係数を掛けた音量を返す。 */
 function tierVol(tier: SfxTier, local = 1): number {
   return SFX_TIER_GAIN[tier] * local;
 }
 
-/** 選択・タップの軽いクリック。 */
 export function sfxTap(): void {
   tone(880, 0.05, tierVol(4), "triangle");
   noise(0.03, 0.025, 3000, "highpass");
 }
 
-/** 駒やタイルを置く・確定する音。 */
 export function sfxPlace(): void {
   tone(210, 0.09, tierVol(3, 1.2), "triangle");
   noise(0.06, 0.08, 700, "lowpass");
   tone(340, 0.06, 0.05, "sine", 0.02);
 }
 
-/** カードやタイルをめくる音。 */
 export function sfxFlip(): void {
   noise(0.09, 0.085, 1900, "bandpass");
   tone(540, 0.1, 0.05, "sine", 0, 940);
 }
 
-/** カードを配る音（1枚分）。連続配布は呼び出し側で間隔を空けて呼ぶ。 */
 export function sfxDeal(): void {
   noise(0.07, 0.08, 2600, "bandpass");
   tone(1200, 0.04, 0.03, "triangle", 0.01);
 }
 
-/** サイコロを振る音（転がって止まるまで）。 */
 export function sfxDice(): void {
   for (let i = 0; i < 5; i++) {
     const delay = i * 0.06 + Math.random() * 0.02;
@@ -277,19 +244,16 @@ export function sfxDice(): void {
   noise(0.05, 0.07, 900, "lowpass", 0.34);
 }
 
-/** 正解・成功の2音。 */
 export function sfxCorrect(): void {
   tone(659, 0.1, tierVol(2, 0.9), "triangle");
   tone(880, 0.16, tierVol(2, 0.9), "triangle", 0.08);
 }
 
-/** 不正解・失敗の低い音。 */
 export function sfxWrong(): void {
   tone(196, 0.16, tierVol(2, 0.9), "square", 0, 147);
   noise(0.1, 0.04, 500, "lowpass");
 }
 
-/** ヒット音（強さ 1..3）。アタックを強く、残響は短く（#165）。 */
 export function sfxHit(intensity: 1 | 2 | 3 = 2): void {
   const v = tierVol(2, intensity === 1 ? 0.8 : intensity === 2 ? 1 : 1.25);
   tone(200 - (intensity - 1) * 30, 0.1 + intensity * 0.02, v, "triangle", 0, 70);
@@ -298,7 +262,6 @@ export function sfxHit(intensity: 1 | 2 | 3 = 2): void {
   if (intensity >= 3) tone(90, 0.22, tierVol(1, 0.8), "sine", 0, 45);
 }
 
-/** 撃墜・大勝ちの止め音（tier1）。ヒットストップ＋フラッシュと同期させる。 */
 export function sfxKo(): void {
   tone(150, 0.38, tierVol(1), "sine", 0, 38);
   noise(0.28, tierVol(1, 0.8), 800, "lowpass");
@@ -307,7 +270,6 @@ export function sfxKo(): void {
   tone(1175, 0.24, tierVol(1, 0.75), "triangle", 0.18);
 }
 
-/** 勝利ジングル（汎用）。 */
 export function sfxWin(): void {
   tone(523, 0.13, tierVol(1, 0.75), "triangle");
   tone(659, 0.13, tierVol(1, 0.75), "triangle", 0.1);
@@ -316,31 +278,26 @@ export function sfxWin(): void {
   noise(0.2, 0.03, 4000, "highpass", 0.3);
 }
 
-/** 敗北ジングル（汎用）。 */
 export function sfxLose(): void {
   tone(392, 0.15, tierVol(1, 0.75), "triangle");
   tone(330, 0.15, tierVol(1, 0.75), "triangle", 0.13);
   tone(262, 0.3, tierVol(1, 0.8), "triangle", 0.26);
 }
 
-/** カウント・タイマーの刻み音。 */
 export function sfxTick(): void {
   tone(1050, 0.03, tierVol(5), "square");
 }
 
-/** 出現（ポップイン）の音。 */
 export function sfxSpawn(): void {
   tone(480, 0.1, tierVol(4), "sine", 0, 990);
   noise(0.05, 0.03, 2800, "bandpass");
 }
 
-/** スライド・移動の風切り音。 */
 export function sfxSlide(): void {
   noise(0.14, 0.06, 1100, "bandpass");
   tone(320, 0.14, 0.04, "sine", 0, 190);
 }
 
-/** 勝敗ジングル（3音だけの簡易版）。 */
 export function sfxJingle(win: boolean): void {
   if (win) {
     tone(523, 0.14, tierVol(1, 0.7), "triangle");

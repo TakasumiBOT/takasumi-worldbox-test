@@ -1,7 +1,3 @@
-// AGO WORLD BOX のシード付き乱数（純粋ロジック）。
-// 決定的生成（マップ・配置）の土台。同じシード → 同じ列。
-
-/** mulberry32: シード付き疑似乱数。 */
 export function makeRng(seed: number): () => number {
   let s = seed >>> 0;
   return () => {

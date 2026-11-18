@@ -1,8 +1,3 @@
-// AGO WORLD BOX: relay の bot_kv watch（Phase 1）のテスト。
-// - watch-core: 差分検出 / パーティ通知先の解決 / チャットのスコープ解決
-// - presenceIdFor が lib/worldbox/player/presence.ts の実装と一致すること
-// - botkv: /v1/query へのリクエスト形式が lib/bot-api.ts と同じこと
-// - 配線: ラッパーの watch 起動 / クライアントの push 適用と間引き
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -74,7 +69,6 @@ test("watch: diffKv は追加・変更・削除だけを返す（初回はベー
       ["c", null],
     ],
   );
-  // オブジェクト値も JSON 化して比較する
   const p2 = new Map([["k", { x: 1 }]]);
   assert.deepEqual(watch.diffKv(p2, new Map([["k", { x: 1 }]])), []);
   assert.equal(watch.diffKv(p2, new Map([["k", { x: 2 }]])).length, 1);
@@ -107,20 +101,16 @@ test("watch: economyTargetPids は確定遷移だけを本人と関係者へ絞�
       status: "pending",
       ...extra,
     });
-  // pending → done: 本人のみ（userKey と discordId は同一人）
   assert.deepEqual(
     [...watch.economyTargetPids(op(), op({ status: "done" }))],
     [pid("discord:111")],
   );
-  // pending → failed も通知する
   assert.deepEqual(
     [...watch.economyTargetPids(op(), op({ status: "failed" }))],
     [pid("discord:111")],
   );
-  // 遷移なし（pending のまま・done のまま）は通知しない
   assert.equal(watch.economyTargetPids(op(), op()).size, 0);
   assert.equal(watch.economyTargetPids(op({ status: "done" }), op({ status: "done" })).size, 0);
-  // 送金: 受け手にも届く
   const transfer = (status) =>
     JSON.stringify({
       id: "op2",
@@ -135,7 +125,6 @@ test("watch: economyTargetPids は確定遷移だけを本人と関係者へ絞�
     [...watch.economyTargetPids(transfer("pending"), transfer("done"))].sort(),
     [pid("discord:111"), pid("discord:222")].sort(),
   );
-  // steal: 奪い元にも届く
   const steal = (status) =>
     JSON.stringify({
       id: "op3",
@@ -150,7 +139,6 @@ test("watch: economyTargetPids は確定遷移だけを本人と関係者へ絞�
     [...watch.economyTargetPids(steal("pending"), steal("done"))].sort(),
     [pid("discord:111"), pid("discord:333")].sort(),
   );
-  // 壊れた値・削除では通知しない
   assert.equal(watch.economyTargetPids(null, null).size, 0);
   assert.equal(watch.economyTargetPids(op(), "{oops").size, 0);
 });
@@ -171,7 +159,6 @@ test("watch: partyTargetPids は本体と索引の両方から関係者を引く
       watch.presenceIdFor("discord:333"),
     ].sort(),
   );
-  // 索引キーは本人のみ
   assert.deepEqual(
     [...watch.partyTargetPids("member:discord:999", "p1")],
     [watch.presenceIdFor("discord:999")],
@@ -180,7 +167,6 @@ test("watch: partyTargetPids は本体と索引の両方から関係者を引く
     [...watch.partyTargetPids("invite:discord:888", "p1")],
     [watch.presenceIdFor("discord:888")],
   );
-  // 壊れた値・削除では本体からは引けない（呼び出し側が prev でも引く）
   assert.equal(watch.partyTargetPids("p1", null).size, 0);
   assert.equal(watch.partyTargetPids("p1", "{oops").size, 0);
 });
@@ -269,9 +255,7 @@ test("watch 配線: ラッパーが watch を起動し、クライアントが p
   assert.ok(client.includes("parseTileOverride(c.value)"), "タイル parse が無い");
   assert.ok(!client.includes("parseMobState(c.value)"), "モブ parse が残っている");
   assert.ok(client.includes("parseBoardPosts(msg.value ?? null)"), "掲示板 parse が無い");
-  // 再接続時の再同期
   assert.ok(client.includes("if (reconnected)"), "再接続時の再同期が無い");
-  // WS 健全時の間引き（チャット/パーティ/掲示板/15秒束）
   assert.ok(client.includes("if (!force && wsHealthyNow()) return;"), "チャットの間引きが無い");
   assert.ok(
     client.includes("if (!wsHealthyNow()) void refreshPartyRef.current()"),

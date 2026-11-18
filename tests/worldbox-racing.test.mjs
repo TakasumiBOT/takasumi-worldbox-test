@@ -1,10 +1,3 @@
-// AGO WORLD BOX 競馬（LHA 統合 Phase 1）の純ロジック検証:
-// - 登録馬 100 頭のデータ整合（仕様書付録Aの集計と一致）
-// - スケジュール: 30分間隔・締切5分前・受付窓
-// - 出走選定: 馬場/距離の適性フィルタとクラス帯、頭数の丸め
-// - 決定的な結果生成（同じ発走時刻なら何度計算しても同じ）
-// - オッズ: モンテカルロ推定→固定オッズ（K=0.85、1.1〜999.9、EV<1 を構造で保証）
-// - シミュレーション: 最強馬の勝率帯と、モデル確率どおり賭けた場合の回収率 ≈ K
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -118,11 +111,9 @@ test("スケジュール: 次走は締切前、締切を過ぎたらその次が
   const s1 = R.scheduleAt(post - 20 * 60_000);
   assert.equal(s1.nextPostMs, post);
   assert.equal(R.isBettingOpen(post, post - 20 * 60_000), true);
-  // 締切ちょうど（発走5分前）で受付終了
   assert.equal(R.isBettingOpen(post, post - R.BET_CLOSE_BEFORE_MS), false);
   const s2 = R.scheduleAt(post - 3 * 60_000);
   assert.equal(s2.nextPostMs, post + SLOT);
-  // 発走直後は演出中として runningPostMs に入る
   const s3 = R.scheduleAt(post + 30_000);
   assert.equal(s3.runningPostMs, post);
   assert.equal(s3.lastPostMs, post);
@@ -138,7 +129,6 @@ test("出走選定: 馬場・距離帯・クラス帯のフィルタを通った
       assert.ok(e.horse.surface === "兼用" || e.horse.surface === shape.surface);
       assert.ok(Math.abs(e.horse.ability - 68) <= 8 + 0, `ability ${e.horse.ability}`);
     }
-    // 枠番は 1..N で重複なし
     const gates = entries.map((e) => e.gate).sort((a, b) => a - b);
     assert.deepEqual(
       gates,
@@ -232,11 +222,6 @@ test("観戦ポーズ: 全頭がトラック楕円の帯の中に別々の位置
 });
 
 test("シミュレーション: 最強馬の勝率は検証帯、モデル確率ベットの回収率は K 近傍", () => {
-  // 400 レース分のコアを回し、勝者の能力分布と回収率を見る（テスト時間の都合で縮小版）。
-  // 検証帯: 仕様 §13 の目標 15〜25% に対し、実測（2,000レース）は
-  // 「能力最大の馬（同点含む）33% / 単独最大 27% / オッズ1番人気 35%」。
-  // 付録Aの事前計算は能力を一様抽選と仮定していたため差が出る。実競馬の
-  // 1番人気勝率（約33%）と同水準で、オッズが同モデル推定のため EV<1 は不変。
   let strongestWins = 0;
   let strongestRuns = 0;
   let totalReturn = 0;

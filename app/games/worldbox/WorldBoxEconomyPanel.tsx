@@ -1,15 +1,4 @@
 "use client";
-// AGO WORLD BOX の経済パネル（かばん・ショップ・製造・銀行）。
-// 売買・製造・送金は場所制約つき: それぞれの施設の前にいる間だけタブが出る。
-// 売却は売却専用カウンター（station "sell"）の売却タブに一本化した:
-// かばんには売却ボタンを置かない（ショップでかばんを開く手順をなくす）。
-// Discord ボット側の経済機能（items / workshop craft）の規則をそのまま使い、
-// かばん・空腹度は /api/worldbox/profile が正とする。
-// steal は一旦廃止（2026-11-16）: タブ・ルート・オプ生成・ワーカー適用の
-// すべてで止めてある（履歴表示のラベルだけ残る）。
-// 労働も廃止（2026-11-16）: ボタン・ルート・earn 許可リストから外してある。
-// コインの正は AGO コイン本体: 残高と移動履歴は経済ブリッジ
-// （/api/worldbox/economy）が返し、移動は Bot 本体が数十秒で適用する。
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { EconomyOp } from "@/lib/worldbox/economy/economy-bridge";
 import { onEconomyApplied } from "@/lib/worldbox/economy/economy-push";
@@ -35,7 +24,6 @@ import type { SaveSpace } from "@/lib/worldbox/core/save";
 import { playWbSe, type WbSeName } from "@/lib/worldbox/media/sound";
 import { ItemAnnotation, ItemIcon, ItemSlot, ItemSlotGrid } from "./ItemSlotGrid";
 
-/** 経済アクションの成功音（行為の意味で選ぶ）。 */
 const ACTION_SE: Record<string, WbSeName> = {
   buy: "buy",
   sell: "sell",
@@ -81,7 +69,6 @@ const OP_STATUS_LABEL: Record<EconomyOp["status"], string> = {
   failed: "失敗",
 };
 
-/** 経済パネルもゲームステージ内のオーバーレイ（クライアント側 panelOverlay と同値）。 */
 const panel: React.CSSProperties = {
   position: "absolute",
   left: "50%",
@@ -123,14 +110,12 @@ const row: React.CSSProperties = {
   borderBottom: "1px solid rgba(255,255,255,0.08)",
 };
 
-/** 素材 id から決定的に色相を出す（同じ素材は常に同じ色。ランダムは使わない）。 */
 function hueForItem(id: string): number {
   let h = 0;
   for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) % 360;
   return h;
 }
 
-/** セットした素材の色を個数で重み付けして混ぜた、台の液体/煙の色。 */
 function mixColorFor(set: Record<string, number>): { liquid: string; smoke: string } {
   const entries = Object.entries(set);
   if (entries.length === 0) {
@@ -163,18 +148,10 @@ export default function WorldBoxEconomyPanel({
   worldStationKinds?: string;
   onClose: () => void;
 }) {
-  // 行動の場所制約: 売買はショップの前、製造は作業台（製造・R&D拠点）の前、
-  // 送金は銀行の前でのみ。いる場所に対応するタブだけを出す（サーバー側
-  // でもプレゼンスで検証されるため、ここは表示の一致が役割）。
   const inLobby = space === "lobby";
-  // 売買は店と製造・R&D拠点の両方で可。品目は店ごとのジャンルで選別される
-  // （製造・R&D拠点はジャンル "smith"）。ジャンルが無い店は全品目。
   const shopGenre: ShopGenreId | null = station === "smith" ? "smith" : genre;
   const atShop = inLobby && (station === "shop" || station === "smith");
-  // 売却専用カウンター（買取）: 売るだけの店。開いたら売却タブが既定で、
-  // かばんを開く手順は挟まない（売却はここに一本化し、かばんからは外した）
   const atSellShop = inLobby && station === "sell";
-  // ロビーの製造・R&D拠点は全種別可。ワールドでは設置した作業施設の種別だけ可
   const atLobbySmith = space !== "world" && station === "smith";
   const worldKinds = new Set((worldStationKinds ?? "").split(",").filter(Boolean));
   const canWork = (kind: StationKind) => atLobbySmith || worldKinds.has(kind);
@@ -189,16 +166,13 @@ export default function WorldBoxEconomyPanel({
   const [ops, setOps] = useState<EconomyOp[]>([]);
   const [transferTo, setTransferTo] = useState("");
   const [transferAmount, setTransferAmount] = useState("");
-  // かばん/ショップのスロット選択（注釈は選択中アイテムのものだけ出す）
   const [bagSel, setBagSel] = useState<string | null>(null);
   const [shopSel, setShopSel] = useState<string | null>(null);
   const [sellSel, setSellSel] = useState<string | null>(null);
-  // 改良のスロット選択と成功フラッシュ（金色背景 → 透明へ transition）
   const [enhanceSel, setEnhanceSel] = useState<string | null>(null);
   const [enhanceFlashId, setEnhanceFlashId] = useState<string | null>(null);
   const [enhanceFlashOn, setEnhanceFlashOn] = useState(false);
   const enhanceFlashTimersRef = useRef<number[]>([]);
-  // 製造台（PR-B）: セットした素材（id → 個数）、工程の進捗、気配、出現した成果物
   const [craftSet, setCraftSet] = useState<Record<string, number>>({});
   const [craftBusy, setCraftBusy] = useState(false);
   const [craftPhase, setCraftPhase] = useState(0);
@@ -209,7 +183,6 @@ export default function WorldBoxEconomyPanel({
   const craftTimerRef = useRef<number | null>(null);
   const aliveRef = useRef(true);
 
-  // 売却専用カウンターの前にいる間は売却タブを既定にする
   useEffect(() => {
     if (atSellShop) setTab("sell");
   }, [atSellShop]);
@@ -253,7 +226,6 @@ export default function WorldBoxEconomyPanel({
     aliveRef.current = true;
     void refreshProfile();
     void refreshBridge();
-    // 経済オプ確定の push で残高・履歴を即時更新する
     const off = onEconomyApplied(() => {
       void refreshProfile();
       void refreshBridge();
@@ -300,11 +272,6 @@ export default function WorldBoxEconomyPanel({
     }
   };
 
-  /**
-   * 改良成功時の金色フラッシュ。act の describe（成功時にだけ呼ばれる）
-   * から呼ぶことで成否に連動させる。背景を金色で点灯させた直後に
-   * 透明へ戻し、約600ms の transition で消えるようにする。
-   */
   const triggerEnhanceFlash = (itemId: string) => {
     for (const t of enhanceFlashTimersRef.current) window.clearTimeout(t);
     enhanceFlashTimersRef.current = [];
@@ -350,8 +317,6 @@ export default function WorldBoxEconomyPanel({
     }
   };
 
-  // ---- 合成台（PR-B） -------------------------------------------------
-  /** かばんの素材を台へ1個セットする（1種6個まで・4種まで・所持数まで）。 */
   const addToCraft = (itemId: string) => {
     if (craftBusy || !profile) return;
     setCraftResult(null);
@@ -363,7 +328,6 @@ export default function WorldBoxEconomyPanel({
       return { ...prev, [itemId]: cur + 1 };
     });
   };
-  /** 台の素材を1個かばんへ戻す。 */
   const removeFromCraft = (itemId: string) => {
     if (craftBusy) return;
     setCraftSet((prev) => {
@@ -375,7 +339,6 @@ export default function WorldBoxEconomyPanel({
       return next;
     });
   };
-  /** 工程が終わった瞬間に初めて結果を反映し、成果物を台の上に出現させる。 */
   const finishCraft = (pending: {
     profile: PlayerProfile;
     craftedId: string;
@@ -394,10 +357,6 @@ export default function WorldBoxEconomyPanel({
     playWbSe("success");
     void refreshBridge();
   };
-  /**
-   * 製造を開始: 結果は即表示しない。レスポンスの hint（気配）だけ保持し、
-   * 約2.4秒の工程（煙・揺れ・進捗）を出したあとで初めて反映する。
-   */
   const runCraft = async () => {
     const inputs = { ...craftSet };
     if (Object.keys(inputs).length === 0 || craftBusy) return;
@@ -472,28 +431,21 @@ export default function WorldBoxEconomyPanel({
   }
 
   const owned = ITEMS.filter((item) => (profile.items[item.id] ?? 0) > 0);
-  // この店で売られている品目（ジャンル選別。販売はホワイトリスト86品のみ）
-  // 品目と価格は日次ローテーション（サーバー側の購入検証と同じ式）
   const shopDayKey = shopDayKeyOf(Date.now());
   const shopItems = shopGenre
     ? dailyStockForGenre(shopGenre, shopDayKey)
     : ITEMS.filter((item) => !isShopExcluded(item));
   const priceOf = (item: (typeof ITEMS)[number]): number =>
     shopGenre ? dailyPriceFor(item, shopDayKey) : item.price;
-  // 選択中アイテム（所持/品目から消えていたら注釈を出さない）
   const bagSelItem = owned.find((item) => item.id === bagSel) ?? null;
   const shopSelItem = shopItems.find((item) => item.id === shopSel) ?? null;
   const sellSelItem = owned.find((item) => item.id === sellSel) ?? null;
-  // 改良対象: 所持している道具だけ（従来の row リストと同じ対象）
   const enhanceTools = ITEMS.filter((item) => (profile.items[item.id] ?? 0) > 0 && item.tool);
   const enhanceSelItem = enhanceTools.find((item) => item.id === enhanceSel) ?? null;
-  // 発見図鑑: 自分が完全一致で作れたレシピだけ（未発見のレシピは出さない）
   const discovered = (profile.discoveredRecipes ?? [])
     .map((id) => recipeById(id))
     .filter((r): r is NonNullable<typeof r> => r !== null);
   const discRecipe = discovered.find((r) => r.id === discSel) ?? null;
-  // 施設の前にいないタブを開いたままにしない（その施設へ行くと使える）
-  // 販売品目の無い店（製造・R&D拠点は製造・改良専用）ではショップタブ自体を出さない
   const tabAllowed = (t: Tab): boolean =>
     t === "shop"
       ? atShop && shopItems.length > 0
@@ -683,7 +635,6 @@ export default function WorldBoxEconomyPanel({
           const setEntries = Object.entries(craftSet);
           const totalSet = setEntries.reduce((a, [, n]) => a + n, 0);
           const mixed = mixColorFor(craftSet);
-          // 工程中の煙は気配で変える（exact=金、near=暖色、far=灰色に濁る）
           const smokeColor = craftBusy
             ? craftHint === "exact"
               ? "rgba(255,210,62,0.8)"

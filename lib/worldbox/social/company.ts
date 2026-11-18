@@ -1,116 +1,40 @@
-// WORLD BOX（Takasumi 版）の会社システム（純粋ロジック）。
-// 数字とルールの正は TakasumiBOT v3 の会社仕様（V3-COMPANY-SPEC.md）:
-// 設立税20%・従業員上限15人・招待コード10文字/使い切り/1時間・
-// 時給は 8〜20 時に毎時支給（社長 ×1.15、所得税15%を控除、
-// 会社資産が給料総額に不足する回は全員スキップ）・商品は情報の
-// 売り切り（作成税15%・売却税50%・出品上限15件・寿命1週間）・
-// ボーナス（100〜150,000、会社資産の1/10まで、受取人ごと23時間）・
-// 法人税（3時間ごとの直近利益へ累進 0〜70%）。
-//
-// お金の器: 会社資産（assets）は bot_kv 上の会社台帳で、個人残高とは
-// 別の財布。個人残高との出入りは経済ブリッジのオプ経由でのみ行う
-// （company-online.ts / ルート側）: 個人→会社は spend オプで国庫へ
-// 払い込み、会社→個人は earn オプで国庫から払い出す。v3 の
-// 「すべてのお金は国庫を介する」モデルの写しで、台帳の増減と
-// オプの適用が対になる。会社内部だけの動き（税・商品代金の付け替え）
-// は台帳の増減と取引履歴だけで完結する。
-//
-// 社員の稼ぎの会社帰属（v3 の /work 相当）について: WORLD BOX に
-// /work は無く、ワールド内の収入は理由ごとに別々のルートがその場で
-// 個人へ earn オプを積む形（harvest / shop_sale / guild_shop_sale /
-// guild_request_reward 等）で散っている。全経路に所属判定を差し込む
-// と「行為のフィードバックとしての受取」が会社都合で化けるため、
-// ここでは配線しない。接続は Phase 4 の「出社（勤務行為）」で、
-// 勤務という明示的な行為の報酬だけを会社へ帰属させる設計とする
-// （ROADMAP-MODERN.md Phase 4）。無所属者の収入には一切触らない。
-// ユニオン・ギルド・国家とは独立のシステムとして併存する（G2 確定）。
-//
-// Phase 4（空間化）: 会社は本社（HQ）の位置を持ち、社員は本社の近くで
-// 出社（勤務中状態）し、勤務行為の報酬が会社資産へ入る。看板
-// （sign_board）を自社の店舗・受付として登録でき、来訪者はその看板
-// から自社の出品を買える。経済パラメータ（税率・時給・上限）は
-// Phase 3 から一切変えていない。変えたのは「触る面」だけ:
-// - 時給の Cron 自動支給はそのまま（G3 は (a) 案: 出社は支給条件に
-//   しない）。勤務報酬は出来高として別に立つ（v3 の二層構造）。
-// - 勤務1回の報酬は時給 ÷ 12、クールダウン5分（v3 の職業の最短
-//   クールダウン）。1時間みっちり働いて時給1時間分が上限になる。
-// - 勤務報酬は会社内部だけの動き（国庫→会社の発行）なので、給料の
-//   払い出しと違い経済ブリッジのオプは使わず台帳と履歴だけで完結
-//   する。法人税の課税利益には他の入金と同じく数えられる（v3 の
-//   /work 稼ぎが会社収益であることと整合）。
-
-/** 会社名の長さ（v3: 4〜20文字）。 */
 export const COMPANY_NAME_MIN = 4;
 export const COMPANY_NAME_MAX = 20;
-/** 会社の説明の長さ（v3: 5〜100文字）。 */
 export const COMPANY_DESCRIPTION_MIN = 5;
 export const COMPANY_DESCRIPTION_MAX = 100;
-/** 資本金の下限（v3: 100,000）。 */
 export const COMPANY_CAPITAL_MIN = 100_000;
-/**
- * 資本金の上限。v3 に明示は無いが、個人→会社の払い込みは経済
- * ブリッジの spend オプ（1件 1,000,000 まで）で運ぶため、その上限に
- * 合わせる。解散返還など会社→個人の払い出しは分割して運ぶ。
- */
 export const COMPANY_CAPITAL_MAX = 1_000_000;
-/** 会社設立税率（v3: 資本金の20%）。 */
 export const COMPANY_ESTABLISH_TAX_RATE = 0.2;
-/** 従業員上限（v3: 15人、オーナー含む）。 */
 export const COMPANY_MEMBER_LIMIT = 15;
-/** 時給の範囲（v3: minWage 1,000 〜 maxWage 100,000）。 */
 export const COMPANY_SALARY_MIN = 1_000;
 export const COMPANY_SALARY_MAX = 100_000;
-/** 社長（オーナー）の給料倍率（v3: ×1.15）。 */
 export const COMPANY_OWNER_SALARY_MULTIPLIER = 1.15;
-/** 所得税率（v3: 給料・ボーナスの受取時に15%控除）。 */
 export const COMPANY_INCOME_TAX_RATE = 0.15;
-/** 給料支給の時間帯（JST、開始・終了ともに含む。v3: 8〜20時の毎時）。 */
 export const COMPANY_SALARY_HOUR_START = 8;
 export const COMPANY_SALARY_HOUR_END = 20;
-/** 招待コード（v3: 10文字・使い切り・1時間で失効）。 */
 export const COMPANY_INVITE_CODE_LENGTH = 10;
 export const COMPANY_INVITE_TTL_MS = 3_600_000;
-/** 商品の文字列長（v3: 名前1〜20・説明1〜50・内容1〜500）。 */
 export const COMPANY_PRODUCT_NAME_MAX = 20;
 export const COMPANY_PRODUCT_DESCRIPTION_MAX = 50;
 export const COMPANY_PRODUCT_CONTENT_MAX = 500;
-/** 商品価格（v3: 100以上、入力は最大6桁）。 */
 export const COMPANY_PRODUCT_PRICE_MIN = 100;
 export const COMPANY_PRODUCT_PRICE_MAX = 999_999;
-/** 商品作成税率（v3: 価格の15%を会社資産から）。 */
 export const COMPANY_PRODUCT_CREATE_TAX_RATE = 0.15;
-/** 商品売却税率（v3: 価格の50%が国庫へ、会社の取り分は50%）。 */
 export const COMPANY_PRODUCT_SALE_TAX_RATE = 0.5;
-/** 会社あたりの同時出品上限（v3: 15件）。 */
 export const COMPANY_PRODUCT_LIMIT = 15;
-/** 商品の寿命（v3: 1週間で自動削除）。 */
 export const COMPANY_PRODUCT_TTL_MS = 7 * 24 * 3_600_000;
-/** ボーナス金額の範囲（v3: 100〜150,000、かつ会社資産の1/10まで）。 */
 export const COMPANY_BONUS_MIN = 100;
 export const COMPANY_BONUS_MAX = 150_000;
 export const COMPANY_BONUS_ASSETS_DIVISOR = 10;
-/** ボーナスの受取人ごとクールダウン（v3: 23時間 = 82,800,000ms）。 */
 export const COMPANY_BONUS_COOLDOWN_MS = 82_800_000;
-/** 法人税の課税ウィンドウ（v3: 3時間ごとに直近3時間の利益）。 */
 export const COMPANY_TAX_WINDOW_MS = 3 * 3_600_000;
-/** 取引履歴の保持件数（会社ごと、直近分）。 */
 export const COMPANY_HISTORY_LIMIT = 200;
-/** 資本金追加の履歴理由。法人税の利益計算から除外される唯一の入金。 */
 export const COMPANY_CAPITAL_REASON = "会社の資本金の追加";
-/** 本社エリアの半径（タイル、チェビシェフ距離）。出社と勤務はこの範囲内だけ。 */
 export const COMPANY_HQ_RADIUS = 3;
-/** 勤務1回の報酬 = 時給 ÷ この値（1時間に最大で時給1時間分）。 */
 export const COMPANY_WORK_REWARD_DIVISOR = 12;
-/** 勤務のクールダウン（v3 の職業クールダウン 5〜60分の最短に合わせる）。 */
 export const COMPANY_WORK_COOLDOWN_MS = 5 * 60_000;
-/** 勤務中状態の寿命。これを過ぎた出社は自動で切れたものとして扱う。 */
 export const COMPANY_DUTY_TTL_MS = 24 * 3_600_000;
 
-/**
- * 法人税の累進ブラケット（v3: CompanyBenefitTaxBrackets）。
- * [そのブラケットの上限（利益額）, その帯域にかかる税率] の昇順。
- * 帯域ごとの限界税率として計算する。
- */
 export const COMPANY_TAX_BRACKETS: readonly (readonly [number, number])[] = [
   [5_000, 0],
   [10_000, 0.12],
@@ -138,28 +62,18 @@ export interface CompanyStats {
   totalTax: number;
 }
 
-/** 本社（HQ）の位置。空間 ID とタイル座標（Phase 4 の空間化）。 */
 export interface CompanyHq {
   space: string;
   x: number;
   y: number;
 }
 
-/** 社員の勤務中状態（出社中かどうか。会社ごとに1つ、社員キーで引く）。 */
 export interface CompanyDuty {
   companyId: string;
-  /** 出社した時刻。 */
   since: number;
-  /** 最後に勤務行為をした時刻（クールダウン判定用。未勤務は 0）。 */
   lastWorkAt: number;
 }
 
-/**
- * 店舗看板の登録（ワールドの看板タイル → 会社）。
- * ownerId は設置者のプレゼンス ID（タイル上書きの block.ownerId と同じ
- * 不透明 ID）。看板が掘り返された／設置者が変わった場合は読み取り時に
- * 照合して登録を落とす。
- */
 export interface CompanySign {
   companyId: string;
   ownerId: string;
@@ -169,32 +83,22 @@ export interface Company {
   id: string;
   name: string;
   description: string;
-  /** オーナーの所有者キー（"discord:<id>"）。 */
   ownerKey: string;
-  /** 会社資産（会社財布）。個人残高とは別の台帳。 */
   assets: number;
-  /** 時給（全社員共通の支給額設定）。 */
   salary: number;
   createdAt: number;
   members: CompanyMember[];
-  /** 出品中の商品 ID（会社あたり最大 COMPANY_PRODUCT_LIMIT 件）。 */
   productIds: string[];
   stats: CompanyStats;
-  /** ボーナスの最終支給時刻（受取人の所有者キーごと）。 */
   lastBonusAt: Record<string, number>;
-  /** 給料支給済みの JST 時間キー（冪等化用、"YYYY-MM-DDTHH"）。 */
   lastSalaryKey: string;
-  /** 法人税徴収済みの JST 3時間ウィンドウキー（冪等化用）。 */
   lastTaxKey: string;
-  /** 本社の位置（未登録は null）。オーナーが自分の現在位置で登録する。 */
   hq: CompanyHq | null;
 }
 
 export interface CompanyHistoryEntry {
   at: number;
-  /** 実行者の Discord ID（システム処理では ""）。 */
   userId: string;
-  /** 符号付き金額（入金は正、出金は負）。 */
   amount: number;
   reason: string;
 }
@@ -206,7 +110,6 @@ export interface CompanyProduct {
   creatorName: string;
   name: string;
   description: string;
-  /** 購入者にだけ開示される内容テキスト。 */
   content: string;
   price: number;
   createdAt: number;
@@ -228,22 +131,18 @@ function randomString(length: number, rand: () => number): string {
   return out;
 }
 
-/** 会社 ID（v3 と同じ10文字）。 */
 export function makeCompanyId(rand: () => number = Math.random): string {
   return randomString(10, rand);
 }
 
-/** 招待コード（v3 と同じ10文字）。 */
 export function makeInviteCode(rand: () => number = Math.random): string {
   return randomString(COMPANY_INVITE_CODE_LENGTH, rand);
 }
 
-/** 商品 ID（v3 と同じ8文字）。 */
 export function makeProductId(rand: () => number = Math.random): string {
   return randomString(8, rand);
 }
 
-/** 会社 ID の形（bot_kv のキー判別にも使う）。 */
 export function isCompanyId(value: unknown): value is string {
   return typeof value === "string" && /^[A-Z0-9]{10}$/.test(value);
 }
@@ -252,13 +151,11 @@ function trimmed(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
-/** 会社名: 前後の空白を落として 4〜20文字のときだけ通す。 */
 export function validateCompanyName(value: unknown): string | null {
   const name = trimmed(value);
   return name.length >= COMPANY_NAME_MIN && name.length <= COMPANY_NAME_MAX ? name : null;
 }
 
-/** 会社の説明: 前後の空白を落として 5〜100文字のときだけ通す。 */
 export function validateCompanyDescription(value: unknown): string | null {
   const text = trimmed(value);
   return text.length >= COMPANY_DESCRIPTION_MIN && text.length <= COMPANY_DESCRIPTION_MAX
@@ -266,19 +163,16 @@ export function validateCompanyDescription(value: unknown): string | null {
     : null;
 }
 
-/** 資本金: 整数 100,000〜1,000,000 のときだけ通す。 */
 export function validateCompanyCapital(value: unknown): number | null {
   if (typeof value !== "number" || !Number.isInteger(value)) return null;
   return value >= COMPANY_CAPITAL_MIN && value <= COMPANY_CAPITAL_MAX ? value : null;
 }
 
-/** 時給: 整数 1,000〜100,000 のときだけ通す。 */
 export function validateCompanySalary(value: unknown): number | null {
   if (typeof value !== "number" || !Number.isInteger(value)) return null;
   return value >= COMPANY_SALARY_MIN && value <= COMPANY_SALARY_MAX ? value : null;
 }
 
-/** 商品の入力検証。通れば正規化した値を返す。 */
 export function validateProductInput(value: {
   name?: unknown;
   description?: unknown;
@@ -297,32 +191,26 @@ export function validateProductInput(value: {
   return { name, description, content, price: value.price };
 }
 
-/** 税額（率を掛けて切り捨て）。 */
 function taxOf(amount: number, rate: number): number {
   return Math.floor(amount * rate);
 }
 
-/** 設立税（資本金の20%）。 */
 export function establishmentTax(capital: number): number {
   return taxOf(capital, COMPANY_ESTABLISH_TAX_RATE);
 }
 
-/** 所得税（給料・ボーナスの受取時に控除される15%）。 */
 export function incomeTax(amount: number): number {
   return taxOf(amount, COMPANY_INCOME_TAX_RATE);
 }
 
-/** 商品作成税（価格の15%）。 */
 export function productCreateTax(price: number): number {
   return taxOf(price, COMPANY_PRODUCT_CREATE_TAX_RATE);
 }
 
-/** 商品売却税（価格の50%）。 */
 export function productSaleTax(price: number): number {
   return taxOf(price, COMPANY_PRODUCT_SALE_TAX_RATE);
 }
 
-/** 社員1人の給料総額（オーナーは時給 ×1.15、切り捨て）。 */
 export function salaryGrossFor(company: Company, member: CompanyMember): number {
   if (member.ownerKey === company.ownerKey) {
     return Math.floor(company.salary * COMPANY_OWNER_SALARY_MULTIPLIER);
@@ -330,7 +218,6 @@ export function salaryGrossFor(company: Company, member: CompanyMember): number 
   return company.salary;
 }
 
-/** 法人税（直近利益への累進課税、帯域ごとの限界税率で計算し総額を切り捨て）。 */
 export function corporateTaxFor(profit: number): number {
   if (!Number.isFinite(profit) || profit <= 0) return 0;
   let tax = 0;
@@ -356,11 +243,6 @@ export function memberOf(company: Company, ownerKey: string): CompanyMember | nu
   return company.members.find((m) => m.ownerKey === ownerKey) ?? null;
 }
 
-/**
- * 台帳の増減を会社へ適用し、対応する取引履歴エントリを返す。
- * 統計（累計収益・支出・納税）もここで一元的に更新する:
- * 入金は totalEarn、出金は totalUse、理由に「税」を含む出金は totalTax。
- */
 export function applyLedger(
   company: Company,
   amount: number,
@@ -381,7 +263,6 @@ export function applyLedger(
   };
 }
 
-/** 履歴へ追記し、保持上限を超えた古い分を落とす（新しい順に保持）。 */
 export function appendHistory(
   history: readonly CompanyHistoryEntry[],
   entries: readonly CompanyHistoryEntry[],
@@ -389,12 +270,6 @@ export function appendHistory(
   return [...entries, ...history].slice(0, COMPANY_HISTORY_LIMIT);
 }
 
-/**
- * 会社を設立する（台帳側の状態だけを作る。資本金の spend オプ適用は
- * 呼び出し側が先に済ませている前提）。
- * v3 の処理順序どおり「資本金全額を入金 → 設立税を差し引く」ため、
- * 初期資産 = 資本金 × 0.8、履歴は2件残る。
- */
 export function foundCompany(
   id: string,
   input: { name: string; description: string; capital: number; salary: number },
@@ -433,7 +308,6 @@ export function foundCompany(
 
 export type JoinCompanyError = "full" | "already_member";
 
-/** 社員を加える。成功したら新しい Company、失敗したら理由を返す。 */
 export function joinCompany(
   company: Company,
   member: CompanyMember,
@@ -443,7 +317,6 @@ export function joinCompany(
   return { company: { ...company, members: [...company.members, member] } };
 }
 
-/** 社員を外す（脱退・解雇共通）。オーナーは外せない。 */
 export function removeMember(company: Company, ownerKey: string): Company {
   if (ownerKey === company.ownerKey) return company;
   return {
@@ -455,22 +328,18 @@ export function removeMember(company: Company, ownerKey: string): Company {
   };
 }
 
-/** 解散できる状態か（オーナーが単独メンバーのときだけ）。 */
 export function canDissolve(company: Company, ownerKey: string): boolean {
   return isCompanyOwner(company, ownerKey) && company.members.length === 1;
 }
 
-/** 招待コードが失効しているか（発行から1時間）。 */
 export function isInviteExpired(invite: CompanyInvite, now: number): boolean {
   return now - invite.createdAt >= COMPANY_INVITE_TTL_MS;
 }
 
-/** 商品が寿命切れか（作成から1週間）。 */
 export function isProductExpired(product: CompanyProduct, now: number): boolean {
   return now - product.createdAt >= COMPANY_PRODUCT_TTL_MS;
 }
 
-/** 給料支給1回分の計画。資産が総額に不足する回は全員スキップ。 */
 export function planSalaryRun(
   company: Company,
   now: number,
@@ -498,7 +367,6 @@ export function planSalaryRun(
   return { skipped: false, company: current, history, payouts };
 }
 
-/** 法人税の課税対象利益: ウィンドウ内の入金合計から資本金の追加を除く。 */
 export function taxableProfit(
   history: readonly CompanyHistoryEntry[],
   windowStart: number,
@@ -511,10 +379,6 @@ export function taxableProfit(
   return profit;
 }
 
-/**
- * 法人税1回分の計画。税額が0、または資産が税額に不足する場合は
- * 徴収しない（v3 の「不足する場合は徴収されない」に従う）。
- */
 export function planCorporateTax(
   company: Company,
   profit: number,
@@ -528,7 +392,6 @@ export function planCorporateTax(
 
 export type BonusError = "invalid_amount" | "cooldown" | "not_member";
 
-/** ボーナス支給の検証と計画。原資は会社資産、受取は所得税控除後の額。 */
 export function planBonus(
   company: Company,
   targetKey: string,
@@ -575,7 +438,6 @@ export function planBonus(
 
 export type ProductCreateError = "limit" | "tax_unaffordable";
 
-/** 商品作成の計画。作成税は会社資産から（不足したら作れない）。 */
 export function planProductCreate(
   company: Company,
   product: CompanyProduct,
@@ -593,11 +455,6 @@ export function planProductCreate(
   return { company: withProduct, entry: step.entry };
 }
 
-/**
- * 商品購入の会社側の付け替え（買い手の spend オプ適用後に呼ぶ）。
- * 価格全額が入金され、売却税50%が差し引かれる（会社の実質取り分50%）。
- * 商品は出品一覧から外れる（売り切り）。
- */
 export function planProductSale(
   company: Company,
   product: CompanyProduct,
@@ -622,20 +479,15 @@ export function planProductSale(
   return { company: next, history };
 }
 
-// ---- Phase 4: 本社・出社・勤務（空間化） ----
-
-/** 勤務1回の報酬（時給 ÷ 12、最低1）。会社の取り分は全額が会社資産。 */
 export function workRewardFor(company: Company): number {
   return Math.max(1, Math.floor(company.salary / COMPANY_WORK_REWARD_DIVISOR));
 }
 
-/** 位置が本社エリア内か（同じ空間でチェビシェフ距離が半径以内）。 */
 export function isNearHq(hq: CompanyHq | null, space: string, x: number, y: number): boolean {
   if (!hq || hq.space !== space) return false;
   return Math.max(Math.abs(x - hq.x), Math.abs(y - hq.y)) <= COMPANY_HQ_RADIUS;
 }
 
-/** 勤務中状態がまだ生きているか（寿命内かつ会社が一致）。 */
 export function isDutyActive(
   duty: CompanyDuty | null,
   companyId: string,
@@ -647,11 +499,6 @@ export function isDutyActive(
 
 export type WorkError = "cooldown";
 
-/**
- * 勤務行為1回分の計画。報酬は会社資産へ入金され（個人残高は増えない）、
- * 履歴に「勤務報酬（名前）」として残る。クールダウン中は error。
- * 出社状態と本社への近さの検証は呼び出し側（ルート）が済ませている前提。
- */
 export function planWork(
   company: Company,
   member: CompanyMember,
@@ -673,8 +520,6 @@ export function planWork(
   };
 }
 
-// ---- JST の時間キー（Cron の冪等化と時間帯判定） ----
-
 const JST_OFFSET_MS = 9 * 3_600_000;
 
 function jstParts(now: number): { date: string; hour: number } {
@@ -685,31 +530,25 @@ function jstParts(now: number): { date: string; hour: number } {
   return { date: `${yyyy}-${mm}-${dd}`, hour: jst.getUTCHours() };
 }
 
-/** 給料支給の対象時間帯（JST 8〜20時）か。 */
 export function isSalaryHour(now: number): boolean {
   const { hour } = jstParts(now);
   return hour >= COMPANY_SALARY_HOUR_START && hour <= COMPANY_SALARY_HOUR_END;
 }
 
-/** 給料支給の冪等キー（JST の日付+時）。 */
 export function salaryRunKey(now: number): string {
   const { date, hour } = jstParts(now);
   return `${date}T${String(hour).padStart(2, "0")}`;
 }
 
-/** 法人税の対象時間か（JST で3時間ごと: 0,3,6,...,21時台）。 */
 export function isTaxHour(now: number): boolean {
   return jstParts(now).hour % 3 === 0;
 }
 
-/** 法人税の冪等キー（JST の日付+3時間ウィンドウ開始時）。 */
 export function taxRunKey(now: number): string {
   const { date, hour } = jstParts(now);
   const start = hour - (hour % 3);
   return `${date}T${String(start).padStart(2, "0")}`;
 }
-
-// ---- 保存値のパース（壊れていたら null） ----
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   let v = value;
@@ -784,7 +623,6 @@ export function parseCompany(raw: unknown): Company | null {
   };
 }
 
-/** 本社位置のパース。空間 ID は短い文字列、座標は整数のときだけ通す。 */
 export function parseCompanyHq(raw: unknown): CompanyHq | null {
   const data = asRecord(raw);
   if (!data) return null;

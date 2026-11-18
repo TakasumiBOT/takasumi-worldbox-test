@@ -1,7 +1,3 @@
-// AGO WORLD BOX リアルタイム中継（WebSocket）のテスト。
-// - 中継コア（realtime/relay-core.js）の整形・部屋管理・鮮度
-// - トークンの署名/検証（改竄・期限切れ・鍵なし）
-// - ラッパー / デプロイ / トークン発行ルート / クライアントの配線
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -17,7 +13,6 @@ const hb = (x, y, extra = {}) => ({ x, y, vx: 0, vy: 0, face: 1, space: "world",
 
 test("relay: ハートビートは整形され、範囲と速度が丸められる", () => {
   const room = core.createRoom();
-  // ワールドは実質無制限（±1,000,000）。1024 を超える座標もそのまま通る。
   const e = core.acceptHeartbeat(room, "p1", "名前", hb(2000, -1500, { vx: 99, face: -1 }), NOW);
   assert.equal(e.x, 2000);
   assert.equal(e.y, -1500);
@@ -25,7 +20,6 @@ test("relay: ハートビートは整形され、範囲と速度が丸められ�
   assert.equal(e.face, -1);
   assert.equal(e.id, "p1");
   assert.equal(e.ts, NOW);
-  // 上限を超えたら丸める（基準の無い初回なので連続性では却下されない）
   const farRoom = core.createRoom();
   const far = core.acceptHeartbeat(farRoom, "p1", "n", hb(2_000_000, -2_000_000), NOW);
   assert.equal(far.x, core.WORLD_COORD_LIMIT);
@@ -51,9 +45,7 @@ test("relay: インスタンス空間は潰さず、空間ごとに分離する"
     core.snapshot(room, "dungeon:0,0:1", "x", NOW).map((p) => p.id),
     ["d1"],
   );
-  // 別インスタンス同士は混ざらない（層違いも別空間）
   assert.equal(core.snapshot(room, "cave:100,200:1", "x", NOW).length, 0);
-  // 旧空間からの移動もインスタンス間で効く
   core.acceptHeartbeat(room, "c1", "洞窟", hb(1, 1, { space: "cave:100,200:1" }), NOW);
   assert.equal(core.snapshot(room, "cave:100,200:0", "x", NOW).length, 0);
   assert.deepEqual(
@@ -77,7 +69,6 @@ test("relay: 役職・ランク・パーティを通し、インスタンスの�
   assert.equal(e.role, "guard");
   assert.equal(e.rank, 5);
   assert.equal(e.party, "pk-1");
-  // 座り（sit）も通す。落とすと他者に座り姿勢が永遠に伝わらない。
   const sitting = core.acceptHeartbeat(room, "p9", "P", hb(2, 2, { sit: true }), NOW);
   assert.equal(sitting.sit, true);
   const standing = core.acceptHeartbeat(room, "p8", "P", hb(2, 2, { sit: "yes" }), NOW);
@@ -86,7 +77,6 @@ test("relay: 役職・ランク・パーティを通し、インスタンスの�
   assert.equal(bad.role, "free");
   assert.equal(bad.rank, 1);
   assert.equal(bad.party, "");
-  // 遺跡・ダンジョンの境界も種類ごとに違う
   const r = core.acceptHeartbeat(room, "p3", "P", hb(100, 100, { space: "ruins:0,0:0" }), NOW);
   assert.equal(r.x, 48);
   const d = core.acceptHeartbeat(room, "p4", "P", hb(100, 100, { space: "dungeon:0,0:0" }), NOW);
@@ -95,13 +85,10 @@ test("relay: 役職・ランク・パーティを通し、インスタンスの�
 
 test("relay: 移動連続性を満たさない申告は却下され、保管位置が返る", () => {
   const room = core.createRoom();
-  // 部屋に前回がある場合: 1秒で 100 タイルは却下
   core.acceptHeartbeat(room, "p1", "P", hb(0, 0), NOW);
   const rejected = core.acceptHeartbeat(room, "p1", "P", hb(100, 0), NOW + 1000);
   assert.deepEqual(rejected, { rejected: true, x: 0, y: 0, space: "world" });
-  // 却下された申告は保存されない（部屋の位置は 0,0 のまま）
   assert.equal(core.snapshot(room, "world", "x", NOW + 1000).find((p) => p.id === "p1").x, 0);
-  // 正規移動（1秒で 7 タイル）は通る
   const moved = core.acceptHeartbeat(room, "p1", "P", hb(7, 0), NOW + 1000);
   assert.equal(moved.x, 7);
   assert.equal(moved.rejected, undefined);
@@ -109,7 +96,6 @@ test("relay: 移動連続性を満たさない申告は却下され、保管位�
 
 test("relay: 外部基準（プレゼンス/セーブ）で初回ハートビートを照合する", () => {
   const room = core.createRoom();
-  // 外部プレゼンス基準（ts 付き）: 1秒で 100 タイルは却下
   const base = { x: 10, y: 10, space: "world", ts: NOW };
   assert.deepEqual(core.acceptHeartbeat(room, "p2", "P", hb(200, 10), NOW + 1000, base), {
     rejected: true,
@@ -117,7 +103,6 @@ test("relay: 外部基準（プレゼンス/セーブ）で初回ハートビー
     y: 10,
     space: "world",
   });
-  // 空間変更は外部基準でも通る
   const entered = core.acceptHeartbeat(
     room,
     "p2",
@@ -127,21 +112,17 @@ test("relay: 外部基準（プレゼンス/セーブ）で初回ハートビー
     base,
   );
   assert.equal(entered.space, "lobby");
-  // 外部セーブ基準（ts 無し）: 12 タイル以内は通り、超えると却下
   const room2 = core.createRoom();
   const saveBase = { x: 50, y: 50, space: "world" };
   assert.equal(core.acceptHeartbeat(room2, "p3", "P", hb(60, 50), NOW, saveBase).x, 60);
-  // 2回目は部屋の前回（60,50・ts=NOW）が基準になるため、却下の位置もそこになる
   assert.deepEqual(core.acceptHeartbeat(room2, "p3", "P", hb(200, 50), NOW, saveBase), {
     rejected: true,
     x: 60,
     y: 50,
     space: "world",
   });
-  // 基準なし（初回・未保存）は受け入れる
   const room3 = core.createRoom();
   assert.equal(core.acceptHeartbeat(room3, "p4", "P", hb(999, 999), NOW, null).x, 999);
-  // 閾値は presence.ts と同じ値
   assert.equal(core.MAX_MOVE_SPEED, 10);
   assert.equal(core.MOVEMENT_RESET_MS, 30_000);
   assert.equal(core.SAVE_FALLBACK_MAX_TILES, 12);
@@ -196,7 +177,6 @@ test("relay: 空間移動で旧空間から消え、削除と掃除が効く", (
 test("relay token: 署名と検証（改竄・期限切れ・鍵違いを弾く）", () => {
   const secret = "test-secret";
   const token = core.signToken({ pid: "abcd1234", name: "誰か", exp: NOW + 60_000 }, secret);
-  // ok は Phase 2 の所有者キー、av はユーザーアイコン URL（どちらもこのトークンには無いので null）
   assert.deepEqual(core.verifyToken(token, secret, NOW), {
     pid: "abcd1234",
     name: "誰か",
@@ -246,13 +226,9 @@ test("配線: ラッパー・デプロイ・トークンルート・クライア
   assert.ok(client.includes("sendWsHeartbeat"), "WS ハートビートが無い");
   assert.ok(client.includes('msg.t === "up"'), "中継の更新適用が無い");
   assert.ok(client.includes('msg.t === "bye"'), "中継の退室適用が無い");
-  // フォールバック（REST ハートビートとポーリング）が残っている
   assert.ok(client.includes("sendHeartbeat()"), "REST フォールバックが消えている");
   assert.ok(client.includes("pollOthers"), "ポーリングが消えている");
-  // bot_kv プレゼンス（サーバー検証の正）の鮮度維持: WS 接続中も REST を併送する
   assert.ok(client.includes("lastRestHeartbeatAt"), "REST 併送の間隔管理が無い");
-  // WS/REST の乖離を無くす: WS 送信にも役職・ランクを載せ、受信側は
-  // ダンジョンのパーティ分離と WS 経由の鮮度を欠落グレースに反映する
   assert.ok(client.includes("wsSeenAt"), "WS 経由の鮮度が欠落グレースに無い");
   assert.ok(client.includes("isOtherPartyInDungeon"), "WS 側のダンジョンパーティ分離が無い");
 });

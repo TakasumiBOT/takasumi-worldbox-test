@@ -1,6 +1,3 @@
-// AGO WORLD BOX: 独立シェル（サイト共通クロームなし・100svh 全画面）の配線テスト。
-// 共通ヘッダー/フッター・パンくず・見出し・判断材料ヘッダーを画面から外し、
-// ステージが画面いっぱいになること、戻り導線が ≡ メニュー内にあることを確認する。
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
@@ -13,9 +10,7 @@ const css = await readFile(new URL("../app/globals.css", import.meta.url), "utf8
 const page = await readFile(new URL("../app/games/[id]/page.tsx", import.meta.url), "utf8");
 
 test("クライアントの外枠は .wb-shell で、画面外クロームを持たない", () => {
-  // 本体・入場ゲートの両方が独立シェルで描かれる
   assert.ok((client.match(/className="wb-shell"/g) ?? []).length >= 2);
-  // パンくず・ページ見出し・旧ステータス行は画面に置かない
   assert.doesNotMatch(client, /breadcrumbs/);
   assert.doesNotMatch(client, /page-heading/);
   assert.doesNotMatch(client, /classic-status/);
@@ -30,7 +25,6 @@ test("ステータスはステージ内のオーバーレイで出す（レイ�
 });
 
 test("ワールド内の ≡ メニューに「ゲーム一覧へ」は置かない（没入感優先、ユーザー指示 2026-11-16）", () => {
-  // 残る「ゲーム一覧へ」は入場ゲート画面の1件だけ（ワールドに入る前の導線）
   assert.equal((client.match(/ゲーム一覧へ/g) ?? []).length, 1);
   assert.equal((client.match(/href=\{`\$\{prefix\}\/games`\}/g) ?? []).length, 1);
 });

@@ -1,6 +1,3 @@
-// WORLD BOX 冒険役職の純粋ロジックテスト。
-// Phase 1 以降、この世界に戦闘技は存在しない。技はテレポーターの
-// ポーター設置（porter）だけで、activeSkillFor は全役職で null を返す。
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";

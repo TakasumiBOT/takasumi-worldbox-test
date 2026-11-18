@@ -1,11 +1,3 @@
-// WORLD BOX 残A sweep（監査の残項目）の検証:
-// - ギルドショップ「下げる」: GET の mine フラグとパネル条件が
-//   サーバーの unlist 権限（出品者本人 / 区画ギルドのリーダー）と一致
-// - ギルドショップの地図表現: relay watch（guildShop poke）→
-//   クライアント取り直し → カウンター上のギルド名描画の配線
-// - チャット掲示の RMW 直列化（Web 側 appendChatMessage のロック）
-// - カジノ先払いの直接提出（submitEconomyOp）への移行と、
-//   ブラックジャックの hit/stand への先払い確認ゲート
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -31,14 +23,11 @@ function read(rel) {
   return fs.readFileSync(path.join(rootDir, rel), "utf8");
 }
 
-// ---------- ギルドショップ「下げる」 ----------
-
 test("guild-shop: GET の view が mine を返し、生キーは出ない", () => {
   const routeSrc = read("app/api/worldbox/guild-shop/route.ts");
   assert.match(routeSrc, /mine: l\.sellerKey === viewerKey/);
   assert.match(routeSrc, /view\(state, nations, ownerKey\)/);
   assert.match(routeSrc, /view\(pruned, nations, ownerKey\)/);
-  // view の listings に sellerKey が含まれないこと
   const viewBlock = routeSrc.slice(
     routeSrc.indexOf("function view("),
     routeSrc.indexOf("/** 国家設定込み"),
@@ -48,15 +37,12 @@ test("guild-shop: GET の view が mine を返し、生キーは出ない", () =
 
 test("guild-shop: パネルの「下げる」条件がサーバーの unlist 権限と一致する", () => {
   const routeSrc = read("app/api/worldbox/guild-shop/route.ts");
-  // サーバー側の正: 本人 or 区画ギルドのリーダー
   assert.match(routeSrc, /const mine = found\.listing\.sellerKey === ownerKey;/);
   assert.match(routeSrc, /const leaderOfPlot = myGuild === found\.plot\.guildId && isLeader;/);
   const panelSrc = read("app/games/worldbox/WorldBoxGuildShopPanel.tsx");
   assert.match(panelSrc, /\(sel\.mine \|\| \(isLeader && shop\.myGuildId === plot\.guildId\)\)/);
   assert.ok(!panelSrc.includes("|| true"), "常時真の条件が残っている");
 });
-
-// ---------- ギルドショップの地図表現 ----------
 
 test("guild-shop watch: WATCH_PLAN に guildShop（worldbox_guild_shop・poke）が入る", () => {
   const plan = watch.WATCH_PLAN.find((p) => p.kind === "guildShop");
@@ -72,22 +58,16 @@ test("guild-shop watch: relay が sync guildShop を流し、クライアント�
   assert.match(clientSrc, /msg\.kind === "guildShop"/);
   assert.match(clientSrc, /guildShopRefreshRef\.current\(true\)/);
   assert.match(clientSrc, /notifyGuildShopChanged\(\)/);
-  // 借り区画のギルド名をカウンター上に描く
   assert.match(clientSrc, /GUILD_PLOT_ANCHORS\[plot\.idx\]/);
   assert.match(clientSrc, /fillText\(plot\.guildName, gx, gy - 5\)/);
-  // パネルも合図で取り直す
   const panelSrc = read("app/games/worldbox/WorldBoxGuildShopPanel.tsx");
   assert.match(panelSrc, /onGuildShopChanged/);
 });
-
-// ---------- チャット掲示の RMW 直列化 ----------
 
 test("chat: appendChatMessage がリスト単位のロックで直列化される", () => {
   const src = read("lib/worldbox/social/chat-online.ts");
   assert.match(src, /withUserLock\(`chat-list:\$\{namespaceFor\(message\.channel\)\}:\$\{key\}`/);
 });
-
-// ---------- 経済の残存窓（カジノ） ----------
 
 test("casino: 先払いは submitSpend（直接提出）で、BJ の hit/stand に確認ゲートがある", () => {
   const src = read("app/api/worldbox/casino/route.ts");
@@ -102,7 +82,6 @@ test("casino: 先払いは submitSpend（直接提出）で、BJ の hit/stand �
       reason,
     );
   }
-  // hit/stand のゲート: pending は bet_pending、失敗はセッション破棄
   const hitIdx = src.indexOf('action === "bj_hit"');
   const gateIdx = src.indexOf("spendStatuses(ctx.userKey, bjs.spendOpIds)", hitIdx);
   assert.ok(gateIdx > hitIdx, "bj_hit/stand に先払い確認が無い");

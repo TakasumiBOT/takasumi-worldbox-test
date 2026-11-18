@@ -1,7 +1,3 @@
-// AGO WORLD BOX の競馬（LHA 統合）: 登録馬100頭の静的データ。
-// 出典: LHA.md §5（形式: No.馬名｜性齢・毛色｜能力｜脚質｜馬場・距離｜個性）。
-// 能力は原文の数値そのまま。並びは原文の No. 順。
-
 export type RunningStyle = "大逃げ" | "逃げ" | "先行" | "差し" | "追込" | "マクリ";
 export type Surface = "芝" | "ダート" | "兼用";
 export type DistanceBand = "スプリント" | "マイル" | "中距離" | "中長距離" | "ステイヤー";

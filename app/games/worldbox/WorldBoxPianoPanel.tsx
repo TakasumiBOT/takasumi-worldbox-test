@@ -1,12 +1,7 @@
 "use client";
-// AGO WORLD BOX のロビーピアノ鍵盤（カジノ翼のピアノ）。
-// 打鍵は即ローカルに鳴り、リアルタイム中継でロビー全員に届く（受信側の
-// 再生は WorldBoxClient の WS ハンドラ）。ここは鍵盤の表示と入力だけ。
 import { useEffect, useRef, useState } from "react";
 
-/** 白鍵（C4..C6、半音オフセットは C5=0）。 */
 const WHITE_KEYS: number[] = [-12, -10, -8, -7, -5, -3, -1, 0, 2, 4, 5, 7, 9, 11, 12];
-/** 黒鍵: 半音と、その左にある白鍵のインデックス。 */
 const BLACK_KEYS: { semi: number; afterWhite: number }[] = [
   { semi: -11, afterWhite: 0 },
   { semi: -9, afterWhite: 1 },

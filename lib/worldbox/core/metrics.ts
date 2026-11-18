@@ -1,13 +1,6 @@
-// AGO WORLD BOX の計測基盤（バッチ9a）。
-// 日次カウンタとプレイヤーの初回ステップを bot_kv に貯め、運営が
-// ファネル・継続率・同時接続を読むための土台にする。集計は決定的で、
-// 記録は「ベストエフォート」（失敗してもゲームは止めない）。
-
 export interface DayMetrics {
   date: string;
-  /** その日に活動した所有者キー（上限つき）。 */
   dau: string[];
-  /** 同時接続の最大値。 */
   peak: number;
   blocksPlaced: number;
   harvests: number;
@@ -15,7 +8,6 @@ export interface DayMetrics {
   chatsGlobal: number;
   chatsUnion: number;
   guildShopVolume: number;
-  /** その日にユニオンに所属していたプレイヤー数（DAU のうち）。 */
   unionMembers: number;
 }
 
@@ -99,7 +91,6 @@ export function dayKeyOf(now: number): string {
   return new Date(now).toISOString().slice(0, 10);
 }
 
-/** 初回5分ファネルの到達率（firstAt から FUNNEL_WINDOW_MS 以内）。 */
 export function funnelRates(users: readonly UserFirstSteps[]): {
   users: number;
   gather: number;
@@ -121,7 +112,6 @@ export function funnelRates(users: readonly UserFirstSteps[]): {
   return { users: n, gather: gather / n, place: place / n, lobby: lobby / n };
 }
 
-/** 7日継続率: dayA の DAU のうち dayB（7日後）にもいた割合。 */
 export function retentionRate(dayA: DayMetrics, dayB: DayMetrics): number | null {
   if (dayA.dau.length === 0) return null;
   const setB = new Set(dayB.dau);

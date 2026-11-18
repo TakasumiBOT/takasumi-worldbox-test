@@ -1,9 +1,3 @@
-// AGO WORLD BOX ギルド依頼の検証:
-// - 純粋ロジック（投稿=spend預かり・納品=アイテム移動+earn報酬・取消=earn返金、
-//   上限と検証、保存形式の読み書き）
-// - ロビーのギルドボード（station "guild" のオブジェクト配置）
-// - クライアント配線（ステーションチップ→ギルドボードパネル、役職の移設）
-// - API ルート（投稿/納品/取消の3アクションとブリッジの理由ホワイトリスト）
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -117,7 +111,6 @@ test("投稿の上限: 1人5件・ユニオン20件", () => {
     state = r.state;
   }
   assert.equal(post(state, { id: "req-00000009" }).error, "too_many_poster");
-  // 別々の投稿者でユニオン上限まで
   let s2 = rq.emptyRequestsState();
   for (let i = 0; i < rq.MAX_OPEN_PER_GUILD; i++) {
     const r = post(s2, {
@@ -233,7 +226,6 @@ test("ギルドボードの配線: ロビー配置・チップ・パネル・API
   assert.match(client, /guild: "ギルドボード"/);
   assert.match(client, /stationUi === "guild"/);
   assert.match(client, /WorldBoxGuildBoardPanel/);
-  // 役職の home はギルドボード: ≡ の旧パネルには建国/参加ボタンを残さない
   assert.doesNotMatch(client, /action: "found"|action: "join"|action: "leave"/);
 
   const panel = fs.readFileSync(
@@ -248,15 +240,12 @@ test("ギルドボードの配線: ロビー配置・チップ・パネル・API
   for (const action of ["post", "fulfill", "cancel"]) {
     assert.match(route, new RegExp(`case "${action}"`));
   }
-  // 場所制約: 操作はギルドボード前のみ（場所検証の共通方式）
   assert.match(route, /loadMyLobbyStation/);
   assert.match(route, /not_at_guild_board/);
   const bridge = fs.readFileSync(path.join(libDir, "worldbox/economy/economy-bridge.ts"), "utf8");
   assert.match(bridge, /"guild_request_reward"/);
   assert.match(bridge, /"guild_request_refund"/);
 });
-
-// ---------- API（冪等性: 並行リクエストでも預かり・報酬・返金は各1件だけ） ----------
 
 function dataUrl(js) {
   return "data:text/javascript;base64," + Buffer.from(js).toString("base64");
@@ -509,8 +498,6 @@ function apiReset() {
     );
   }
 }
-// Bot ワーカーが escrow オプを処理した状態を再現する（本番では投稿の
-// 数秒後に done/failed が付く。納品・取消のゲートはこの状態を見る）。
 function apiSetEscrowStatus(id, status) {
   for (const [k, v] of globalThis.__wbReqStore) {
     if (v && typeof v === "object" && v.id === `escrow-${id}`) {
@@ -577,7 +564,6 @@ test("API(requests): 納品と取消が競合しても払われるのは報酬�
 test("API(requests): escrow は投稿と同時に確定し、納品・取消が即座に進む", async () => {
   apiReset();
   const id = await apiPost(apiCookie(API_POSTER, "poster"));
-  // コイン API 直接化: escrow spend は登録と同時に適用される
   const escrow = apiFindOps((o) => o.id === `escrow-${id}`);
   assert.equal(escrow.length, 1);
   assert.equal(escrow[0].status, "done");
@@ -587,15 +573,13 @@ test("API(requests): escrow は投稿と同時に確定し、納品・取消が�
   assert.equal(f.status, 200);
   const reward = apiFindOps((o) => o.id === `reward-${id}`);
   assert.equal(reward.length, 1);
-  // 報酬は earn: このスタブ環境は原資 DB が無いので従来キュー（pending）に
-  // 落ち、ワーカー適用を待つフォールバックになる
   assert.equal(reward[0].status, "pending");
 });
 
 test("API(requests): escrow が failed の依頼は納品不可、取消は返金なしで通る", async () => {
   apiReset();
   const id = await apiPost(apiCookie(API_POSTER, "poster"));
-  apiSetEscrowStatus(id, "failed"); // 投稿後に残高を抜いて預かれなかった状態
+  apiSetEscrowStatus(id, "failed");
   const f = await apiRequestsRoute.POST(
     apiReq(apiCookie(API_MEMBER1, "m1"), { action: "fulfill", requestId: id }),
   );
@@ -605,12 +589,10 @@ test("API(requests): escrow が failed の依頼は納品不可、取消は返�
     apiReq(apiCookie(API_POSTER, "poster"), { action: "cancel", requestId: id }),
   );
   assert.equal(c.status, 200);
-  // 預かっていないので返金オプは積まれない（無担保の払い戻し防止）
   assert.equal(apiFindOps((o) => o.id === `refund-${id}`).length, 0);
   assert.equal(apiFindOps((o) => o.id === `reward-${id}`).length, 0);
 });
 
-/** Bot ワーカーが報酬・返金オプを終端させた状態を再現する（B2・構造問題#4）。 */
 function apiArmFlip(pred, status, error = "pay_house_failed") {
   return new Promise((resolve) => {
     let timer;

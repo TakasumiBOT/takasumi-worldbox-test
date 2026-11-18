@@ -1,15 +1,3 @@
-// WORLD BOX カジノのセッション型ゲームの純粋ロジック。
-// Bot 側ギャンブルの slot7 / ダブルアップ /
-// ダイスの状態遷移を、原典パラメータのまま Web へ移行したもの。
-// 乱数は引数で受け取る（テストで差し替え可能）。状態は JSON 化可能な値のみ。
-//
-// WORLD BOX 版の適応（ブリッジ制約による）:
-// - slot7 の 66666 全額没収は採用しない（ブリッジに残高全額を引く手段がない）。
-//   イベント自体は発生し、そのスピンの報酬が 0 になるだけ。
-// - slot7 のベットは固定 1000 でなく選択中の階梯（報酬はベット比例）。
-
-// ---------------------------------------------------------------- 共通の内部状態
-// slot7 とダブルアップで共有するユーザー内部状態（原典 _empty_user と同じ）。
 export type CasinoUserState = {
   kakuhen: number;
   sixCounter: number;
@@ -38,9 +26,6 @@ export function cleanCasinoUserState(raw: unknown): CasinoUserState {
   return out;
 }
 
-// ---------------------------------------------------------------- slot7
-// 回数指定は廃止済み: セッションは常に1回分（route.ts の slot7_start）。
-/** 揃った個数 → 基本倍率（原典 SLOT_BASE_MULTIPLIERS）。 */
 export const SLOT7_BASE_MULTIPLIERS: Record<number, number> = {
   2: 1.1,
   3: 6,
@@ -63,7 +48,6 @@ const WEIGHT_OTHER = 8;
 const SIX_COUNTER_RATE = 0.01;
 const FORCE_SIX_PROBABILITY = 0.5;
 
-/** 数字0〜9のリール重み（原典 _reel_weights、お祓い棒なし）。 */
 export function slot7ReelWeights(kakuhen: boolean): number[] {
   const six = kakuhen ? WEIGHT_SIX_KAKUHEN : WEIGHT_SIX_NORMAL;
   return [
@@ -84,11 +68,8 @@ export type Slot7SpinResult = {
   reels: number[];
   maxMatch: number;
   matchedNumber: number;
-  /** このスピンの払い戻し（ベット比例の総額。ペナルティ時は 0）。 */
   reward: number;
-  /** 6ペナルティの追加引き落とし額（なければ 0）。 */
   penalty: number;
-  /** 66666 イベント（WORLD BOX 版では没収なし・報酬0のみ）。 */
   sixEvent: boolean;
   events: string[];
   kakuhen: number;
@@ -104,7 +85,6 @@ function pickWeighted(weights: number[], rng: () => number): number {
   return weights.length - 1;
 }
 
-/** 1スピン。原典 spin_slot の状態遷移を再現し、userState を更新する。 */
 export function spinSlot7(
   userState: CasinoUserState,
   bet: number,
@@ -204,7 +184,6 @@ export function spinSlot7(
   };
 }
 
-// ---------------------------------------------------------------- ダブルアップ
 export const DOUBLE_MULTIPLIER_STEP = 1.6;
 export const DOUBLE_RATE_NORMAL = 0.6;
 export const DOUBLE_RATE_FEVER = 0.75;
@@ -223,7 +202,6 @@ export type DoubleGoResult = {
   finished: boolean;
 };
 
-/** GO を1回引く（原典 double_go）。負けたらセッション終了。 */
 export function doubleGo(
   session: DoubleSessionState,
   userState: CasinoUserState,
@@ -263,17 +241,14 @@ export function doubleGo(
   };
 }
 
-/** キャッシュアウト額（原典 double_cashout。閾値超えで HELL 落ちも適用）。 */
 export function doubleCashout(session: DoubleSessionState, userState: CasinoUserState): number {
   const payout = Math.floor(session.bet * session.multiplier);
   if (payout > DOUBLE_HELL_PAYOUT_THRESHOLD) userState.internalMode = "HELL";
   return payout;
 }
 
-// ---------------------------------------------------------------- ダイス
 export const DICE_MIN_MAX = 5;
 export const DICE_MAX_MAX = 10000;
-/** パネルが提示する範囲の選択肢。 */
 export const DICE_RANGES = [6, 20, 100] as const;
 
 export function validateDice(maxValue: number, number: number): string | null {
@@ -284,7 +259,6 @@ export function validateDice(maxValue: number, number: number): string | null {
   return null;
 }
 
-/** 数字当て抽選（原典 play_dice。当たれば bet × max の払い戻し）。 */
 export function rollDice(maxValue: number, rng: () => number): number {
   return Math.floor(rng() * maxValue) + 1;
 }

@@ -1,21 +1,11 @@
-// AGO WORLD BOX 見下ろし型の移動と当たり判定（純粋ロジック）。
-// プレイヤーは半径 PLAYER_RADIUS の円として、固体タイル（水・木・岩）と
-// 軸分離で衝突する。位置はタイル単位の浮動小数（タイル中心が .5）。
-// swim オプションを渡すと水タイルだけは固体でなくなり、水に入れる。
 import { T_WATER, isSolidMapTile, mapTileAt, type TopDownMap } from "../world/mapgen";
 
-/** 歩行速度（タイル/秒）。 */
 export const WALK_SPEED = 4.4;
-/** ダッシュ速度（タイル/秒）。 */
 export const DASH_SPEED = 7.0;
-/** 泳ぎ速度（タイル/秒）。 */
 export const SWIM_SPEED = 3.0;
-/** ダッシュ泳ぎ速度（タイル/秒）。 */
 export const SWIM_DASH_SPEED = 5.4;
-/** プレイヤーの当たり半径（タイル）。 */
 export const PLAYER_RADIUS = 0.32;
 
-/** 移動オプション。swim=true のとき水タイルを通れる（ロビーでは使わない）。 */
 export type MoveOptions = { swim?: boolean };
 
 function isSolidFor(map: TopDownMap, tx: number, ty: number, swim: boolean): boolean {
@@ -31,10 +21,8 @@ export type MoveResult = {
   hitY: boolean;
 };
 
-/** 追加で固体扱いするタイル集合（"x,y" キー）。建物など動的な障害物用。 */
 export type BlockedTiles = ReadonlySet<string>;
 
-/** 円（中心 cx, cy・半径 r）が固体タイルに触れているか。 */
 export function circleHitsSolid(
   map: TopDownMap,
   cx: number,
@@ -62,11 +50,6 @@ export function circleHitsSolid(
   return false;
 }
 
-/**
- * 速度 vel（タイル/秒）で dt 秒進める。軸分離で壁に沿って滑る。
- * ワールドに境界は無い（座標は実質無制限）。有限空間（ロビー）は
- * タイル源の範囲外が岩になることで端が壁になる。
- */
 export function stepMove(
   map: TopDownMap,
   pos: { x: number; y: number },
@@ -91,7 +74,6 @@ export function stepMove(
   return { x, y, hitX, hitY };
 }
 
-/** その地点に立てるか（固体にめり込んでいないか）。 */
 export function canStandAt(
   map: TopDownMap,
   x: number,
@@ -102,7 +84,6 @@ export function canStandAt(
   return !circleHitsSolid(map, x, y, PLAYER_RADIUS, blocked, opts);
 }
 
-/** 固体に埋まっていたら、近くの立てる場所を探す（ロード時の救済）。 */
 export function findFreeNear(
   map: TopDownMap,
   x: number,
@@ -124,7 +105,6 @@ export function findFreeNear(
   return { x, y };
 }
 
-/** その地点の足元が水か（中心タイルで判定）。 */
 export function isWaterAt(map: TopDownMap, x: number, y: number): boolean {
   return mapTileAt(map, Math.floor(x), Math.floor(y)) === T_WATER;
 }

@@ -1,5 +1,3 @@
-// AGO WORLD BOX の運用基盤（バッチ9b）: タイル差分ジャーナル・凍結・
-// 巻き戻し・通報の型と純粋ロジック。保存は ops-online.ts。
 import type { TileOverride } from "../world/tiles";
 
 export interface TileJournalEntry {
@@ -56,11 +54,6 @@ export function appendJournal(
   return [...entries, entry].slice(-JOURNAL_DAILY_CAP);
 }
 
-/**
- * 巻き戻し先の状態: 時刻 toAt の時点でそのタイルがどうだったか。
- * toAt 以前の最後の変更の next がその時点の状態。変更が無ければ
- * 最初の変更の prev（= 変更前の素の状態）。履歴に無ければ undefined。
- */
 export function stateAtTime(
   entries: readonly TileJournalEntry[],
   key: string,

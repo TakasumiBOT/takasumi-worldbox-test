@@ -1,6 +1,3 @@
-// WORLD BOX バッチN2: Discord 連携の円滑化（ID 手入力の廃止 + 双方向化）。
-// 連携設定の mode 形式と旧形式からの移行読込、Bot 公開ディレクトリの
-// parse、宛先解決、掲示メッセージの source 保持、ルート/パネル配線を検証する。
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
@@ -30,7 +27,6 @@ test("parseUnionChatSettings: mode 形式と旧形式の移行読込", () => {
     channelId: null,
     updatedAt: 0,
   });
-  // 旧形式（チャンネル ID 手入力）は channel として移行読込する
   assert.deepEqual(parseUnionChatSettings({ chatChannelId: CID }), {
     mode: "channel",
     channelId: CID,
@@ -41,7 +37,6 @@ test("parseUnionChatSettings: mode 形式と旧形式の移行読込", () => {
     channelId: null,
     updatedAt: 0,
   });
-  // 壊れた値は連携なしに倒す
   assert.equal(parseUnionChatSettings({ mode: "channel", channelId: "abc" }).mode, "none");
   assert.equal(parseUnionChatSettings({ mode: "weird" }).mode, "none");
   assert.equal(parseUnionChatSettings(null).mode, "none");
@@ -122,7 +117,6 @@ test("配線: union-settings はディレクトリ必須・ID 手入力を受け
     new URL("../app/games/worldbox/WorldBoxGuildBoardPanel.tsx", import.meta.url),
     "utf8",
   );
-  // ID 入力欄は撤去され、名前で選ぶピッカーになっている
   assert.ok(!panel.includes('placeholder="チャンネルID"'));
   assert.ok(panel.includes("グローバルチャット"));
   assert.ok(panel.includes("専用チャンネル"));

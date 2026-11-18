@@ -13,12 +13,6 @@ import { loadNationSettings } from "@/lib/worldbox/social/nation-settings-online
 
 export const runtime = "nodejs";
 
-// ユニオンの Discord 連携設定（掲示板↔Discord 連動）。
-// GET: 自分のユニオンの設定 + Bot が公開したチャンネルディレクトリ（所属者のみ）
-// POST { mode, channelId }: 設定の保存。王/大臣のみ。
-// チャンネルは ID 手入力ではなく、Bot が bot_kv `worldbox_discord_directory`
-// に公開したチャンネル名一覧から選ぶ（mode: "global" | "channel" | "none"）。
-
 const NO_STORE = { "Cache-Control": "no-store, max-age=0" };
 
 function err(error: string, status: number) {
@@ -101,7 +95,6 @@ export async function POST(request: Request) {
     if (m === "global") {
       if (!directory.globalChatChannelId) return err("global_not_available", 400);
     } else {
-      // 専用チャンネルはディレクトリに載っているものだけを受け付ける
       if (
         typeof channelIdRaw !== "string" ||
         !directory.channels.some((c) => c.id === channelIdRaw)

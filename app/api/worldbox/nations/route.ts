@@ -40,25 +40,8 @@ import {
 
 export const runtime = "nodejs";
 
-// AGO WORLD BOX の国家レイヤー（国 = Discord サーバー、所属区分のみ）。
-// GET: { nations, me, playerNations, loggedIn, myGuilds, guildsScopeRequired }
-//   （誰でも読める。ゲストは国一覧のみ。ログイン中は自分の参加サーバー一覧に
-//   国の有無と役職を付け、所属中の役職は Discord 権限から読み直して直す）
-// POST { action: "found", guildId } : 建国（サーバーオーナーのみ。国名はサーバー名）
-// POST { action: "join", guildId } : 参加（そのサーバーのメンバーのみ。役職は権限由来）
-// POST { action: "leave" } : 離脱。王は国民がいる間は離脱できず、一人なら解散。
-// POST { action: "travel" } : 所属国のユニオンマーク（首都）へ移動する。
-//   所属の検証はサーバー側で行い、移動はセーブとプレゼンスに反映する。
-//   料金・クールダウンは当面なし（定数は nations.ts の FAST_TRAVEL_*）。
-//   役職まわりの操作は全部ギルドボードの前でのみ（依頼と同じ場所検証:
-//   プレゼンス＋stationNear。共有ノート「ギルドボード」「行動の場所制約」）。
-//   トラベルは移動そのものなので場所検証の対象外（≡ メニューから使う）。
-// 保存先は bot_kv（名前空間 worldbox_nations の "nations" / "members"）。
-// Bot API 未設定なら 503（クライアントは国家なしで遊び続ける）。
-
 const NO_STORE = { "Cache-Control": "no-store, max-age=0" };
 
-/** 所有・所属の検証失敗は 403、入力起因は 400、それ以外（状態競合）は 409。 */
 const FORBIDDEN_ERRORS = new Set(["not_owner", "not_member"]);
 const BAD_REQUEST_ERRORS = new Set(["invalid_action", "invalid_request"]);
 
@@ -76,7 +59,6 @@ function sameOrigin(request: Request) {
   return !origin || origin === publicOrigin(request);
 }
 
-/** ギルド検証が失敗したときの応答。トークン無しは 409 の専用コード、一時失敗は 503。 */
 function guildsErrorResponse(result: Extract<UserGuildsResult, { ok: false }>) {
   if (result.error === "guilds_scope_required") return errorResponse("guilds_scope_required", 409);
   return errorResponse("guilds_unavailable", 503);
@@ -96,7 +78,6 @@ export async function GET(request: Request) {
     const result = await getUserGuilds(session);
     if (result.ok) {
       myGuilds = annotateMyGuilds(result.guilds, state);
-      // 役職は Discord 権限が正: 所属中なら読み直し、変わっていれば保存も直す
       const mine = state.members[selfKey];
       const myGuild = mine ? result.guilds.find((g) => g.id === mine.nationId) : undefined;
       if (mine && myGuild) {
@@ -115,8 +96,6 @@ export async function GET(request: Request) {
     }
   }
   const response = buildNationsResponse(state, selfKey, { myGuilds, guildsScopeRequired });
-  // 国家設定（公開/非公開・任命大臣）を反映する: 非公開の国は国一覧に
-  // 載せない（自国民には自国だけ見える）。自分の役職は任命大臣込みで解決する。
   const settingsMap = await loadNationSettingsMap();
   const myMembership = selfKey ? state.members[selfKey] : undefined;
   response.nations = response.nations.filter(
@@ -159,19 +138,14 @@ export async function POST(request: Request) {
   const action = (body as { action?: unknown } | null)?.action;
   const ownerKey = sessionOwnerKey(session);
   const fields = body as { guildId?: unknown };
-  // 場所制約: 役職の操作（建国・参加・離脱）はギルドボードの前でのみ。
-  // ファストトラベルは移動そのものなので対象外。
   if (action !== "travel" && (await loadMyLobbyStation(ownerKey)) !== "guild") {
     return errorResponse("not_at_guild_board");
   }
   const state = await loadNationsState();
 
   if (action === "travel") {
-    // 所属検証はサーバー側の状態が正。未所属は 409 not_in_nation。
     const dest = fastTravelDestination(state, ownerKey, worldTileSource());
     if (!dest.ok) return errorResponse(dest.error);
-    // 移動をセーブ（ワールドのマーク位置）とプレゼンスに反映する。
-    // どちらもベストエフォートで、応答の座標がクライアントの移動先になる。
     const prev = parseSave(await loadWorldBoxSave(ownerKey));
     await storeWorldBoxSave(
       ownerKey,
@@ -210,13 +184,10 @@ export async function POST(request: Request) {
     if (!guilds.ok) return guildsErrorResponse(guilds);
     const guild = guilds.guilds.find((g) => g.id === fields.guildId);
     if (action === "found") {
-      // 建国はサーバーのオーナーだけ。一覧に無いサーバーも所有を証明できない
       if (!guild || !guild.owner) return errorResponse("not_owner");
-      // 国名はクライアントから受け取らない（サーバー名をそのまま使う）
       result = applyFound(state, ownerKey, guild, worldTileSource(), Date.now());
     } else {
       if (!guild) return errorResponse("not_member");
-      // 非公開の国には自力参加できない（招待リンク・一覧経由も同じ）
       if (isPrivateNation(await loadNationSettings(fields.guildId))) {
         return errorResponse("nation_private");
       }

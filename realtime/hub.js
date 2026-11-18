@@ -1,20 +1,8 @@
 "use strict";
-// WORLD BOX リアルタイム中継の「インスタンス内ハブ」（Vercel 用）。
-//
-// 本家 Pi では realtime-server.js が Next の前段に常駐して同じ配線を担う。
-// ここはその配線を、Vercel Functions の1インスタンスの中で動く形に写したもの:
-// - アップグレードとトークン検証はルート（app/api/worldbox/realtime/route.ts）が
-//   行い、認証済みの接続を handleConnection(ws, auth) へ渡す。
-// - 部屋・接続・集約・watch の状態はこのハブ（= 1インスタンス）の中だけにある。
-//   インスタンスを跨いだ配信はしない（状態の正は bot_kv で、跨げない相手は
-//   クライアントの REST ポーリングが拾う。本家の Phase 0〜2 と同じ劣化形）。
-// - タイマーは最初の接続で起動し、最後の切断で止める（常駐前提にしない）。
-// 中継の純粋ロジックは relay-core.js / watch-core.js を本家とそのまま共有する。
 const core = require("./relay-core.js");
 const botkv = require("./botkv.js");
 const watchCore = require("./watch-core.js");
 
-/** プレゼンス値（JSON）→ { x, y, space, ts }。壊れていれば null。 */
 function parsePresenceBaseline(raw) {
   if (typeof raw !== "string" || !raw) return null;
   try {
@@ -28,7 +16,6 @@ function parsePresenceBaseline(raw) {
   }
 }
 
-/** セーブ値（JSON）→ { x, y, space }（ts 無し）。壊れていれば null。 */
 function parseSaveBaseline(raw) {
   if (typeof raw !== "string" || !raw) return null;
   try {
@@ -46,11 +33,9 @@ function createHub(options = {}) {
     options.secret !== undefined
       ? options.secret
       : process.env.DISCORD_SESSION_SECRET || process.env.DISCORD_CLIENT_SECRET || "";
-  /** bot-api の設定（未設定なら null = relay の kv 機能は無効）。 */
   const kvCfg = options.kvCfg !== undefined ? options.kvCfg : botkv.botKvConfig();
 
   const room = core.createRoom();
-  /** ws -> { pid, name, ok, space, joined, lastMsgAt, alive, lastEntry, baseline, pendingHbs } */
   const clients = new Map();
   const aggregator = core.createAggregator();
   const aggState = { on: Boolean(kvCfg), failStreak: 0 };
@@ -80,7 +65,6 @@ function createHub(options = {}) {
     }
   }
 
-  /** bot_kv から外部基準を読む。読めなければ null（= 照合なしで受け入れる）。 */
   async function loadExternalBaseline(ownerKey) {
     if (!kvCfg || !ownerKey) return null;
     try {
@@ -135,8 +119,6 @@ function createHub(options = {}) {
       });
   };
 
-  /** ハートビート1件の処理（中継・集約書き込み・配信）。却下された申告は
-   * 保存せず、送り主へ保管位置（jump）を返してそこへ戻させる。 */
   const handleHeartbeat = (ws, info, msg, now) => {
     const entry = core.acceptHeartbeat(
       room,
@@ -180,7 +162,6 @@ function createHub(options = {}) {
     broadcast(entry.space, ws, { t: "up", now, p: entry });
   };
 
-  // ---- watch の宛先解決（本家 realtime-server.js と同一） ----
   const routeWatchChanges = (kind, changes, prev) => {
     if (changes.length === 0) return;
     if (kind === "tiles" || kind === "objects" || kind === "fishing") {
@@ -260,7 +241,6 @@ function createHub(options = {}) {
   function startTimers() {
     if (timers) return;
     const t = { watch: [] };
-    // 死活監視（30秒ごとに ping、応答が無ければ切る）
     t.liveness = setInterval(() => {
       for (const [ws, info] of clients) {
         if (!info.alive) {
@@ -280,14 +260,12 @@ function createHub(options = {}) {
         }
       }
     }, 30_000);
-    // 鮮度切れの掃除（切断通知が漏れた場合の保険）
     t.prune = setInterval(() => {
       const now = Date.now();
       for (const gone of core.pruneRoom(room, now)) {
         broadcast(gone.space, null, { t: "bye", id: gone.id });
       }
     }, 5_000);
-    // 時計同期と生存通知の定期 tick（Phase 0 の前提）
     t.tick = setInterval(() => {
       const text = JSON.stringify({ t: "tick", now: Date.now() });
       for (const [ws] of clients) {
@@ -299,7 +277,6 @@ function createHub(options = {}) {
         }
       }
     }, 15_000);
-    // watch: bot_kv のサーバー側一括監視と差分配信（Phase 1）
     if (kvCfg) {
       watchCore.WATCH_PLAN.forEach((plan, idx) => {
         const state = { prev: null, busy: false, failed: false };
@@ -347,8 +324,6 @@ function createHub(options = {}) {
     timers = null;
   }
 
-  /** クエリパラメータ（t / tab / tabAt）から接続認証を解決する。本家の
-   * アップグレード時検証と同一。認証できなければ null。 */
   function verifyAuth(searchParams) {
     const auth = core.verifyToken(searchParams.get("t") || "", secret, Date.now());
     if (!auth) return null;
@@ -360,7 +335,6 @@ function createHub(options = {}) {
     return auth;
   }
 
-  /** 認証済みの接続をハブへ迎え入れる（本家の connection ハンドラと同一配線）。 */
   function handleConnection(ws, auth) {
     const info = {
       pid: auth.pid,
@@ -377,7 +351,6 @@ function createHub(options = {}) {
     };
     clients.set(ws, info);
     if (clients.size === 1) startTimers();
-    // タブ世代（同一アカウントの分身防止）
     const admit = core.admitTab(room, auth.pid, auth.tab, auth.tabAt);
     if (admit.verdict === "reject") {
       clients.delete(ws);
@@ -400,7 +373,6 @@ function createHub(options = {}) {
         }
       }
     }
-    // 移動連続性の外部基準（B4）: 接続時に bot_kv から1回だけ読む
     if (kvCfg && info.ok) {
       loadExternalBaseline(info.ok).then((b) => {
         if (!clients.has(ws)) return;
@@ -411,7 +383,6 @@ function createHub(options = {}) {
     } else {
       info.baseline = null;
     }
-    // プレゼンス集約の合図（Phase 2）
     if (aggState.on && info.ok) {
       try {
         ws.send(JSON.stringify({ t: "hello", now: Date.now(), agg: 1 }));
@@ -424,7 +395,7 @@ function createHub(options = {}) {
     });
     ws.on("message", (data) => {
       const now = Date.now();
-      if (now - info.lastMsgAt < 40) return; // 1接続あたり 25 msg/秒まで
+      if (now - info.lastMsgAt < 40) return;
       info.lastMsgAt = now;
       let msg;
       try {
@@ -433,7 +404,6 @@ function createHub(options = {}) {
         return;
       }
       if (msg && msg.t === "note") {
-        // ピアノの音: ロビーにいる奏者の音だけを、同じロビーの全員へ中継する
         const notes = core.sanitizePianoNotes(msg.notes);
         if (notes && info.space === "lobby") {
           broadcast("lobby", ws, { t: "note", notes, id: info.pid });
@@ -473,7 +443,6 @@ function createHub(options = {}) {
 }
 
 let sharedHub = null;
-/** ルート用の共有ハブ（インスタンス内で1つ）。 */
 function getHub() {
   if (!sharedHub) sharedHub = createHub();
   return sharedHub;

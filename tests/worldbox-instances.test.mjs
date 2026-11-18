@@ -1,4 +1,3 @@
-// WORLD BOX バッチ2: インスタンス基盤 + 洞窟の純粋ロジックテスト。
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -170,7 +169,7 @@ function reachable(cave) {
       const key = `${nx},${ny}`;
       if (seen.has(key) || cave.data.blocked.has(key)) continue;
       if (nx < 0 || ny < 0 || nx >= T.CAVE_W || ny >= T.CAVE_H) continue;
-      if (cave.data.tiles[ny * T.CAVE_W + nx] === 1) continue; // L_WALL
+      if (cave.data.tiles[ny * T.CAVE_W + nx] === 1) continue;
       seen.add(key);
       queue.push({ x: nx, y: ny });
     }
@@ -214,7 +213,6 @@ test("cave has no mobs, vein walls", () => {
   assert.ok(layers.every((c) => c.veins.every((v) => c.data.tiles[v.y * T.CAVE_W + v.x] === 1)));
 });
 
-// ---- 遺跡（バッチ3） ----
 const R = await loadBundle(
   [
     "worldbox/core/rng.ts",
@@ -265,7 +263,6 @@ test("ruins connectivity: portal reaches all rooms (door excluded)", () => {
       queue.push({ x: nx, y: ny });
     }
   }
-  // 扉以外の全小宝箱・部屋中心に届く
   for (const chest of ruins.chests) {
     if (chest.main) continue;
     assert.ok(
@@ -287,7 +284,6 @@ test("ruins traps: teleport only, away from portal", () => {
 });
 
 test("week key is Monday based", () => {
-  // 2026-11-16 は月曜、2026-11-15 は日曜（前週の月曜=11-09）
   assert.equal(R.weekKeyOf(Date.UTC(2026, 10, 16)), "2026-11-16");
   assert.equal(R.weekKeyOf(Date.UTC(2026, 10, 15)), "2026-11-09");
   assert.equal(R.weekKeyOf(Date.UTC(2026, 10, 21)), "2026-11-16");

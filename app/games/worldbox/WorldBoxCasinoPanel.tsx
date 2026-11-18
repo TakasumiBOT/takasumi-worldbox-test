@@ -1,13 +1,4 @@
 "use client";
-// AGO WORLD BOX のカジノパネル（ロビー右翼のカジノルーム専用）。
-// スロットマシンの前: スロット / セブンスロット。
-// カジノテーブルの前: ルーレット / ダイス / ブラックジャック / ダブルアップ。
-// 位置の検証はサーバー側（プレゼンス）が行い、このパネルは今いる機器を
-// 表示して遊ぶだけ。コインの正は AGO コイン本体: プレイは経済ブリッジの
-// オプとして Bot 本体が適用し、残高はその結果を読み直して表示する。
-// 演出はドーパミン濃いめ: リールは1つずつ止まり、先2つが揃えばリーチで
-// 3つ目が長く回る。配当は階級（casino-fx）で紙吹雪・カウントアップ・
-// フラッシュ・シェイク・効果音の強さが変わる。
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   CASINO_BET_TIERS,
@@ -273,7 +264,6 @@ const JUICE_CSS = `
 }
 `;
 
-/** 配当のカウントアップ表示。 */
 function CountUp({
   value,
   durationMs,
@@ -302,7 +292,6 @@ function CountUp({
   return <>{shown.toLocaleString()}</>;
 }
 
-/** 紙吹雪キャンバス。celebration が差し替わるたびに噴き出す。 */
 function ConfettiCanvas({ celebration }: { celebration: Celebration | null }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   useEffect(() => {
@@ -393,7 +382,6 @@ export default function WorldBoxCasinoPanel({ onClose }: { onClose: () => void }
     events: string[];
   } | null>(null);
   const [lastGo, setLastGo] = useState<{ win: boolean; currentValue: number } | null>(null);
-  // 演出用
   const [celebration, setCelebration] = useState<Celebration | null>(null);
   const [slotPending, setSlotPending] = useState<PlayResult | null>(null);
   const [stopped, setStopped] = useState(3);
@@ -402,8 +390,6 @@ export default function WorldBoxCasinoPanel({ onClose }: { onClose: () => void }
   const [diceFace, setDiceFace] = useState(1);
   const [rolling7, setRolling7] = useState<number[] | null>(null);
   const aliveRef = useRef(true);
-  // カジノ状態のポーリングガード（S6）: 3s 間隔で重ねて走らせず、古い
-  // レスポンスでプレイ後の残高表示を巻き戻さない。
   const refreshGuardRef = useRef<PollGuard>(createPollGuard());
   const tournamentGuardRef = useRef<PollGuard>(createPollGuard());
   const timersRef = useRef<number[]>([]);
@@ -487,7 +473,6 @@ export default function WorldBoxCasinoPanel({ onClose }: { onClose: () => void }
       void refresh();
       void refreshTournament();
     }, 3000);
-    // 経済オプ確定の push でも即時更新する（3秒ポーリングは fallback）
     const off = onEconomyApplied(() => {
       void refresh();
       void refreshTournament();
@@ -501,7 +486,6 @@ export default function WorldBoxCasinoPanel({ onClose }: { onClose: () => void }
     };
   }, [refresh, refreshTournament]);
 
-  // 回転中の目まぐるしい切り替え（スロット/ルーレット/ダイス共通）
   useEffect(() => {
     if (!spinning) return;
     const timer = window.setInterval(() => {
@@ -516,7 +500,6 @@ export default function WorldBoxCasinoPanel({ onClose }: { onClose: () => void }
     return () => window.clearInterval(timer);
   }, [spinning, diceRange]);
 
-  // セブンの数字ロール
   useEffect(() => {
     if (!rolling7) return;
     const timer = window.setInterval(() => {

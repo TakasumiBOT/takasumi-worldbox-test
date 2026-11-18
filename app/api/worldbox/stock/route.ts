@@ -22,16 +22,6 @@ import { loadMyLobbyStation } from "@/lib/worldbox/world/station-online";
 
 export const runtime = "nodejs";
 
-// WORLD BOX（Takasumi 版）の株式（ロビー中央広場の取引所）。
-// 架空企業10社の株を売買する投資システムで、プレイヤー会社とは
-// 無関係（会社パネルとは別パネル・別ルート）。株価は stock.ts の
-// 決定的系列を時刻で引く（保存しない）。売買は取引所ステーション
-// （station "stock"）の前にいるときだけ。お金は経済ブリッジ経由
-// のみ: 購入 = spend（対価は国庫へ）、売却 = earn（売却税10%控除後）。
-// 配当は日次 Cron（internal/stock-cron）が earn で払い出す。
-// GET: { guest, serverNow, market, holdings, holdingsValue, dividends, balance }
-// POST: { action: "buy" | "sell", stockId, count }
-
 const NO_STORE = { "Cache-Control": "no-store, max-age=0" };
 
 function err(error: string, status = 400) {
@@ -43,7 +33,6 @@ function sameOrigin(request: Request) {
   return !origin || origin === publicOrigin(request);
 }
 
-/** 銘柄一覧の表示形（現在価格・前時間比・直近の推移）。 */
 function marketView(now: number) {
   return STOCKS.map((def) => {
     const price = stockPrice(def, now);
@@ -62,7 +51,6 @@ function marketView(now: number) {
   });
 }
 
-/** 自分の保有の表示形（評価額つき）。 */
 function holdingsView(account: StockAccount, now: number) {
   return STOCKS.filter((def) => (account.holdings[def.id] ?? 0) > 0).map((def) => {
     const shares = account.holdings[def.id];
@@ -128,7 +116,6 @@ export async function POST(request: Request) {
   const discordId = session.id;
 
   return withUserLock(ownerKey, async () => {
-    // 売買は取引所の前でのみ（競馬の馬券カウンターと同じ場所検証）。
     const station = await loadMyLobbyStation(ownerKey);
     if (station !== "stock") return err("not_at_exchange", 409);
     const now = Date.now();

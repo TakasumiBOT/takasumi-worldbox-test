@@ -1,16 +1,3 @@
-// カジノ大会の永続化（bot_kv `worldbox_casino_tournament`）。
-// 大会は1件だけ（キー "current"）。スコアは gamble オプが done に
-// 確定してから加える: カジノルートが自分の確定済みオプを
-// reconcileCasinoTournamentScores で照合し、対局終了時には
-// advanceCasinoTournamentInner が全参加者ぶんを最終精算する
-// （登録時点で加えると、後から failed になったオプの純益まで
-// 順位に入ってしまうため）。加えたオプは "scored-<大会ID>" に
-// 記録して二重に数えない。
-// 募集→対局→賞金の進行は lazy に進める（決まった時刻に走る処理は
-// 持たない）。内部関数はロックを取らない（呼び出し側が
-// withUserLock("casino-tournament") を1回だけ取る。再入すると
-// デッドロックするため）。reconcileCasinoTournamentScores だけが
-// カジノルートから呼ばれるロック付きの入口。
 import { kvGet, kvSet } from "../../bot-api";
 import { buildEconomyOp, type EconomyOp } from "../economy/economy-bridge";
 import {
@@ -52,10 +39,6 @@ export async function saveCasinoTournament(t: CasinoTournament): Promise<void> {
   await kvSet(WORLDBOX_CASINO_TOURNAMENT_NAMESPACE, CURRENT_KEY, JSON.stringify(t));
 }
 
-// ---------- 参加費オプの照合（闘技場大会と同じ規則） ----------
-// failed の参加者は表・賞金・返金から外す。pending / 読み取り不能
-// （unknown）は判断を次回へ回す。
-
 type FeeStatus = "done" | "failed" | "pending" | "unknown";
 
 async function casinoFeeStatusOf(t: CasinoTournament, discordId: string): Promise<FeeStatus> {
@@ -72,7 +55,6 @@ async function casinoFeeStatusesOf(t: CasinoTournament): Promise<Map<string, Fee
   return statuses;
 }
 
-/** 募集締め切り時に参加費が failed の参加者を外す（スコアも消す）。 */
 async function dropFailedCasinoFeeEntrantsInner(t: CasinoTournament): Promise<CasinoTournament> {
   const statuses = await casinoFeeStatusesOf(t);
   const kept = t.entrants.filter((id) => statuses.get(id) !== "failed");
@@ -83,8 +65,6 @@ async function dropFailedCasinoFeeEntrantsInner(t: CasinoTournament): Promise<Ca
   }
   return { ...t, entrants: kept, scores };
 }
-
-// ---------- スコアの照合（gamble オプの確定後にだけ加える） ----------
 
 const scoredKey = (tournamentId: string) => `scored-${tournamentId}`;
 
@@ -107,17 +87,10 @@ async function saveScoredOpIds(tournamentId: string, scored: ReadonlySet<string>
   );
 }
 
-/** スコアに数える gamble オプの作成時刻の範囲（対局時間の中）。 */
 function scoreWindow(t: CasinoTournament): { from: number; to: number } {
   return { from: t.playStartedAt ?? t.entryEndsAt, to: t.playEndsAt };
 }
 
-/**
- * 確定済み gamble オプのうち、まだ数えていないものをスコアへ加える。
- * 対局時間中の参加者のオプだけが対象（recordScore が状態と参加を
- * 検証する）。加えたオプは scored へ記録し、二重に数えない。
- * 戻り値: 加算後の大会（変化が無ければ同じ参照）。
- */
 async function applyDoneGambleOpsInner(
   t: CasinoTournament,
   ops: readonly EconomyOp[],
@@ -146,11 +119,6 @@ async function applyDoneGambleOpsInner(
   return out;
 }
 
-/**
- * カジノルートから呼ばれる照合: 自分のオプのうち確定した gamble を
- * スコアへ反映する。対局の進行もここで進める。
- * 失敗してもカジノの決済は変えない（ここでは例外を出さない）。
- */
 export async function reconcileCasinoTournamentScores(
   userKey: string,
   discordId: string,
@@ -171,23 +139,12 @@ export async function reconcileCasinoTournamentScores(
   }
 }
 
-/**
- * 対局終了時の最終精算: 全参加者の確定済み gamble オプを横断して
- * 数え直す（終了間際のプレイが次回リクエストを待たずに順位へ入る
- * ようにするため）。対局時間中（closeCasinoPlay の直前）に呼ぶこと。
- */
 async function sweepCasinoScoresInner(t: CasinoTournament): Promise<CasinoTournament> {
   if (t.status !== "running") return t;
   const ops = await loadAllEconomyOps();
   return applyDoneGambleOpsInner(t, ops);
 }
 
-/**
- * 賞金を決定的 ID で積む（1大会・1順位1件。失敗しても大会の決着は変えない）。
- * 順位と原資は参加費が done の参加者だけで数え直す（未払いの参加者は
- * 賞金の対象外で、その分はハウスに残る）。参加費が未確定の間は
- * 支払いを次回へ回す。
- */
 export async function payCasinoPrizesInner(t: CasinoTournament): Promise<CasinoTournament> {
   if (t.status !== "done" || t.prizesPaid) return t;
   const statuses = await casinoFeeStatusesOf(t);
@@ -198,7 +155,6 @@ export async function payCasinoPrizesInner(t: CasinoTournament): Promise<CasinoT
   const paidEntrants = t.entrants.filter((id) => statuses.get(id) === "done");
   const split = casinoPrizeSplit({ ...t, entrants: paidEntrants });
   if (split.length === 0) return { ...t, prizesPaid: true };
-  // prizesPaid は全順位ぶん積めたときだけ立てる（同ファイルの返金と同じ規則）。
   let allPaid = true;
   for (const row of split) {
     const op = buildEconomyOp(
@@ -217,11 +173,6 @@ export async function payCasinoPrizesInner(t: CasinoTournament): Promise<CasinoT
   return allPaid ? { ...t, prizesPaid: true } : t;
 }
 
-/**
- * 不成立の返金を決定的 ID で積む（1大会・1人1件）。
- * 返金は参加費が done の参加者だけに行う（failed は対象外として確定、
- * pending / unknown が残る間は refundPaid を立てず次回に回す）。
- */
 export async function payCasinoRefundsInner(t: CasinoTournament): Promise<CasinoTournament> {
   if (t.status !== "done" || t.prizesPaid || t.refundPaid) return t;
   if (t.entrants.length >= 2) return t;
@@ -250,12 +201,6 @@ export async function payCasinoRefundsInner(t: CasinoTournament): Promise<Casino
   return allSettled ? { ...t, refundPaid: true } : t;
 }
 
-/**
- * lazy な進行（募集締め切り・対局終了・賞金/返金の支払い）を1段進める。
- * ロックは取らない。呼び出し側が withUserLock("casino-tournament") で囲うこと。
- * 募集締め切りでは参加費が failed の参加者を外し（残りが2人未満なら
- * その場で不成立にする）、対局終了の直前にはスコアの最終精算を行う。
- */
 export async function advanceCasinoTournamentInner(
   t: CasinoTournament,
   now: number,
@@ -270,17 +215,12 @@ export async function advanceCasinoTournamentInner(
   }
   out = closeCasinoPlay(out, now);
   if (out.status === "done" && out.closedAt !== null) {
-    // 不成立（2人未満）のときだけ返金し、成立した大会は賞金を払う。
     out =
       out.entrants.length < 2 ? await payCasinoRefundsInner(out) : await payCasinoPrizesInner(out);
   }
   return out;
 }
 
-/**
- * 現在の大会を読み、lazy な進行を進めて保存する。GET/POST の入口で呼ぶ。
- * ロックは取らない。呼び出し側が withUserLock("casino-tournament") で囲うこと。
- */
 export async function loadCurrentCasinoTournament(now: number): Promise<CasinoTournament | null> {
   const t = await loadCasinoTournament();
   if (!t) return null;

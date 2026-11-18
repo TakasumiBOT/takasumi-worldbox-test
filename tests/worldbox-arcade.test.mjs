@@ -1,9 +1,3 @@
-// AGO WORLD BOX ロビーのアーケード基盤（L1）の検証:
-// - ARCADE_GAMES は ONLINE_GAMES 26タイトルとちょうど一致する（欠け・余分なし）
-// - 区分の規則（faceoff=2人固定の盤面対戦、party=多人数、realtime=同時進行・時間勝負）
-// - 区分内の order は 1 からの連番、スプライト名は arcade_<id> で一意
-// - 第1弾（L3）は対面3＋パーティ3
-// - 人数・タイトルは registry 側（各ゲームモジュール）が正で、arcade.ts は重複して持たない
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -45,7 +39,6 @@ async function loadOnline(name, exportsList) {
 
 const arcade = await loadLib("worldbox/activity/arcade.ts");
 
-// registry.ts が import するゲームモジュール名が ONLINE_GAMES の正。
 const registrySrc = fs.readFileSync(path.join(libDir, "online/registry.ts"), "utf8");
 const registryIds = [...registrySrc.matchAll(/from "\.\/games\/([a-z0-9]+)"/g)].map((m) => m[1]);
 assert.equal(registryIds.length, 26, `registry のゲーム数が 26 でない: ${registryIds.length}`);
@@ -61,7 +54,6 @@ test("arcade: 26タイトルと registry がちょうど一致する（欠け・
   const arcadeIds = arcade.ARCADE_GAMES.map((e) => e.id);
   assert.equal(new Set(arcadeIds).size, 26, "arcade 側に重複 id がある");
   assert.deepEqual([...arcadeIds].sort(), [...modules.keys()].sort());
-  // 各モジュールの id・タイトル・人数が読める（registry 側が正）
   for (const [id, gm] of modules) {
     assert.equal(typeof gm.title, "string");
     assert.ok(gm.title.length > 0, `${id} のタイトルが空`);
@@ -119,7 +111,6 @@ test("arcade: スプライト名は arcade_<id> で一意（素材は L3 で作�
     assert.equal(e.sprite, `arcade_${e.id}`);
     assert.ok(/^[a-z0-9_]+$/.test(e.sprite), `不正なスプライト名: ${e.sprite}`);
   }
-  // arcade.ts は人数・タイトルを重複して持たない（registry 側が正）
   const src = fs.readFileSync(path.join(libDir, "worldbox/activity/arcade.ts"), "utf8");
   assert.ok(
     !src.includes("minPlayers") && !src.includes("maxPlayers"),

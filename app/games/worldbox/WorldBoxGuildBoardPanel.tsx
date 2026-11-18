@@ -1,15 +1,4 @@
 "use client";
-// AGO WORLD BOX のギルドボードパネル（ロビー中央広場のギルドボード専用）。
-// タブは5つ: 「依頼」（ユニオン内のアイテム依頼: 投稿・納品・取消）と
-// 「役職」（国 = Discord サーバーへの建国・参加・離脱と自分の役職）と
-// 「冒険役職」（剣士/守護/斥候/採掘者/薬師/テレポーターの選択と熟練ランク表示。
-// 初めての選択は無料、以降の変更は 100,000 コイン）と
-// 「掲示」（ユニオンチャットと Discord 連携設定）と
-// 「戦争」（レイド宣言・マーク攻防・繁栄ランキング・戦績）と
-// 「設定」（国家設定: 税率・公開/非公開・大臣の任命。王のみ変更可）。
-// 役職まわりの home はここ: ≡ メニューには置かない。
-// コインの正は AGO コイン本体: 依頼の預かり・報酬・返金は API 側が
-// 経済ブリッジのオプとして積む（このパネルは結果を表示するだけ）。
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ITEMS, itemById } from "@/lib/worldbox/economy/items";
 import {
@@ -61,7 +50,6 @@ const SETTINGS_ERROR_LABEL: Record<string, string> = {
   unauthorized: "ログインが必要です",
 };
 
-/** 国家設定タブで選べる税率（%）。サーバー側は 0〜10% の範囲で受ける。 */
 const TAX_RATE_PERCENT_STEPS = [0, 1, 2, 3, 5, 7, 10];
 
 type NationSettingsMember = {
@@ -161,13 +149,11 @@ export default function WorldBoxGuildBoardPanel({
   onProfileChange: (profile: PlayerProfile) => void;
   getPlayerPos: () => { x: number; y: number };
   onClose: () => void;
-  /** 招待リンク（?union=）で指定されたサーバー。該当行を先頭に強調する。 */
   inviteGuildId?: string | null;
 }) {
   const [tab, setTab] = useState<"requests" | "roles" | "adventure" | "board" | "settings">(
     "requests",
   );
-  // 国家設定（税率・公開/非公開・大臣）
   const [nsData, setNsData] = useState<NationSettingsData | null>(null);
   const [nsLoaded, setNsLoaded] = useState(false);
   const refreshSettings = useCallback(async () => {
@@ -207,7 +193,6 @@ export default function WorldBoxGuildBoardPanel({
       setBusy(false);
     }
   };
-  // ユニオン掲示（チャット）と Discord 連携設定
   const [unionMsgs, setUnionMsgs] = useState<
     { name: string; text: string; at: number; source?: string }[]
   >([]);
@@ -252,7 +237,6 @@ export default function WorldBoxGuildBoardPanel({
   useEffect(() => {
     if (tab === "board") void refreshUnion();
   }, [tab, refreshUnion]);
-  // 掲示タブからの投稿（ユニオンチャットと同じ API 経路）
   const [boardText, setBoardText] = useState("");
   const sendUnionPost = async () => {
     const text = boardText.trim();
@@ -340,9 +324,6 @@ export default function WorldBoxGuildBoardPanel({
     void refresh();
   }, [refresh]);
 
-  // 他人の変更を relay の push で受けて取り直す（依頼は開いている間、
-  // 掲示は掲示タブの表示中のみ）。push が無い環境では従来どおり自分の
-  // 操作とタブ切替で更新される。
   const tabRef = useRef(tab);
   tabRef.current = tab;
   useEffect(

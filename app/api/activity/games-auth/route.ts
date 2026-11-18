@@ -12,14 +12,6 @@ import { buildDiscordIdentity } from "@/lib/discord-activity";
 
 export const runtime = "nodejs";
 
-// ゲーム用 Activity 認証。ギルド/チャンネルに紐づくトークンは発行せず、
-// DM やグループ DM の起動でも使えるよう、コード交換と本人確認
-// （identify）だけを行う。
-// 返す identity はオンライン対戦の表示名/アバターの既定値に使う。
-// あわせて通常の Web ログインと同じセッション Cookie を張る:
-// WORLD BOX の入場ゲートなどセッション必須の画面が Activity 内でも
-// 通るようにするため（Activity 内では通常の OAuth 画面遷移が使えず、
-// ゲートのログインリンクを押すと白画面で詰まる）。
 const NO_STORE = { "Cache-Control": "no-store, max-age=0" };
 const PKCE_VERIFIER = /^[A-Za-z0-9._~-]{43,128}$/;
 
@@ -67,7 +59,6 @@ export async function POST(request: Request) {
         { status: 401, headers: NO_STORE },
       );
     }
-    // 通常ログイン（OAuth コールバック）と同じ形でセッションを張る。
     const sessionUser = {
       id: user.id,
       username: user.global_name || user.username || "Discord",

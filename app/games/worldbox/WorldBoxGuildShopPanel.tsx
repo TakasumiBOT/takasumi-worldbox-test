@@ -1,8 +1,5 @@
 "use client";
 
-// AGO WORLD BOX のギルドショップパネル。
-// ロビー2階の屋台区画（6つ）をユニオンが借り、所属員が出品し誰でも買える。
-// 状態の正はサーバー（/api/worldbox/guild-shop）。購入は区画の近くでのみ。
 import { useCallback, useEffect, useState } from "react";
 import type { PlayerProfile } from "@/lib/worldbox/player/profile";
 import { onGuildShopChanged } from "@/lib/worldbox/economy/guild-shop-push";
@@ -91,7 +88,6 @@ export default function WorldBoxGuildShopPanel({
     void refresh();
   }, [refresh]);
 
-  // 他人の借り換え・出品・購入が relay の poke で届いたら取り直す
   useEffect(
     () =>
       onGuildShopChanged(() => {
@@ -124,7 +120,6 @@ export default function WorldBoxGuildShopPanel({
         return;
       }
       setShop(data);
-      // 出品/取り下げで自分の持ち物が動いたら取り直す
       const profRes = await fetch("/api/worldbox/profile", {
         headers: { Accept: "application/json" },
       });

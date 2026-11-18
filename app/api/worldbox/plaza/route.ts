@@ -17,14 +17,6 @@ import { loadWorldBoxSave } from "@/lib/worldbox/core/save-online";
 
 export const runtime = "nodejs";
 
-// ロビー中央広場と休憩ポッドの小施設。
-// - 噴水: コインを投げる（spend 10）とスタミナが全回復し、
-//   ときどき素材が1つ手に入る。場所は噴水の前だけ。
-// - 休憩: 休憩ポッドで休むとスタミナが全回復する（無料、3分に1回）。
-// スタミナ自体はクライアント側の状態なので、サーバーは費用・場所・
-// クールダウンを検証し、回復の可否だけを返す。
-// POST: { action: "fountain" } / { action: "rest" }
-
 const NO_STORE = { "Cache-Control": "no-store, max-age=0" };
 const FOUNTAIN_COST = 10;
 const FOUNTAIN_ITEMS = ["wood", "stone", "herb", "flower", "apple"] as const;
@@ -46,10 +38,6 @@ export async function POST(request: Request) {
   const session = getRequestSession(request);
   if (!session) return errorResponse("unauthorized", 401);
   if (session.provider !== "discord") return errorResponse("unauthorized", 403);
-  // 同一ユーザーのリクエストを直列化する（カジノ #943 と同型の対策）。
-  // 並行すると噴水は残高検証（処理中 spend の差し引き）をすり抜けて
-  // 二重に課金され、休憩はクールダウンの確認→記録が競合して
-  // 連続で通ってしまう。
   return withUserLock(sessionOwnerKey(session), () => handlePost(request, session));
 }
 
@@ -119,7 +107,6 @@ async function handlePost(request: Request, session: AuthedSession) {
       });
     }
     await kvSet(REST_NAMESPACE, key, String(now));
-    // 休憩: スタミナ回復（クライアント側ゲージ）だけが効果。プロフィールは現状を返す。
     const profile = await loadProfile(ownerKey);
     return NextResponse.json({ ok: true, stamina: true, profile }, { headers: NO_STORE });
   }

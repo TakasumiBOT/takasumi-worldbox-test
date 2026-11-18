@@ -1,8 +1,3 @@
-// AGO WORLD BOX 設置物の動作C（床・ハザード・柵と門）のテスト。
-// - 床ブロック: 固体にしない、速度倍率、橋は水上に置けて通常ブロックは置けない
-// - 環境ハザード: ダメージ量と applyHazardDamage（クールダウン・スポーン保護）
-// - 柵の固体化と木の門の開閉（applyToggleGate / actionForTile / parse の往復）
-// - ルートとクライアントの配線（ソース確認）
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -127,7 +122,6 @@ test("床: 床ブロックは固体にせず、速度倍率が定義どおり", 
   assert.equal(T.floorSpeedMultiplier("honey_block"), 0.5);
   assert.equal(T.floorSpeedMultiplier("ice_block"), 1);
   assert.equal(T.floorSpeedMultiplier(null), 1);
-  // 通常ブロックは固体のまま
   assert.equal(T.placedBlockSolid("stone_block"), true);
 });
 
@@ -138,7 +132,6 @@ test("橋: 水の上に置ける。通常ブロックと床（橋以外）は水
   assert.equal(ok.override.block.itemId, "bridge_block");
   assert.equal(place(null, withItems({ dirt_block: 1 }), ME_KEY, waterAt, "dirt_block").ok, false);
   assert.equal(place(null, withItems({ path_block: 1 }), ME_KEY, waterAt, "path_block").ok, false);
-  // 橋は陸にも置ける
   assert.equal(
     place(null, withItems({ bridge_block: 1 }), ME_KEY, grassAt, "bridge_block").ok,
     true,
@@ -162,7 +155,6 @@ test("柵と門: 柵は固体、門は開閉でき、状態が parse を往復�
     assert.equal(T.placedBlockSolid(id), true, id);
   }
   assert.equal(T.isGateItem("wooden_gate"), true);
-  // 門を設置して開閉する
   const p = withItems({ wooden_gate: 1 });
   const placed = place(null, p, ME_KEY, grassAt, "wooden_gate");
   assert.equal(placed.ok, true);
@@ -181,10 +173,8 @@ test("柵と門: 柵は固体、門は開閉でき、状態が parse を往復�
     NOW,
   );
   assert.equal(reclosed.override.gateOpen, false);
-  // parse の往復で gateOpen が残る
   const parsed = T.parseTileOverride(JSON.stringify(opened.override));
   assert.equal(parsed.gateOpen, true);
-  // 門でないタイルは開閉できない
   const dirt = place(null, withItems({ dirt_block: 1 }), ME_KEY, grassAt, "dirt_block");
   assert.equal(
     T.applyToggleGate(dirt.override, dirt.profile, map, ME_KEY, grassAt.x, grassAt.y, NOW).ok,
@@ -198,7 +188,6 @@ test("actionForTile: 門は開閉、所有者＋道具なら採掘、橋は水�
   const gateView = placed.view;
   assert.equal(T.actionForTile(gateView, null)?.action, "toggle_gate");
   assert.equal(T.actionForTile(gateView, { tool: "pickaxe" })?.action, "mine_block");
-  // 他人の門は道具を持っていても開閉（採掘にはならない）
   const otherView = T.tileView(
     map,
     { [T.tileKey(grassAt.x, grassAt.y)]: placed.override },
@@ -208,7 +197,6 @@ test("actionForTile: 門は開閉、所有者＋道具なら採掘、橋は水�
     "discord:699999999999999999",
   );
   assert.equal(T.actionForTile(otherView, { tool: "pickaxe" })?.action, "toggle_gate");
-  // 橋は水タイルでも設置候補。通常ブロックは候補にならない
   const waterView = T.tileView(map, {}, waterAt.x, waterAt.y, NOW, ME_KEY);
   assert.equal(T.actionForTile(waterView, { blockId: "bridge_block" })?.action, "place_block");
   assert.equal(T.actionForTile(waterView, { blockId: "dirt_block" }), null);

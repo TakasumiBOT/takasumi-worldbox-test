@@ -33,14 +33,6 @@ import { withUserLock } from "@/lib/worldbox/core/user-lock";
 
 export const runtime = "nodejs";
 
-// AGO WORLD BOX の機械（自動収穫機）。
-// 状態は bot_kv（worldbox_machines、キー "x,y"）、設置ブロック（タイル上書き）が
-// 所有と存在の正。評価は遅延式: GET/POST のたびに経過分を解決する。
-// GET ?x&y: 評価してから状態を返す（所有者のみ中身が見える）。
-// POST { action: "set_program" | "apply_code" | "collect", x, y, ... }:
-// プログラム変更（共有コードの取り込み含む）とバッファ回収。所有者のみ。
-// 隣接検証はタイル行為と同じ（プレゼンス → セーブ、チェビシェフ ≤2）。
-
 const NO_STORE = { "Cache-Control": "no-store, max-age=0" };
 const MAX_ACTION_DISTANCE = 2;
 
@@ -84,7 +76,6 @@ async function nearMachine(request: Request, ownerKey: string, x: number, y: num
   return null;
 }
 
-/** 設置ブロックを確認し、装置状態を用意する（無ければ所有者で新規作成）。 */
 async function ensureMachine(
   ownerKey: string,
   x: number,
@@ -111,7 +102,6 @@ async function ensureMachine(
   return { state };
 }
 
-/** 遅延評価: 隣接タイルを読み、育ち切った自分の作物をバッファへ移す。 */
 async function runEvaluation(x: number, y: number, state: MachineState): Promise<MachineState> {
   const now = Date.now();
   if (!state.program.enabled || now - state.lastEvalAt < state.program.intervalSec * 1000)

@@ -1,41 +1,23 @@
-// AGO WORLD BOX のギルド依頼（純粋ロジック、DOM 非依存）。
-// 依頼はユニオン（国 = Discord サーバー）単位の掲示板（ロビーのギルドボード）に載る:
-//   投稿: メンバーが「アイテム × 個数」と「報酬コイン」を出す。報酬は投稿時に
-//         spend オプで預かる（エスクロー。材料は coin として返す）。
-//   納品: 同じユニオンの他メンバーが所持アイテムを渡すと、アイテムは投稿者へ、
-//         報酬は earn オプで納品者へ。
-//   取消: 投稿者だけ。預かり金は earn オプで投稿者へ戻る。
-// コインの正は AGO コイン本体（案B ブリッジ）: ここは残高を直接触らず、動かす
-// べき額を CoinMovement（economy.ts と同じ形）として返す。保存は呼び出し側
-// （API ルート）が bot_kv へ read-modify-write する。
 import { itemById } from "../economy/items";
 import { addItem, removeItem, type PlayerProfile } from "../player/profile";
 import type { CoinMovement } from "../economy/economy";
 
-/** 保存形式の版。 */
 export const REQUESTS_STATE_VERSION = 1;
-/** 1ユニオンあたりの未完了依頼の上限。 */
 export const MAX_OPEN_PER_GUILD = 20;
-/** 1人あたりの未完了依頼の上限。 */
 export const MAX_OPEN_PER_POSTER = 5;
 
 export type GuildRequest = {
   id: string;
-  /** 掲示先ユニオン（国 = ギルド ID）。 */
   guildId: string;
-  /** 投稿者の所有者キー。 */
   posterKey: string;
-  /** 投稿者の表示名（投稿時点のスナップショット）。 */
   posterName: string;
   itemId: string;
   count: number;
-  /** 報酬コイン総額（預かり済み）。金額の範囲はブリッジ側の検証に一致。 */
   reward: number;
   createdAt: number;
 };
 
 export type RequestsState = {
-  /** 依頼 ID → 依頼。完了・取消したものは残さない。 */
   requests: Record<string, GuildRequest>;
 };
 
@@ -60,7 +42,6 @@ export type PostResult =
   | { ok: true; state: RequestsState; request: GuildRequest; coin: CoinMovement }
   | { ok: false; error: RequestError };
 
-/** 依頼を投稿する。残高は実残高（引数）を検証する。 */
 export function postRequest(
   state: RequestsState,
   input: {
@@ -128,7 +109,6 @@ export type FulfillResult =
     }
   | { ok: false; error: RequestError };
 
-/** 納品する。納品者の所持からアイテムを減らし、投稿者へ足す（全量のみ）。 */
 export function fulfillRequest(
   state: RequestsState,
   requestId: string,
@@ -159,7 +139,6 @@ export type CancelResult =
   | { ok: true; state: RequestsState; request: GuildRequest; coin: CoinMovement }
   | { ok: false; error: RequestError };
 
-/** 依頼を取り消す（投稿者だけ）。預かり金は earn で戻る。 */
 export function cancelRequest(
   state: RequestsState,
   requestId: string,
@@ -178,7 +157,6 @@ export function cancelRequest(
   };
 }
 
-/** そのユニオンの未完了依頼（新しい順）。 */
 export function requestsForGuild(state: RequestsState, guildId: string): GuildRequest[] {
   return Object.values(state.requests)
     .filter((r) => r.guildId === guildId)
@@ -212,7 +190,6 @@ function isValidRequest(value: unknown): value is GuildRequest {
   );
 }
 
-/** 保存済みの値（オブジェクト、または JSON 文字列）を依頼の状態として解釈する。壊れた要素は捨てる。 */
 export function parseRequestsState(raw: unknown): RequestsState {
   let value = raw;
   if (typeof value === "string") {
@@ -233,7 +210,6 @@ export function parseRequestsState(raw: unknown): RequestsState {
   return { requests };
 }
 
-/** 保存用に版の包みを付けたオブジェクトへ。 */
 export function serializeRequestsState(state: RequestsState): string {
   return JSON.stringify({ v: REQUESTS_STATE_VERSION, requests: state.requests });
 }

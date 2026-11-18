@@ -3,12 +3,6 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import { sweepEconomyOps } from "@/lib/worldbox/economy/economy-bridge-online";
 import { markLazyJobRun } from "@/lib/worldbox/core/lazy-jobs";
 
-// 経済オプのスイープ用内部ルート（旧 Python ワーカーの代替）。
-// Vercel Cron が毎分 GET する（vercel.json の crons 参照）。Vercel は
-// CRON_SECRET 環境変数が設定されているとき Authorization: Bearer <CRON_SECRET>
-// を自動で付ける。CRON_SECRET 未設定なら fail closed（401）で何もしない。
-// 主経路は遅延実行（lib/worldbox/core/lazy-jobs。通常トラフィックに相乗り）
-// で、ここが実際に処理したときは遅延実行側のタイムスタンプも進める。
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 

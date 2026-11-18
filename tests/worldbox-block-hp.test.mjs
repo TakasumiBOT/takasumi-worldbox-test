@@ -1,10 +1,3 @@
-// AGO WORLD BOX 設置ブロックの HP 制（耐久度）の検証:
-// - 最大 HP = アイテムの durability（未定義は既定値）、設置で満タンになる
-// - 採掘は1回=1ヒット: HP が残ればアイテムは得られず、0以下で壊れて戻る
-// - ダメージは道具ティアで変わる（道具ゲートは維持）
-// - 他者ブロックの破壊可否も同じ HP 経路
-// - hp の無い旧データは満タン扱い、parse は壊れた hp を落とす
-// - クライアント配線（ひび割れ描画・ヒット/破壊の FX 分岐・ビューへの hpFrac）
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -107,7 +100,6 @@ const place = (profile, key, itemId) =>
 const mineBlock = (current, profile, key, ctx) =>
   T.applyMineBlock(current, profile, map, key, grassAt.x, grassAt.y, NOW, ctx);
 
-/** 壊れるまで掘り続け、ヒット数を返す。 */
 function hitsToBreak(placed, profile, key = ME_KEY, ctx = undefined) {
   let cur = placed.override;
   let hits = 0;
@@ -168,7 +160,6 @@ test("HP: 柔らかいブロックは従来どおり素手1ヒットで壊れて
 });
 
 test("HP: 道具ティアでヒット数が変わる（硬いブロックほど多く、ミスリルで速い）", () => {
-  // 石ブロック HP40・道具不要: 素手6→7ヒット、木ツルハシ（実効ティア1）10→4ヒット
   const stone = () => place(withItems({ stone_block: 1 }), ME_KEY, "stone_block");
   assert.equal(hitsToBreak(stone(), withItems({})).hits, 7);
   assert.equal(hitsToBreak(stone(), withItems({ wooden_pickaxe: 1 })).hits, 4);
@@ -177,13 +168,11 @@ test("HP: 道具ティアでヒット数が変わる（硬いブロックほど�
     4,
     "斧でも実効ティアに数える",
   );
-  // 鉄ブロック HP120・ツルハシ必須: 木10→12ヒット、石16→8、鉄25→5、ミスリル40→3
   const iron = () => place(withItems({ iron_block: 1 }), ME_KEY, "iron_block");
   assert.equal(hitsToBreak(iron(), withItems({ wooden_pickaxe: 1 })).hits, 12);
   assert.equal(hitsToBreak(iron(), withItems({ stone_pickaxe: 1 })).hits, 8);
   assert.equal(hitsToBreak(iron(), withItems({ iron_pickaxe: 1 })).hits, 5);
   assert.equal(hitsToBreak(iron(), withItems({ mithril_pickaxe: 1 })).hits, 3);
-  // ダメージ表の単体確認
   const ironDef = inv.itemById("iron_block");
   assert.equal(T.blockMineDamage(withItems({}), ironDef), 6);
   assert.equal(T.blockMineDamage(withItems({ wooden_pickaxe: 1 }), ironDef), 10);

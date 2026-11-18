@@ -26,16 +26,6 @@ import { withUserLock } from "@/lib/worldbox/core/user-lock";
 
 export const runtime = "nodejs";
 
-// AGO WORLD BOX の地表オブジェクト（採取・採掘・宝箱・温泉・探索）。
-// 配置は決定的計算（objects.ts）が正で、サーバーは保存しない。
-// 枯渇だけを bot_kv（名前空間 worldbox_objects、キー "x,y" → 採取時刻）
-// に共有状態として持ち、再出現は定義の respawnMs で判定する
-// （respawnMs=0 は一回きり: 宝箱・石柱・温泉の恵みは全員で一度だけ）。
-// GET ?x0&y0&x1&y1: 範囲内の枯渇状態を返す（表示同期用）。
-// POST { x, y }: 対象を検証（存在・道具・段位・隣接・再出現）して
-// ルート付与/回復/罠を適用し、枯渇を記録する。検証はすべてサーバー側。
-// Bot API 未設定なら 503（クライアントはオブジェクト無しで遊び続ける）。
-
 const NO_STORE = { "Cache-Control": "no-store, max-age=0" };
 const MAX_RECT_SPAN = 128;
 const MAX_ACTION_DISTANCE = 2;
@@ -108,19 +98,15 @@ export async function POST(request: Request) {
   if (!def) return err("no_object", 404);
   const ownerKey = sessionOwnerKey(session);
 
-  // 枯渇は全員共有のため、同じオブジェクトへの同時行為を直列化する
-  // （洞窟が空間ロックで二重開封を防ぐのと同じ対策）。
   return withUserLock(`surface-object:${x},${y}`, async () => {
     const profile = await loadProfile(ownerKey);
     if (!profile) return err("profile_unavailable", 503);
-    // 道具・段位（定義が正。ツルハシは洞窟と同じエラー名を使う）
     if (def.tool) {
       const tier = bestToolTier(profile, def.tool);
       if (tier <= 0) return err(def.tool === "pickaxe" ? "needs_pickaxe" : "tool_required", 409);
       if (tier < (def.minTier ?? 0))
         return err(def.tool === "pickaxe" ? "pickaxe_tier" : "tool_required", 409);
     }
-    // 隣接検証（プレゼンス → セーブ。釣りと同じチェビシェフ ≤2）
     const selfId = presenceIdFor(ownerKey);
     const now = Date.now();
     const entries = await listPresence();
@@ -151,11 +137,9 @@ export async function POST(request: Request) {
     let trapped = false;
     if (def.interaction === "open") {
       trapped = loot.trapped;
-      // 斥候の専門: 宝箱の罠を半減で回避する（洞窟・遺跡と同仕様）
       if (trapped && profile.role === "scout" && rng() < 0.5) trapped = false;
     }
     if (def.interaction === "mine" && profile.role === "miner") {
-      // 採掘者の常時効果: 追加ドロップ抽選 + 熟練（洞窟の採掘と同仕様）
       if (Math.random() < MINER_BONUS_CHANCE) {
         const bonus = rollObjectLoot(def, makeRng((now ^ 0x5eed) >>> 0));
         for (const [itemId, count] of Object.entries(bonus.gained)) {
@@ -164,7 +148,6 @@ export async function POST(request: Request) {
       }
       next = addMasteryXp(next, "miner", (def.minTier ?? 0) >= 2 ? 4 : 1).profile;
     }
-    // 道具の耐久: 道具を使う行為（鉱脈・倒木など）は最良の1本が摩耗する
     let broke: string | null = null;
     if (def.tool) {
       const worn = wearTool(next, def.tool);

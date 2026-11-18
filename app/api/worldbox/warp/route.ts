@@ -10,16 +10,6 @@ import { putPresence } from "@/lib/worldbox/player/presence-online";
 
 export const runtime = "nodejs";
 
-// AGO WORLD BOX のユニオンポーター利用。
-// GET: 自分のユニオンのポーター位置（マップ表示用）。未所属・未設置は porter: null。
-// POST { action: "teleport" }: 自ユニオンのポーターへ移動する。
-//   所属の検証はサーバー側の国家状態が正（ポーターは自分の所属ギルドの
-//   キーでしか引かないため、他ユニオンのポーターは原理的に使えない）。
-//   ワールド空間にいるときだけ使える（ロビー・テント・インスタンス内は不可）。
-//   移動はセーブとプレゼンスに反映し、応答の座標がクライアントの移動先になる。
-// 設置は roles ルートのスキル分岐（テレポーターのダブルタップ）が担う。
-// Bot API 未設定なら 503。
-
 const NO_STORE = { "Cache-Control": "no-store, max-age=0" };
 
 function sameOrigin(request: Request) {
@@ -68,8 +58,6 @@ export async function POST(request: Request) {
   if (!mine || !state.nations[mine.nationId]) return err("not_in_union", 409);
   const porter = await loadPorter(mine.nationId);
   if (!porter) return err("no_porter", 409);
-  // ワールド空間にいるときだけ（ロビー・テント・インスタンス内からは不可）。
-  // 現在空間の正はセーブ（ワープ・遷移のたびに更新される）。
   const prev = parseSave(await loadWorldBoxSave(ownerKey));
   if (prev && prev.space !== "world") return err("not_in_world", 409);
   const dest = porterDestination(worldTileSource(), porter);

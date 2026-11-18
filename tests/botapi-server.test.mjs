@@ -1,9 +1,3 @@
-// 独立環境の bot-api 互換サーバー（lib/botapi-server.ts）の検証:
-// - 認証（fail-closed）と許可リスト（テーブル / 列 / 演算子 / RPC）
-// - query の基本動作（upsert の往復、FILTER_REQUIRED、INVALID_VALUES）
-// - 経済 RPC の意味論（pay_house の内訳、add_loss の 70/30、
-//   transfer_coins の原子性と新規受取人の作成）
-// DB は SQL を解釈するインメモリ fake で受ける（実 Postgres は使わない）。
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -33,8 +27,6 @@ const api = await import(dataUrl(serverJs));
 
 process.env.BOT_API_KEY = "test-key-123";
 const AUTH = "Bearer test-key-123";
-
-// ---------------------------------------------------------------- fake DB
 
 const INT8_COLUMNS = {
   bot_kv: new Set(),
@@ -331,8 +323,6 @@ async function call(db, kind, body, auth = AUTH) {
   return { status: res.status, raw: res.body, json: JSON.parse(res.body) };
 }
 
-// ------------------------------------------------------------------ 認証
-
 test("botapi: 認証は fail-closed（未提示・不一致・鍵未設定は 401）", async () => {
   const db = makeFakeDb();
   const body = { table: "bot_kv", action: "select" };
@@ -357,8 +347,6 @@ test("botapi: 壊れた JSON と未知フィールドは 422", async () => {
   const res = await call(db, "query", { table: "bot_kv", action: "select", bogus: 1 });
   assert.equal(res.status, 422);
 });
-
-// ------------------------------------------------------------- 許可リスト
 
 test("botapi: 許可外テーブルは 404 TABLE_NOT_ALLOWED", async () => {
   const db = makeFakeDb();
@@ -421,8 +409,6 @@ test("botapi: update/delete はフィルタ必須、insert の形違いは INVAL
   assert.equal(res.json.detail.code, "INVALID_VALUES");
 });
 
-// ------------------------------------------------------------------ query
-
 test("botapi: bot_kv の upsert → select が往復する", async () => {
   const db = makeFakeDb();
   const upsert = (value) =>
@@ -450,7 +436,6 @@ test("botapi: bot_kv の upsert → select が往復する", async () => {
   assert.equal(res.status, 200);
   assert.equal(res.json.data.length, 1);
   assert.deepEqual(res.json.data[0].value, { coins: 9 });
-  // update（フィルタ付き）と delete も通る
   const upd = await call(db, "query", {
     table: "bot_kv",
     action: "update",
@@ -471,7 +456,7 @@ test("botapi: bot_kv の upsert → select が往復する", async () => {
 
 test("botapi: 大きな整数は生リテラルで往復する（番兵規約）", async () => {
   const db = makeFakeDb();
-  db.seedUser("111", "9007199254740993"); // 2^53 + 1
+  db.seedUser("111", "9007199254740993");
   const res = await call(db, "query", {
     table: "users",
     action: "select",
@@ -480,7 +465,6 @@ test("botapi: 大きな整数は生リテラルで往復する（番兵規約）
   });
   assert.equal(res.status, 200);
   assert.ok(res.raw.includes('"balance":9007199254740993'), res.raw);
-  // kv の値に埋め込まれた大きな整数もそのまま戻る
   const body =
     '{"table":"bot_kv","action":"upsert","on_conflict":"namespace,key",' +
     '"values":{"namespace":"n","key":"k","value":{"balance":9007199254740993},' +
@@ -493,8 +477,6 @@ test("botapi: 大きな整数は生リテラルで往復する（番兵規約）
   });
   assert.ok(got.raw.includes('"balance":9007199254740993'), got.raw);
 });
-
-// -------------------------------------------------------------------- RPC
 
 test("botapi: 許可外 RPC は 404、引数の過不足は 400", async () => {
   const db = makeFakeDb();
@@ -525,7 +507,6 @@ test("botapi: pay_house はプール→国庫の順に払い内訳を返す", as
   assert.equal(db.poolRow().pool, "0");
   assert.equal(db.poolRow().treasury, "300");
   assert.equal(db.poolRow().total_house_paid, "1200");
-  // 残高不足なら払える分だけ
   res = await pay(1000);
   assert.deepEqual(res.json.data, [{ paid: 300, pool_part: 0, treasury_part: 300 }]);
   assert.equal(db.poolRow().total_house_paid, "1500");
@@ -536,7 +517,6 @@ test("botapi: refund_house は内訳どおりに戻し total_house_paid を返�
   db.seedPool(0, 0);
   await call(db, "rpc", { name: "economy_pool_add_loss", params: { p_amount: 1000 } });
   await call(db, "rpc", { name: "economy_pool_pay_house", params: { p_amount: 400 } });
-  // pool 700→300, treasury 300, total_house_paid 400
   const res = await call(db, "rpc", {
     name: "economy_pool_refund_house",
     params: { p_pool_part: 100, p_treasury_part: 50 },
@@ -544,7 +524,6 @@ test("botapi: refund_house は内訳どおりに戻し total_house_paid を返�
   assert.equal(res.json.data, 250);
   assert.equal(db.poolRow().pool, "400");
   assert.equal(db.poolRow().treasury, "350");
-  // 払い戻しが total_house_paid を超えても 0 で止まる
   const res2 = await call(db, "rpc", {
     name: "economy_pool_refund_house",
     params: { p_pool_part: 9999, p_treasury_part: 0 },
@@ -569,7 +548,6 @@ test("botapi: transfer_coins は原子的で、未登録の受取人を新規残
   const db = makeFakeDb();
   db.seedUser("111", 1000);
   const transfer = (params) => call(db, "rpc", { name: "transfer_coins", params });
-  // 受取人がいない → p_new_user_balance + amount で作られる
   let res = await transfer({
     p_sender_id: "111",
     p_receiver_id: "222",
@@ -581,14 +559,12 @@ test("botapi: transfer_coins は原子的で、未登録の受取人を新規残
   assert.equal(db.userRow("111").balance, "600");
   assert.equal(db.userRow("222").balance, "10400");
   assert.equal(db.userRow("222").debt, "0");
-  // 履歴が1行残る
   assert.equal(db.state.tables.transaction_history.length, 1);
   const history = db.state.tables.transaction_history[0];
   assert.equal(history.sender_id, "111");
   assert.equal(history.receiver_id, "222");
   assert.equal(history.amount, "400");
   assert.equal(history.reason, "送金");
-  // 既存の受取人へは加算
   res = await transfer({
     p_sender_id: "111",
     p_receiver_id: "222",

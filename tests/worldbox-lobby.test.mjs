@@ -1,11 +1,3 @@
-// AGO WORLD BOX ロビーの検証:
-// - ロビー外形（図形の和集合・境界は壁・図形外は無効）
-// - オブジェクト配置（重なり無し・壁に置かない・ステーション・店員NPC）
-// - 各ゾーンへの到達可能性（1階は入場点から、2階は階段着地点から）
-// - セーブ v6 のロビー空間（往復・クランプ・帰還点）
-// - プレゼンスの空間フィルタ（純粋ロジック＋API）
-// - 掲示板（純粋ロジック＋API: 投稿・一覧・上限・検証）
-// - クライアント配線（ハンバーガー・ピクセル固定描画・掲示板パネル）
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -118,35 +110,30 @@ const wb = await loadBundle(
 const lobby = wb.buildLobby();
 const tile = (x, y) => wb.lobbyTileAt(lobby.tiles, x, y);
 
-// ---------- ロビー外形（図形の和集合） ----------
-
 test("lobby: 寸法は 126×64 で、タイル配列が一致する", () => {
   assert.equal(wb.LOBBY_W, 126);
   assert.equal(wb.LOBBY_H, 64);
   assert.equal(lobby.tiles.length, 126 * 64);
-  // moveMap はタイル源（範囲外は岩＝固体）
   assert.equal(lobby.moveMap.tileAt(-1, 0), wb.T_ROCK);
   assert.equal(lobby.moveMap.tileAt(126, 0), wb.T_ROCK);
 });
 
 test("lobby: 中央は大円の広場（内側は歩行可、リングが縁取る）", () => {
   assert.equal(tile(28, 20), wb.L_PLAZA);
-  assert.equal(tile(28, 13), wb.L_RING); // 円の北端はリング
-  assert.equal(lobby.moveMap.tileAt(28, 20), wb.T_GRASS); // 歩行可
-  // 噴水の場所は固体オブジェクトで塞がれている
+  assert.equal(tile(28, 13), wb.L_RING);
+  assert.equal(lobby.moveMap.tileAt(28, 20), wb.T_GRASS);
   assert.ok(lobby.blocked.has("28,24"));
 });
 
 test("lobby: 図形の外は無効（VOID）、境界セルは壁", () => {
   assert.equal(tile(0, 0), wb.L_VOID);
   assert.equal(tile(55, 43), wb.L_VOID);
-  assert.equal(tile(40, 60), wb.L_VOID); // 2階の外
-  assert.equal(tile(28, 45), wb.L_VOID); // 1階と2階の間の帯
-  assert.equal(tile(-1, 24), wb.L_VOID); // グリッド外
-  assert.equal(tile(2, 24), wb.L_WALL); // ショップ翼の西端
-  assert.equal(tile(28, 0), wb.L_WALL); // アプスの頂点
-  assert.equal(tile(53, 19), wb.L_WALL); // カジノ翼の東端（通路の開口の外）
-  // 壁と無効は moveMap でも固体
+  assert.equal(tile(40, 60), wb.L_VOID);
+  assert.equal(tile(28, 45), wb.L_VOID);
+  assert.equal(tile(-1, 24), wb.L_VOID);
+  assert.equal(tile(2, 24), wb.L_WALL);
+  assert.equal(tile(28, 0), wb.L_WALL);
+  assert.equal(tile(53, 19), wb.L_WALL);
   assert.equal(lobby.moveMap.tileAt(2, 24), wb.T_ROCK);
   assert.equal(lobby.moveMap.tileAt(0, 0), wb.T_ROCK);
 });
@@ -157,7 +144,6 @@ test("lobby: ゾーンごとの床（カジノ=カーペット、ショップ=�
   assert.equal(tile(28, 37), wb.L_DARK);
   assert.equal(tile(10, 52), wb.L_CHECK);
   assert.equal(tile(28, 6), wb.L_SAND);
-  // 床種は拡張可能な列挙で、スプライトか平色のどちらかで必ず描ける
   for (const id of [
     wb.L_WALL,
     wb.L_MARBLE,
@@ -173,8 +159,6 @@ test("lobby: ゾーンごとの床（カジノ=カーペット、ショップ=�
     assert.ok(typeof wb.LOBBY_FLOOR_FALLBACK[id] === "string", `床 ${id} の平色が無い`);
   }
 });
-
-// ---------- オブジェクト配置 ----------
 
 test("lobby: オブジェクトに重なりが無く、全て壁・無効でない床の上にあり、グリッド内にある", () => {
   const seen = new Set();
@@ -196,13 +180,11 @@ test("lobby: オブジェクトに重なりが無く、全て壁・無効でな�
       }
     }
   }
-  // 固体オブジェクトは blocked と一致する（座席は上に乗って座るため除く）
   let solidTiles = 0;
   for (const o of wb.LOBBY_OBJECTS) {
     if (o.solid && !["bench", "chair", "sofa"].includes(o.sprite)) solidTiles += o.w * o.h;
   }
   assert.equal(lobby.blocked.size, solidTiles);
-  // ベンチ・ソファのマスは blocked に入っていない（座れる）
   for (const o of wb.LOBBY_OBJECTS) {
     if (["bench", "chair", "sofa"].includes(o.sprite)) {
       assert.equal(lobby.blocked.has(`${o.x},${o.y}`), false, `${o.sprite} が固体になっている`);
@@ -227,7 +209,6 @@ test("lobby: 7つのステーションが全て存在し、隣接で検出でき
       `${station} のオブジェクトが無い`,
     );
   }
-  // 広場の真ん中（噴水の南）では何も検出しない
   assert.equal(wb.stationNear(wb.LOBBY_OBJECTS, 24, 28), null);
 });
 
@@ -251,7 +232,6 @@ test("lobby: 店員NPCはカウンターの背面に立ち、当たり判定が�
     ].some(([dx, dy]) => counterTiles.has(`${n.x + dx},${n.y + dy}`));
     assert.ok(adjacent, `NPC ${n.x},${n.y} の隣にカウンターが無い`);
   }
-  // 自販機はショップ翼（x<20, y<31）に置かない
   assert.ok(
     !wb.LOBBY_OBJECTS.some((o) => o.sprite === "vending" && o.x < 20 && o.y < 31),
     "ショップ翼に自販機がある",
@@ -269,11 +249,8 @@ test("lobby: ワープパッドと階段は歩行可タイルで、着地点も�
   assert.ok(walkable(Math.floor(wb.LOBBY_ENTRY.x), Math.floor(wb.LOBBY_ENTRY.y)));
   assert.ok(walkable(Math.floor(wb.LOBBY_UP_LANDING.x), Math.floor(wb.LOBBY_UP_LANDING.y)));
   assert.ok(walkable(Math.floor(wb.LOBBY_DOWN_LANDING.x), Math.floor(wb.LOBBY_DOWN_LANDING.y)));
-  // ワールド側に固定パッドは無い（ロビー行きは ≡ メニューから）
   assert.ok(!("WORLD_WARP_PAD" in wb), "ワールド側の固定ワープパッドが残っている");
 });
-
-// ---------- 到達可能性 ----------
 
 function reachableFrom(sx, sy) {
   const W = wb.LOBBY_W;
@@ -324,34 +301,29 @@ test("lobby: 入場点から全ゾーンへ歩いて届く", () => {
   }
 });
 
-// ---------- 競馬場（カジノ翼の東の拡張） ----------
-
 test("lobby: 競馬場エリアは 66×44 の大エリアで、通路がカジノ東壁を開ける", () => {
   assert.equal(wb.RACECOURSE.x1 - wb.RACECOURSE.x0 + 1, 66);
   assert.equal(wb.RACECOURSE.y1 - wb.RACECOURSE.y0 + 1, 44);
-  // カジノ翼の東壁は通路の高さ（y 22〜26）だけ開き、それ以外は壁のまま
   for (const y of [22, 23, 24, 25, 26]) {
     assert.notEqual(tile(53, y), wb.L_WALL, `カジノ東壁 (${53},${y}) が開いていない`);
     assert.equal(tile(56, y), wb.L_CARPET, `通路 (${56},${y}) がカーペットでない`);
   }
-  assert.equal(tile(54, 21), wb.L_WALL); // 通路の北側壁
-  assert.equal(tile(54, 27), wb.L_WALL); // 通路の南側壁
-  // 競馬場の外周は壁、外は無効
+  assert.equal(tile(54, 21), wb.L_WALL);
+  assert.equal(tile(54, 27), wb.L_WALL);
   assert.equal(tile(93, 4), wb.L_WALL);
   assert.equal(tile(125, 26), wb.L_WALL);
   assert.equal(tile(93, 3), wb.L_VOID);
-  assert.equal(tile(126 - 1, 60), wb.L_VOID); // 競馬場の南は従来どおり無効帯
+  assert.equal(tile(126 - 1, 60), wb.L_VOID);
 });
 
 test("lobby: トラックは楕円の砂の帯、内側はインフィールド", () => {
-  assert.equal(tile(93, 8), wb.L_SAND); // 北直線のトラック
-  assert.equal(tile(93, 44), wb.L_SAND); // 南直線のトラック
-  assert.equal(tile(64, 26), wb.L_SAND); // 西直線のトラック
+  assert.equal(tile(93, 8), wb.L_SAND);
+  assert.equal(tile(93, 44), wb.L_SAND);
+  assert.equal(tile(64, 26), wb.L_SAND);
   assert.ok(wb.isRaceTrackTile(93, 8) && wb.isRaceTrackTile(122, 26));
-  assert.equal(tile(93, 26), wb.L_PLAZA); // インフィールド中央
+  assert.equal(tile(93, 26), wb.L_PLAZA);
   assert.ok(wb.isRaceInfieldTile(93, 26));
   assert.ok(!wb.isRaceInfieldTile(93, 8));
-  // スタンド前のアプロンは大理石
   assert.equal(tile(93, 45), wb.L_MARBLE);
 });
 
@@ -360,9 +332,9 @@ test("lobby: 競馬場の station race がカウンターと掲示板で検出�
     wb.LOBBY_OBJECTS.some((o) => o.station === "race"),
     "race のオブジェクトが無い",
   );
-  assert.equal(wb.stationNear(wb.LOBBY_OBJECTS, 71, 25), "race"); // 馬券カウンターの正面（西）
-  assert.equal(wb.stationNear(wb.LOBBY_OBJECTS, 71, 21), "race"); // 結果掲示板の正面（西）
-  assert.equal(wb.stationNear(wb.LOBBY_OBJECTS, 60, 21), "race"); // 入口の看板の正面
+  assert.equal(wb.stationNear(wb.LOBBY_OBJECTS, 71, 25), "race");
+  assert.equal(wb.stationNear(wb.LOBBY_OBJECTS, 71, 21), "race");
+  assert.equal(wb.stationNear(wb.LOBBY_OBJECTS, 60, 21), "race");
 });
 
 test("lobby: 入場点から通路を通って競馬場の各所へ歩いて届く", () => {
@@ -391,7 +363,6 @@ test("lobby: 入場点から通路を通って競馬場の各所へ歩いて届�
 test("lobby: 競馬場に厩舎と東・南スタンド増設、インフィールド南の植栽がある", () => {
   const at = (x, y) =>
     wb.LOBBY_OBJECTS.find((o) => x >= o.x && x < o.x + o.w && y >= o.y && y < o.y + o.h);
-  // 厩舎は柵囲いで、北側の入口（x120〜121）だけが開いている
   assert.equal(at(116, 39)?.sprite, "fence_wood");
   assert.equal(at(115, 42)?.sprite, "fence_wood");
   assert.equal(at(120, 45)?.sprite, "fence_wood");
@@ -400,15 +371,13 @@ test("lobby: 競馬場に厩舎と東・南スタンド増設、インフィー�
     !lobby.blocked.has("120,39") && !lobby.blocked.has("121,39"),
     "厩舎の入口が塞がれている",
   );
-  assert.equal(at(114, 39)?.sprite, "sign_board"); // 厩舎の看板
-  assert.equal(at(116, 44)?.sprite, "crate"); // 餌置き場
-  assert.equal(at(123, 40)?.sprite, "workbench"); // 手入れ台
-  // 東スタンドは縦列、南スタンドは延長＋両翼2列目
+  assert.equal(at(114, 39)?.sprite, "sign_board");
+  assert.equal(at(116, 44)?.sprite, "crate");
+  assert.equal(at(123, 40)?.sprite, "workbench");
   assert.equal(at(124, 18)?.sprite, "bench");
   assert.equal(at(124, 34)?.sprite, "bench");
   assert.equal(at(80, 46)?.sprite, "bench");
   assert.equal(at(105, 45)?.sprite, "bench");
-  // インフィールド南の植栽（生垣と植木）
   assert.equal(at(84, 36)?.sprite, "hedge");
   assert.equal(at(93, 34)?.sprite, "lamp");
   assert.equal(at(89, 38)?.sprite, "planter");
@@ -423,8 +392,6 @@ test("lobby: 2階は階段着地点から区画と下り階段へ届く（1階�
   assert.ok(!reach1.has("17,60"), "1階から2階へ歩けてしまう");
 });
 
-// ---------- セーブ v6（ロビー空間） ----------
-
 test("save v6: ロビー位置と帰還点の往復、ロビー範囲でクランプ", () => {
   const state = { space: "lobby", x: 28.5, y: 32.5, worldReturn: { x: 514.5, y: 512.5 } };
   assert.deepEqual(wb.parseSave(wb.serializeSave(state)), state);
@@ -432,17 +399,13 @@ test("save v6: ロビー位置と帰還点の往復、ロビー範囲でクラ�
     wb.serializeSave({ space: "lobby", x: 9999, y: -3, worldReturn: null }),
   );
   assert.ok(clamped.x <= wb.LOBBY_W - 0.5 && clamped.y >= 0.5);
-  // 壊れた帰還点は null に落ち、位置は残る
   const bad = wb.parseSave(
     JSON.stringify({ version: 6, space: "lobby", x: 10, y: 10, worldReturn: { x: "a" } }),
   );
   assert.equal(bad.worldReturn, null);
   assert.equal(bad.space, "lobby");
-  // 空間の無い v5 は破棄（トップダウン側のテストと対）
   assert.equal(wb.parseSave(JSON.stringify({ version: 5, x: 28.5, y: 32.5 })), null);
 });
-
-// ---------- プレゼンスの空間 ----------
 
 test("presence: ハートビートの空間（lobby は保持、不正と省略は world）", () => {
   const bounds = { width: 56, height: 64 };
@@ -451,7 +414,6 @@ test("presence: ハートビートの空間（lobby は保持、不正と省略�
   assert.equal(wb.sanitizeHeartbeat({ x: 1, y: 1 }, bounds).space, "world");
   assert.equal(wb.sanitizePresenceSpace("lobby"), "lobby");
   assert.equal(wb.sanitizePresenceSpace(null), "world");
-  // 保存値の parse: 空間なしは world、ありは保持
   const now = Date.now();
   const old = wb.parsePresenceEntry(
     "aaaa",
@@ -477,10 +439,8 @@ test("presence: 空間フィルタは同じ空間の者だけを返す", () => {
     wb.selectVisiblePlayers(entries, null, now, 32, "lobby").map((e) => e.id),
     ["l1"],
   );
-  assert.equal(wb.selectVisiblePlayers(entries, null, now).length, 3); // フィルタ無しは従来どおり
+  assert.equal(wb.selectVisiblePlayers(entries, null, now).length, 3);
 });
-
-// ---------- 掲示板（純粋ロジック） ----------
 
 test("board: 本文の検証（空・長すぎ・非文字列は null、空白は整形）", () => {
   assert.equal(wb.sanitizeBoardText("  こんにちは  "), "こんにちは");
@@ -516,8 +476,6 @@ test("board: 追加と parse（新しい順・30件で切り詰め・壊れた�
   assert.deepEqual(wb.parseBoardPosts("{壊れた"), []);
   assert.deepEqual(wb.parseBoardPosts(null), []);
 });
-
-// ---------- API（プレゼンス空間・掲示板） ----------
 
 const botApiStubUrl = dataUrl(`
 const store = new Map();
@@ -750,8 +708,6 @@ test("API(board): 不正な本文は 400、他オリジンは 403、上限30件�
     ).status,
     403,
   );
-  // 連投制限（同一ユーザーは 1.5 秒間隔）があるため、上限の検証は
-  // 投稿者を変えながら行う（掲示板の蓄積は全体で数える）。
   for (let i = 0; i < 35; i++) {
     const capCookie = sessionCookie(`65${String(i).padStart(16, "0")}`, `cap-user-${i}`);
     assert.equal(
@@ -792,8 +748,6 @@ test("API(gate): Discord セッションだけが入場でき、ゲストと Goo
   assert.equal(forged.allowed, false);
 });
 
-// ---------- クライアント配線 ----------
-
 test("クライアント: 入場ゲート（未ログインではワールドを描かず、Discord ログインを出す）", () => {
   const client = fs.readFileSync(
     path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
@@ -806,7 +760,6 @@ test("クライアント: 入場ゲート（未ログインではワールドを
     client.includes("/api/auth/discord/authorize?next=/games/worldbox"),
     "ログイン導線が無い",
   );
-  // takasumi 版ではゲスト入場を許可する（本家の「ゲスト不可」から仕様変更）
   assert.ok(client.includes("ゲストで入る"), "ゲスト入場の導線が無い");
   assert.ok(client.includes("/api/auth/guest"), "ゲスト入場 API を呼んでいない");
 });
@@ -819,7 +772,6 @@ test("クライアント: ハンバーガーはデータ駆動のアクション
   assert.ok(client.includes("menuActions"), "アクションリストが無い");
   assert.ok(client.includes('id: "warp"'), "ワープのアクションが無い");
   assert.ok(client.includes('id: "map"'), "マップ切替のアクションが無い");
-  // 合成は経済パネルの合成タブ（作業台の前だけ）に一本化。空のクラフト器は置かない
   assert.ok(!client.includes('id: "craft"'), "空のクラフトアクションが残っている");
   assert.ok(!client.includes("作れるものはまだない"), "空のクラフトパネルが残っている");
 });
@@ -869,7 +821,6 @@ test("クライアント: プレゼンスは空間つきで送受信し、掲示
   assert.ok(client.includes("STATION_LABEL"), "ステーション名札が無い");
   const textures = fs.readFileSync(path.join(libDir, "worldbox/world/textures.ts"), "utf8");
   assert.ok(textures.includes("loadLobbySprites"), "テクスチャ側にロビー読み込みが無い");
-  // ローダーが指すスプライトファイルは全て実在する
   const srcRe = /\/img\/worldbox\/lobby\/([a-z0-9_]+\.png)/g;
   const files = new Set();
   for (const m of textures.matchAll(srcRe)) files.add(m[1]);

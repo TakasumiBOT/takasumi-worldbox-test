@@ -1,6 +1,3 @@
-// WORLD BOX マスの個体値（仕様書 §3.1 / §4.2）の検証。
-// - 個体値は座標＋固定シードからの決定的な純関数（保存しない）
-// - 豊穣度は作物の成長時間と収穫量に、純度は岩の採掘ボーナスに効く
 import assert from "node:assert/strict";
 import test from "node:test";
 import fs from "node:fs";
@@ -81,8 +78,6 @@ const tilesUrl = bundleModule(
 );
 const T = await import(tilesUrl);
 
-// ---------- 個体値そのもの ----------
-
 test("個体値: 決定的で、同じ座標は常に同じ値", () => {
   for (const [x, y] of [
     [0, 0],
@@ -117,8 +112,6 @@ test("個体値: 座標が違えば値もばらつく（全タイル一律では
   assert.ok(pures.size > 30, `purity kinds=${pures.size}`);
 });
 
-// ---------- 効果の純粋関数 ----------
-
 test("効果: 豊穣度の成長倍率は 0→1.25 / 50→1 / 100→0.75", () => {
   assert.equal(T.fertilityGrowthFactor(0), 1.25);
   assert.equal(T.fertilityGrowthFactor(50), 1);
@@ -140,8 +133,6 @@ test("効果: 純度ボーナスは石材 70 で +1、石炭 85 で +1", () => {
   assert.equal(T.purityBonusCoal(84), 0);
   assert.equal(T.purityBonusCoal(85), 1);
 });
-
-// ---------- タイル行為への統合 ----------
 
 const NOW = 1_700_000_000_000;
 const ME_KEY = "discord:611111111111111111";
@@ -225,7 +216,6 @@ test("統合: 純度が高い岩は石材+1と石炭+1が混ざる", () => {
     NOW,
   );
   assert.equal(r.ok, true, "mine 1");
-  // 岩 HP60・ミスリル 40/ヒット → 2ヒットで壊れる。1ヒット目は何も得られない
   assert.deepEqual(r.gained, {});
   r = T.applyTileAction(r.override, r.profile, map, ME_KEY, "mine", rich.x, rich.y, undefined, NOW);
   assert.equal(r.ok, true, "mine 2");

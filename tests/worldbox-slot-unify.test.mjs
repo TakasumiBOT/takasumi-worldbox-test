@@ -1,10 +1,3 @@
-// AGO WORLD BOX スロット統一＋売却専用ショップ（2026-11-17 ユーザー指示）の検証:
-// - ロビーに売却専用ステーション "sell"（買取カウンター）が置かれ、接したタイルから引ける
-// - 売却は買取カウンターでも可能（sellGate）だが、購入は従来どおり shop/smith のみ
-// - 経済パネル: 売却は売却タブに一本化され、かばん注釈に売却ボタンは無い
-// - 経済パネルに空腹度・HP の表示は無い（バイタルはステージ左上の常時バーが正）
-// - 各パネルのヘッダーは sticky で「閉じる」がスクロールしても消えない
-// - アイテム表示は共通 ItemSlot/ItemSlotGrid に統一されている
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -63,14 +56,11 @@ const lobby = wb.buildLobby();
 
 const read = (rel) => fs.readFileSync(path.join(rootDir, rel), "utf8");
 
-// ---------- 売却専用ショップ（買取カウンター） ----------
-
 test("sell-shop: 買取カウンターがロビーに置かれ、北側のタイルから sell が引ける", () => {
   const sellObjs = lobby.objects.filter((o) => o.station === "sell");
   assert.ok(sellObjs.length >= 2, "買取カウンターは2タイル分ある");
   assert.equal(wb.stationNear(lobby.objects, 15, 26), "sell");
   assert.equal(wb.stationNear(lobby.objects, 16, 26), "sell");
-  // 店員NPCがカウンターの内側にいて、固体ではない
   const npc = wb.LOBBY_NPCS.find((n) => n.x === 15 && n.y === 28);
   assert.ok(npc, "買取カウンターの店員NPCがいる");
   assert.equal(wb.isSolidLobbyTile(lobby.tiles, 15, 28), false);
@@ -81,11 +71,8 @@ test("sell-shop: 既存ステーションの引きは壊れていない", () => 
   assert.equal(wb.stationNear(lobby.objects, 24, 28), null);
 });
 
-// ---------- API: 売却ゲート ----------
-
 test("sell-shop: API は売却に sellGate（shop/smith/sell）を使い、購入は shopGate のまま", () => {
   const route = read("app/api/worldbox/profile/route.ts");
-  // sellGate は shop/smith に sell を加えたもの、shopGate は sell を含まない
   const sellGateBody = route.match(/const sellGate = async \(\) => \{[\s\S]*?\};/)?.[0] ?? "";
   assert.ok(sellGateBody.includes('"sell"'), "sellGate が売却カウンターを許可する");
   const shopGateBody = route.match(/const shopGate = async \(\) => \{[\s\S]*?\};/)?.[0] ?? "";
@@ -93,12 +80,9 @@ test("sell-shop: API は売却に sellGate（shop/smith/sell）を使い、購�
     shopGateBody.length > 0 && !shopGateBody.includes('"sell"'),
     "shopGate は売却カウンターで買わせない",
   );
-  // sell ケースは sellGate、buy ケースは shopGate
   assert.ok(/case "sell": \{[\s\S]*?await sellGate\(\)/.test(route));
   assert.ok(/case "buy": \{[\s\S]*?await shopGate\(\)/.test(route));
 });
-
-// ---------- 経済パネル: 売却一本化＋バイタル撤去 ----------
 
 test("economy: 売却タブが売却専用ショップで開き、売却アクションは1か所だけ", () => {
   const panel = read("app/games/worldbox/WorldBoxEconomyPanel.tsx");
@@ -118,8 +102,6 @@ test("economy: ヘッダーは sticky で閉じるボタンが常時見える", 
   const panel = read("app/games/worldbox/WorldBoxEconomyPanel.tsx");
   assert.ok(panel.includes('position: "sticky"'));
 });
-
-// ---------- スロット統一＋sticky（全パネル横断） ----------
 
 const PANELS = [
   "app/games/worldbox/WorldBoxGuildShopPanel.tsx",
@@ -152,7 +134,6 @@ test("menu: ≡ の「設定」の中に BGM・効果音・通報が格納され
     bgmIdx > settingsIdx && seIdx > settingsIdx && reportIdx > settingsIdx,
     "BGM・効果音・通報は設定ボタンより後（設定の中）にある",
   );
-  // 設定の中はインデント付きの入れ子グリッド
   assert.ok(client.includes("paddingLeft: 14"), "設定の中身は入れ子表示になっている");
 });
 

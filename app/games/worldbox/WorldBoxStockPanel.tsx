@@ -1,8 +1,4 @@
 "use client";
-// WORLD BOX（Takasumi 版）の株式パネル（ロビー中央広場・銀行東隣の取引所）。
-// 架空企業10社への投資専用で、プレイヤー会社とは無関係（会社パネルと
-// 混ぜない）。株価・配当条件はサーバーが決定的ロジックから返す。
-// ここは表示と売買の入力だけ。売買は取引所の前でのみサーバーが受ける。
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPollGuard, type PollGuard } from "@/lib/poll-guard";
 import { onEconomyApplied } from "@/lib/worldbox/economy/economy-push";
@@ -107,7 +103,6 @@ const input: React.CSSProperties = {
 const yen = (n: number) => `${n.toLocaleString()}円`;
 const signed = (n: number) => `${n > 0 ? "+" : ""}${n.toLocaleString()}`;
 
-/** 直近の価格推移の小さな折れ線（表示専用）。 */
 function Sparkline({ history, up }: { history: number[]; up: boolean }) {
   if (history.length < 2) return null;
   const min = Math.min(...history);

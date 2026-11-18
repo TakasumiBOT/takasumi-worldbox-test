@@ -1,5 +1,3 @@
-// WORLD BOX バッチ10b: イベント基盤（日程判定・期間ダンジョン）と
-// テント拡張段階のテスト。
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -131,13 +129,10 @@ test("tent: higher tiers are bigger, exit stays on the south wall center", () =>
     const exit = T.tentExitFor(tier);
     assert.equal(exit.y, size.h - 1);
     assert.equal(exit.x, Math.floor(size.w / 2));
-    // 出入口は壁ではなく床、周囲は壁
     assert.notEqual(T.tentTileAt(data.tiles, data.width, data.height, exit.x, exit.y), 0);
-    // 家具が範囲内に収まる
     for (const o of data.objects) {
       assert.ok(o.x + o.w <= size.w && o.y + o.h <= size.h, `${o.sprite} out of bounds`);
     }
-    // 作業台（station: smith）は全段階にある
     assert.ok(data.objects.some((o) => o.station === "smith"));
   }
   assert.equal(T.tentTierOf(99), T.TENT_MAX_TIER);

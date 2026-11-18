@@ -1,9 +1,3 @@
-// AGO WORLD BOX テントの検証:
-// - テントが置ける（facility として設置経路に載る）
-// - 内装ビルダー（壁・床・出入口・作業台ステーション・固体・到達可能性）
-// - セーブ/プレゼンスの tent 空間の往復
-// - ステーション検証（station-online）の tent 対応
-// - クライアント配線（踏んで入る・出口で戻る・チップ表示）
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -82,23 +76,19 @@ test("テント内装: 壁と床、出入口は歩ける", () => {
   const tent = world.buildTent();
   assert.equal(tent.width, world.TENT_W);
   assert.equal(tent.height, world.TENT_H);
-  // 四辺は壁（出入口を除く）
   assert.equal(world.tentTileAt(tent.tiles, tent.width, tent.height, 0, 0), world.L_WALL);
   assert.equal(world.tentTileAt(tent.tiles, tent.width, tent.height, 5, 0), world.L_WALL);
   assert.equal(world.tentTileAt(tent.tiles, tent.width, tent.height, 0, 5), world.L_WALL);
-  // 内側は木の床、出入口タイルも床
   assert.equal(world.tentTileAt(tent.tiles, tent.width, tent.height, 6, 5), world.L_WOOD);
   assert.equal(
     world.tentTileAt(tent.tiles, tent.width, tent.height, world.TENT_EXIT.x, world.TENT_EXIT.y),
     world.L_WOOD,
   );
-  // 出入口オブジェクトは平置き（通過可）
   const pad = tent.objects.find((o) => o.sprite === "warp_pad");
   assert.ok(pad);
   assert.equal(pad.solid, false);
   assert.equal(pad.x, world.TENT_EXIT.x);
   assert.equal(pad.y, world.TENT_EXIT.y);
-  // 入口タイルは固体に含まれない
   const entryKey = `${Math.floor(world.TENT_ENTRY.x)},${Math.floor(world.TENT_ENTRY.y)}`;
   assert.equal(tent.blocked.has(entryKey), false);
 });
@@ -108,14 +98,12 @@ test("テント内装: 作業台と溶解炉が smith ステーションで、�
   const smiths = tent.objects.filter((o) => o.station === "smith");
   assert.ok(smiths.length >= 2, "作業台と溶解炉が無い");
   assert.ok(smiths.some((o) => o.sprite === "workbench"));
-  // 入口タイルから作業台（出入口脇）に隣接できる
   const st = world.stationNear(
     tent.objects,
     Math.floor(world.TENT_ENTRY.x),
     Math.floor(world.TENT_ENTRY.y),
   );
   assert.equal(st, "smith");
-  // オブジェクト同士の重なりが無い
   const seen = new Set();
   for (const o of tent.objects) {
     for (let dy = 0; dy < o.h; dy++) {
@@ -126,13 +114,11 @@ test("テント内装: 作業台と溶解炉が smith ステーションで、�
       }
     }
   }
-  // 固体のオブジェクトは blocked に入る（座席は上に乗って座るため除く）
   for (const o of tent.objects) {
     if (o.solid && !["bench", "chair", "sofa"].includes(o.sprite)) {
       assert.ok(tent.blocked.has(`${o.x},${o.y}`), `${o.sprite} が blocked に無い`);
     }
   }
-  // テントのソファには座れる（blocked に入っていない）
   const sofa = tent.objects.find((o) => o.sprite === "sofa");
   assert.ok(sofa, "テントにソファがある");
   assert.equal(tent.blocked.has(`${sofa.x},${sofa.y}`), false, "ソファは固体でない");

@@ -1,10 +1,3 @@
-// AGO WORLD BOX 見下ろし型の検証:
-// - マップ生成（チャンク式・決定的・分布・緯度帯）
-// - 移動と当たり判定（固体で止まる・壁ずり・境界なし）
-// - プレゼンス純粋ロジック（検証・鮮度・自己除外・上限・デッドレコニング）
-// - プレゼンス API（認証・往復・鮮度・自己除外・退室）
-// - セーブ v6（往復・旧バージョン破棄）
-// - クライアント配線（横スクロール層が残っていないこと）
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -114,8 +107,6 @@ const wb = await loadBundle(
   ],
 );
 
-// ---------- マップ生成 ----------
-
 test("mapgen: tileAt は決定的（同座標=同タイル、旧境界外・負座標でも）", () => {
   for (const [x, y] of [
     [0, 0],
@@ -131,7 +122,6 @@ test("mapgen: tileAt は決定的（同座標=同タイル、旧境界外・負�
     const id = wb.tileAt(x, y);
     assert.ok(id >= wb.T_GRASS && id <= wb.T_SNOW_TREE, `未知のタイル ${id}`);
   }
-  // 別シードでは地形が変わる
   let differs = false;
   for (let y = 0; y < 64 && !differs; y++) {
     for (let x = 0; x < 64; x++) {
@@ -169,8 +159,6 @@ test("mapgen: チャンク生成は tileAt の寄せ集めと一致し、決定�
 });
 
 test("mapgen: 生成時間の回帰ガード（tileAt が参照ループ比で極端に遅くなったら劣化）", () => {
-  // 絶対時間は共有 CPU の競合で荒れるため、同プロセスの参照ループとの
-  // 比で見る（ベースライン比は約 10 倍。40 倍を超えたら桁レベルの劣化）。
   const N = 512 * 512;
   let refBest = Infinity;
   let genBest = Infinity;
@@ -217,13 +205,11 @@ test("mapgen: タイル分布（原点付近 1024×1024 で旧マップと概ね
   }
   assert.ok(share(wb.T_WATER) < 0.3, `水が多すぎる ${(share(wb.T_WATER) * 100).toFixed(1)}%`);
   assert.ok(share(wb.T_ROCK) > 0.0005, "岩が無い");
-  // 雪原（北の帯）: 雪と雪の木が一定量ある
   assert.ok(share(wb.T_SNOW) > 0.08, `雪が少なすぎる ${(share(wb.T_SNOW) * 100).toFixed(1)}%`);
   assert.ok(
     share(wb.T_SNOW_TREE) > 0.01,
     `雪の木がほぼ無い ${(share(wb.T_SNOW_TREE) * 100).toFixed(2)}%`,
   );
-  // 草が最大シェア
   const maxOther = Math.max(
     share(wb.T_WATER),
     share(wb.T_SAND),
@@ -238,18 +224,15 @@ test("mapgen: タイル分布（原点付近 1024×1024 で旧マップと概ね
 
 test("mapgen: 雪原は北の緯度帯だけにあり、境界は直線でない", () => {
   const isSnow = (t) => t === wb.T_SNOW || t === wb.T_SNOW_TREE;
-  // 帯の南限（基準緯度＋揺れ26）より南には雪は無い（どの x でも）
   const southLimit = Math.floor(wb.SNOW_BASE_Y + 40);
   for (let y = southLimit; y < southLimit + 400; y++) {
     for (let x = -256; x < 1024; x++) {
       assert.ok(!isSnow(wb.tileAt(x, y)), `南に雪がある (${x}, ${y})`);
     }
   }
-  // 北端の行（y=0）には雪がある
   let northSnow = 0;
   for (let x = 0; x < 1024; x++) if (isSnow(wb.tileAt(x, 0))) northSnow++;
   assert.ok(northSnow > 1024 * 0.3, `北端に雪が少ない ${northSnow}`);
-  // 境界は列ごとに揺れる（直線でない）
   let min = Infinity;
   let max = -Infinity;
   for (let x = 0; x < 1024; x++) {
@@ -259,7 +242,6 @@ test("mapgen: 雪原は北の緯度帯だけにあり、境界は直線でない
   }
   assert.ok(max - min > 10, `雪原境界が直線すぎる spread=${(max - min).toFixed(1)}`);
   assert.ok(min >= wb.SNOW_BASE_Y - 27 && max <= wb.SNOW_BASE_Y + 27, "境界が想定帯から外れている");
-  // 雪は歩行可、雪の木は固体
   assert.equal(wb.isSolidMapTile(wb.T_SNOW), false);
   assert.equal(wb.isSolidMapTile(wb.T_SNOW_TREE), true);
 });
@@ -288,12 +270,9 @@ test("mapgen: 固体の定義と、有限タイル源の範囲外は岩", () => 
   assert.equal(wb.mapTileAt(small, 3, 3), wb.T_GRASS);
   assert.equal(wb.mapTileAt(small, -1, 0), wb.T_ROCK);
   assert.equal(wb.mapTileAt(small, 0, 8), wb.T_ROCK);
-  // ワールド源はどこまで行ってもタイルを返す
   const world = wb.worldTileSource();
   assert.equal(world.tileAt(123456, -654321), wb.tileAt(123456, -654321));
 });
-
-// ---------- 移動と当たり判定 ----------
 
 function fakeMap(fill, paint) {
   const tiles = new Uint8Array(8 * 8).fill(fill);
@@ -363,8 +342,6 @@ test("move: findFreeNear は固体の中から立てる場所へ救済する", (
   const same = wb.findFreeNear(map, free.x, free.y);
   assert.deepEqual(same, free);
 });
-
-// ---------- プレゼンス純粋ロジック ----------
 
 test("presence: ハートビート検証（補正と却下）", () => {
   const bounds = wb.rectBounds(128, 128);
@@ -442,13 +419,10 @@ test("presence: ID は不透明で安定している", () => {
   assert.ok(!a.includes("123456789"));
 });
 
-// ---------- セーブ v6 ----------
-
 test("save v6: 往復とクランプ、旧バージョンは破棄される", () => {
   assert.equal(wb.SAVE_VERSION, 6);
   const json = wb.serializeSave({ space: "world", x: 10.5, y: 20.25, worldReturn: null });
   assert.deepEqual(wb.parseSave(json), { space: "world", x: 10.5, y: 20.25, worldReturn: null });
-  // ワールドは境界が無いので負座標・遠方もそのまま保持する（上限だけ丸める）
   const kept = wb.parseSave(
     wb.serializeSave({ space: "world", x: -3, y: 99999, worldReturn: null }),
   );
@@ -458,7 +432,6 @@ test("save v6: 往復とクランプ、旧バージョンは破棄される", ()
   );
   assert.equal(clamped.x, -wb.WORLD_COORD_LIMIT);
   assert.equal(clamped.y, wb.WORLD_COORD_LIMIT);
-  // v5（空間を持たない）以前のセーブは読み込まない
   assert.equal(wb.parseSave(JSON.stringify({ version: 5, x: 64.5, y: 64.5 })), null);
   assert.equal(wb.parseSave(JSON.stringify({ version: 4, x: 64.5, y: 64.5 })), null);
   assert.equal(
@@ -493,8 +466,6 @@ test("共有時計: 位相は unix 時刻だけで決まり、周期で繰り返
   assert.equal(wb.phaseAtTime(1000), wb.phaseAtTime(1000));
   assert.ok(Math.abs(wb.phaseAtTime(1000) - wb.phaseAtTime(1000 + 240)) < 1e-9);
 });
-
-// ---------- プレゼンス API ----------
 
 const botApiStubUrl = dataUrl(`
 const store = new Map();
@@ -664,7 +635,6 @@ test("API(presence): 古いハートビートは一覧から落ち、DELETE で�
   await presenceRoute.PUT(presenceRequest("PUT", cookieA, { x: 10, y: 10, vx: 0, vy: 0, face: 1 }));
   let seen = await (await presenceRoute.GET(presenceRequest("GET", cookieB))).json();
   assert.equal(seen.players.filter((p) => p.name === "ago-d").length, 1);
-  // 保存値を古く書き換える（鮮度切れの再現）
   const store = globalThis.__wbStore;
   for (const [k, v] of store) {
     if (k.startsWith("worldbox_presence ") && String(v).includes("ago-d")) {
@@ -679,14 +649,11 @@ test("API(presence): 古いハートビートは一覧から落ち、DELETE で�
     0,
     "古いエントリが見えている",
   );
-  // DELETE の即時反映
   await presenceRoute.PUT(presenceRequest("PUT", cookieA, { x: 10, y: 10, vx: 0, vy: 0, face: 1 }));
   assert.equal((await presenceRoute.DELETE(presenceRequest("DELETE", cookieA))).status, 200);
   seen = await (await presenceRoute.GET(presenceRequest("GET", cookieB))).json();
   assert.equal(seen.players.filter((p) => p.name === "ago-d").length, 0, "DELETE 後も見えている");
 });
-
-// ---------- クライアント配線 ----------
 
 test("クライアント: 見下ろし＋プレゼンス配線があり、横スクロール層は残っていない", () => {
   const client = fs.readFileSync(
@@ -697,8 +664,6 @@ test("クライアント: 見下ろし＋プレゼンス配線があり、横ス
   assert.ok(client.includes("/api/worldbox/presence"), "プレゼンス API を使っていない");
   assert.ok(client.includes("minimap") || client.includes("ミニマップ"), "ミニマップが無い");
   assert.ok(client.includes("/img/nomal.png"), "公式アバターを使っていない");
-  // "craft" は旧横スクロール時代の名残チェックだったが、ハンバーガーの
-  // クラフトアクション（器のみ）として正規に追加されたため対象から外す。
   for (const dead of ["worldgen", "physics", "enemies", "/api/worldbox/world", "jinrou"]) {
     assert.ok(!client.includes(dead), `旧層が残っている: ${dead}`);
   }
@@ -728,7 +693,6 @@ test("クライアント: 地面タイルはダンジョン流用 PNG（grass/di
     const file = path.join(rootDir, "public/img/worldbox", `${name}.png`);
     assert.ok(fs.existsSync(file), `流用タイルが無い: ${name}.png`);
     const buf = fs.readFileSync(file);
-    // PNG 署名 + IHDR の幅・高さ（16〜23バイト目、ビッグエンディアン）
     assert.deepEqual(
       [...buf.subarray(0, 8)],
       [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a],
@@ -762,8 +726,6 @@ test("クライアント: 雪タイルもダンジョン流用 PNG（snow/snow-t
   }
 });
 
-// ---------- 初期スポーン ----------
-
 test("spawn: 初期スポーンは ±2000 以内の歩行可能な陸タイルに落ち、決定的", () => {
   const lcg = (seed) => () => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
   for (let i = 1; i <= 40; i++) {
@@ -781,9 +743,7 @@ test("spawn: 初期スポーンは ±2000 以内の歩行可能な陸タイル�
       `スポーン不可タイル ${wb.tileAt(tx, ty)} at (${tx}, ${ty})`,
     );
   }
-  // 同じ乱数系列なら同じ結果（サーバー側で再現可能）
   assert.deepEqual(wb.pickRandomSpawn(lcg(42)), wb.pickRandomSpawn(lcg(42)));
-  // スポーン可能タイルの定義: 草・土・砂・雪のみ（水・木・岩・雪木は不可）
   assert.equal(wb.isSpawnableTile(wb.T_GRASS), true);
   assert.equal(wb.isSpawnableTile(wb.T_DIRT), true);
   assert.equal(wb.isSpawnableTile(wb.T_SAND), true);
