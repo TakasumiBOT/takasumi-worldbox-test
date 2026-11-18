@@ -180,19 +180,19 @@ test("guilds: 自分のギルド一覧に国の有無と役職が付く", () => 
   const founded = wb.applyFound(
     wb.emptyNationsState(),
     KING_A,
-    { id: GUILD_1, name: "あご鯖" },
+    { id: GUILD_1, name: "テスト鯖" },
     map,
     1000,
   );
   const annotated = wb.annotateMyGuilds(
     [
-      { id: GUILD_1, name: "あご鯖", owner: true, permissions: "0" },
+      { id: GUILD_1, name: "テスト鯖", owner: true, permissions: "0" },
       { id: GUILD_2, name: "別の鯖", owner: false, permissions: "8" },
     ],
     founded.state,
   );
   assert.deepEqual(annotated, [
-    { guildId: GUILD_1, name: "あご鯖", owner: true, hasNation: true, myRole: "king" },
+    { guildId: GUILD_1, name: "テスト鯖", owner: true, hasNation: true, myRole: "king" },
     { guildId: GUILD_2, name: "別の鯖", owner: false, hasNation: false, myRole: "minister" },
   ]);
 });
@@ -201,10 +201,10 @@ test("guilds: ギルドキャッシュは TTL 内だけ有効で、壊れた値�
   const now = 1_000_000;
   const cache = JSON.stringify({
     fetchedAt: now - 1000,
-    guilds: [{ id: GUILD_1, name: "あご鯖", owner: true, permissions: "0" }],
+    guilds: [{ id: GUILD_1, name: "テスト鯖", owner: true, permissions: "0" }],
   });
   assert.deepEqual(wb.parseGuildCache(cache, now), [
-    { id: GUILD_1, name: "あご鯖", owner: true, permissions: "0" },
+    { id: GUILD_1, name: "テスト鯖", owner: true, permissions: "0" },
   ]);
   assert.equal(wb.parseGuildCache(JSON.parse(cache), now).length, 1);
   const stale = JSON.stringify({ fetchedAt: now - wb.GUILD_CACHE_TTL_MS, guilds: [] });
@@ -222,19 +222,19 @@ test("nations: 建国→王、参加→渡された役職、二重所属と重�
   const founded = wb.applyFound(
     wb.emptyNationsState(),
     KING_A,
-    { id: GUILD_1, name: "あご鯖" },
+    { id: GUILD_1, name: "テスト鯖" },
     map,
     1000,
   );
   assert.equal(founded.ok, true);
   assert.equal(founded.nation.guildId, GUILD_1);
-  assert.equal(founded.nation.name, "あご鯖");
+  assert.equal(founded.nation.name, "テスト鯖");
   assert.deepEqual(founded.nation.capital, { x: 512, y: 512 });
   assert.equal(founded.state.members[KING_A].role, "king");
   assert.equal(founded.nation.color, wb.NATION_PALETTE[0]);
 
   assert.equal(
-    wb.applyFound(founded.state, USER_B, { id: GUILD_1, name: "あご鯖" }, map, 2000).error,
+    wb.applyFound(founded.state, USER_B, { id: GUILD_1, name: "テスト鯖" }, map, 2000).error,
     "nation_exists",
   );
   assert.equal(
@@ -264,7 +264,7 @@ test("nations: 王の離脱規則と、解散で首都が空く", () => {
   const founded = wb.applyFound(
     wb.emptyNationsState(),
     KING_A,
-    { id: GUILD_1, name: "あご鯖" },
+    { id: GUILD_1, name: "テスト鯖" },
     map,
     1000,
   );
@@ -290,7 +290,7 @@ test("nations: 保存形式の往復（v2）と、旧形式の破棄・壊れた
   const founded = wb.applyFound(
     wb.emptyNationsState(),
     KING_A,
-    { id: GUILD_1, name: "あご鯖" },
+    { id: GUILD_1, name: "テスト鯖" },
     map,
     1000,
   );
@@ -356,7 +356,7 @@ test("nations: 表示用ビューの人数とプレイヤー色マップ、ギ�
   const founded = wb.applyFound(
     wb.emptyNationsState(),
     KING_A,
-    { id: GUILD_1, name: "あご鯖" },
+    { id: GUILD_1, name: "テスト鯖" },
     map,
     1000,
   );
@@ -377,7 +377,7 @@ test("nations: 表示用ビューの人数とプレイヤー色マップ、ギ�
   assert.equal(res.guildsScopeRequired, false);
   const withGuilds = wb.buildNationsResponse(joined.state, USER_B, {
     myGuilds: [
-      { guildId: GUILD_1, name: "あご鯖", owner: false, hasNation: true, myRole: "citizen" },
+      { guildId: GUILD_1, name: "テスト鯖", owner: false, hasNation: true, myRole: "citizen" },
     ],
     guildsScopeRequired: true,
   });
@@ -391,7 +391,7 @@ test("nations: 繁栄度 = 国民数 × 5 のみ（旧プレハブ建物の算�
   const founded = wb.applyFound(
     wb.emptyNationsState(),
     KING_A,
-    { id: GUILD_1, name: "あご鯖" },
+    { id: GUILD_1, name: "テスト鯖" },
     map,
     1000,
   );
@@ -624,11 +624,11 @@ test("API(nations): ゲストは閲覧のみ、書き込みは 401", async () =>
 
 test("API(nations): 建国はオーナーのみ・国名はサーバー名・参加はメンバーのみ・役職は権限由来", async () => {
   const cookieA = guildUser("200000000000000001", "king-a", "a1", [
-    discordGuild(ALPHA, "あご鯖", true, "0"),
+    discordGuild(ALPHA, "テスト鯖", true, "0"),
     discordGuild(BETA, "べた鯖", false, "0"),
   ]);
   const cookieB = guildUser("200000000000000002", "user-b", "b2", [
-    discordGuild(ALPHA, "あご鯖", false, "0"),
+    discordGuild(ALPHA, "テスト鯖", false, "0"),
     discordGuild(BETA, "べた鯖", false, "8"),
   ]);
   const cookieC = guildUser("200000000000000003", "user-c", "c3", []);
@@ -636,7 +636,7 @@ test("API(nations): 建国はオーナーのみ・国名はサーバー名・参
     discordGuild(BETA, "べた鯖", true, "0"),
   ]);
   const cookieE = guildUser("200000000000000005", "user-e", "e5", [
-    discordGuild(ALPHA, "あご鯖", true, "0"),
+    discordGuild(ALPHA, "テスト鯖", true, "0"),
   ]);
   const cookieF = guildUser("200000000000000006", "user-f", "f6", [
     discordGuild(BETA, "べた鯖", false, "0"),
@@ -661,7 +661,7 @@ test("API(nations): 建国はオーナーのみ・国名はサーバー名・参
   assert.equal(foundBody.me.role, "king");
   assert.equal(foundBody.nation.id, ALPHA);
   assert.equal(foundBody.nation.guildId, ALPHA);
-  assert.equal(foundBody.nation.name, "あご鯖");
+  assert.equal(foundBody.nation.name, "テスト鯖");
   assert.deepEqual(foundBody.nation.capital, { x: 512, y: 512 });
   assert.equal(foundBody.nation.members, 1);
 
@@ -706,13 +706,13 @@ test("API(nations): 建国はオーナーのみ・国名はサーバー名・参
 
   const viewB = await (await nationsRoute.GET(nationsRequest("GET", cookieB))).json();
   assert.deepEqual(viewB.myGuilds, [
-    { guildId: ALPHA, name: "あご鯖", owner: false, hasNation: true, myRole: "citizen" },
+    { guildId: ALPHA, name: "テスト鯖", owner: false, hasNation: true, myRole: "citizen" },
     { guildId: BETA, name: "べた鯖", owner: false, hasNation: false, myRole: "minister" },
   ]);
   const viewA = await (await nationsRoute.GET(nationsRequest("GET", cookieA))).json();
   assert.deepEqual(viewA.myGuilds[0], {
     guildId: ALPHA,
-    name: "あご鯖",
+    name: "テスト鯖",
     owner: true,
     hasNation: true,
     myRole: "king",
@@ -932,7 +932,7 @@ test("nations: ファストトラベル先は所属国の首都のみ（料金�
   const founded = wb.applyFound(
     wb.emptyNationsState(),
     KING_A,
-    { id: GUILD_1, name: "あご鯖" },
+    { id: GUILD_1, name: "テスト鯖" },
     map,
     1000,
   );

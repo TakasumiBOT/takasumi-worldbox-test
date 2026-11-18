@@ -6173,7 +6173,7 @@ export default function WorldBoxClient() {
           textAlign: "center",
         }}
       >
-        <h1 style={{ fontSize: 28, margin: 0 }}>AGO WORLD BOX</h1>
+        <h1 style={{ fontSize: 28, margin: 0 }}>WORLD BOX</h1>
         {gate === "checking" || (gate === "ok" && !booted) ? (
           <p role="status" style={{ margin: 0 }}>
             読み込み中…
@@ -6285,7 +6285,7 @@ export default function WorldBoxClient() {
         <canvas
           ref={canvasRef}
           onContextMenu={(e) => e.preventDefault()}
-          aria-label="AGO WORLD BOX の見下ろしマップ。スティックか WASD で歩けます"
+          aria-label="WORLD BOX の見下ろしマップ。スティックか WASD で歩けます"
           style={{
             width: "100%",
             height: "100%",

@@ -983,7 +983,7 @@ export const SETTING_SECTIONS: SectionSpec[] = [
     section: "command_control",
     label: "BOT fixer（コマンド制限）",
     description:
-      "AGO BOTの機能をサーバー単位で制限します。設定用の機能（BOT fixer）自体は常に対象外で、サーバー管理者は制限の対象になりません。レート制限は1行に「アクションID 回数 期間（秒）」の形で書きます（例: general:money_panel 10 3600）。期間は60〜604800秒、回数は1〜1000です。",
+      "このボットの機能をサーバー単位で制限します。設定用の機能（BOT fixer）自体は常に対象外で、サーバー管理者は制限の対象になりません。レート制限は1行に「アクションID 回数 期間（秒）」の形で書きます（例: general:money_panel 10 3600）。期間は60〜604800秒、回数は1〜1000です。",
     fields: [
       {
         name: "mode",
@@ -1020,7 +1020,7 @@ export const SETTING_SECTIONS: SectionSpec[] = [
     section: "bot_control",
     label: "BOT fixer（他ボット制限）",
     description:
-      "他のボットの発言を、許可したチャンネルだけに制限します。1行に「ボットID 許可チャンネルID（カンマ区切り） [回数 期間（秒）]」の形で書きます（例: 123456789012345678 234567890123456789,345678901234567890 20 3600）。許可チャンネルが1つも無い行は保存できません。AGO BOT 自身は対象にできません。",
+      "他のボットの発言を、許可したチャンネルだけに制限します。1行に「ボットID 許可チャンネルID（カンマ区切り） [回数 期間（秒）]」の形で書きます（例: 123456789012345678 234567890123456789,345678901234567890 20 3600）。許可チャンネルが1つも無い行は保存できません。このボット自身は対象にできません。",
     fields: [
       {
         name: "rules",
@@ -1152,7 +1152,7 @@ export function parseBotRuleMap(
       return;
     }
     if (botId === OWN_BOT_ID) {
-      errors.push("AGO BOT 自身は対象にできません");
+      errors.push("このボット自身は対象にできません");
       return;
     }
     if (botId in result) {
