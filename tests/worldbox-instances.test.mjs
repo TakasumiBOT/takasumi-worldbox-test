@@ -5,7 +5,7 @@ import path from "node:path";
 import ts from "typescript";
 
 const rootDir = path.join(import.meta.dirname, "..");
-const libDir = path.join(rootDir, "lib");
+const libDir = path.join(rootDir, "src/lib");
 
 function transpile(name, base = libDir) {
   const src = fs.readFileSync(path.join(base, name), "utf8");
@@ -309,7 +309,10 @@ test("ruinsCompleteOpId: 決定的でブリッジの ID 形式に収まり、入
 });
 
 test("冪等性の配線: instances ルートは空間ロックと決定的 ID の冪等登録を使う", () => {
-  const route = fs.readFileSync(path.join(rootDir, "app/api/worldbox/instances/route.ts"), "utf8");
+  const route = fs.readFileSync(
+    path.join(rootDir, "src/app/api/worldbox/instances/route.ts"),
+    "utf8",
+  );
   assert.match(route, /withUserLock\(`instance:\$\{space\}`,/, "空間単位で直列化する");
   assert.match(route, /ruinsCompleteOpId/, "ruins_complete は決定的 ID");
   assert.match(route, /enqueueEconomyOpOnce/, "冪等登録を使う");

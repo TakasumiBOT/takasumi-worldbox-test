@@ -6,9 +6,9 @@ import { createRequire } from "node:module";
 import ts from "typescript";
 
 const rootDir = path.join(import.meta.dirname, "..");
-const libDir = path.join(rootDir, "lib");
+const libDir = path.join(rootDir, "src/lib");
 const require = createRequire(import.meta.url);
-const relay = require(path.join(rootDir, "realtime", "relay-core.js"));
+const relay = require(path.join(rootDir, "src/realtime", "relay-core.js"));
 
 function transpile(name, base = libDir) {
   const src = fs.readFileSync(path.join(base, name), "utf8");
@@ -232,7 +232,10 @@ test("WS 中継: 登録されていないジャンプは依然として却下さ
 });
 
 test("遺跡の転移罠: サーバーがプレゼンス/セーブを転移先へそろえる配線がある", () => {
-  const route = fs.readFileSync(path.join(rootDir, "app/api/worldbox/instances/route.ts"), "utf8");
+  const route = fs.readFileSync(
+    path.join(rootDir, "src/app/api/worldbox/instances/route.ts"),
+    "utf8",
+  );
   assert.ok(route.includes("putPresence"), "転移時にプレゼンスをそろえていない");
   assert.match(
     route,

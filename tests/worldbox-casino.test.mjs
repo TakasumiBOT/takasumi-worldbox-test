@@ -5,7 +5,7 @@ import path from "node:path";
 import ts from "typescript";
 
 const rootDir = path.join(import.meta.dirname, "..");
-const libDir = path.join(rootDir, "lib");
+const libDir = path.join(rootDir, "src/lib");
 
 function transpile(name, base = libDir) {
   const src = fs.readFileSync(path.join(base, name), "utf8");
@@ -249,7 +249,7 @@ export class NextResponse {
 `);
 const casinoRoute = await import(
   dataUrl(
-    transpile("api/worldbox/casino/route.ts", rootDir + "/app")
+    transpile("api/worldbox/casino/route.ts", rootDir + "/src/app")
       .replaceAll('"next/server"', JSON.stringify(nextServerStubUrl))
       .replaceAll('"@/lib/auth"', JSON.stringify(authUrl))
       .replaceAll('"@/lib/worldbox/activity/casino"', JSON.stringify(casinoUrl))
@@ -733,12 +733,12 @@ test("API(casino): セブンスロットは1回分を先払いして回すと精
 
 test("casino: セブンスロットに回数指定の UI・検証は残っていない", () => {
   const panel = fs.readFileSync(
-    path.join(rootDir, "app/games/worldbox/WorldBoxCasinoPanel.tsx"),
+    path.join(rootDir, "src/app/games/worldbox/WorldBoxCasinoPanel.tsx"),
     "utf8",
   );
   assert.ok(!panel.includes("SLOT7_SPIN_CHOICES"), "回数チップが無い");
   assert.ok(!panel.includes("invalid_spins"), "回数エラー表示が無い");
-  const route = fs.readFileSync(path.join(rootDir, "app/api/worldbox/casino/route.ts"), "utf8");
+  const route = fs.readFileSync(path.join(rootDir, "src/app/api/worldbox/casino/route.ts"), "utf8");
   assert.ok(!route.includes("invalid_spins"), "API に回数検証が無い");
   assert.ok(!route.includes("fields.spins"), "API は spins を読まない");
 });
@@ -775,13 +775,13 @@ test("API(casino): 精算は並行 GET が重なっても1回だけ（二重精�
 
 test("casino: クライアントはステーションチップからパネルを開き、パネルは API を使う", () => {
   const client = fs.readFileSync(
-    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    path.join(rootDir, "src/app/games/worldbox/WorldBoxClient.tsx"),
     "utf8",
   );
   assert.ok(client.includes("WorldBoxCasinoPanel"), "パネルを import している");
   assert.ok(client.includes('stationUi === "casino"'), "カジノの前で導線が出る");
   const panel = fs.readFileSync(
-    path.join(rootDir, "app/games/worldbox/WorldBoxCasinoPanel.tsx"),
+    path.join(rootDir, "src/app/games/worldbox/WorldBoxCasinoPanel.tsx"),
     "utf8",
   );
   assert.ok(panel.includes("/api/worldbox/casino"), "カジノ API を使う");

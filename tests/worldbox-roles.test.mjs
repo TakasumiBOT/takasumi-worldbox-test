@@ -5,7 +5,7 @@ import path from "node:path";
 import ts from "typescript";
 
 const rootDir = path.join(import.meta.dirname, "..");
-const libDir = path.join(rootDir, "lib");
+const libDir = path.join(rootDir, "src/lib");
 
 function transpile(name, base = libDir) {
   const src = fs.readFileSync(path.join(base, name), "utf8");
@@ -164,7 +164,7 @@ test("role ids validated", () => {
 });
 
 test("roles route: 蘇生アクションは無く、技は porter 設置のみ", () => {
-  const route = fs.readFileSync(path.join(rootDir, "app/api/worldbox/roles/route.ts"), "utf8");
+  const route = fs.readFileSync(path.join(rootDir, "src/app/api/worldbox/roles/route.ts"), "utf8");
   assert.ok(!route.includes('"revive"'), "蘇生が残っている");
   assert.ok(route.includes('fields.action === "skill"'));
   assert.ok(route.includes('skillId === "porter"'), "porter 以外の技がある");

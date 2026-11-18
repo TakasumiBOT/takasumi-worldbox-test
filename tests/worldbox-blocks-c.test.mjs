@@ -5,7 +5,7 @@ import path from "node:path";
 import ts from "typescript";
 
 const rootDir = path.join(import.meta.dirname, "..");
-const libDir = path.join(rootDir, "lib");
+const libDir = path.join(rootDir, "src/lib");
 
 function transpile(name, base = libDir) {
   const src = fs.readFileSync(path.join(base, name), "utf8");
@@ -203,13 +203,16 @@ test("actionForTile: 門は開閉、所有者＋道具なら採掘、橋は水�
 });
 
 test("配線: ハザード送信は無く、クライアントの床・滑りは配線されている", () => {
-  const route = fs.readFileSync(path.join(rootDir, "app/api/worldbox/vitals/route.ts"), "utf8");
+  const route = fs.readFileSync(path.join(rootDir, "src/app/api/worldbox/vitals/route.ts"), "utf8");
   assert.ok(!route.includes('"hazard"'), "vitals ルートに hazard が残っている");
   assert.ok(!route.includes("applyHazardDamage"));
-  const tilesRoute = fs.readFileSync(path.join(rootDir, "app/api/worldbox/tiles/route.ts"), "utf8");
+  const tilesRoute = fs.readFileSync(
+    path.join(rootDir, "src/app/api/worldbox/tiles/route.ts"),
+    "utf8",
+  );
   assert.match(tilesRoute, /applyToggleGate/);
   const client = fs.readFileSync(
-    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    path.join(rootDir, "src/app/games/worldbox/WorldBoxClient.tsx"),
     "utf8",
   );
   assert.ok(!client.includes("postHazard"), "クライアントにハザード送信が残っている");

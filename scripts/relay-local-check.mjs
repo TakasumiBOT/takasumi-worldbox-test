@@ -3,8 +3,8 @@ import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
 const { WebSocketServer, WebSocket } = require("ws");
-const core = require("../realtime/relay-core.js");
-const { createHub } = require("../realtime/hub.js");
+const core = require("../src/realtime/relay-core.js");
+const { createHub } = require("../src/realtime/hub.js");
 
 const SECRET = "relay-local-check-secret";
 const hub = createHub({ secret: SECRET, kvCfg: null });

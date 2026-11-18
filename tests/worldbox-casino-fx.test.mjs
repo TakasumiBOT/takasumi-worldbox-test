@@ -5,7 +5,7 @@ import path from "node:path";
 import ts from "typescript";
 
 const rootDir = path.join(import.meta.dirname, "..");
-const libDir = path.join(rootDir, "lib");
+const libDir = path.join(rootDir, "src/lib");
 
 function transpile(name, base = libDir) {
   const src = fs.readFileSync(path.join(base, name), "utf8");
@@ -83,7 +83,7 @@ test("casino-fx: 紙吹雪は個数どおりで色がパレット内", () => {
 
 test("casino-fx: パネルに演出が配線されている", () => {
   const panel = fs.readFileSync(
-    path.join(rootDir, "app/games/worldbox/WorldBoxCasinoPanel.tsx"),
+    path.join(rootDir, "src/app/games/worldbox/WorldBoxCasinoPanel.tsx"),
     "utf8",
   );
   assert.match(panel, /casino-fx/);

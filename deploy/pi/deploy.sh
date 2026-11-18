@@ -35,9 +35,10 @@ cp -a "$BUILD/public" "$RELEASE/public"
 # /api/worldbox/realtime の WebSocket だけをラッパーが受ける）。
 mv "$RELEASE/server.js" "$RELEASE/next-server.js"
 cp -a "$BUILD/realtime-server.js" "$RELEASE/server.js"
-cp -a "$BUILD/realtime" "$RELEASE/realtime"
-mkdir -p "$RELEASE/lib"
-cp -a "$BUILD/lib/deploy-config.ts" "$RELEASE/lib/deploy-config.ts"
+mkdir -p "$RELEASE/src"
+cp -a "$BUILD/src/realtime" "$RELEASE/src/realtime"
+mkdir -p "$RELEASE/src/lib"
+cp -a "$BUILD/src/lib/deploy-config.ts" "$RELEASE/src/lib/deploy-config.ts"
 mkdir -p "$RELEASE/node_modules/ws"
 cp -a "$BUILD/node_modules/ws/." "$RELEASE/node_modules/ws/"
 

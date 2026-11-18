@@ -6,7 +6,7 @@ import { createRequire } from "node:module";
 
 const rootDir = path.join(import.meta.dirname, "..");
 const require = createRequire(import.meta.url);
-const core = require(path.join(rootDir, "realtime", "relay-core.js"));
+const core = require(path.join(rootDir, "src/realtime", "relay-core.js"));
 
 const NOW = 1_700_000_000_000;
 const hb = (x, y, extra = {}) => ({ x, y, vx: 0, vy: 0, face: 1, space: "world", ...extra });
@@ -134,10 +134,10 @@ test("配線: 中継が外部基準を読み、却下を jump で返す", () => 
   assert.ok(wrapper.includes("pendingHbs"), "基準解決前のため置きが無い");
   assert.ok(wrapper.includes('t: "jump"'), "却下の jump 通知が無い");
   assert.ok(wrapper.includes("handleHeartbeat"), "ハートビート処理の集約が無い");
-  const botkv = fs.readFileSync(path.join(rootDir, "realtime", "botkv.js"), "utf8");
+  const botkv = fs.readFileSync(path.join(rootDir, "src/realtime", "botkv.js"), "utf8");
   assert.ok(botkv.includes("kvGet"), "kvGet が無い");
   const client = fs.readFileSync(
-    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    path.join(rootDir, "src/app/games/worldbox/WorldBoxClient.tsx"),
     "utf8",
   );
   assert.ok(client.includes('msg.t === "jump"'), "クライアントが jump を受けていない");
@@ -210,12 +210,12 @@ test("配線: ラッパー・デプロイ・トークンルート・クライア
   );
   assert.ok(deploy.includes("node_modules/ws"), "ws のコピーが無い");
   const route = fs.readFileSync(
-    path.join(rootDir, "app/api/worldbox/realtime-token/route.ts"),
+    path.join(rootDir, "src/app/api/worldbox/realtime-token/route.ts"),
     "utf8",
   );
   assert.ok(route.includes("issueRealtimeToken"), "トークン発行ルートが無い");
   const client = fs.readFileSync(
-    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    path.join(rootDir, "src/app/games/worldbox/WorldBoxClient.tsx"),
     "utf8",
   );
   assert.ok(

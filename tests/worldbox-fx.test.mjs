@@ -5,7 +5,7 @@ import path from "node:path";
 import ts from "typescript";
 
 const rootDir = path.join(import.meta.dirname, "..");
-const libDir = path.join(rootDir, "lib");
+const libDir = path.join(rootDir, "src/lib");
 
 function transpile(name, base = libDir) {
   const src = fs.readFileSync(path.join(base, name), "utf8");
@@ -275,7 +275,7 @@ test("fx2: 空振り係数は成功時より薄い（0〜1）", () => {
 
 test("fx: クライアント配線（イベント→粒/揺れ/ポップ、スイング、環境粒）", () => {
   const client = fs.readFileSync(
-    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    path.join(rootDir, "src/app/games/worldbox/WorldBoxClient.tsx"),
     "utf8",
   );
   assert.match(client, /from "@\/lib\/worldbox\/media\/fx"/, "fx 基盤を使う");
@@ -291,7 +291,7 @@ test("fx: クライアント配線（イベント→粒/揺れ/ポップ、ス�
 
 test("fx2: クライアント配線（空振り・天候・時間帯）", () => {
   const client = fs.readFileSync(
-    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    path.join(rootDir, "src/app/games/worldbox/WorldBoxClient.tsx"),
     "utf8",
   );
   const whiffPushes =
@@ -376,7 +376,7 @@ test("fx3: バーストのパレット上書きは全粒に効く", () => {
 
 test("fx3: クライアント配線（素材パレット・クリックSE・パネル出現）", () => {
   const client = fs.readFileSync(
-    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    path.join(rootDir, "src/app/games/worldbox/WorldBoxClient.tsx"),
     "utf8",
   );
   assert.ok(!client.includes("hitstop"), "ヒットストップが残っている");
@@ -392,7 +392,7 @@ test("fx3: クライアント配線（素材パレット・クリックSE・パ�
     "固有 SE の領域を除外するマーカーがある",
   );
   assert.match(client, /playWbSe\("click"\)/, "捕捉側が click SE を鳴らす");
-  const css = fs.readFileSync(path.join(rootDir, "app/globals.css"), "utf8");
+  const css = fs.readFileSync(path.join(rootDir, "src/app/globals.css"), "utf8");
   assert.match(css, /@keyframes wb-panel-in/, "パネル出現のキーフレームがある");
   assert.match(
     css,
@@ -404,7 +404,7 @@ test("fx3: クライアント配線（素材パレット・クリックSE・パ�
     "WorldBoxCasinoPanel.tsx",
     "WorldBoxArcadePanel.tsx",
   ]) {
-    const src = fs.readFileSync(path.join(rootDir, "app/games/worldbox", name), "utf8");
+    const src = fs.readFileSync(path.join(rootDir, "src/app/games/worldbox", name), "utf8");
     assert.match(src, /data-wb-se="self"/, `${name} は固有 SE 側に寄せる`);
   }
 });

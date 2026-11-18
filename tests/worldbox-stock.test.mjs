@@ -5,7 +5,7 @@ import path from "node:path";
 import ts from "typescript";
 
 const rootDir = path.join(import.meta.dirname, "..");
-const libDir = path.join(rootDir, "lib");
+const libDir = path.join(rootDir, "src/lib");
 
 function transpile(name, base = libDir) {
   const src = fs.readFileSync(path.join(base, name), "utf8");
@@ -352,21 +352,21 @@ test("stock: earn 理由ホワイトリストに株式の売却と配当が入�
 
 test("stock: 配線（取引所ステーション・ルート・Cron・クライアント）", () => {
   const read = (p) => fs.readFileSync(path.join(rootDir, p), "utf8");
-  const lobby = read("lib/worldbox/world/lobby.ts");
+  const lobby = read("src/lib/worldbox/world/lobby.ts");
   assert.ok(lobby.includes('"stock"'), "LobbyStation に stock が無い");
   assert.ok(
     lobby.includes('put("stock_board", 32, 17, { station: "stock" })'),
     "取引所の掲示板が置かれていない",
   );
-  assert.ok(read("lib/worldbox/world/textures.ts").includes("stock_board"));
+  assert.ok(read("src/lib/worldbox/world/textures.ts").includes("stock_board"));
   assert.ok(fs.existsSync(path.join(rootDir, "public/img/worldbox/lobby/stock_board.png")));
 
-  const route = read("app/api/worldbox/stock/route.ts");
+  const route = read("src/app/api/worldbox/stock/route.ts");
   assert.ok(route.includes("loadMyLobbyStation") && route.includes("not_at_exchange"));
   assert.ok(route.includes("guest_not_allowed"));
   assert.ok(route.includes("planExchangeBuy") && route.includes("planExchangeSell"));
 
-  const cron = read("app/api/worldbox/internal/stock-cron/route.ts");
+  const cron = read("src/app/api/worldbox/internal/stock-cron/route.ts");
   assert.ok(cron.includes("runStockDividendCron") && cron.includes("CRON_SECRET"));
   const vercel = JSON.parse(read("vercel.json"));
   assert.ok(
@@ -376,10 +376,10 @@ test("stock: 配線（取引所ステーション・ルート・Cron・クライ
     "vercel.json に stock-cron（毎日 0:00 JST）が無い",
   );
 
-  const client = read("app/games/worldbox/WorldBoxClient.tsx");
+  const client = read("src/app/games/worldbox/WorldBoxClient.tsx");
   assert.ok(client.includes("WorldBoxStockPanel"));
   assert.ok(client.includes('stock: "取引所"'));
-  const panel = read("app/games/worldbox/WorldBoxStockPanel.tsx");
+  const panel = read("src/app/games/worldbox/WorldBoxStockPanel.tsx");
   assert.ok(panel.includes("/api/worldbox/stock"));
   assert.ok(panel.includes("IPO上場"), "企業IPO上場の案内が無い");
 });

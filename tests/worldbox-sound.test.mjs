@@ -5,7 +5,7 @@ import path from "node:path";
 import ts from "typescript";
 
 const rootDir = path.join(import.meta.dirname, "..");
-const libDir = path.join(rootDir, "lib");
+const libDir = path.join(rootDir, "src/lib");
 
 function transpile(name, base = libDir) {
   const src = fs.readFileSync(path.join(base, name), "utf8");
@@ -153,7 +153,7 @@ test("sound: 場面遷移はクロスフェードで、SE/BGM はマスターで
   assert.match(src, /nextStepAt < ctx\.currentTime - stepSec/, "遅延分の飛ばしがある");
   assert.ok(!src.includes("tension"), "緊張レイヤー（心拍）が残っている");
   const client = fs.readFileSync(
-    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    path.join(rootDir, "src/app/games/worldbox/WorldBoxClient.tsx"),
     "utf8",
   );
   assert.ok(!client.includes("setWbBgmTension"), "クライアントに緊張レイヤー更新が残っている");
@@ -293,7 +293,7 @@ test("sound: opus っぽさ回避（音声ファイルなし・BGM パッドな�
 
 test("sound: クライアント配線（解錠・場面・行為SE・足音・経済・切替）", () => {
   const client = fs.readFileSync(
-    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    path.join(rootDir, "src/app/games/worldbox/WorldBoxClient.tsx"),
     "utf8",
   );
   assert.match(client, /from "@\/lib\/worldbox\/media\/sound"/, "sound 基盤を使う");
@@ -317,7 +317,7 @@ test("sound: クライアント配線（解錠・場面・行為SE・足音・�
   assert.match(client, /BGMを切る|BGMを入れる/, "≡ メニューに BGM 切替");
   assert.match(client, /効果音を切る|効果音を入れる/, "≡ メニューに SE 切替");
   const eco = fs.readFileSync(
-    path.join(rootDir, "app/games/worldbox/WorldBoxEconomyPanel.tsx"),
+    path.join(rootDir, "src/app/games/worldbox/WorldBoxEconomyPanel.tsx"),
     "utf8",
   );
   assert.match(eco, /from "@\/lib\/worldbox\/media\/sound"/, "経済パネルも sound 基盤を使う");

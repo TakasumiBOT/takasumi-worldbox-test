@@ -3,11 +3,11 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 const client = await readFile(
-  new URL("../app/games/worldbox/WorldBoxClient.tsx", import.meta.url),
+  new URL("../src/app/games/worldbox/WorldBoxClient.tsx", import.meta.url),
   "utf8",
 );
-const css = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
-const page = await readFile(new URL("../app/games/[id]/page.tsx", import.meta.url), "utf8");
+const css = await readFile(new URL("../src/app/globals.css", import.meta.url), "utf8");
+const page = await readFile(new URL("../src/app/games/[id]/page.tsx", import.meta.url), "utf8");
 
 test("クライアントの外枠は .wb-shell で、画面外クロームを持たない", () => {
   assert.ok((client.match(/className="wb-shell"/g) ?? []).length >= 2);

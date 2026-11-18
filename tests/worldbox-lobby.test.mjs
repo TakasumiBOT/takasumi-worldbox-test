@@ -5,7 +5,7 @@ import path from "node:path";
 import ts from "typescript";
 
 const rootDir = path.join(import.meta.dirname, "..");
-const libDir = path.join(rootDir, "lib");
+const libDir = path.join(rootDir, "src/lib");
 
 function transpile(name, base = libDir) {
   const src = fs.readFileSync(path.join(base, name), "utf8");
@@ -623,7 +623,7 @@ export async function loadEconDay() { return null; }
 `);
 const presenceRoute = await import(
   dataUrl(
-    transpile("api/worldbox/presence/route.ts", rootDir + "/app")
+    transpile("api/worldbox/presence/route.ts", rootDir + "/src/app")
       .replaceAll('"next/server"', JSON.stringify(nextServerStubUrl))
       .replaceAll('"@/lib/auth"', JSON.stringify(authUrl))
       .replaceAll('"@/lib/worldbox/world/mapgen"', JSON.stringify(mapgenUrl))
@@ -642,7 +642,7 @@ export async function loadMyLobbyStation() { return "board"; }
 `);
 const boardRoute = await import(
   dataUrl(
-    transpile("api/worldbox/board/route.ts", rootDir + "/app")
+    transpile("api/worldbox/board/route.ts", rootDir + "/src/app")
       .replaceAll('"next/server"', JSON.stringify(nextServerStubUrl))
       .replaceAll('"@/lib/auth"', JSON.stringify(authUrl))
       .replaceAll('"@/lib/worldbox/social/board"', JSON.stringify(boardUrl))
@@ -652,7 +652,7 @@ const boardRoute = await import(
 );
 const gateRoute = await import(
   dataUrl(
-    transpile("api/worldbox/gate/route.ts", rootDir + "/app")
+    transpile("api/worldbox/gate/route.ts", rootDir + "/src/app")
       .replaceAll('"next/server"', JSON.stringify(nextServerStubUrl))
       .replaceAll('"@/lib/auth"', JSON.stringify(authUrl)),
   )
@@ -807,7 +807,7 @@ test("API(gate): Discord セッションだけが入場でき、ゲストと Goo
 
 test("クライアント: 入場ゲート（未ログインではワールドを描かず、Discord ログインを出す）", () => {
   const client = fs.readFileSync(
-    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    path.join(rootDir, "src/app/games/worldbox/WorldBoxClient.tsx"),
     "utf8",
   );
   assert.ok(client.includes("/api/worldbox/gate"), "ゲート判定を使っていない");
@@ -823,7 +823,7 @@ test("クライアント: 入場ゲート（未ログインではワールドを
 
 test("クライアント: ハンバーガーはデータ駆動のアクションリスト（ワープ・設定トグル）", () => {
   const client = fs.readFileSync(
-    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    path.join(rootDir, "src/app/games/worldbox/WorldBoxClient.tsx"),
     "utf8",
   );
   assert.ok(client.includes("menuActions"), "アクションリストが無い");
@@ -835,7 +835,7 @@ test("クライアント: ハンバーガーはデータ駆動のアクション
 
 test("クライアント: ハンバーガーメニューと空間ワープがある", () => {
   const client = fs.readFileSync(
-    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    path.join(rootDir, "src/app/games/worldbox/WorldBoxClient.tsx"),
     "utf8",
   );
   assert.ok(client.includes("≡"), "ハンバーガーボタンが無い");
@@ -852,7 +852,7 @@ test("クライアント: ハンバーガーメニューと空間ワープがあ
 
 test("クライアント: ロビー描画はピクセル固定（整数カメラ・補間オフ）で、ミニマップはロビーで隠す", () => {
   const client = fs.readFileSync(
-    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    path.join(rootDir, "src/app/games/worldbox/WorldBoxClient.tsx"),
     "utf8",
   );
   assert.ok(client.includes("Math.round(cw / 2 - cam.x * TILE)"), "ロビーの整数カメラが無い");
@@ -869,7 +869,7 @@ test("クライアント: ロビー描画はピクセル固定（整数カメラ
 
 test("クライアント: プレゼンスは空間つきで送受信し、掲示板パネルがある", () => {
   const client = fs.readFileSync(
-    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    path.join(rootDir, "src/app/games/worldbox/WorldBoxClient.tsx"),
     "utf8",
   );
   assert.ok(client.includes("presence?space=${space}"), "プレゼンス取得に空間が無い");

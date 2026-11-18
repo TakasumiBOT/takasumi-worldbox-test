@@ -6,9 +6,9 @@ import { createRequire } from "node:module";
 import ts from "typescript";
 
 const rootDir = path.join(import.meta.dirname, "..");
-const libDir = path.join(rootDir, "lib");
+const libDir = path.join(rootDir, "src/lib");
 const require = createRequire(import.meta.url);
-const relay = require(path.join(rootDir, "realtime", "relay-core.js"));
+const relay = require(path.join(rootDir, "src/realtime", "relay-core.js"));
 
 function transpile(name, base = libDir) {
   const src = fs.readFileSync(path.join(base, name), "utf8");
@@ -52,9 +52,12 @@ const wb = await loadBundle(
   ["worldbox/core/rng.ts", "worldbox/world/mapgen.ts", "worldbox/world/lobby.ts"],
   ["buildLobby", "stationNear"],
 );
-const client = fs.readFileSync(path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"), "utf8");
+const client = fs.readFileSync(
+  path.join(rootDir, "src/app/games/worldbox/WorldBoxClient.tsx"),
+  "utf8",
+);
 const server = fs.readFileSync(path.join(rootDir, "realtime-server.js"), "utf8");
-const sound = fs.readFileSync(path.join(rootDir, "lib/worldbox/media/sound.ts"), "utf8");
+const sound = fs.readFileSync(path.join(rootDir, "src/lib/worldbox/media/sound.ts"), "utf8");
 
 test("ピアノ: ロビーのピアノに station が付き、隣で返る", () => {
   const lobby = wb.buildLobby();

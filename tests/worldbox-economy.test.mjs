@@ -5,7 +5,7 @@ import path from "node:path";
 import ts from "typescript";
 
 const rootDir = path.join(import.meta.dirname, "..");
-const libDir = path.join(rootDir, "lib");
+const libDir = path.join(rootDir, "src/lib");
 
 function transpile(name, base = libDir) {
   const src = fs.readFileSync(path.join(base, name), "utf8");
@@ -225,7 +225,7 @@ test("発見レシピはプロフィールに往復し、文字列だけが残�
 
 test("合成の作り直し配線: パネルはレシピ一覧を出さず台UI、ルートは自由セット式を使う", () => {
   const panel = fs.readFileSync(
-    path.join(rootDir, "app/games/worldbox/WorldBoxEconomyPanel.tsx"),
+    path.join(rootDir, "src/app/games/worldbox/WorldBoxEconomyPanel.tsx"),
     "utf8",
   );
   assert.ok(!panel.includes("RECIPES"), "旧レシピ全件リストが残っている");
@@ -233,7 +233,10 @@ test("合成の作り直し配線: パネルはレシピ一覧を出さず台UI�
   assert.match(panel, /製造を開始/);
   assert.match(panel, /発見した組み合わせ/);
   assert.match(panel, /discoveredRecipes/);
-  const route = fs.readFileSync(path.join(rootDir, "app/api/worldbox/profile/route.ts"), "utf8");
+  const route = fs.readFileSync(
+    path.join(rootDir, "src/app/api/worldbox/profile/route.ts"),
+    "utf8",
+  );
   assert.match(route, /craftFromInputs/);
   assert.match(route, /discoveredRecipes/);
   assert.match(route, /hint/);
@@ -318,7 +321,7 @@ test("プロフィールの検証: 未定義アイテムは捨てられ、所持
 
 test("クライアント配線: 経済パネルと API がつながっている", () => {
   const client = fs.readFileSync(
-    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    path.join(rootDir, "src/app/games/worldbox/WorldBoxClient.tsx"),
     "utf8",
   );
   assert.match(client, /WorldBoxEconomyPanel/);
@@ -330,14 +333,17 @@ test("クライアント配線: 経済パネルと API がつながっている"
   );
   assert.match(presenceOnline, /findPresenceOwnerKey/);
   const panel = fs.readFileSync(
-    path.join(rootDir, "app/games/worldbox/WorldBoxEconomyPanel.tsx"),
+    path.join(rootDir, "src/app/games/worldbox/WorldBoxEconomyPanel.tsx"),
     "utf8",
   );
   for (const action of ["buy", "sell", "eat", "craft"]) {
     assert.ok(panel.includes(`"${action}"`) || panel.includes(action), action);
   }
   assert.ok(!panel.includes('tabBtn("steal"'), "steal タブが残っている");
-  const route = fs.readFileSync(path.join(rootDir, "app/api/worldbox/profile/route.ts"), "utf8");
+  const route = fs.readFileSync(
+    path.join(rootDir, "src/app/api/worldbox/profile/route.ts"),
+    "utf8",
+  );
   assert.match(route, /steal_disabled/);
   assert.ok(!route.includes("resolveSteal"), "ルートが steal を解決している");
   assert.ok(!panel.includes("労働する"), "労働ボタンが残っている");
@@ -352,7 +358,7 @@ test("クライアント配線: 経済パネルと API がつながっている"
 
 test("売買・合成・送金は施設の前でのみ開く（クライアントがステーションを渡し、パネルと API が制限する）", () => {
   const client = fs.readFileSync(
-    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    path.join(rootDir, "src/app/games/worldbox/WorldBoxClient.tsx"),
     "utf8",
   );
   assert.match(
@@ -360,7 +366,7 @@ test("売買・合成・送金は施設の前でのみ開く（クライアン�
     /<WorldBoxEconomyPanel\s+space=\{spaceUi\}\s+station=\{stationUi\}\s+genre=\{stationGenre\}\s+worldStationKinds=\{worldStationKinds\}\s+onClose=\{\(\) => setShowEconomy\(false\)\}\s*\/>/,
   );
   const panel = fs.readFileSync(
-    path.join(rootDir, "app/games/worldbox/WorldBoxEconomyPanel.tsx"),
+    path.join(rootDir, "src/app/games/worldbox/WorldBoxEconomyPanel.tsx"),
     "utf8",
   );
   assert.match(panel, /space === "lobby"/);
@@ -371,14 +377,14 @@ test("売買・合成・送金は施設の前でのみ開く（クライアン�
   assert.match(panel, /station === "bank"/);
   assert.match(panel, /atBank && tabBtn\("bank"/);
   const profileRoute = fs.readFileSync(
-    path.join(rootDir, "app/api/worldbox/profile/route.ts"),
+    path.join(rootDir, "src/app/api/worldbox/profile/route.ts"),
     "utf8",
   );
   assert.match(profileRoute, /loadMyLobbyStation/);
   assert.match(profileRoute, /not_at_shop/);
   assert.match(profileRoute, /not_at_workbench/);
   const economyRoute = fs.readFileSync(
-    path.join(rootDir, "app/api/worldbox/economy/route.ts"),
+    path.join(rootDir, "src/app/api/worldbox/economy/route.ts"),
     "utf8",
   );
   assert.match(economyRoute, /loadMyLobbyStation/);

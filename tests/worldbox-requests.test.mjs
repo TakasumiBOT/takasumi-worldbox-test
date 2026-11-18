@@ -5,7 +5,7 @@ import path from "node:path";
 import ts from "typescript";
 
 const rootDir = path.join(import.meta.dirname, "..");
-const libDir = path.join(rootDir, "lib");
+const libDir = path.join(rootDir, "src/lib");
 
 function transpile(name, base = libDir) {
   const src = fs.readFileSync(path.join(base, name), "utf8");
@@ -220,7 +220,7 @@ test("ギルドボードの配線: ロビー配置・チップ・パネル・API
   assert.ok(fs.existsSync(path.join(rootDir, "public/img/worldbox/lobby/guild_board.png")));
 
   const client = fs.readFileSync(
-    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    path.join(rootDir, "src/app/games/worldbox/WorldBoxClient.tsx"),
     "utf8",
   );
   assert.match(client, /guild: "ギルドボード"/);
@@ -229,14 +229,17 @@ test("ギルドボードの配線: ロビー配置・チップ・パネル・API
   assert.doesNotMatch(client, /action: "found"|action: "join"|action: "leave"/);
 
   const panel = fs.readFileSync(
-    path.join(rootDir, "app/games/worldbox/WorldBoxGuildBoardPanel.tsx"),
+    path.join(rootDir, "src/app/games/worldbox/WorldBoxGuildBoardPanel.tsx"),
     "utf8",
   );
   assert.match(panel, /\/api\/worldbox\/requests/);
   assert.match(panel, /依頼/);
   assert.match(panel, /役職/);
 
-  const route = fs.readFileSync(path.join(rootDir, "app/api/worldbox/requests/route.ts"), "utf8");
+  const route = fs.readFileSync(
+    path.join(rootDir, "src/app/api/worldbox/requests/route.ts"),
+    "utf8",
+  );
   for (const action of ["post", "fulfill", "cancel"]) {
     assert.match(route, new RegExp(`case "${action}"`));
   }
@@ -402,7 +405,7 @@ export class NextResponse {
 `);
 const apiRequestsRoute = await import(
   dataUrl(
-    transpile("api/worldbox/requests/route.ts", rootDir + "/app")
+    transpile("api/worldbox/requests/route.ts", rootDir + "/src/app")
       .replaceAll('"next/server"', JSON.stringify(apiNextServerStubUrl))
       .replaceAll('"@/lib/auth"', JSON.stringify(apiAuthUrl))
       .replaceAll('"@/lib/worldbox/economy/economy-bridge"', JSON.stringify(apiBridgeUrl))

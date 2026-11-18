@@ -5,7 +5,7 @@ import path from "node:path";
 import ts from "typescript";
 
 const rootDir = path.join(import.meta.dirname, "..");
-const libDir = path.join(rootDir, "lib");
+const libDir = path.join(rootDir, "src/lib");
 
 function transpile(name, base = libDir) {
   const src = fs.readFileSync(path.join(base, name), "utf8");
@@ -206,7 +206,7 @@ test("nation-settings: 非公開の国は他国民から隠れ、自国民には
 
 test("nation-settings: ルート配線（税率適用・join拒否・ランキングフィルタ・設定API）", () => {
   const guildShopRoute = fs.readFileSync(
-    path.join(rootDir, "app/api/worldbox/guild-shop/route.ts"),
+    path.join(rootDir, "src/app/api/worldbox/guild-shop/route.ts"),
     "utf8",
   );
   assert.ok(guildShopRoute.includes("taxRateOf"), "ギルドショップが国の税率を引いていない");
@@ -216,7 +216,7 @@ test("nation-settings: ルート配線（税率適用・join拒否・ランキ�
     "税収の加算が設定ストアへ書かれていない",
   );
   const nationsRoute = fs.readFileSync(
-    path.join(rootDir, "app/api/worldbox/nations/route.ts"),
+    path.join(rootDir, "src/app/api/worldbox/nations/route.ts"),
     "utf8",
   );
   assert.ok(nationsRoute.includes("nation_private"), "非公開の国の join 拒否が配線されていない");
@@ -225,7 +225,7 @@ test("nation-settings: ルート配線（税率適用・join拒否・ランキ�
     "国一覧の非公開フィルタが配線されていない",
   );
   const settingsRoute = fs.readFileSync(
-    path.join(rootDir, "app/api/worldbox/nation-settings/route.ts"),
+    path.join(rootDir, "src/app/api/worldbox/nation-settings/route.ts"),
     "utf8",
   );
   assert.ok(settingsRoute.includes("king_only"), "設定変更の王限定が配線されていない");
@@ -234,7 +234,7 @@ test("nation-settings: ルート配線（税率適用・join拒否・ランキ�
     "設定変更のギルドボード前検証が配線されていない",
   );
   const panel = fs.readFileSync(
-    path.join(rootDir, "app/games/worldbox/WorldBoxGuildBoardPanel.tsx"),
+    path.join(rootDir, "src/app/games/worldbox/WorldBoxGuildBoardPanel.tsx"),
     "utf8",
   );
   assert.ok(

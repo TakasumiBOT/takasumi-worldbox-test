@@ -5,7 +5,7 @@ import path from "node:path";
 import ts from "typescript";
 
 const rootDir = path.join(import.meta.dirname, "..");
-const libDir = path.join(rootDir, "lib");
+const libDir = path.join(rootDir, "src/lib");
 
 function transpile(name, base = libDir) {
   const src = fs.readFileSync(path.join(base, name), "utf8");
@@ -138,14 +138,17 @@ test("設置施設: 作業種別の対応", () => {
   assert.deepEqual([...T.placedStationKinds("nope")], []);
 });
 
-const routeSrc = fs.readFileSync(path.join(rootDir, "app/api/worldbox/profile/route.ts"), "utf8");
+const routeSrc = fs.readFileSync(
+  path.join(rootDir, "src/app/api/worldbox/profile/route.ts"),
+  "utf8",
+);
 const stationSrc = fs.readFileSync(path.join(libDir, "worldbox/world/station-online.ts"), "utf8");
 const clientSrc = fs.readFileSync(
-  path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+  path.join(rootDir, "src/app/games/worldbox/WorldBoxClient.tsx"),
   "utf8",
 );
 const panelSrc = fs.readFileSync(
-  path.join(rootDir, "app/games/worldbox/WorldBoxEconomyPanel.tsx"),
+  path.join(rootDir, "src/app/games/worldbox/WorldBoxEconomyPanel.tsx"),
   "utf8",
 );
 

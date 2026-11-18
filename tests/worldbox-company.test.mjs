@@ -5,7 +5,7 @@ import path from "node:path";
 import ts from "typescript";
 
 const rootDir = path.join(import.meta.dirname, "..");
-const libDir = path.join(rootDir, "lib");
+const libDir = path.join(rootDir, "src/lib");
 
 function transpile(name, base = libDir) {
   const src = fs.readFileSync(path.join(base, name), "utf8");
@@ -387,7 +387,10 @@ test("company: earn 理由に会社系（給料・ボーナス・解散返還）
 });
 
 test("company: ルート・Cron・クライアント・vercel.json に配線されている", () => {
-  const route = fs.readFileSync(path.join(rootDir, "app/api/worldbox/company/route.ts"), "utf8");
+  const route = fs.readFileSync(
+    path.join(rootDir, "src/app/api/worldbox/company/route.ts"),
+    "utf8",
+  );
   for (const action of [
     '"create"',
     '"join"',
@@ -403,7 +406,7 @@ test("company: ルート・Cron・クライアント・vercel.json に配線さ�
     assert.ok(route.includes(`action === ${action}`), action);
   }
   const cron = fs.readFileSync(
-    path.join(rootDir, "app/api/worldbox/internal/company-cron/route.ts"),
+    path.join(rootDir, "src/app/api/worldbox/internal/company-cron/route.ts"),
     "utf8",
   );
   assert.ok(cron.includes("runCompanyCron"));
@@ -411,13 +414,13 @@ test("company: ルート・Cron・クライアント・vercel.json に配線さ�
   const vercel = JSON.parse(fs.readFileSync(path.join(rootDir, "vercel.json"), "utf8"));
   assert.ok(vercel.crons.some((c) => c.path === "/api/worldbox/internal/company-cron"));
   const client = fs.readFileSync(
-    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    path.join(rootDir, "src/app/games/worldbox/WorldBoxClient.tsx"),
     "utf8",
   );
   assert.ok(client.includes("WorldBoxCompanyPanel"));
   assert.ok(client.includes('id: "company"'));
   const panel = fs.readFileSync(
-    path.join(rootDir, "app/games/worldbox/WorldBoxCompanyPanel.tsx"),
+    path.join(rootDir, "src/app/games/worldbox/WorldBoxCompanyPanel.tsx"),
     "utf8",
   );
   assert.ok(panel.includes("/api/worldbox/company"));
@@ -509,7 +512,7 @@ test("company-p4: 店舗看板の登録パースは会社 ID と設置者 ID を
 
 test("company-p4: 店頭購入はパネル購入と同じ計画（売却税10%・開示は購入時のみ）を使う", () => {
   const signRoute = fs.readFileSync(
-    path.join(rootDir, "app/api/worldbox/company/sign/route.ts"),
+    path.join(rootDir, "src/app/api/worldbox/company/sign/route.ts"),
     "utf8",
   );
   assert.ok(signRoute.includes("loadSignCompany"));
@@ -517,12 +520,18 @@ test("company-p4: 店頭購入はパネル購入と同じ計画（売却税10%�
   assert.ok(signRoute.includes("isSignItem"));
   assert.ok(!signRoute.includes("content: p.content"));
   assert.ok(!signRoute.includes("content: product.content"));
-  const route = fs.readFileSync(path.join(rootDir, "app/api/worldbox/company/route.ts"), "utf8");
+  const route = fs.readFileSync(
+    path.join(rootDir, "src/app/api/worldbox/company/route.ts"),
+    "utf8",
+  );
   assert.ok(route.includes("planProductSale"));
 });
 
 test("company-p4: ルート・パネル・クライアントに空間化の配線がある", () => {
-  const route = fs.readFileSync(path.join(rootDir, "app/api/worldbox/company/route.ts"), "utf8");
+  const route = fs.readFileSync(
+    path.join(rootDir, "src/app/api/worldbox/company/route.ts"),
+    "utf8",
+  );
   for (const action of [
     '"hq_set"',
     '"hq_clear"',
@@ -537,7 +546,7 @@ test("company-p4: ルート・パネル・クライアントに空間化の配�
   assert.ok(route.includes("loadActorPosition"));
   assert.ok(route.includes("planWork"));
   const panel = fs.readFileSync(
-    path.join(rootDir, "app/games/worldbox/WorldBoxCompanyPanel.tsx"),
+    path.join(rootDir, "src/app/games/worldbox/WorldBoxCompanyPanel.tsx"),
     "utf8",
   );
   assert.ok(panel.includes("anchorCompanyId"));
@@ -545,7 +554,7 @@ test("company-p4: ルート・パネル・クライアントに空間化の配�
   assert.ok(panel.includes('"clock_in"'));
   assert.ok(panel.includes('"work"'));
   const client = fs.readFileSync(
-    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    path.join(rootDir, "src/app/games/worldbox/WorldBoxClient.tsx"),
     "utf8",
   );
   assert.ok(client.includes("/api/worldbox/company/sign"));

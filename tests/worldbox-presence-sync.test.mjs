@@ -5,7 +5,7 @@ import path from "node:path";
 import ts from "typescript";
 
 const rootDir = path.join(import.meta.dirname, "..");
-const libDir = path.join(rootDir, "lib");
+const libDir = path.join(rootDir, "src/lib");
 
 function transpile(name, base = libDir) {
   const src = fs.readFileSync(path.join(base, name), "utf8");
@@ -165,31 +165,43 @@ test("セーブ基準: 12タイル以内だけ受け入れ、空間変更は許�
 });
 
 test("API と クライアント: 位置ジャンプの却下と復帰が配線されている", () => {
-  const route = fs.readFileSync(path.join(rootDir, "app/api/worldbox/presence/route.ts"), "utf8");
+  const route = fs.readFileSync(
+    path.join(rootDir, "src/app/api/worldbox/presence/route.ts"),
+    "utf8",
+  );
   assert.ok(route.includes("position_jump"), "却下の合図が無い");
   assert.ok(route.includes("loadStoredPresence"), "保管プレゼンスの読み取りが無い");
   assert.ok(route.includes("checkMovementContinuity"), "時刻基準の検証が無い");
   assert.ok(route.includes("checkSaveFallbackContinuity"), "セーブ基準の検証が無い");
-  const saveRoute = fs.readFileSync(path.join(rootDir, "app/api/worldbox/save/route.ts"), "utf8");
+  const saveRoute = fs.readFileSync(
+    path.join(rootDir, "src/app/api/worldbox/save/route.ts"),
+    "utf8",
+  );
   assert.ok(saveRoute.includes("position_jump"), "セーブ PUT の却下が無い");
   assert.ok(saveRoute.includes("loadMyPresence"), "新鮮なプレゼンスの基準が無い");
   assert.ok(saveRoute.includes("checkSaveFallbackContinuity"), "セーブ基準の検証が無い");
   const client = fs.readFileSync(
-    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    path.join(rootDir, "src/app/games/worldbox/WorldBoxClient.tsx"),
     "utf8",
   );
   assert.ok(client.includes("position_jump"), "クライアントが却下を読んでいない");
   assert.ok(client.includes("snapBackToServer"), "保管位置への復帰が無い");
   assert.ok(client.includes('msg.t === "jump"'), "WS の jump 復帰が無い");
-  const vitals = fs.readFileSync(path.join(rootDir, "app/api/worldbox/vitals/route.ts"), "utf8");
+  const vitals = fs.readFileSync(
+    path.join(rootDir, "src/app/api/worldbox/vitals/route.ts"),
+    "utf8",
+  );
   assert.ok(vitals.includes("movePresenceAndSave"), "死亡・蘇生時の位置そろえが無い");
 });
 
 test("API と クライアント: now 返却・補正・適応間隔・欠落グレースが配線されている", () => {
-  const route = fs.readFileSync(path.join(rootDir, "app/api/worldbox/presence/route.ts"), "utf8");
+  const route = fs.readFileSync(
+    path.join(rootDir, "src/app/api/worldbox/presence/route.ts"),
+    "utf8",
+  );
   assert.ok(route.includes("now: Date.now()"), "GET 応答にサーバー時刻が無い");
   const client = fs.readFileSync(
-    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    path.join(rootDir, "src/app/games/worldbox/WorldBoxClient.tsx"),
     "utf8",
   );
   assert.ok(client.includes("clockOffsetEstimate("), "時計ずれ推定を使っていない");

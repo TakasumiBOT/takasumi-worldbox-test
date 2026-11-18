@@ -2,11 +2,11 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
-import { parseChatMessage, parseUnionChatSettings } from "../lib/worldbox/social/chat.ts";
+import { parseChatMessage, parseUnionChatSettings } from "../src/lib/worldbox/social/chat.ts";
 import {
   parseDiscordDirectory,
   resolveLinkedChannelId,
-} from "../lib/worldbox/social/discord-directory.ts";
+} from "../src/lib/worldbox/social/discord-directory.ts";
 
 const CID = "222222222222222222";
 const GLOBAL_CID = "444444444444444444";
@@ -100,7 +100,7 @@ test("parseChatMessage: Discord 由来の source を保持する", () => {
 
 test("配線: union-settings はディレクトリ必須・ID 手入力を受けない", async () => {
   const route = await readFile(
-    new URL("../app/api/worldbox/union-settings/route.ts", import.meta.url),
+    new URL("../src/app/api/worldbox/union-settings/route.ts", import.meta.url),
     "utf8",
   );
   assert.ok(route.includes("loadDiscordDirectory"));
@@ -109,12 +109,12 @@ test("配線: union-settings はディレクトリ必須・ID 手入力を受け
   assert.ok(route.includes("global_not_available"));
   assert.ok(!route.includes("invalid_channel_id"));
   const chatRoute = await readFile(
-    new URL("../app/api/worldbox/chat/route.ts", import.meta.url),
+    new URL("../src/app/api/worldbox/chat/route.ts", import.meta.url),
     "utf8",
   );
   assert.ok(chatRoute.includes("resolveLinkedChannelId"));
   const panel = await readFile(
-    new URL("../app/games/worldbox/WorldBoxGuildBoardPanel.tsx", import.meta.url),
+    new URL("../src/app/games/worldbox/WorldBoxGuildBoardPanel.tsx", import.meta.url),
     "utf8",
   );
   assert.ok(!panel.includes('placeholder="チャンネルID"'));

@@ -5,7 +5,7 @@ import path from "node:path";
 import ts from "typescript";
 
 const rootDir = path.join(import.meta.dirname, "..");
-const libDir = path.join(rootDir, "lib");
+const libDir = path.join(rootDir, "src/lib");
 
 function transpile(name, base = libDir) {
   const src = fs.readFileSync(path.join(base, name), "utf8");
@@ -217,7 +217,7 @@ test("user-lock(S4): 同じキーの並行呼び出しは直列化され、違�
 });
 
 test("tiles-load: ルート GET はキャッシュつき読み取りを使い、クライアントは先読みと救済を持つ", () => {
-  const route = fs.readFileSync(path.join(rootDir, "app/api/worldbox/tiles/route.ts"), "utf8");
+  const route = fs.readFileSync(path.join(rootDir, "src/app/api/worldbox/tiles/route.ts"), "utf8");
   assert.ok(route.includes("loadTileOverrides"), "タイル GET は全件読みを使う");
   const onlineSrc = fs.readFileSync(path.join(libDir, "worldbox/world/tiles-online.ts"), "utf8");
   assert.ok(onlineSrc.includes("OVERRIDES_CACHE_TTL_MS"), "全件読みは短TTLキャッシュつき");
@@ -234,7 +234,7 @@ test("tiles-load: ルート GET はキャッシュつき読み取りを使い、
     "タイル行為がユーザー単位で直列化されていない（S4）",
   );
   const client = fs.readFileSync(
-    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    path.join(rootDir, "src/app/games/worldbox/WorldBoxClient.tsx"),
     "utf8",
   );
   assert.ok(client.includes("tilesCenterRef"), "取得中心を記録する");

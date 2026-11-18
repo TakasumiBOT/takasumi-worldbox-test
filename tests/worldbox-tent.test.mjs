@@ -5,7 +5,7 @@ import path from "node:path";
 import ts from "typescript";
 
 const rootDir = path.join(import.meta.dirname, "..");
-const libDir = path.join(rootDir, "lib");
+const libDir = path.join(rootDir, "src/lib");
 
 function transpile(name, base = libDir) {
   const src = fs.readFileSync(path.join(base, name), "utf8");
@@ -151,7 +151,7 @@ test("配線: テントは facility で置け、クライアントとサーバ�
   const items = fs.readFileSync(path.join(libDir, "worldbox/economy/items.ts"), "utf8");
   assert.match(items, /id: "tent"[^}]*facility: true/);
   const client = fs.readFileSync(
-    path.join(rootDir, "app/games/worldbox/WorldBoxClient.tsx"),
+    path.join(rootDir, "src/app/games/worldbox/WorldBoxClient.tsx"),
     "utf8",
   );
   assert.ok(client.includes('doWarp("tent")'), "テントを踏んで入る配線が無い");
@@ -165,13 +165,13 @@ test("配線: テントは facility で置け、クライアントとサーバ�
   assert.ok(station.includes('presence.space === "tent"'), "サーバー検証に tent が無い");
   assert.ok(station.includes("buildTent"), "サーバー検証が内装を読まない");
   const panel = fs.readFileSync(
-    path.join(rootDir, "app/games/worldbox/WorldBoxEconomyPanel.tsx"),
+    path.join(rootDir, "src/app/games/worldbox/WorldBoxEconomyPanel.tsx"),
     "utf8",
   );
   assert.ok(
     panel.includes('space !== "world" && station === "smith"'),
     "経済パネルの合成タブが tent で開かない",
   );
-  const relay = fs.readFileSync(path.join(rootDir, "realtime/relay-core.js"), "utf8");
+  const relay = fs.readFileSync(path.join(rootDir, "src/realtime/relay-core.js"), "utf8");
   assert.ok(relay.includes("tent: { width: 22, height: 17 }"), "中継の空間境界に tent が無い");
 });
