@@ -291,6 +291,21 @@ import WorldBoxJobPanel from "./WorldBoxJobPanel";
 import WorldBoxPrisonPanel from "./WorldBoxPrisonPanel";
 import WorldBoxEngineeringPanel from "./WorldBoxEngineeringPanel";
 import WorldBoxMetroPanel from "./WorldBoxMetroPanel";
+import WorldBoxTradePanel from "./WorldBoxTradePanel";
+import WorldBoxRealEstatePanel from "./WorldBoxRealEstatePanel";
+import WorldBoxGovernancePanel from "./WorldBoxGovernancePanel";
+import {
+  APARTMENT_EXIT,
+  apartmentTileAt,
+  buildApartment,
+  parseApartmentSpace,
+} from "@/lib/worldbox/world/realestate";
+import {
+  effectiveVehicleMoveSpeed,
+  vehicleSpecFor,
+  type VehicleItemId,
+} from "@/lib/worldbox/player/vehicles";
+import { isPrisonGuardSweepingVent } from "@/lib/worldbox/social/prison";
 import {
   PRISON_H,
   PRISON_VISITOR_ENTRY,
@@ -1079,6 +1094,26 @@ export default function WorldBoxClient() {
   const [prisonOpen, setPrisonOpen] = useState(false);
   const [engineeringOpen, setEngineeringOpen] = useState(false);
   const [metroOpen, setMetroOpen] = useState(false);
+  const [tradeOpen, setTradeOpen] = useState(false);
+  const [tradeTarget, setTradeTarget] = useState<{ presenceId: string; name: string } | null>(null);
+  const [realEstateOpen, setRealEstateOpen] = useState(false);
+  const [governanceOpen, setGovernanceOpen] = useState(false);
+  const [equippedVehicle, setEquippedVehicle] = useState<VehicleItemId | null>(null);
+  const equippedVehicleRef = useRef<VehicleItemId | null>(null);
+  equippedVehicleRef.current = equippedVehicle;
+  const [waypoint, setWaypoint] = useState<{
+    space: string;
+    x: number;
+    y: number;
+    label: string;
+  } | null>(null);
+  const waypointRef = useRef<{
+    space: string;
+    x: number;
+    y: number;
+    label: string;
+  } | null>(null);
+  waypointRef.current = waypoint;
   const forceMoveRef = useRef<((mv: { space: string; x: number; y: number }) => void) | null>(null);
   const refreshMmoRef = useRef<(() => Promise<void>) | null>(null);
   type MmoSummaryState = {
@@ -1112,6 +1147,12 @@ export default function WorldBoxClient() {
         /* noop */
       }
     };
+    void fetch("/api/worldbox/vehicles", { headers: { Accept: "application/json" } })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((v: { equippedVehicle?: VehicleItemId | null } | null) => {
+        if (!disposed && v) setEquippedVehicle(v.equippedVehicle ?? null);
+      })
+      .catch(() => {});
     refreshMmoRef.current = load;
     void load();
     const poll = window.setInterval(() => void load(), 9000);
@@ -1571,6 +1612,9 @@ export default function WorldBoxClient() {
       setPrisonOpen(false);
       setEngineeringOpen(false);
       setMetroOpen(false);
+      setTradeOpen(false);
+      setRealEstateOpen(false);
+      setGovernanceOpen(false);
       setMapView(false);
       setCasinoOpen(false);
       setRacingOpen(false);
@@ -2760,15 +2804,17 @@ export default function WorldBoxClient() {
       caveLayerNow()?.data ??
       ruinsNow()?.data ??
       dungeonNow()?.data ??
-      (space === "tent"
-        ? tentNow()
-        : space === "prison"
-          ? buildPrison()
-          : space === "lobby2"
-            ? buildLobby2()
-            : space === "lobby3"
-              ? buildLobby3()
-              : lobby);
+      (parseApartmentSpace(space)
+        ? buildApartment()
+        : space === "tent"
+          ? tentNow()
+          : space === "prison"
+            ? buildPrison()
+            : space === "lobby2"
+              ? buildLobby2()
+              : space === "lobby3"
+                ? buildLobby3()
+                : lobby);
     const textures = loadTextures();
     const dungeon = loadDungeonTiles();
     const lobbySprites = loadLobbySprites();
@@ -2869,6 +2915,7 @@ export default function WorldBoxClient() {
       if (inst?.kind === "cave") return rectBounds(64, 64);
       if (inst?.kind === "ruins") return rectBounds(48, 48);
       if (inst?.kind === "dungeon") return rectBounds(52, 52);
+      if (parseApartmentSpace(space)) return rectBounds(24, 18);
       return space === "lobby"
         ? rectBounds(LOBBY_W, LOBBY_H)
         : space === "lobby2"
@@ -3047,9 +3094,11 @@ export default function WorldBoxClient() {
               ? "展望デッキ"
               : space === "prison"
                 ? "タカスミ中央刑務所"
-                : space === "tent"
-                  ? "テント"
-                  : "郊外",
+                : parseApartmentSpace(space)
+                  ? "専用メトロマンション"
+                  : space === "tent"
+                    ? "テント"
+                    : "郊外",
       );
     })();
 
@@ -4242,9 +4291,11 @@ export default function WorldBoxClient() {
         setStatusText(
           mv.space === "prison"
             ? "タカスミ中央刑務所"
-            : mv.space === "lobby"
-              ? "中央広場"
-              : "共有ワールド",
+            : parseApartmentSpace(mv.space)
+              ? "専用メトロマンション"
+              : mv.space === "lobby"
+                ? "中央広場"
+                : "共有ワールド",
         );
         lastStation = null;
         setStationUi(null);
@@ -4543,6 +4594,10 @@ export default function WorldBoxClient() {
         if (tx === exit.x && ty === exit.y) doWarp("world");
         return;
       }
+      if (parseApartmentSpace(space)) {
+        if (tx === APARTMENT_EXIT.x && ty === APARTMENT_EXIT.y) doWarp("lobby");
+        return;
+      }
       const floorWarp = floorWarpAt(space, tx, ty);
       if (floorWarp) {
         doFloorWarp(floorWarp.to, floorWarp.entry);
@@ -4643,11 +4698,20 @@ export default function WorldBoxClient() {
       if (swimming) {
         moveSpeed = dashing ? SWIM_DASH_SPEED : SWIM_SPEED;
         staminaUse = dashing ? "swimDash" : "swim";
-      } else if (dashing) {
-        moveSpeed = DASH_SPEED;
-        staminaUse = "dash";
+      } else {
+        const vSpeed = effectiveVehicleMoveSpeed(
+          equippedVehicleRef.current,
+          onFloor === "path_block",
+          false,
+        );
+        if (vSpeed) {
+          moveSpeed = dashing ? vSpeed : Math.max(WALK_SPEED, Number((vSpeed * 0.92).toFixed(2)));
+        } else if (dashing) {
+          moveSpeed = DASH_SPEED;
+          staminaUse = "dash";
+        }
       }
-      if (!swimming) moveSpeed *= floorSpeedMultiplier(onFloor);
+      if (!swimming && !equippedVehicleRef.current) moveSpeed *= floorSpeedMultiplier(onFloor);
       if (
         circleHitsSolid(activeMap(), player.x, player.y, PLAYER_RADIUS * 0.5, activeBlocked(), {
           swim: space === "world",
@@ -5146,15 +5210,17 @@ export default function WorldBoxClient() {
           for (let tx = lx0; tx <= lx1; tx++) {
             const id = parseInstanceSpace(space)
               ? (indoor.tiles[ty * indoor.width + tx] ?? 0)
-              : space === "tent"
-                ? tentTileAt(indoor.tiles, indoor.width, indoor.height, tx, ty)
-                : space === "prison"
-                  ? prisonTileAt(indoor.tiles, tx, ty)
-                  : space === "lobby2"
-                    ? lobby2TileAt(indoor.tiles, tx, ty)
-                    : space === "lobby3"
-                      ? lobby3TileAt(indoor.tiles, tx, ty)
-                      : lobbyTileAt(indoor.tiles, tx, ty);
+              : parseApartmentSpace(space)
+                ? apartmentTileAt(indoor.tiles, tx, ty)
+                : space === "tent"
+                  ? tentTileAt(indoor.tiles, indoor.width, indoor.height, tx, ty)
+                  : space === "prison"
+                    ? prisonTileAt(indoor.tiles, tx, ty)
+                    : space === "lobby2"
+                      ? lobby2TileAt(indoor.tiles, tx, ty)
+                      : space === "lobby3"
+                        ? lobby3TileAt(indoor.tiles, tx, ty)
+                        : lobbyTileAt(indoor.tiles, tx, ty);
             if (id === L_VOID) continue;
             const sx = lobbyOx + tx * TILE;
             const sy = lobbyOy + ty * TILE;
@@ -5361,13 +5427,36 @@ export default function WorldBoxClient() {
           : 0;
       drawList.push({
         y: player.y + PLAYER_RADIUS,
-        draw: () =>
-          drawAvatar(
-            ctx,
-            space !== "world" ? Math.round(lobbyOx + player.x * TILE) : toScreenX(player.x),
+        draw: () => {
+          const sx =
+            space !== "world" ? Math.round(lobbyOx + player.x * TILE) : toScreenX(player.x);
+          const sy =
             (space !== "world"
               ? Math.round(lobbyOy + player.y * TILE) + TILE * PLAYER_RADIUS
-              : toScreenY(player.y) + TILE * PLAYER_RADIUS) - slimeBouncePx,
+              : toScreenY(player.y) + TILE * PLAYER_RADIUS) - slimeBouncePx;
+          const vSpec = vehicleSpecFor(equippedVehicleRef.current);
+          if (vSpec && !playerSwimming) {
+            const w = TILE * 1.15;
+            const h = TILE * 0.48;
+            ctx.fillStyle = "rgba(0,0,0,0.35)";
+            ctx.beginPath();
+            ctx.ellipse(sx, sy + 2, w * 0.55, h * 0.5, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = vSpec.bodyColor;
+            ctx.fillRect(sx - w / 2, sy - h * 0.65, w, h);
+            ctx.strokeStyle = vSpec.trimColor;
+            ctx.lineWidth = 1.5;
+            ctx.strokeRect(sx - w / 2, sy - h * 0.65, w, h);
+            if (vSpec.hasSiren) {
+              const flash = Math.floor(now / 180) % 2 === 0;
+              ctx.fillStyle = flash ? "#ef4444" : "#3b82f6";
+              ctx.fillRect(sx - 6, sy - h * 0.8, 12, 4);
+            }
+          }
+          drawAvatar(
+            ctx,
+            sx,
+            vSpec && !playerSwimming ? sy - 5 : sy,
             player.face,
             player.phase,
             speedRatio,
@@ -5377,7 +5466,8 @@ export default function WorldBoxClient() {
             null,
             sitTileRef.current !== null,
             iconFor(myIconUrl),
-          ),
+          );
+        },
       });
       if (space === "lobby") {
         const sched = scheduleAt(Date.now());
@@ -5470,6 +5560,82 @@ export default function WorldBoxClient() {
         ctx.strokeText(label, gx, gy - 15);
         ctx.fillStyle = "#ffffff";
         ctx.fillText(label, gx, gy - 15);
+      }
+
+      if (space === "prison") {
+        const ts = Date.now();
+        const sweep = isPrisonGuardSweepingVent(ts);
+        const phase = (ts % 16_000) / 16_000;
+        const guardX = phase < 0.3 ? 6.5 : 13.5 - Math.abs(phase - 0.65) * 10;
+        const guardY = 25.5;
+        const gx = Math.round(lobbyOx + guardX * TILE);
+        const gy = Math.round(lobbyOy + guardY * TILE);
+        ctx.save();
+        ctx.fillStyle = sweep ? "rgba(239, 68, 68, 0.24)" : "rgba(250, 204, 21, 0.14)";
+        ctx.beginPath();
+        ctx.moveTo(gx, gy);
+        const dir = phase < 0.3 ? Math.PI : 0;
+        ctx.arc(gx, gy, TILE * 3.4, dir - 0.55, dir + 0.55);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = "#1e3a8a";
+        ctx.beginPath();
+        ctx.arc(gx, gy, TILE * 0.32, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = "#facc15";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.font = "700 11px sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillStyle = sweep ? "#fca5a5" : "#fef08a";
+        ctx.fillText(sweep ? "巡回看守 [警戒中]" : "巡回看守", gx, gy - 16);
+        ctx.restore();
+      }
+
+      const wpNow = waypointRef.current;
+      if (wpNow) {
+        const pxScreen =
+          space === "world" ? toScreenX(player.x) : Math.round(lobbyOx + player.x * TILE);
+        const pyScreen =
+          space === "world" ? toScreenY(player.y) : Math.round(lobbyOy + player.y * TILE);
+        if (wpNow.space === space) {
+          const txScreen =
+            space === "world"
+              ? toScreenX(wpNow.x + 0.5)
+              : Math.round(lobbyOx + (wpNow.x + 0.5) * TILE);
+          const tyScreen =
+            space === "world"
+              ? toScreenY(wpNow.y + 0.5)
+              : Math.round(lobbyOy + (wpNow.y + 0.5) * TILE);
+          const dist = Math.hypot(wpNow.x + 0.5 - player.x, wpNow.y + 0.5 - player.y);
+          const near = dist <= 4.5;
+          const ang = Math.atan2(tyScreen - pyScreen, txScreen - pxScreen);
+
+          // Target pulse ring
+          ctx.save();
+          ctx.strokeStyle = near ? "#4ade80" : "#38bdf8";
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.arc(txScreen, tyScreen, TILE * (0.55 + Math.sin(now / 180) * 0.12), 0, Math.PI * 2);
+          ctx.stroke();
+
+          // Orbiting compass arrow around player
+          if (dist > 2) {
+            const ax = pxScreen + Math.cos(ang) * TILE * 1.3;
+            const ay = pyScreen + Math.sin(ang) * TILE * 1.3;
+            ctx.translate(ax, ay);
+            ctx.rotate(ang);
+            ctx.fillStyle = near ? "#4ade80" : "#38bdf8";
+            ctx.beginPath();
+            ctx.moveTo(10, 0);
+            ctx.lineTo(-6, -6);
+            ctx.lineTo(-3, 0);
+            ctx.lineTo(-6, 6);
+            ctx.closePath();
+            ctx.fill();
+          }
+          ctx.restore();
+        }
       }
 
       if (space !== "world") {
@@ -6348,6 +6514,27 @@ export default function WorldBoxClient() {
       run: () => setJobOpen((v) => !v),
     },
     {
+      id: "trade",
+      label: tradeOpen ? "P2P取引・契約を閉じる" : "P2P取引・契約",
+      show: true,
+      run: () => {
+        setTradeTarget(null);
+        setTradeOpen((v) => !v);
+      },
+    },
+    {
+      id: "realestate",
+      label: realEstateOpen ? "不動産・マンションを閉じる" : "不動産・マンション",
+      show: true,
+      run: () => setRealEstateOpen((v) => !v),
+    },
+    {
+      id: "governance",
+      label: governanceOpen ? "市政庁・裁判所を閉じる" : "市政庁・裁判所",
+      show: true,
+      run: () => setGovernanceOpen((v) => !v),
+    },
+    {
       id: "engineering",
       label: engineeringOpen ? "機械制作ラボを閉じる" : "機械制作・図鑑",
       show: true,
@@ -6361,7 +6548,7 @@ export default function WorldBoxClient() {
     },
     {
       id: "metro",
-      label: metroOpen ? "デイリー任務を閉じる" : "デイリー任務・速報",
+      label: metroOpen ? "METRO OSを閉じる" : "METRO OS (SNS・車両)",
       show: true,
       run: () => setMetroOpen((v) => !v),
     },
@@ -6577,58 +6764,20 @@ export default function WorldBoxClient() {
             </button>
           </div>
         )}
-        {!menuOpen && (
-          <div className="wb-mmo-dock">
-            <button
-              type="button"
-              className={`wb-mmo-dock-btn ${jobOpen ? "is-active" : ""}`}
-              onClick={() => setJobOpen((v) => !v)}
-            >
-              <span>💼</span>
-              <span>仕事</span>
-              {mmoSummary?.career && (
-                <span
-                  className="wb-mmo-pill"
-                  style={{ background: "rgba(16,185,129,0.25)", color: "#6ee7b7" }}
-                >
-                  Lv.{mmoSummary.career.level}
-                </span>
-              )}
-            </button>
-            <button
-              type="button"
-              className={`wb-mmo-dock-btn ${engineeringOpen ? "is-active" : ""}`}
-              onClick={() => setEngineeringOpen((v) => !v)}
-            >
-              <span>⚙️</span>
-              <span>機械制作</span>
-            </button>
-            <button
-              type="button"
-              className={`wb-mmo-dock-btn ${
-                mmoSummary?.prison.jailed || (mmoSummary?.prison.wantedLevel ?? 0) > 0
-                  ? "is-danger"
-                  : prisonOpen
-                    ? "is-active"
-                    : ""
-              }`}
-              onClick={() => setPrisonOpen((v) => !v)}
-            >
-              <span>⚖️</span>
-              <span>警察・刑務所</span>
-              {mmoSummary && mmoSummary.prison.wantedLevel > 0 && (
-                <span className="wb-mmo-pill" style={{ background: "#ef4444", color: "#fff" }}>
-                  ★{mmoSummary.prison.wantedLevel}
-                </span>
-              )}
-            </button>
-            <button
-              type="button"
-              className={`wb-mmo-dock-btn ${metroOpen ? "is-active" : ""}`}
-              onClick={() => setMetroOpen((v) => !v)}
-            >
-              <span>📱</span>
-              <span>任務・速報</span>
+        {waypoint && (
+          <div className="wb-mmo-waypoint" role="status">
+            <span>🧭 目的地: {waypoint.label}</span>
+            <span style={{ fontSize: 11, color: "#94a3b8" }}>
+              (
+              {waypoint.space === "world"
+                ? "ワールド"
+                : waypoint.space === "prison"
+                  ? "刑務所"
+                  : "ロビー"}
+              )
+            </span>
+            <button type="button" className="wb-mmo-waypoint-btn" onClick={() => setWaypoint(null)}>
+              案内終了
             </button>
           </div>
         )}
@@ -6897,14 +7046,44 @@ export default function WorldBoxClient() {
                 開く
               </button>
             )}
-            {stationUi === "bank" && (
+            {stationUi === "shop" && stationGenre === "food" && (
               <button
                 type="button"
-                style={{ ...btn, minHeight: hud.buttonMinHeight, padding: "2px 10px" }}
-                onClick={() => setFinanceOpen((v) => !v)}
+                style={{
+                  ...btn,
+                  minHeight: hud.buttonMinHeight,
+                  padding: "2px 10px",
+                  background: "#d97706",
+                  borderColor: "#fbbf24",
+                }}
+                onClick={() => setJobOpen(true)}
               >
-                {financeOpen ? "閉じる" : "FX・予測・LP"}
+                ☕ カフェ運営
               </button>
+            )}
+            {stationUi === "bank" && (
+              <>
+                <button
+                  type="button"
+                  style={{ ...btn, minHeight: hud.buttonMinHeight, padding: "2px 10px" }}
+                  onClick={() => setFinanceOpen((v) => !v)}
+                >
+                  {financeOpen ? "閉じる" : "FX・予測・LP"}
+                </button>
+                <button
+                  type="button"
+                  style={{
+                    ...btn,
+                    minHeight: hud.buttonMinHeight,
+                    padding: "2px 10px",
+                    background: "#991b1b",
+                    borderColor: "#f87171",
+                  }}
+                  onClick={() => setPrisonOpen(true)}
+                >
+                  🔐 金庫/工作
+                </button>
+              </>
             )}
             {stationUi === "sell" && (
               <button
@@ -7471,6 +7650,17 @@ export default function WorldBoxClient() {
             )}
             <button
               type="button"
+              style={{ ...btn, background: "#0284c7", borderColor: "#38bdf8" }}
+              onClick={() => {
+                setTradeTarget({ presenceId: playerCard.id, name: playerCard.name });
+                setTradeOpen(true);
+                setPlayerCard(null);
+              }}
+            >
+              取引
+            </button>
+            <button
+              type="button"
               style={{ ...btn, background: "#0891b2", borderColor: "#22d3ee" }}
               onClick={() => {
                 void fetch("/api/worldbox/prison", {
@@ -7493,7 +7683,9 @@ export default function WorldBoxClient() {
                     setTileMsg(
                       d.error === "not_wanted"
                         ? "指名手配中の相手ではありません"
-                        : "逮捕できませんでした",
+                        : d.error === "target_too_far"
+                          ? "もう少し近づいてから逮捕してください"
+                          : "逮捕できませんでした",
                     );
                   }
                 });
@@ -8407,6 +8599,7 @@ export default function WorldBoxClient() {
           <WorldBoxJobPanel
             onProfileChange={(p) => setInvProfile(p)}
             onStatusChange={() => void refreshMmoRef.current?.()}
+            onSetWaypoint={(wp) => setWaypoint(wp)}
             onClose={() => setJobOpen(false)}
           />
         )}
@@ -8419,6 +8612,7 @@ export default function WorldBoxClient() {
             }}
             onProfileChange={(p) => setInvProfile(p)}
             onStatusChange={() => void refreshMmoRef.current?.()}
+            onSetWaypoint={(wp) => setWaypoint(wp)}
             onClose={() => setPrisonOpen(false)}
           />
         )}
@@ -8432,8 +8626,14 @@ export default function WorldBoxClient() {
           <WorldBoxMetroPanel
             onProfileChange={(p) => setInvProfile(p)}
             onStatusChange={() => void refreshMmoRef.current?.()}
+            onVehicleChange={(v) => setEquippedVehicle(v)}
             onOpenPanel={(p) => {
               if (p === "jobs") setJobOpen(true);
+              else if (p === "trade") {
+                setTradeTarget(null);
+                setTradeOpen(true);
+              } else if (p === "realestate") setRealEstateOpen(true);
+              else if (p === "governance") setGovernanceOpen(true);
               else if (p === "engineering") setEngineeringOpen(true);
               else if (p === "prison") setPrisonOpen(true);
               else if (p === "market") setMarketOpen(true);
@@ -8442,6 +8642,34 @@ export default function WorldBoxClient() {
               else if (p === "economy") setShowEconomy(true);
             }}
             onClose={() => setMetroOpen(false)}
+          />
+        )}
+        {tradeOpen && (
+          <WorldBoxTradePanel
+            initialTarget={tradeTarget}
+            profile={invProfile}
+            onProfileChange={(p) => setInvProfile(p)}
+            onStatusChange={() => void refreshMmoRef.current?.()}
+            onClose={() => {
+              setTradeOpen(false);
+              setTradeTarget(null);
+            }}
+          />
+        )}
+        {realEstateOpen && (
+          <WorldBoxRealEstatePanel
+            onForceMove={(mv) => {
+              forceMoveRef.current?.(mv);
+            }}
+            onStatusChange={() => void refreshMmoRef.current?.()}
+            onClose={() => setRealEstateOpen(false)}
+          />
+        )}
+        {governanceOpen && (
+          <WorldBoxGovernancePanel
+            jailed={Boolean(mmoSummary?.prison.jailed)}
+            onStatusChange={() => void refreshMmoRef.current?.()}
+            onClose={() => setGovernanceOpen(false)}
           />
         )}
         {guildShopOpen && spaceUi === "lobby" && (

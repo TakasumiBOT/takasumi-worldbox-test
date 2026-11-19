@@ -99,6 +99,7 @@ export function checkSaveFallbackContinuity(
 export type PresenceSpace = string;
 
 const PRESENCE_INSTANCE_SPACE_RE = /^(cave|ruins|dungeon):(-?\d+),(-?\d+):(\d+)$/;
+const PRESENCE_APARTMENT_SPACE_RE = /^apartment:[a-zA-Z0-9_-]{1,24}$/;
 
 export function sanitizePresenceSpace(raw: unknown): PresenceSpace {
   if (
@@ -110,7 +111,11 @@ export function sanitizePresenceSpace(raw: unknown): PresenceSpace {
   ) {
     return raw;
   }
-  if (typeof raw === "string" && PRESENCE_INSTANCE_SPACE_RE.test(raw)) return raw;
+  if (
+    typeof raw === "string" &&
+    (PRESENCE_INSTANCE_SPACE_RE.test(raw) || PRESENCE_APARTMENT_SPACE_RE.test(raw))
+  )
+    return raw;
   return "world";
 }
 

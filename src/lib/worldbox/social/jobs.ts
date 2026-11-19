@@ -270,6 +270,44 @@ export interface JobTaskPrompt {
   expiresAt: number;
 }
 
+export interface ActiveDeliveryOrder {
+  id: string;
+  title: string;
+  pickupLabel: string;
+  targetLabel: string;
+  targetSpace: "lobby" | "world";
+  targetX: number;
+  targetY: number;
+  rewardCoins: number;
+  bonusPerMeter: number;
+  expiresAt: number;
+}
+
+export interface CafeOrderTicket {
+  id: string;
+  customerName: string;
+  drinkName: string;
+  ingredients: readonly string[]; // 2-3 steps e.g. ["エスプレッソ", "スチームミルク", "カラメル"]
+  basePay: number;
+}
+
+export interface ActiveCafeSession {
+  spotLabel: string;
+  ticket: CafeOrderTicket;
+  servedCount: number;
+  expiresAt: number;
+}
+
+export interface ActivePatrolBeat {
+  id: string;
+  spotLabel: string;
+  space: "lobby" | "world";
+  x: number;
+  y: number;
+  rewardCoins: number;
+  expiresAt: number;
+}
+
 export interface JobProfile {
   currentCareer: CareerId;
   xp: number;
@@ -284,6 +322,9 @@ export interface JobProfile {
   streakDays: number;
   lastWorkDay: string;
   activeTask: JobTaskPrompt | null;
+  activeDelivery?: ActiveDeliveryOrder | null;
+  activeCafe?: ActiveCafeSession | null;
+  activePatrol?: ActivePatrolBeat | null;
 }
 
 export const WORK_TAX_RATE = 0.1;
@@ -398,6 +439,24 @@ export function parseJobProfile(raw: unknown): JobProfile {
         : 0,
     lastWorkDay: typeof v.lastWorkDay === "string" ? v.lastWorkDay : "",
     activeTask,
+    activeDelivery:
+      v.activeDelivery &&
+      typeof v.activeDelivery === "object" &&
+      typeof (v.activeDelivery as ActiveDeliveryOrder).targetX === "number"
+        ? (v.activeDelivery as ActiveDeliveryOrder)
+        : undefined,
+    activeCafe:
+      v.activeCafe &&
+      typeof v.activeCafe === "object" &&
+      typeof (v.activeCafe as ActiveCafeSession).spotLabel === "string"
+        ? (v.activeCafe as ActiveCafeSession)
+        : undefined,
+    activePatrol:
+      v.activePatrol &&
+      typeof v.activePatrol === "object" &&
+      typeof (v.activePatrol as ActivePatrolBeat).x === "number"
+        ? (v.activePatrol as ActivePatrolBeat)
+        : undefined,
   };
 }
 
@@ -535,4 +594,178 @@ export function computeShiftPayout(
   const net = gross - tax;
   const bonusPct = Math.round((mult - 1) * 100);
   return { gross, tax, net, bonusPct };
+}
+
+export interface SpatialSpot {
+  label: string;
+  space: "lobby" | "world";
+  x: number;
+  y: number;
+}
+
+// Physical Lobby food counter coordinates matching lobby.ts (`station === "shop" && genre === "food"`)
+export const CAFE_SPOTS: readonly SpatialSpot[] = [
+  { label: "中央ロビー 西グルメカウンター", space: "lobby", x: 5, y: 7 },
+  { label: "東リゾート カフェバー", space: "lobby", x: 140, y: 9 },
+  { label: "南部ハーバー フードスタンド", space: "lobby", x: 38, y: 72 },
+  { label: "レース場 コーヒースタンド", space: "lobby", x: 63, y: 46 },
+];
+
+export const DELIVERY_SPOTS: readonly {
+  pickupLabel: string;
+  targetLabel: string;
+  targetSpace: "lobby" | "world";
+  targetX: number;
+  targetY: number;
+  rewardCoins: number;
+}[] = [
+  {
+    pickupLabel: "中央マーケット荷捌き所",
+    targetLabel: "東メトロ・リゾート受付 (140, 10)",
+    targetSpace: "lobby",
+    targetX: 140,
+    targetY: 10,
+    rewardCoins: 480,
+  },
+  {
+    pickupLabel: "NE銀行 金庫窓口",
+    targetLabel: "SE商業銀行 証券デスク (106, 53)",
+    targetSpace: "lobby",
+    targetX: 106,
+    targetY: 53,
+    rewardCoins: 540,
+  },
+  {
+    pickupLabel: "南部ハーバー倉庫",
+    targetLabel: "中央ロビー 北西カフェ (5, 7)",
+    targetSpace: "lobby",
+    targetX: 5,
+    targetY: 7,
+    rewardCoins: 460,
+  },
+  {
+    pickupLabel: "蒸気鍛冶工房",
+    targetLabel: "オープンワールド 東交易拠点 (24, 0)",
+    targetSpace: "world",
+    targetX: 24,
+    targetY: 0,
+    rewardCoins: 620,
+  },
+  {
+    pickupLabel: "中央ステーション",
+    targetLabel: "オープンワールド 北研究区 (0, -24)",
+    targetSpace: "world",
+    targetX: 0,
+    targetY: -24,
+    rewardCoins: 620,
+  },
+];
+
+export const PATROL_SPOTS: readonly SpatialSpot[] = [
+  { label: "NEメトロ銀行 前 (40, 12)", space: "lobby", x: 40, y: 12 },
+  { label: "中央広場・バザー通り (28, 25)", space: "lobby", x: 28, y: 25 },
+  { label: "南部ハーバー桟橋 (38, 72)", space: "lobby", x: 38, y: 72 },
+  { label: "SE商業銀行・取引所前 (106, 54)", space: "lobby", x: 106, y: 54 },
+  { label: "ワールド中央ゲート (0, 0)", space: "world", x: 0, y: 0 },
+];
+
+export const CAFE_INGREDIENT_PALETTE: readonly string[] = [
+  "エスプレッソ",
+  "スチームミルク",
+  "キャラメル",
+  "抹茶パウダー",
+  "氷",
+  "ホイップクリーム",
+  "ブリオッシュ",
+  "ベーコンエッグ",
+];
+
+const CAFE_DRINKS: readonly { name: string; ingredients: readonly string[]; basePay: number }[] = [
+  { name: "特製メトロラテ", ingredients: ["エスプレッソ", "スチームミルク"], basePay: 310 },
+  {
+    name: "キャラメルマキアート",
+    ingredients: ["エスプレッソ", "スチームミルク", "キャラメル"],
+    basePay: 410,
+  },
+  {
+    name: "アイスマッチャラテ",
+    ingredients: ["抹茶パウダー", "スチームミルク", "氷"],
+    basePay: 430,
+  },
+  {
+    name: "クロックムッシュセット",
+    ingredients: ["ブリオッシュ", "ベーコンエッグ", "エスプレッソ"],
+    basePay: 480,
+  },
+  {
+    name: "アイス・クリームエスプレッソ",
+    ingredients: ["エスプレッソ", "氷", "ホイップクリーム"],
+    basePay: 440,
+  },
+];
+
+export function nearCafeSpot(
+  space: string,
+  x: number,
+  y: number,
+  maxDist = 4.2,
+): SpatialSpot | null {
+  if (space !== "lobby") return null;
+  for (const spot of CAFE_SPOTS) {
+    if (Math.hypot(x - spot.x, y - spot.y) <= maxDist) return spot;
+  }
+  return null;
+}
+
+export function generateCafeTicket(now: number, rand = Math.random): CafeOrderTicket {
+  const customers = ["通勤会社員", "夜景カメラマン", "運送ドライバー", "株式トレーダー", "記者"];
+  const drink = CAFE_DRINKS[Math.floor(rand() * CAFE_DRINKS.length) % CAFE_DRINKS.length];
+  return {
+    id: `cafe-${now}-${Math.floor(rand() * 999)}`,
+    customerName: customers[Math.floor(rand() * customers.length) % customers.length],
+    drinkName: drink.name,
+    ingredients: [...drink.ingredients],
+    basePay: drink.basePay,
+  };
+}
+
+export function generateDeliveryOrder(now: number, rand = Math.random): ActiveDeliveryOrder {
+  const pick = DELIVERY_SPOTS[Math.floor(rand() * DELIVERY_SPOTS.length) % DELIVERY_SPOTS.length];
+  return {
+    id: `del-${now}-${Math.floor(rand() * 999)}`,
+    title: `${pick.pickupLabel} → ${pick.targetLabel}`,
+    pickupLabel: pick.pickupLabel,
+    targetLabel: pick.targetLabel,
+    targetSpace: pick.targetSpace,
+    targetX: pick.targetX,
+    targetY: pick.targetY,
+    rewardCoins: pick.rewardCoins,
+    bonusPerMeter: 0,
+    expiresAt: now + 8 * 60 * 1000,
+  };
+}
+
+export function generatePatrolBeat(now: number, rand = Math.random): ActivePatrolBeat {
+  const pick = PATROL_SPOTS[Math.floor(rand() * PATROL_SPOTS.length) % PATROL_SPOTS.length];
+  return {
+    id: `patrol-${now}-${Math.floor(rand() * 999)}`,
+    spotLabel: pick.label,
+    space: pick.space,
+    x: pick.x,
+    y: pick.y,
+    rewardCoins: 420,
+    expiresAt: now + 6 * 60 * 1000,
+  };
+}
+
+export function isNearSpatialTarget(
+  actorSpace: string,
+  actorX: number,
+  actorY: number,
+  targetSpace: string,
+  targetX: number,
+  targetY: number,
+  maxDist = 4.6,
+): boolean {
+  return actorSpace === targetSpace && Math.hypot(actorX - targetX, actorY - targetY) <= maxDist;
 }

@@ -16,6 +16,7 @@ const SPACE_BOUNDS = {
 };
 const WORLD_COORD_LIMIT = 1_000_000;
 const INSTANCE_SPACE_RE = /^(cave|ruins|dungeon):(-?\d+),(-?\d+):(\d+)$/;
+const APARTMENT_SPACE_RE = /^apartment:[a-zA-Z0-9_-]{1,24}$/;
 const INSTANCE_BOUNDS = { cave: 64, ruins: 48, dungeon: 52 };
 const ROLE_IDS = ["blade", "guard", "scout", "miner", "medic", "teleporter"];
 
@@ -28,6 +29,9 @@ function boundsForSpace(space) {
   if (m) {
     const size = INSTANCE_BOUNDS[m[1]];
     return { minX: 0, maxX: size, minY: 0, maxY: size };
+  }
+  if (APARTMENT_SPACE_RE.test(space || "")) {
+    return { minX: 0, maxX: 24, minY: 0, maxY: 18 };
   }
   return {
     minX: -WORLD_COORD_LIMIT,
@@ -47,7 +51,7 @@ function sanitizeSpace(raw) {
   ) {
     return raw;
   }
-  if (typeof raw === "string" && INSTANCE_SPACE_RE.test(raw)) return raw;
+  if (typeof raw === "string" && (INSTANCE_SPACE_RE.test(raw) || APARTMENT_SPACE_RE.test(raw))) return raw;
   return "world";
 }
 

@@ -67,6 +67,7 @@ interface MachineView {
   vending?: VendingSlot[];
   vendingSales?: number;
   poweredByNearby?: boolean;
+  routeMode?: "buffer" | "feed_cnc" | "feed_vending";
 }
 
 export default function WorldBoxMachinePanel({
@@ -441,6 +442,53 @@ export default function WorldBoxMachinePanel({
                       </option>
                     ))}
                   </select>
+                </div>
+              )}
+
+              {/* Logistics Sorter Pipeline Route Selector */}
+              {machine.machineType === "logistics_sorter" && (
+                <div className="wb-mmo-card" style={{ display: "grid", gap: 6 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700 }}>
+                    🔀 自動配送ルート設定（ベルトコンベア中継機で長距離接続可）
+                  </div>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    {[
+                      { id: "buffer", label: "📦 倉庫集約" },
+                      { id: "feed_cnc", label: "⚙️ CNC加工機へ自動供給" },
+                      { id: "feed_vending", label: "🏪 自販機へ自動補充" },
+                    ].map((opt) => (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        disabled={busy}
+                        style={{
+                          ...btn,
+                          background:
+                            (machine.routeMode ?? "buffer") === opt.id
+                              ? "#4f46e5"
+                              : "rgba(255,255,255,0.08)",
+                          borderColor:
+                            (machine.routeMode ?? "buffer") === opt.id
+                              ? "#818cf8"
+                              : "rgba(148,163,184,0.3)",
+                        }}
+                        onClick={() =>
+                          void post(
+                            { action: "set_route_mode", routeMode: opt.id },
+                            `ルートを「${opt.label}」に設定`,
+                          )
+                        }
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {machine.machineType === "conveyor_relay" && (
+                <div className="wb-mmo-card" style={{ fontSize: 12, color: "#99f6e4" }}>
+                  ⛓ 自動ベルトコンベア中継機：周囲5×5の生産機と物流ソーターの配管を多段接続します。
                 </div>
               )}
 
