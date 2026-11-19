@@ -120,6 +120,12 @@ export const LOBBY_SPRITE_SRC: Record<string, string> = {
   hedge: "/img/worldbox/lobby/hedge.png",
   tapestry: "/img/worldbox/lobby/tapestry.png",
   vending: "/img/worldbox/lobby/vending.png",
+  floor_concrete: "/img/worldbox/lobby/floor_concrete.png",
+  prison_bars: "/img/worldbox/lobby/prison_bars.png",
+  prison_bed: "/img/worldbox/lobby/prison_bed.png",
+  prison_desk: "/img/worldbox/lobby/prison_desk.png",
+  work_press: "/img/worldbox/lobby/work_press.png",
+  vent_grate: "/img/worldbox/lobby/vent_grate.png",
 };
 
 export function loadLobbySprites(): Record<string, HTMLImageElement> {

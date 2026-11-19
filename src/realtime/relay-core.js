@@ -11,6 +11,7 @@ const SPACE_BOUNDS = {
   lobby: { width: 156, height: 92 }, // テーマパーク型ロビー拡張（lobby.ts の LOBBY_W/H）
   lobby2: { width: 40, height: 28 }, // ロビー2Fラウンジ（lobby-floors.ts の LOBBY2_W/H）
   lobby3: { width: 32, height: 24 }, // ロビー3F展望（lobby-floors.ts の LOBBY3_W/H）
+  prison: { width: 44, height: 32 }, // 中央刑務所（prison-map.ts の PRISON_W/H）
   tent: { width: 22, height: 17 }, // テント拡張の最大段階（tier 2）に合わせる
 };
 const WORLD_COORD_LIMIT = 1_000_000;
@@ -37,7 +38,15 @@ function boundsForSpace(space) {
 }
 
 function sanitizeSpace(raw) {
-  if (raw === "lobby" || raw === "lobby2" || raw === "lobby3" || raw === "tent") return raw;
+  if (
+    raw === "lobby" ||
+    raw === "lobby2" ||
+    raw === "lobby3" ||
+    raw === "prison" ||
+    raw === "tent"
+  ) {
+    return raw;
+  }
   if (typeof raw === "string" && INSTANCE_SPACE_RE.test(raw)) return raw;
   return "world";
 }

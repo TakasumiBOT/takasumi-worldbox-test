@@ -20,6 +20,7 @@ export const L_WOOD = 6;
 export const L_SAND = 7;
 export const L_DARK = 8;
 export const L_CHECK = 9;
+export const L_CONCRETE = 10;
 
 export const LOBBY_FLOOR_SPRITE: Record<number, string | null> = {
   [L_WALL]: "wall_stone",
@@ -31,6 +32,7 @@ export const LOBBY_FLOOR_SPRITE: Record<number, string | null> = {
   [L_SAND]: null,
   [L_DARK]: "floor_marble_dark",
   [L_CHECK]: "floor_check",
+  [L_CONCRETE]: "floor_concrete",
 };
 
 export const LOBBY_FLOOR_FALLBACK: Record<number, string> = {
@@ -43,6 +45,7 @@ export const LOBBY_FLOOR_FALLBACK: Record<number, string> = {
   [L_SAND]: "#ddd29a",
   [L_DARK]: "#434854",
   [L_CHECK]: "#cfd0d4",
+  [L_CONCRETE]: "#666e7b",
 };
 
 export function isSolidLobbyTile(id: number): boolean {
@@ -292,7 +295,11 @@ export type LobbyStation =
   | "sell"
   | "telescope"
   | "piano"
-  | "stock";
+  | "stock"
+  | "prison_work"
+  | "prison_desk"
+  | "prison_escape"
+  | "prison_visit";
 
 export type LobbyObject = {
   sprite: string;
