@@ -229,7 +229,7 @@ import {
   isContainerItem,
   type ContainerSlotRef,
 } from "@/lib/worldbox/economy/containers";
-import { isMachineItem } from "@/lib/worldbox/economy/machines";
+import { isMachineItem, machineSpecFor } from "@/lib/worldbox/economy/machines";
 import {
   DUNGEON_TILE_SRC,
   FARM_SPRITE_SRC,
@@ -287,6 +287,18 @@ import WorldBoxMarketPanel from "./WorldBoxMarketPanel";
 import WorldBoxFinancePanel from "./WorldBoxFinancePanel";
 import WorldBoxGuildBoardPanel from "./WorldBoxGuildBoardPanel";
 import WorldBoxGuildShopPanel from "./WorldBoxGuildShopPanel";
+import WorldBoxJobPanel from "./WorldBoxJobPanel";
+import WorldBoxPrisonPanel from "./WorldBoxPrisonPanel";
+import WorldBoxEngineeringPanel from "./WorldBoxEngineeringPanel";
+import WorldBoxMetroPanel from "./WorldBoxMetroPanel";
+import {
+  PRISON_H,
+  PRISON_VISITOR_ENTRY,
+  PRISON_W,
+  buildPrison,
+  prisonDistrictAt,
+  prisonTileAt,
+} from "@/lib/worldbox/world/prison-map";
 import { ItemSlot as ItemSlotView, ItemSlotGrid } from "./ItemSlotGrid";
 
 const SAVE_KEY = "taka-worldbox-save-v6";
@@ -887,6 +899,10 @@ const STATION_LABEL: Record<LobbyStation, string> = {
   sell: "売却専用ショップ",
   telescope: "展望台",
   stock: "取引所",
+  prison_work: "懲役作業ファクトリー",
+  prison_desk: "刑務所 保釈・司法窓口",
+  prison_escape: "地下換気ダクト",
+  prison_visit: "面会・差し入れ窓口",
 };
 
 export default function WorldBoxClient() {
@@ -1059,6 +1075,60 @@ export default function WorldBoxClient() {
   spaceUiRef.current = spaceUi;
   const [menuOpen, setMenuOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [jobOpen, setJobOpen] = useState(false);
+  const [prisonOpen, setPrisonOpen] = useState(false);
+  const [engineeringOpen, setEngineeringOpen] = useState(false);
+  const [metroOpen, setMetroOpen] = useState(false);
+  const forceMoveRef = useRef<((mv: { space: string; x: number; y: number }) => void) | null>(null);
+  const refreshMmoRef = useRef<(() => Promise<void>) | null>(null);
+  type MmoSummaryState = {
+    news: { id: string; at: number; kind: string; text: string }[];
+    prison: {
+      jailed: boolean;
+      wantedLevel: number;
+      bounty: number;
+      releaseAt: number;
+      remainingMs: number;
+      cellId: string;
+      inmateNumber: string;
+    };
+    career: { currentCareer: string; level: number; creditScore: number };
+  };
+  const [mmoSummary, setMmoSummary] = useState<MmoSummaryState | null>(null);
+  const mmoSummaryRef = useRef<MmoSummaryState | null>(null);
+  mmoSummaryRef.current = mmoSummary;
+  const [mmoFeedIndex, setMmoFeedIndex] = useState(0);
+  useEffect(() => {
+    if (gate !== "ok") return;
+    let disposed = false;
+    const load = async () => {
+      try {
+        const res = await fetch("/api/worldbox/mmo", { headers: { Accept: "application/json" } });
+        if (!res.ok || disposed) return;
+        const d = (await res.json()) as MmoSummaryState;
+        if (disposed) return;
+        setMmoSummary(d);
+      } catch {
+        /* noop */
+      }
+    };
+    refreshMmoRef.current = load;
+    void load();
+    const poll = window.setInterval(() => void load(), 9000);
+    const rot = window.setInterval(() => setMmoFeedIndex((i) => i + 1), 6500);
+    return () => {
+      disposed = true;
+      refreshMmoRef.current = null;
+      window.clearInterval(poll);
+      window.clearInterval(rot);
+    };
+  }, [gate]);
+  const activeNews =
+    mmoSummary && mmoSummary.news.length > 0
+      ? mmoSummary.news[mmoFeedIndex % mmoSummary.news.length]
+      : null;
+  const mmoFeedText = activeNews?.text ?? "";
+  const mmoFeedKind = activeNews?.kind ?? "economy";
   const [collectionSel, setCollectionSel] = useState<string | null>(null);
   const [stationUi, setStationUi] = useState<LobbyStation | null>(null);
   const [worldStationKinds, setWorldStationKinds] = useState("");
@@ -1497,6 +1567,10 @@ export default function WorldBoxClient() {
       if (e.key !== "Escape") return;
       setMenuOpen(false);
       setShowEconomy(false);
+      setJobOpen(false);
+      setPrisonOpen(false);
+      setEngineeringOpen(false);
+      setMetroOpen(false);
       setMapView(false);
       setCasinoOpen(false);
       setRacingOpen(false);
@@ -2688,11 +2762,13 @@ export default function WorldBoxClient() {
       dungeonNow()?.data ??
       (space === "tent"
         ? tentNow()
-        : space === "lobby2"
-          ? buildLobby2()
-          : space === "lobby3"
-            ? buildLobby3()
-            : lobby);
+        : space === "prison"
+          ? buildPrison()
+          : space === "lobby2"
+            ? buildLobby2()
+            : space === "lobby3"
+              ? buildLobby3()
+              : lobby);
     const textures = loadTextures();
     const dungeon = loadDungeonTiles();
     const lobbySprites = loadLobbySprites();
@@ -2801,7 +2877,9 @@ export default function WorldBoxClient() {
             ? rectBounds(LOBBY3_W, LOBBY3_H)
             : space === "tent"
               ? rectBounds(tentNow().width, tentNow().height)
-              : worldBounds();
+              : space === "prison"
+                ? rectBounds(PRISON_W, PRISON_H)
+                : worldBounds();
     };
     const activeBlocked = (): ReadonlySet<string> | undefined => {
       if (space === "world") return blockedRef.current;
@@ -2967,9 +3045,11 @@ export default function WorldBoxClient() {
             ? "ラウンジ"
             : space === "lobby3"
               ? "展望デッキ"
-              : space === "tent"
-                ? "テント"
-                : "郊外",
+              : space === "prison"
+                ? "タカスミ中央刑務所"
+                : space === "tent"
+                  ? "テント"
+                  : "郊外",
       );
     })();
 
@@ -3663,7 +3743,7 @@ export default function WorldBoxClient() {
         return true;
       }
       if (view.block && isMachineItem(view.block.itemId)) {
-        if (view.block.mine) {
+        if (view.block.mine || view.block.itemId === "smart_vending") {
           setMachinePanel({ x: t.x, y: t.y });
         } else {
           setTileMsg(TILE_ERROR_LABEL.not_owner);
@@ -4152,8 +4232,38 @@ export default function WorldBoxClient() {
     };
     instanceTeleportRef.current = (x: number, y: number) =>
       beginTransition(() => placePlayer(x, y));
+    const applyServerForceMove = (mv: { space: string; x: number; y: number }) => {
+      beginTransition(() => {
+        if (space === "world" && mv.space !== "world") {
+          worldReturn = { x: player.x, y: player.y };
+        }
+        space = mv.space;
+        setSpaceUi(mv.space);
+        setStatusText(
+          mv.space === "prison"
+            ? "タカスミ中央刑務所"
+            : mv.space === "lobby"
+              ? "中央広場"
+              : "共有ワールド",
+        );
+        lastStation = null;
+        setStationUi(null);
+        setBoardOpen(false);
+        setGuildBoardOpen(false);
+        placePlayer(mv.x, mv.y);
+        spawnBurst(fxSys, "warp", player.x, player.y - 0.3);
+        playWbSe("warp");
+        void pollOthers();
+      });
+    };
+    forceMoveRef.current = applyServerForceMove;
+
     const doWarp = (target: SaveSpace) => {
       if (target === space) return;
+      if (mmoSummaryRef.current?.prison.jailed && target !== "prison") {
+        setTileMsg("収監中のため脱走・保釈・刑期満了まで移動できません");
+        return;
+      }
       beginTransition(() => {
         if (target === "lobby") {
           worldReturn = { x: player.x, y: player.y };
@@ -4163,6 +4273,14 @@ export default function WorldBoxClient() {
           setBoardOpen(false);
           setGuildBoardOpen(false);
           placePlayer(LOBBY_ENTRY.x, LOBBY_ENTRY.y);
+        } else if (target === "prison") {
+          if (space === "world") worldReturn = { x: player.x, y: player.y };
+          space = "prison";
+          setSpaceUi("prison");
+          setStatusText("タカスミ中央刑務所");
+          setBoardOpen(false);
+          setGuildBoardOpen(false);
+          placePlayer(PRISON_VISITOR_ENTRY.x, PRISON_VISITOR_ENTRY.y);
         } else if (target === "tent") {
           worldReturn = { x: player.x, y: player.y };
           space = "tent";
@@ -4929,6 +5047,39 @@ export default function WorldBoxClient() {
                 );
                 ctx.restore();
               }
+              if (isMachineItem(ov!.block.itemId)) {
+                const bid = ov!.block.itemId;
+                const spec = machineSpecFor(bid);
+                const pulse = 0.5 + 0.5 * Math.sin(now / 260 + tx * 0.7 + ty * 0.9);
+                ctx.save();
+                if (bid === "power_generator") {
+                  ctx.strokeStyle = `rgba(56,189,248,${(0.28 + 0.28 * pulse).toFixed(2)})`;
+                  ctx.lineWidth = 1.8;
+                  ctx.beginPath();
+                  ctx.arc(bx + TILE / 2, by + TILE / 2, TILE * 0.55 + pulse * 4, 0, Math.PI * 2);
+                  ctx.stroke();
+                } else if (bid === "security_camera") {
+                  const sweep = (now / 900 + tx) % (Math.PI * 2);
+                  ctx.fillStyle = "rgba(239,68,68,0.16)";
+                  ctx.beginPath();
+                  ctx.moveTo(bx + TILE / 2, by + TILE / 2);
+                  ctx.arc(bx + TILE / 2, by + TILE / 2, TILE * 0.85, sweep, sweep + 0.8);
+                  ctx.closePath();
+                  ctx.fill();
+                } else if (bid === "smart_vending") {
+                  ctx.fillStyle = "rgba(20,184,166,0.92)";
+                  ctx.fillRect(bx + TILE - 20, by + 2, 18, 9);
+                  ctx.fillStyle = "#fff";
+                  ctx.font = "bold 7px sans-serif";
+                  ctx.textAlign = "center";
+                  ctx.fillText("24H", bx + TILE - 11, by + 9);
+                }
+                ctx.fillStyle = pulse > 0.5 ? spec.accentColor : "#38bdf8";
+                ctx.beginPath();
+                ctx.arc(bx + TILE - 6, by + 6, 3, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+              }
               ctx.restore();
             }
           }
@@ -4997,11 +5148,13 @@ export default function WorldBoxClient() {
               ? (indoor.tiles[ty * indoor.width + tx] ?? 0)
               : space === "tent"
                 ? tentTileAt(indoor.tiles, indoor.width, indoor.height, tx, ty)
-                : space === "lobby2"
-                  ? lobby2TileAt(indoor.tiles, tx, ty)
-                  : space === "lobby3"
-                    ? lobby3TileAt(indoor.tiles, tx, ty)
-                    : lobbyTileAt(indoor.tiles, tx, ty);
+                : space === "prison"
+                  ? prisonTileAt(indoor.tiles, tx, ty)
+                  : space === "lobby2"
+                    ? lobby2TileAt(indoor.tiles, tx, ty)
+                    : space === "lobby3"
+                      ? lobby3TileAt(indoor.tiles, tx, ty)
+                      : lobbyTileAt(indoor.tiles, tx, ty);
             if (id === L_VOID) continue;
             const sx = lobbyOx + tx * TILE;
             const sy = lobbyOy + ty * TILE;
@@ -6189,6 +6342,30 @@ export default function WorldBoxClient() {
       run: () => setFinanceOpen((v) => !v),
     },
     {
+      id: "jobs",
+      label: jobOpen ? "仕事を閉じる" : "仕事・キャリア",
+      show: true,
+      run: () => setJobOpen((v) => !v),
+    },
+    {
+      id: "engineering",
+      label: engineeringOpen ? "機械制作ラボを閉じる" : "機械制作・図鑑",
+      show: true,
+      run: () => setEngineeringOpen((v) => !v),
+    },
+    {
+      id: "prison",
+      label: prisonOpen ? "警察・刑務所を閉じる" : "警察・刑務所",
+      show: true,
+      run: () => setPrisonOpen((v) => !v),
+    },
+    {
+      id: "metro",
+      label: metroOpen ? "デイリー任務を閉じる" : "デイリー任務・速報",
+      show: true,
+      run: () => setMetroOpen((v) => !v),
+    },
+    {
       id: "mapview",
       label: mapView ? "マップを閉じる" : "マップを見る",
       show: spaceUi === "world",
@@ -6361,8 +6538,100 @@ export default function WorldBoxClient() {
           {statusText}
           {othersCount > 0 ? ` ・ いま ${othersCount} 人が歩いている` : ""}
           {spaceUi === "lobby" ? ` ・ ${lobbyDistrictAt(coords.x, coords.y)}` : ""}
+          {spaceUi === "prison" ? ` ・ ${prisonDistrictAt(coords.x, coords.y)}` : ""}
           {` ・ 座標 X ${coords.x} / Y ${coords.y}`}
         </div>
+        {mmoFeedText && (
+          <button
+            type="button"
+            className="wb-mmo-ticker"
+            onClick={() => setMetroOpen(true)}
+            title="クリックしてデイリー任務・経済速報を開く"
+          >
+            <span
+              className={`wb-mmo-ticker-tag ${
+                mmoFeedKind === "prison" || mmoFeedKind === "crime" ? "is-alert" : ""
+              }`}
+            >
+              {mmoFeedKind === "prison" || mmoFeedKind === "crime" ? "ALERT" : "LIVE"}
+            </span>
+            <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{mmoFeedText}</span>
+          </button>
+        )}
+        {mmoSummary?.prison.jailed && (
+          <div
+            className="wb-mmo-prison-banner"
+            style={{ top: "calc(74px + env(safe-area-inset-top, 0px))" }}
+          >
+            <span>
+              🔒 収監中 ({mmoSummary.prison.cellId}) ・ 残刑期{" "}
+              {Math.max(0, Math.ceil(mmoSummary.prison.remainingMs / 1000))}秒
+            </span>
+            <button
+              type="button"
+              className="wb-mmo-btn wb-mmo-btn-amber"
+              style={{ padding: "2px 8px", fontSize: 11 }}
+              onClick={() => setPrisonOpen(true)}
+            >
+              刑務作業 / 保釈 / 脱獄
+            </button>
+          </div>
+        )}
+        {!menuOpen && (
+          <div className="wb-mmo-dock">
+            <button
+              type="button"
+              className={`wb-mmo-dock-btn ${jobOpen ? "is-active" : ""}`}
+              onClick={() => setJobOpen((v) => !v)}
+            >
+              <span>💼</span>
+              <span>仕事</span>
+              {mmoSummary?.career && (
+                <span
+                  className="wb-mmo-pill"
+                  style={{ background: "rgba(16,185,129,0.25)", color: "#6ee7b7" }}
+                >
+                  Lv.{mmoSummary.career.level}
+                </span>
+              )}
+            </button>
+            <button
+              type="button"
+              className={`wb-mmo-dock-btn ${engineeringOpen ? "is-active" : ""}`}
+              onClick={() => setEngineeringOpen((v) => !v)}
+            >
+              <span>⚙️</span>
+              <span>機械制作</span>
+            </button>
+            <button
+              type="button"
+              className={`wb-mmo-dock-btn ${
+                mmoSummary?.prison.jailed || (mmoSummary?.prison.wantedLevel ?? 0) > 0
+                  ? "is-danger"
+                  : prisonOpen
+                    ? "is-active"
+                    : ""
+              }`}
+              onClick={() => setPrisonOpen((v) => !v)}
+            >
+              <span>⚖️</span>
+              <span>警察・刑務所</span>
+              {mmoSummary && mmoSummary.prison.wantedLevel > 0 && (
+                <span className="wb-mmo-pill" style={{ background: "#ef4444", color: "#fff" }}>
+                  ★{mmoSummary.prison.wantedLevel}
+                </span>
+              )}
+            </button>
+            <button
+              type="button"
+              className={`wb-mmo-dock-btn ${metroOpen ? "is-active" : ""}`}
+              onClick={() => setMetroOpen((v) => !v)}
+            >
+              <span>📱</span>
+              <span>任務・速報</span>
+            </button>
+          </div>
+        )}
         <button
           type="button"
           aria-label="メニュー"
@@ -6723,6 +6992,45 @@ export default function WorldBoxClient() {
                 onClick={() => void plazaAction("rest")}
               >
                 休む
+              </button>
+            )}
+            {stationUi === "smith" && (
+              <button
+                type="button"
+                style={{
+                  ...btn,
+                  minHeight: hud.buttonMinHeight,
+                  padding: "2px 10px",
+                  background: "#0891b2",
+                  borderColor: "#22d3ee",
+                }}
+                onClick={() => setEngineeringOpen((v) => !v)}
+              >
+                {engineeringOpen ? "ラボ閉じる" : "機械制作ラボ"}
+              </button>
+            )}
+            {(stationUi === "prison_work" ||
+              stationUi === "prison_desk" ||
+              stationUi === "prison_escape" ||
+              stationUi === "prison_visit") && (
+              <button
+                type="button"
+                style={{
+                  ...btn,
+                  minHeight: hud.buttonMinHeight,
+                  padding: "2px 10px",
+                  background: stationUi === "prison_escape" ? "#dc2626" : "#0891b2",
+                  borderColor: stationUi === "prison_escape" ? "#f87171" : "#22d3ee",
+                }}
+                onClick={() => setPrisonOpen(true)}
+              >
+                {stationUi === "prison_work"
+                  ? "懲役作業を実行"
+                  : stationUi === "prison_escape"
+                    ? "脱獄ルートを開く"
+                    : stationUi === "prison_visit"
+                      ? "面会・差し入れ"
+                      : "保釈・刑務所端末"}
               </button>
             )}
             {plazaMsg && <span role="status">{plazaMsg}</span>}
@@ -7161,6 +7469,74 @@ export default function WorldBoxClient() {
                 招待
               </button>
             )}
+            <button
+              type="button"
+              style={{ ...btn, background: "#0891b2", borderColor: "#22d3ee" }}
+              onClick={() => {
+                void fetch("/api/worldbox/prison", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    action: "arrest_player",
+                    targetPresenceId: playerCard.id,
+                  }),
+                }).then(async (res) => {
+                  const d = (await res.json().catch(() => ({}))) as {
+                    error?: string;
+                    reward?: number;
+                    arrestedName?: string;
+                  };
+                  if (res.ok) {
+                    setTileMsg(`逮捕成功！懸賞金 +¥${Number(d.reward ?? 0).toLocaleString()}`);
+                    void refreshMmoRef.current?.();
+                  } else {
+                    setTileMsg(
+                      d.error === "not_wanted"
+                        ? "指名手配中の相手ではありません"
+                        : "逮捕できませんでした",
+                    );
+                  }
+                });
+                setPlayerCard(null);
+              }}
+            >
+              逮捕
+            </button>
+            <button
+              type="button"
+              style={{ ...btn, background: "#991b1b", borderColor: "#f87171" }}
+              onClick={() => {
+                void fetch("/api/worldbox/prison", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    action: "commit_crime",
+                    crimeId: "pickpocket",
+                    targetPresenceId: playerCard.id,
+                  }),
+                }).then(async (res) => {
+                  const d = (await res.json().catch(() => ({}))) as {
+                    success?: boolean;
+                    reward?: number;
+                    forceMove?: { space: string; x: number; y: number };
+                  };
+                  if (res.ok) {
+                    if (d.success) {
+                      setTileMsg(`スリ成功！ +¥${Number(d.reward ?? 0).toLocaleString()}`);
+                    } else {
+                      setTileMsg("スリに失敗し逮捕されました！");
+                      if (d.forceMove) forceMoveRef.current?.(d.forceMove);
+                    }
+                    void refreshMmoRef.current?.();
+                  } else {
+                    setTileMsg("現在は実行できません（クールタイム等）");
+                  }
+                });
+                setPlayerCard(null);
+              }}
+            >
+              スリ
+            </button>
             <button type="button" style={btn} onClick={() => setPlayerCard(null)}>
               閉じる
             </button>
@@ -8022,8 +8398,50 @@ export default function WorldBoxClient() {
           <WorldBoxMachinePanel
             x={machinePanel.x}
             y={machinePanel.y}
+            profile={invProfile}
             onProfileChange={(profile) => setInvProfile(profile)}
             onClose={() => setMachinePanel(null)}
+          />
+        )}
+        {jobOpen && (
+          <WorldBoxJobPanel
+            onProfileChange={(p) => setInvProfile(p)}
+            onStatusChange={() => void refreshMmoRef.current?.()}
+            onClose={() => setJobOpen(false)}
+          />
+        )}
+        {prisonOpen && (
+          <WorldBoxPrisonPanel
+            currentSpace={spaceUi}
+            profile={invProfile}
+            onForceMove={(mv) => {
+              forceMoveRef.current?.(mv);
+            }}
+            onProfileChange={(p) => setInvProfile(p)}
+            onStatusChange={() => void refreshMmoRef.current?.()}
+            onClose={() => setPrisonOpen(false)}
+          />
+        )}
+        {engineeringOpen && (
+          <WorldBoxEngineeringPanel
+            onProfileChange={(p) => setInvProfile(p)}
+            onClose={() => setEngineeringOpen(false)}
+          />
+        )}
+        {metroOpen && (
+          <WorldBoxMetroPanel
+            onProfileChange={(p) => setInvProfile(p)}
+            onStatusChange={() => void refreshMmoRef.current?.()}
+            onOpenPanel={(p) => {
+              if (p === "jobs") setJobOpen(true);
+              else if (p === "engineering") setEngineeringOpen(true);
+              else if (p === "prison") setPrisonOpen(true);
+              else if (p === "market") setMarketOpen(true);
+              else if (p === "finance") setFinanceOpen(true);
+              else if (p === "company") setShowCompany(true);
+              else if (p === "economy") setShowEconomy(true);
+            }}
+            onClose={() => setMetroOpen(false)}
           />
         )}
         {guildShopOpen && spaceUi === "lobby" && (

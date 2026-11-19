@@ -59,6 +59,15 @@ export const EARN_REASONS: ReadonlySet<string> = new Set([
   "house_pool_yield",
   "prediction_payout",
   "prediction_refund",
+  "job_salary",
+  "job_bonus",
+  "unemployment_benefit",
+  "prison_labor",
+  "bounty_reward",
+  "crime_heist",
+  "machine_yield",
+  "vending_sale",
+  "quest_reward",
 ]);
 
 export const GAMBLE_REASONS: ReadonlySet<string> = new Set([

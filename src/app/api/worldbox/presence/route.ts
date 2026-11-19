@@ -96,13 +96,15 @@ export async function PUT(request: Request) {
           ? rectBounds(LOBBY3_W, LOBBY3_H)
           : space === "tent"
             ? rectBounds(TENT_MAX_W, TENT_MAX_H)
-            : isCave
-              ? rectBounds(64, 64)
-              : isRuins
-                ? rectBounds(48, 48)
-                : isDungeon
-                  ? rectBounds(52, 52)
-                  : worldBounds();
+            : space === "prison"
+              ? rectBounds(44, 32)
+              : isCave
+                ? rectBounds(64, 64)
+                : isRuins
+                  ? rectBounds(48, 48)
+                  : isDungeon
+                    ? rectBounds(52, 52)
+                    : worldBounds();
   const heartbeat = sanitizeHeartbeat(body, bounds);
   if (!heartbeat) {
     return NextResponse.json({ error: "invalid_heartbeat" }, { status: 400, headers: NO_STORE });
