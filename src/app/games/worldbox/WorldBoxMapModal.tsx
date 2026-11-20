@@ -98,11 +98,13 @@ export function paintIndoorMapCanvas(
           ? "#22d3ee"
           : o.station === "shop" || o.station === "sell"
             ? "#fb923c"
-            : o.station === "prison_escape"
-              ? "#ef4444"
-              : o.station === "prison_work"
-                ? "#4ade80"
-                : "#cbd5e1";
+            : o.station === "dealer"
+              ? "#38bdf8"
+              : o.station === "prison_escape"
+                ? "#ef4444"
+                : o.station === "prison_work"
+                  ? "#4ade80"
+                  : "#cbd5e1";
     ctx.fillStyle = col;
     ctx.fillRect(
       ox + o.x * scale,
@@ -289,7 +291,10 @@ export default function WorldBoxMapModal({
   });
 
   const [zoomSpan, setZoomSpan] = useState<256 | 512 | 1024>(512);
-  const [pinMode, setPinMode] = useState(true);
+  const [mapTool, setMapTool] = useState<"place" | "delete" | "inspect">("place");
+  const [selectedPinId, setSelectedPinId] = useState<string | null>(
+    trackedTarget?.kind === "pin" ? (trackedTarget.pinId ?? null) : null,
+  );
   const [pinIcon, setPinIcon] = useState<PinIconId>("pin");
   const [pinName, setPinName] = useState("");
   const [sideTab, setSideTab] = useState<"settlements" | "pins" | "pois" | "players">(
@@ -381,10 +386,16 @@ export default function WorldBoxMapModal({
         ctx.fill();
         ctx.stroke();
 
-        // Crossroad grid hint
-        ctx.fillStyle = "#cbd5e1";
-        ctx.fillRect(mx - mr * 0.8, my - 1, mr * 1.6, 2);
-        ctx.fillRect(mx - 1, my - mr * 0.8, 2, mr * 1.6);
+        // Actual procedural Jigsaw road network & building blocks
+        ctx.fillStyle = "rgba(203, 213, 225, 0.85)";
+        const roadPx = Math.max(1.2, scale);
+        for (const r of stl.roadRects) {
+          ctx.fillRect(toX(r.x), toY(r.y), roadPx, roadPx);
+        }
+        for (const bd of stl.buildings) {
+          ctx.fillStyle = bd.kind === "vehicle_dealer" ? "#38bdf8" : bd.roofColor;
+          ctx.fillRect(toX(bd.x), toY(bd.y), Math.max(2, bd.w * scale), Math.max(2, bd.h * scale));
+        }
 
         // City / Town nameplate
         ctx.font = "700 11px sans-serif";
@@ -508,16 +519,14 @@ export default function WorldBoxMapModal({
 
   void snapTick;
 
-  const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  const resolveCanvasPoint = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
-    if (rect.width <= 0) return;
+    if (rect.width <= 0) return null;
     const cx = (e.clientX - rect.left) * (CANVAS_SIZE / rect.width);
     const cy = (e.clientY - rect.top) * (CANVAS_SIZE / rect.height);
     const s = getSnapshot();
-
     let worldX = 0;
     let worldY = 0;
-
     if (s.space !== "world" && s.indoor) {
       const tr = indoorTransformRef.current;
       worldX = Math.max(0, Math.min(s.indoor.width - 1, (cx - tr.ox) / tr.scale));
@@ -528,19 +537,47 @@ export default function WorldBoxMapModal({
       const scale = CANVAS_SIZE / zoomSpan;
       worldX = ox + cx / scale;
       worldY = oy + cy / scale;
-
-      if (s.porter && Math.hypot(worldX - s.porter.x, worldY - s.porter.y) <= zoomSpan * 0.03) {
-        onTeleportPorter?.();
-        return;
-      }
     }
-
-    // Check if user clicked close to an existing pin to track it immediately
-    const hitTol = s.space === "world" ? zoomSpan * 0.035 : 4;
+    const hitTol = s.space === "world" ? zoomSpan * 0.045 : 4.5;
     const hitPin = pins.find(
       (p) => p.space === s.space && Math.hypot(p.x - worldX, p.y - worldY) <= hitTol,
     );
+    return { s, worldX, worldY, hitTol, hitPin };
+  };
+
+  const deletePinAndClearIfSelected = (pinId: string) => {
+    if (selectedPinId === pinId) setSelectedPinId(null);
+    onDeletePin(pinId);
+  };
+
+  const handleCanvasContextMenu = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const info = resolveCanvasPoint(e);
+    if (!info?.hitPin) return;
+    e.preventDefault();
+    deletePinAndClearIfSelected(info.hitPin.id);
+  };
+
+  const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const info = resolveCanvasPoint(e);
+    if (!info) return;
+    const { s, worldX, worldY, hitTol, hitPin } = info;
+
+    if (
+      s.space === "world" &&
+      s.porter &&
+      mapTool !== "delete" &&
+      Math.hypot(worldX - s.porter.x, worldY - s.porter.y) <= zoomSpan * 0.03
+    ) {
+      onTeleportPorter?.();
+      return;
+    }
+
     if (hitPin) {
+      if (mapTool === "delete") {
+        deletePinAndClearIfSelected(hitPin.id);
+        return;
+      }
+      setSelectedPinId(hitPin.id);
       onTrackTarget({
         kind: "pin",
         space: hitPin.space,
@@ -553,12 +590,15 @@ export default function WorldBoxMapModal({
       return;
     }
 
+    // In delete mode, clicking empty ground switches focus without spawning an unintended pin
+    if (mapTool === "delete") return;
+
     // Check if user clicked a Settlement on Global Map
     if (s.space === "world") {
       const hitStl = nearSettlements.find(
         (stl) => Math.hypot(stl.cx - worldX, stl.cy - worldY) <= Math.max(stl.radius, hitTol),
       );
-      if (hitStl && !pinMode) {
+      if (hitStl && mapTool === "inspect") {
         onTrackTarget({
           kind: "settlement",
           space: "world",
@@ -570,6 +610,8 @@ export default function WorldBoxMapModal({
         return;
       }
     }
+
+    if (mapTool !== "place") return;
 
     // Drop a new Custom Pin & start tracking it right away
     const iconMeta = PIN_ICONS.find((i) => i.icon === pinIcon) ?? PIN_ICONS[0];
@@ -585,6 +627,10 @@ export default function WorldBoxMapModal({
     });
     setPinName("");
   };
+
+  const selectedPin =
+    pins.find((p) => p.id === selectedPinId) ??
+    (trackedTarget?.kind === "pin" ? pins.find((p) => p.id === trackedTarget.pinId) : undefined);
 
   return (
     <div
@@ -626,7 +672,7 @@ export default function WorldBoxMapModal({
         </button>
       </div>
 
-      {/* Pin Drop Controls Bar */}
+      {/* Pin Drop & Delete Mode Controls Bar */}
       <div
         style={{
           display: "flex",
@@ -640,20 +686,58 @@ export default function WorldBoxMapModal({
           border: "1px solid rgba(148,163,184,0.2)",
         }}
       >
+        <div
+          style={{
+            display: "inline-flex",
+            gap: 4,
+            padding: 2,
+            borderRadius: 9,
+            background: "rgba(15,23,42,0.7)",
+            border: "1px solid rgba(148,163,184,0.22)",
+          }}
+        >
+          <button
+            type="button"
+            style={chipBtn(mapTool === "place")}
+            onClick={() => setMapTool("place")}
+          >
+            設置モード
+          </button>
+          <button
+            type="button"
+            style={{
+              ...chipBtn(mapTool === "delete"),
+              ...(mapTool === "delete"
+                ? { background: "rgba(220,38,38,0.4)", borderColor: "#f87171", color: "#fecaca" }
+                : {}),
+            }}
+            onClick={() => setMapTool("delete")}
+          >
+            ピン削除
+          </button>
+          <button
+            type="button"
+            style={chipBtn(mapTool === "inspect")}
+            onClick={() => setMapTool("inspect")}
+          >
+            追跡選択
+          </button>
+        </div>
+
         <div style={{ display: "flex", gap: 4 }}>
           {PIN_ICONS.map((pi) => (
             <button
               key={pi.icon}
               type="button"
               style={{
-                ...chipBtn(pinIcon === pi.icon),
+                ...chipBtn(pinIcon === pi.icon && mapTool === "place"),
                 display: "inline-flex",
                 alignItems: "center",
                 gap: 4,
               }}
               onClick={() => {
                 setPinIcon(pi.icon);
-                setPinMode(true);
+                setMapTool("place");
               }}
               title={pi.label}
             >
@@ -666,7 +750,7 @@ export default function WorldBoxMapModal({
           value={pinName}
           onChange={(e) => setPinName(e.target.value)}
           maxLength={24}
-          placeholder="ピン名称 (地図クリックで即時設置・追跡)"
+          placeholder="ピン名称 (地図クリックで設置 / 右クリックで削除)"
           style={{
             flex: "1 1 160px",
             padding: "5px 9px",
@@ -704,20 +788,76 @@ export default function WorldBoxMapModal({
           alignItems: "start",
         }}
       >
-        <canvas
-          ref={canvasRef}
-          width={CANVAS_SIZE}
-          height={CANVAS_SIZE}
-          onClick={handleCanvasClick}
-          style={{
-            width: "100%",
-            aspectRatio: "1 / 1",
-            borderRadius: 10,
-            border: "1px solid rgba(148,163,184,0.35)",
-            background: "#0b101b",
-            cursor: "crosshair",
-          }}
-        />
+        <div style={{ display: "grid", gap: 6 }}>
+          <canvas
+            ref={canvasRef}
+            width={CANVAS_SIZE}
+            height={CANVAS_SIZE}
+            onClick={handleCanvasClick}
+            onContextMenu={handleCanvasContextMenu}
+            style={{
+              width: "100%",
+              aspectRatio: "1 / 1",
+              borderRadius: 10,
+              border:
+                mapTool === "delete" ? "1.5px solid #f87171" : "1px solid rgba(148,163,184,0.35)",
+              background: "#0b101b",
+              cursor: mapTool === "delete" ? "not-allowed" : "crosshair",
+            }}
+          />
+          {selectedPin && (
+            <div
+              className="wb-mmo-card"
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                gap: 8,
+                padding: "7px 10px",
+                borderColor: "rgba(56,189,248,0.45)",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <WbIcon name={selectedPin.icon} size={14} color={selectedPin.color} />
+                <strong style={{ fontSize: 12 }}>{selectedPin.label}</strong>
+                <span style={{ fontSize: 11, color: "#94a3b8" }}>
+                  ({selectedPin.x}, {selectedPin.y})
+                </span>
+              </div>
+              <div style={{ display: "flex", gap: 5 }}>
+                <button
+                  type="button"
+                  style={chipBtn(true)}
+                  onClick={() =>
+                    onTrackTarget({
+                      kind: "pin",
+                      space: selectedPin.space,
+                      x: selectedPin.x,
+                      y: selectedPin.y,
+                      label: selectedPin.label,
+                      color: selectedPin.color,
+                      pinId: selectedPin.id,
+                    })
+                  }
+                >
+                  追跡
+                </button>
+                <button
+                  type="button"
+                  style={{
+                    ...chipBtn(false),
+                    background: "rgba(220,38,38,0.35)",
+                    borderColor: "#f87171",
+                    color: "#fecaca",
+                  }}
+                  onClick={() => deletePinAndClearIfSelected(selectedPin.id)}
+                >
+                  このピンを削除
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
 
         <div style={{ display: "grid", gap: 8 }}>
           <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
@@ -891,9 +1031,37 @@ export default function WorldBoxMapModal({
 
             {sideTab === "pins" && (
               <>
-                {pins.length === 0 && (
+                {pins.length === 0 ? (
                   <div className="wb-mmo-card" style={{ opacity: 0.7 }}>
                     左のマップ上の任意の地点をクリックするとピンを設置・追跡できます。
+                  </div>
+                ) : (
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      gap: 6,
+                    }}
+                  >
+                    <span style={{ fontSize: 11, color: "#94a3b8" }}>
+                      右クリックでも即座に削除可能
+                    </span>
+                    <button
+                      type="button"
+                      style={{
+                        ...chipBtn(false),
+                        background: "rgba(220,38,38,0.28)",
+                        borderColor: "#f87171",
+                        color: "#fecaca",
+                      }}
+                      onClick={() => {
+                        setSelectedPinId(null);
+                        for (const p of pins) onDeletePin(p.id);
+                      }}
+                    >
+                      すべて削除 ({pins.length})
+                    </button>
                   </div>
                 )}
                 {pins.map((p) => {
@@ -927,7 +1095,8 @@ export default function WorldBoxMapModal({
                         <button
                           type="button"
                           style={chipBtn(true)}
-                          onClick={() =>
+                          onClick={() => {
+                            setSelectedPinId(p.id);
                             onTrackTarget({
                               kind: "pin",
                               space: p.space,
@@ -936,15 +1105,20 @@ export default function WorldBoxMapModal({
                               label: p.label,
                               color: p.color,
                               pinId: p.id,
-                            })
-                          }
+                            });
+                          }}
                         >
                           追跡
                         </button>
                         <button
                           type="button"
-                          style={chipBtn(false)}
-                          onClick={() => onDeletePin(p.id)}
+                          style={{
+                            ...chipBtn(false),
+                            background: "rgba(220,38,38,0.28)",
+                            borderColor: "#f87171",
+                            color: "#fecaca",
+                          }}
+                          onClick={() => deletePinAndClearIfSelected(p.id)}
                         >
                           削除
                         </button>

@@ -316,13 +316,27 @@ import {
 } from "@/lib/worldbox/world/prison-map";
 import { ItemSlot as ItemSlotView, ItemSlotGrid } from "./ItemSlotGrid";
 import { WbIcon, drawCanvasPinGlyph } from "./WbIcon";
+import WorldBoxDealerPanel from "./WorldBoxDealerPanel";
 import WorldBoxMapModal, { paintIndoorMapCanvas, type MapSnapshot } from "./WorldBoxMapModal";
 import {
   evaluateCitizenPose,
   nearestSettlement,
+  settlementBuildingAdjacentDoor,
+  settlementBuildingDoorAt,
+  settlementInteriorSpace,
   settlementRoadAt,
+  settlementSolidTilesInRect,
+  settlementSurfaceAt,
   settlementsNear,
+  type Settlement,
+  type SettlementBuilding,
+  type SettlementBuildingKind,
 } from "@/lib/worldbox/world/settlements";
+import {
+  buildSettlementInterior,
+  parseInteriorSpace,
+  type SettlementInteriorSpec,
+} from "@/lib/worldbox/world/settlement-interiors";
 import {
   loadLocalMapPins,
   saveLocalMapPins,
@@ -924,6 +938,7 @@ const STATION_LABEL: Record<LobbyStation, string> = {
   sell: "売却専用ショップ",
   telescope: "展望台",
   stock: "取引所",
+  dealer: "乗り物ディーラー",
   prison_work: "懲役作業ファクトリー",
   prison_desk: "刑務所 保釈・司法窓口",
   prison_escape: "地下換気ダクト",
@@ -1248,6 +1263,41 @@ export default function WorldBoxClient() {
   const mmoFeedKind = activeNews?.kind ?? "economy";
   const [collectionSel, setCollectionSel] = useState<string | null>(null);
   const [stationUi, setStationUi] = useState<LobbyStation | null>(null);
+  const [dealerOpen, setDealerOpen] = useState(false);
+  useEffect(() => {
+    if (stationUi !== "dealer") setDealerOpen(false);
+  }, [stationUi]);
+  const [doorPrompt, setDoorPrompt] = useState<{
+    settlementName: string;
+    biomeLabel: string;
+    building: SettlementBuilding;
+    interiorSpace: string;
+  } | null>(null);
+  const doorPromptRef = useRef<{
+    settlementName: string;
+    biomeLabel: string;
+    building: SettlementBuilding;
+    interiorSpace: string;
+  } | null>(null);
+  doorPromptRef.current = doorPrompt;
+  const lastWorldDoorReturnRef = useRef<{ space: string; x: number; y: number } | null>(null);
+  const [npcDialog, setNpcDialog] = useState<{
+    name: string;
+    role: string;
+    roleLabel: string;
+    settlementName: string;
+    biomeLabel: string;
+    specialty: string;
+    phrases: string[];
+    activity: string;
+    shirtColor: string;
+    buildingKind?: SettlementBuildingKind;
+    buildingLabel?: string;
+    interiorSpace?: string;
+    doorReturn?: { x: number; y: number };
+    cx?: number;
+    cy?: number;
+  } | null>(null);
   const [worldStationKinds, setWorldStationKinds] = useState("");
   const [stationGenre, setStationGenre] = useState<ShopGenreId | null>(null);
   const [stationArcade, setStationArcade] = useState<string | null>(null);
@@ -1699,6 +1749,8 @@ export default function WorldBoxClient() {
       setFinanceOpen(false);
       setBoardOpen(false);
       setGuildBoardOpen(false);
+      setDealerOpen(false);
+      setNpcDialog(null);
       setStorageOpen(false);
       setHeldSlot(null);
       setSeedPicker(null);
@@ -1900,6 +1952,17 @@ export default function WorldBoxClient() {
       center.y + 64,
     )) {
       next.add(key);
+    }
+    for (const stl of settlementsNear(center.x, center.y, 72)) {
+      for (const st of settlementSolidTilesInRect(
+        stl,
+        center.x - 64,
+        center.y - 64,
+        center.x + 64,
+        center.y + 64,
+      )) {
+        next.add(tileKey(st.x, st.y));
+      }
     }
     blockedRef.current = next;
   };
@@ -2876,10 +2939,13 @@ export default function WorldBoxClient() {
       }
       return dungeonCache;
     };
+    const interiorNow = (): SettlementInteriorSpec | null =>
+      parseInteriorSpace(space) ? buildSettlementInterior(space) : null;
     const indoorData = (): LobbyData =>
       caveLayerNow()?.data ??
       ruinsNow()?.data ??
       dungeonNow()?.data ??
+      interiorNow()?.data ??
       (parseApartmentSpace(space)
         ? buildApartment()
         : space === "tent"
@@ -2991,6 +3057,8 @@ export default function WorldBoxClient() {
       if (inst?.kind === "cave") return rectBounds(64, 64);
       if (inst?.kind === "ruins") return rectBounds(48, 48);
       if (inst?.kind === "dungeon") return rectBounds(52, 52);
+      const intr = interiorNow();
+      if (intr) return rectBounds(intr.data.width, intr.data.height);
       if (parseApartmentSpace(space)) return rectBounds(24, 18);
       return space === "lobby"
         ? rectBounds(LOBBY_W, LOBBY_H)
@@ -3763,11 +3831,44 @@ export default function WorldBoxClient() {
     const handleIndoorTap = (t: { x: number; y: number }): boolean => {
       const px = Math.floor(player.x);
       const py = Math.floor(player.y);
-      if (Math.max(Math.abs(t.x - px), Math.abs(t.y - py)) > 1) return false;
+      const intr = interiorNow();
+      if (intr) {
+        for (const stf of intr.staff) {
+          if (Math.hypot(stf.x - (t.x + 0.5), stf.y - (t.y + 0.5)) <= 1.55) {
+            setNpcDialog({
+              name: stf.name,
+              role: stf.role,
+              roleLabel: stf.roleLabel,
+              settlementName: intr.settlement.name,
+              biomeLabel: intr.settlement.biomeLabel,
+              specialty: intr.settlement.specialty,
+              phrases: stf.phrases,
+              activity: "店内で対応中",
+              shirtColor: stf.shirtColor,
+              buildingKind: intr.building.kind,
+              buildingLabel: intr.building.label,
+              interiorSpace: intr.space,
+              doorReturn: intr.exteriorReturn,
+              cx: intr.settlement.cx,
+              cy: intr.settlement.cy,
+            });
+            return true;
+          }
+        }
+        if (intr.dealerBays.some((b) => Math.hypot(b.x - t.x, b.y - t.y) <= 1.6)) {
+          setDealerOpen(true);
+          return true;
+        }
+      }
+      if (Math.max(Math.abs(t.x - px), Math.abs(t.y - py)) > 2) return false;
       const obj = indoorData().objects.find(
         (o) => t.x >= o.x && t.x < o.x + o.w && t.y >= o.y && t.y < o.y + o.h,
       );
       if (!obj) return false;
+      if (obj.station === "dealer") {
+        setDealerOpen(true);
+        return true;
+      }
       if (isSeatItem(obj.sprite)) {
         const sitting = sitTileRef.current;
         if (sitting && sitting.x === t.x && sitting.y === t.y) {
@@ -4044,12 +4145,69 @@ export default function WorldBoxClient() {
         canvas.setPointerCapture(e.pointerId);
         return;
       }
-      if (space === "lobby" || space === "lobby2" || space === "lobby3" || space === "tent") {
+      if (
+        space === "lobby" ||
+        space === "lobby2" ||
+        space === "lobby3" ||
+        space === "tent" ||
+        space === "prison" ||
+        Boolean(parseInteriorSpace(space))
+      ) {
         handleIndoorTap(toTile(e));
         return;
       }
       if (space === "world" || parseInstanceSpace(space)) {
         const t = toTile(e);
+        if (space === "world") {
+          const dayNow = phaseAtTime(Date.now() / 1000);
+          const nowMsTap = Date.now();
+          for (const stl of settlementsNear(t.x + 0.5, t.y + 0.5, 36)) {
+            for (const cit of stl.citizens) {
+              const pose = evaluateCitizenPose(stl, cit, dayNow, nowMsTap);
+              if (pose.sleeping) continue;
+              if (Math.hypot(pose.x - (t.x + 0.5), pose.y - (t.y + 0.5)) <= 1.35) {
+                const workB = cit.workBuildingTag
+                  ? stl.buildings.find((bd) => bd.tag === cit.workBuildingTag)
+                  : undefined;
+                setNpcDialog({
+                  name: cit.name,
+                  role: cit.role,
+                  roleLabel: cit.roleLabel,
+                  settlementName: stl.name,
+                  biomeLabel: stl.biomeLabel,
+                  specialty: stl.specialty,
+                  phrases: cit.phrases,
+                  activity: pose.activity,
+                  shirtColor: cit.shirtColor,
+                  buildingKind: cit.workBuildingKind,
+                  buildingLabel: cit.workBuildingLabel,
+                  interiorSpace: workB ? settlementInteriorSpace(stl, workB) : undefined,
+                  doorReturn: workB ? { x: workB.porchX + 0.5, y: workB.porchY + 0.5 } : undefined,
+                  cx: stl.cx,
+                  cy: stl.cy,
+                });
+                return;
+              }
+            }
+          }
+          const doorHit = settlementBuildingDoorAt(t.x, t.y);
+          if (
+            doorHit &&
+            Math.hypot(
+              doorHit.building.doorX + 0.5 - player.x,
+              doorHit.building.doorY + 0.5 - player.y,
+            ) <= 2.6
+          ) {
+            const targetInt = settlementInteriorSpace(doorHit.settlement, doorHit.building);
+            lastWorldDoorReturnRef.current = {
+              space: targetInt,
+              x: doorHit.building.porchX + 0.5,
+              y: doorHit.building.porchY + 0.5,
+            };
+            warpToInstance(targetInt, { x: 10, y: 11.6 });
+            return;
+          }
+        }
         if (space === "world" || parseInstanceSpace(space)) {
           for (const [oid, other] of others) {
             if (Math.floor(other.track.rx) === t.x && Math.floor(other.track.ry) === t.y) {
@@ -4441,6 +4599,7 @@ export default function WorldBoxClient() {
           const entry = tentEntryFor(invRef.current?.tentTier ?? 0);
           placePlayer(entry.x, entry.y);
         } else {
+          const prevSpace = space;
           space = "world";
           setSpaceUi("world");
           setStatusText("共有ワールド");
@@ -4450,7 +4609,14 @@ export default function WorldBoxClient() {
           setStationGenre(null);
           lastStationArcade = null;
           setStationArcade(null);
-          const dest = worldReturn ?? spawn;
+          setDoorPrompt(null);
+          const intrRet =
+            parseInteriorSpace(prevSpace) !== null
+              ? lastWorldDoorReturnRef.current?.space === prevSpace
+                ? lastWorldDoorReturnRef.current
+                : (buildSettlementInterior(prevSpace)?.exteriorReturn ?? null)
+              : null;
+          const dest = intrRet ?? worldReturn ?? spawn;
           placePlayer(dest.x, dest.y);
         }
         spawnBurst(fxSys, "warp", player.x, player.y - 0.3);
@@ -4488,15 +4654,19 @@ export default function WorldBoxClient() {
         if (space === "world") worldReturn = { x: player.x, y: player.y };
         space = target;
         setSpaceUi(target);
+        setDoorPrompt(null);
         const inst = parseInstanceSpace(target);
+        const intr = parseInteriorSpace(target) ? buildSettlementInterior(target) : null;
         setStatusText(
-          inst?.kind === "cave"
-            ? `採掘場 B${(inst.layer ?? 0) + 1}`
-            : inst?.kind === "ruins"
-              ? "旧市街"
-              : inst?.kind === "dungeon"
-                ? `廃ビル ${(inst.layer ?? 0) + 1}F`
-                : "インスタンス",
+          intr
+            ? `${intr.settlement.name} ・ ${intr.building.label}`
+            : inst?.kind === "cave"
+              ? `採掘場 B${(inst.layer ?? 0) + 1}`
+              : inst?.kind === "ruins"
+                ? "旧市街"
+                : inst?.kind === "dungeon"
+                  ? `廃ビル ${(inst.layer ?? 0) + 1}F`
+                  : "インスタンス",
         );
         lastStation = null;
         setStationUi(null);
@@ -4585,6 +4755,17 @@ export default function WorldBoxClient() {
       if (space === "world") {
         if (tilesRef.current[tileKey(tx, ty)]?.block?.itemId === "tent") doWarp("tent");
         else {
+          const door = settlementBuildingDoorAt(tx, ty);
+          if (door) {
+            const targetInt = settlementInteriorSpace(door.settlement, door.building);
+            lastWorldDoorReturnRef.current = {
+              space: targetInt,
+              x: door.building.porchX + 0.5,
+              y: door.building.porchY + 0.5,
+            };
+            warpToInstance(targetInt, { x: 10, y: 11.6 });
+            return;
+          }
           const st = structureAt(tx, ty);
           const stDef = st ? structureById(st.structureId) : null;
           if (stDef?.kind === "entrance" && stDef.targetSpace === "cave") {
@@ -4604,6 +4785,13 @@ export default function WorldBoxClient() {
           }
         }
         return;
+      }
+      {
+        const intr = interiorNow();
+        if (intr && ty >= intr.exitMat.y && (tx === intr.exitMat.x || tx === intr.exitMat.x + 1)) {
+          doWarp("world");
+          return;
+        }
       }
       {
         const inst = parseInstanceSpace(space);
@@ -4779,6 +4967,18 @@ export default function WorldBoxClient() {
         telescopeCam = null;
         telescopeDrag = null;
       }
+      const stlSurface =
+        space === "world"
+          ? (() => {
+              const ptx = Math.floor(player.x);
+              const pty = Math.floor(player.y);
+              for (const stl of settlementsNear(ptx, pty, 32)) {
+                const sf = settlementSurfaceAt(stl, ptx, pty);
+                if (sf) return sf;
+              }
+              return null;
+            })()
+          : null;
       const floorOv =
         space === "world"
           ? tilesRef.current[tileKey(Math.floor(player.x), Math.floor(player.y))]
@@ -4787,7 +4987,10 @@ export default function WorldBoxClient() {
         floorOv?.block && isOverrideActive(floorOv, Date.now()) ? floorOv.block.itemId : null;
       const onFloor = floorRaw !== null && isFloorItem(floorRaw) ? floorRaw : null;
       const swimming =
-        space === "world" && onFloor !== "bridge_block" && isWaterAt(worldMap, player.x, player.y);
+        space === "world" &&
+        onFloor !== "bridge_block" &&
+        stlSurface !== "pier" &&
+        isWaterAt(worldMap, player.x, player.y);
       const wantDash =
         ilen > 0.01 &&
         ((dashKey !== null && keys.has(dashKey)) || (joy.active && isStickDash(joy.dx, joy.dy)));
@@ -4800,7 +5003,10 @@ export default function WorldBoxClient() {
       } else {
         const vSpeed = effectiveVehicleMoveSpeed(
           equippedVehicleRef.current,
-          onFloor === "path_block",
+          onFloor === "path_block" ||
+            stlSurface === "road" ||
+            stlSurface === "plaza" ||
+            stlSurface === "pier",
           false,
         );
         if (vSpeed) {
@@ -4901,7 +5107,15 @@ export default function WorldBoxClient() {
       if (space !== "world") {
         const tx = Math.floor(player.x);
         const ty = Math.floor(player.y);
-        const st = stationNear(indoorData().objects, tx, ty);
+        const intr = interiorNow();
+        let st = stationNear(indoorData().objects, tx, ty);
+        if (
+          !st &&
+          intr &&
+          intr.dealerBays.some((b) => Math.hypot(b.x + 0.5 - player.x, b.y + 0.5 - player.y) <= 2.1)
+        ) {
+          st = "dealer";
+        }
         if (st !== lastStation) {
           lastStation = st;
           setStationUi(st);
@@ -4923,6 +5137,25 @@ export default function WorldBoxClient() {
         }
       }
       if (space === "world") {
+        const adj = settlementBuildingAdjacentDoor(player.x, player.y);
+        const nextDoorKey = adj ? `${adj.settlement.id}:${adj.building.tag}` : "";
+        if (
+          nextDoorKey !== (doorPromptRef.current ? `${doorPromptRef.current.interiorSpace}` : "")
+        ) {
+          if (adj) {
+            const intrSpace = settlementInteriorSpace(adj.settlement, adj.building);
+            if (doorPromptRef.current?.interiorSpace !== intrSpace) {
+              setDoorPrompt({
+                settlementName: adj.settlement.name,
+                biomeLabel: adj.settlement.biomeLabel,
+                building: adj.building,
+                interiorSpace: intrSpace,
+              });
+            }
+          } else if (doorPromptRef.current !== null) {
+            setDoorPrompt(null);
+          }
+        }
         const kinds = new Set<string>();
         const px = Math.floor(player.x);
         const py = Math.floor(player.y);
@@ -5073,16 +5306,38 @@ export default function WorldBoxClient() {
             const rMaxY = Math.min(ty1, stl.cy + stl.radius);
             for (let ty = rMinY; ty <= rMaxY; ty++) {
               for (let tx = rMinX; tx <= rMaxX; tx++) {
-                const roadKind = settlementRoadAt(stl, tx, ty);
-                if (!roadKind) continue;
+                const surfKind = settlementSurfaceAt(stl, tx, ty) ?? settlementRoadAt(stl, tx, ty);
+                if (!surfKind) continue;
                 const roadSx = tileSx(tx);
                 const roadSy = tileSy(ty);
-                if (roadKind === "plaza") {
+                if (surfKind === "plaza") {
                   ctx.fillStyle = "#94a3b8";
                   ctx.fillRect(roadSx, roadSy, TILE + 1, TILE + 1);
-                  ctx.strokeStyle = "rgba(30,41,59,0.22)";
+                  ctx.strokeStyle = "rgba(30,41,59,0.24)";
                   ctx.lineWidth = 1;
                   ctx.strokeRect(roadSx + 1, roadSy + 1, TILE - 2, TILE - 2);
+                } else if (surfKind === "pier") {
+                  ctx.fillStyle = "#8c5a32";
+                  ctx.fillRect(roadSx, roadSy, TILE + 1, TILE + 1);
+                  ctx.fillStyle = "#5c391e";
+                  for (let pyOff = 6; pyOff < TILE; pyOff += 10) {
+                    ctx.fillRect(roadSx, roadSy + pyOff, TILE + 1, 2);
+                  }
+                  ctx.fillStyle = "#cbd5e1";
+                  ctx.fillRect(roadSx + 3, roadSy + 3, 4, 4);
+                  ctx.fillRect(roadSx + TILE - 7, roadSy + 3, 4, 4);
+                } else if (surfKind === "farm") {
+                  ctx.fillStyle = "#5c3d22";
+                  ctx.fillRect(roadSx, roadSy, TILE + 1, TILE + 1);
+                  ctx.fillStyle = "#3e2714";
+                  for (let fyOff = 7; fyOff < TILE; fyOff += 11) {
+                    ctx.fillRect(roadSx + 2, roadSy + fyOff, TILE - 4, 3);
+                  }
+                  ctx.fillStyle = "#22c55e";
+                  for (let fxOff = 6; fxOff < TILE - 4; fxOff += 10) {
+                    ctx.fillRect(roadSx + fxOff, roadSy + 4, 5, 5);
+                    ctx.fillRect(roadSx + fxOff, roadSy + 22, 5, 5);
+                  }
                 } else {
                   ctx.fillStyle = "#475569";
                   ctx.fillRect(roadSx, roadSy, TILE + 1, TILE + 1);
@@ -5351,19 +5606,20 @@ export default function WorldBoxClient() {
         ctx.imageSmoothingEnabled = false;
         for (let ty = ly0; ty <= ly1; ty++) {
           for (let tx = lx0; tx <= lx1; tx++) {
-            const id = parseInstanceSpace(space)
-              ? (indoor.tiles[ty * indoor.width + tx] ?? 0)
-              : parseApartmentSpace(space)
-                ? apartmentTileAt(indoor.tiles, tx, ty)
-                : space === "tent"
-                  ? tentTileAt(indoor.tiles, indoor.width, indoor.height, tx, ty)
-                  : space === "prison"
-                    ? prisonTileAt(indoor.tiles, tx, ty)
-                    : space === "lobby2"
-                      ? lobby2TileAt(indoor.tiles, tx, ty)
-                      : space === "lobby3"
-                        ? lobby3TileAt(indoor.tiles, tx, ty)
-                        : lobbyTileAt(indoor.tiles, tx, ty);
+            const id =
+              parseInstanceSpace(space) || parseInteriorSpace(space)
+                ? (indoor.tiles[ty * indoor.width + tx] ?? 0)
+                : parseApartmentSpace(space)
+                  ? apartmentTileAt(indoor.tiles, tx, ty)
+                  : space === "tent"
+                    ? tentTileAt(indoor.tiles, indoor.width, indoor.height, tx, ty)
+                    : space === "prison"
+                      ? prisonTileAt(indoor.tiles, tx, ty)
+                      : space === "lobby2"
+                        ? lobby2TileAt(indoor.tiles, tx, ty)
+                        : space === "lobby3"
+                          ? lobby3TileAt(indoor.tiles, tx, ty)
+                          : lobbyTileAt(indoor.tiles, tx, ty);
             if (id === L_VOID) continue;
             const sx = lobbyOx + tx * TILE;
             const sy = lobbyOy + ty * TILE;
@@ -5378,6 +5634,24 @@ export default function WorldBoxClient() {
               ctx.fillStyle = "rgba(255,255,255,0.10)";
               ctx.fillRect(sx, sy, TILE, TILE);
             }
+          }
+        }
+        {
+          const intrDraw = interiorNow();
+          if (intrDraw) {
+            const ex = Math.round(lobbyOx + intrDraw.exitMat.x * TILE);
+            const ey = Math.round(lobbyOy + intrDraw.exitMat.y * TILE);
+            const ew = intrDraw.exitMat.w * TILE;
+            const eh = intrDraw.exitMat.h * TILE;
+            ctx.fillStyle = "rgba(74, 222, 128, 0.35)";
+            ctx.fillRect(ex + 2, ey + 2, ew - 4, eh - 4);
+            ctx.strokeStyle = "#4ade80";
+            ctx.lineWidth = 2;
+            ctx.strokeRect(ex + 2, ey + 2, ew - 4, eh - 4);
+            ctx.font = "800 10.5px sans-serif";
+            ctx.textAlign = "center";
+            ctx.fillStyle = "#ecfdf5";
+            ctx.fillText("EXIT / 外へ", ex + ew / 2, ey + eh / 2 + 4);
           }
         }
         {
@@ -5470,39 +5744,75 @@ export default function WorldBoxClient() {
             ) {
               continue;
             }
+            const doorPx = toScreenX(b.doorX);
+            const doorPy = toScreenY(b.doorY);
+            const porchPx = toScreenX(b.porchX);
+            const porchPy = toScreenY(b.porchY);
             drawList.push({
               y: b.y + b.h,
               draw: () => {
-                ctx.fillStyle = "rgba(8,12,20,0.28)";
+                // Welcome mat on street outside doorway
+                ctx.fillStyle = b.signColor;
+                ctx.fillRect(porchPx + 8, porchPy + 12, TILE - 16, TILE - 20);
+                ctx.fillStyle = "rgba(15,23,42,0.55)";
+                ctx.fillRect(porchPx + 11, porchPy + 15, TILE - 22, TILE - 26);
+
+                // Drop shadow & plinth
+                ctx.fillStyle = "rgba(8,12,20,0.32)";
                 ctx.fillRect(bx + 4, by + bh - 4, bw - 4, 8);
-                // Main wall
+                // Main exterior masonry / timber wall
                 ctx.fillStyle = b.wallColor;
-                ctx.fillRect(bx + 2, by + TILE * 0.45, bw - 4, bh - TILE * 0.45);
-                ctx.strokeStyle = "rgba(15,23,42,0.75)";
+                ctx.fillRect(bx + 2, by + TILE * 0.42, bw - 4, bh - TILE * 0.42);
+                ctx.fillStyle = b.trimColor;
+                ctx.fillRect(bx + 2, by + bh - 7, bw - 4, 7);
+                ctx.strokeStyle = "rgba(15,23,42,0.78)";
                 ctx.lineWidth = 1.5;
-                ctx.strokeRect(bx + 2, by + TILE * 0.45, bw - 4, bh - TILE * 0.45);
-                // Roof overhang
+                ctx.strokeRect(bx + 2, by + TILE * 0.42, bw - 4, bh - TILE * 0.42);
+                // Pitched roof overhang
                 ctx.fillStyle = b.roofColor;
-                ctx.fillRect(bx, by, bw, TILE * 0.52);
-                ctx.fillStyle = "rgba(255,255,255,0.16)";
-                ctx.fillRect(bx, by, bw, 4);
-                // Windows & door
-                const cols = Math.max(2, b.w);
-                ctx.fillStyle = nightAmt > 0.12 ? "#fde68a" : "#7dd3fc";
-                for (let ci = 0; ci < cols; ci++) {
-                  const wx = bx + 8 + ci * ((bw - 16) / cols);
-                  ctx.fillRect(wx, by + TILE * 0.68, 10, 9);
+                ctx.fillRect(bx - 1, by, bw + 2, TILE * 0.56);
+                ctx.fillStyle = "rgba(255,255,255,0.22)";
+                ctx.fillRect(bx, by + 3, bw, 4);
+                ctx.fillStyle = "rgba(15,23,42,0.25)";
+                ctx.fillRect(bx - 1, by + TILE * 0.56 - 4, bw + 2, 4);
+                // Storefront awning for commercial buildings
+                if (b.kind === "cafe" || b.kind === "convenience" || b.kind === "vehicle_dealer") {
+                  const stripeW = Math.max(8, (bw - 12) / 6);
+                  for (let si = 0; si < 6; si++) {
+                    ctx.fillStyle = si % 2 === 0 ? b.signColor : "#f8fafc";
+                    ctx.fillRect(bx + 6 + si * stripeW, by + TILE * 0.56, stripeW, 7);
+                  }
                 }
-                ctx.fillStyle = "#334155";
-                ctx.fillRect(bx + bw / 2 - 7, by + bh - 16, 14, 16);
-                // Building plate
+                // Warm lit windows
+                const cols = Math.max(2, b.w - 1);
+                for (let ci = 0; ci < cols; ci++) {
+                  const wx = bx + 12 + ci * ((bw - 24) / cols);
+                  const wy = by + TILE * 0.85;
+                  ctx.fillStyle = "#1e293b";
+                  ctx.fillRect(wx - 1.5, wy - 1.5, 13, 12);
+                  ctx.fillStyle = nightAmt > 0.12 ? "#fde68a" : "#bae6fd";
+                  ctx.fillRect(wx, wy, 10, 9);
+                }
+                // Physical enterable doorway portal at exact (doorX, doorY)
+                ctx.fillStyle = "#1e293b";
+                ctx.fillRect(doorPx + 8, doorPy + TILE - 28, TILE - 16, 28);
+                ctx.fillStyle = nightAmt > 0.12 ? "#fcd34d" : "#fef08a";
+                ctx.fillRect(doorPx + 11, doorPy + TILE - 25, TILE - 22, 23);
+                ctx.fillStyle = b.signColor;
+                ctx.fillRect(doorPx + 7, doorPy + TILE - 31, TILE - 14, 4);
+
+                // Shop sign nameplate + IN pill
                 ctx.font = "700 10.5px sans-serif";
                 ctx.textAlign = "center";
-                const tw = Math.min(bw + 24, ctx.measureText(b.label).width + 10);
-                ctx.fillStyle = "rgba(12,18,30,0.82)";
-                ctx.fillRect(bx + bw / 2 - tw / 2, by - 16, tw, 14);
+                const tagTitle = `[${b.signText}] ${b.label}`;
+                const tw = Math.min(bw + 32, ctx.measureText(tagTitle).width + 12);
+                ctx.fillStyle = "rgba(12,18,30,0.88)";
+                ctx.fillRect(bx + bw / 2 - tw / 2, by - 17, tw, 15);
+                ctx.strokeStyle = b.signColor;
+                ctx.lineWidth = 1;
+                ctx.strokeRect(bx + bw / 2 - tw / 2, by - 17, tw, 15);
                 ctx.fillStyle = "#f8fafc";
-                ctx.fillText(b.label, bx + bw / 2, by - 5.5);
+                ctx.fillText(tagTitle, bx + bw / 2, by - 6);
               },
             });
           }
@@ -5521,11 +5831,19 @@ export default function WorldBoxClient() {
                 ? "[警]"
                 : cit.role === "barista"
                   ? "[茶]"
-                  : cit.role === "delivery"
-                    ? "[配]"
-                    : cit.role === "engineer"
-                      ? "[工]"
-                      : "[市]";
+                  : cit.role === "dealer_staff"
+                    ? "[車]"
+                    : cit.role === "merchant"
+                      ? "[商]"
+                      : cit.role === "banker"
+                        ? "[銀]"
+                        : cit.role === "smith"
+                          ? "[鍛]"
+                          : cit.role === "mayor"
+                            ? "[庁]"
+                            : cit.role === "farmer"
+                              ? "[農]"
+                              : "[市]";
             drawList.push({
               y: pose.y + PLAYER_RADIUS,
               draw: () => {
@@ -5713,20 +6031,81 @@ export default function WorldBoxClient() {
           }
           drawList.push({ y: o.y + o.h, draw: () => drawLobbySprite(o) });
         }
-        for (const n of indoorData().npcs) {
-          drawList.push({
-            y: n.y + 1,
-            draw: () =>
-              drawAvatar(
-                ctx,
-                Math.round(lobbyOx + (n.x + 0.5) * TILE),
-                Math.round(lobbyOy + (n.y + 1) * TILE),
-                1,
-                0,
-                0,
-                null,
-              ),
-          });
+        const intrDraw2 = interiorNow();
+        if (intrDraw2) {
+          for (const bay of intrDraw2.dealerBays) {
+            const spec = vehicleSpecFor(bay.vehicleId);
+            const bx = Math.round(lobbyOx + (bay.x + 0.5) * TILE);
+            const by = Math.round(lobbyOy + (bay.y + 0.5) * TILE);
+            drawList.push({
+              y: bay.y + 0.9,
+              draw: () => {
+                ctx.fillStyle = "rgba(15,23,42,0.72)";
+                ctx.beginPath();
+                ctx.ellipse(bx, by + 6, TILE * 0.72, TILE * 0.34, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = bay.accent;
+                ctx.lineWidth = 1.6;
+                ctx.stroke();
+
+                const cw2 = TILE * 1.18;
+                const ch2 = TILE * 0.52;
+                ctx.fillStyle = spec?.bodyColor ?? bay.accent;
+                ctx.fillRect(bx - cw2 / 2, by - ch2 * 0.7, cw2, ch2);
+                ctx.strokeStyle = spec?.trimColor ?? "#f8fafc";
+                ctx.lineWidth = 1.5;
+                ctx.strokeRect(bx - cw2 / 2, by - ch2 * 0.7, cw2, ch2);
+                ctx.fillStyle = "#bae6fd";
+                ctx.fillRect(bx - cw2 * 0.25, by - ch2 * 0.55, cw2 * 0.5, ch2 * 0.35);
+
+                ctx.font = "700 10px sans-serif";
+                ctx.textAlign = "center";
+                ctx.fillStyle = "#e2e8f0";
+                ctx.fillText(bay.label, bx, by - ch2 * 0.9);
+                ctx.fillStyle = "#fde047";
+                ctx.fillText(`¥${bay.price.toLocaleString()}`, bx, by + TILE * 0.6);
+              },
+            });
+          }
+          for (const stf of intrDraw2.staff) {
+            drawList.push({
+              y: stf.y + 1,
+              draw: () => {
+                const sx = Math.round(lobbyOx + stf.x * TILE);
+                const sy = Math.round(lobbyOy + (stf.y + 0.6) * TILE);
+                drawAvatar(
+                  ctx,
+                  sx,
+                  sy,
+                  1,
+                  0,
+                  0,
+                  stf.name,
+                  stf.shirtColor,
+                  false,
+                  { roleSymbol: `[${stf.roleLabel.slice(0, 2)}]`, rank: 1 },
+                  false,
+                  null,
+                );
+              },
+            });
+          }
+        } else {
+          for (const n of indoorData().npcs) {
+            drawList.push({
+              y: n.y + 1,
+              draw: () =>
+                drawAvatar(
+                  ctx,
+                  Math.round(lobbyOx + (n.x + 0.5) * TILE),
+                  Math.round(lobbyOy + (n.y + 1) * TILE),
+                  1,
+                  0,
+                  0,
+                  null,
+                ),
+            });
+          }
         }
       }
       const selfFloorOv =
@@ -7193,7 +7572,9 @@ export default function WorldBoxClient() {
                       ? "ロビー2F"
                       : trackedTarget.space === "lobby3"
                         ? "ロビー3F"
-                        : "ロビー"}
+                        : parseInteriorSpace(trackedTarget.space)
+                          ? "店舗・屋内"
+                          : "ロビー"}
               )
             </span>
             <button
@@ -7204,6 +7585,20 @@ export default function WorldBoxClient() {
             >
               地図
             </button>
+            {trackedTarget.kind === "pin" && trackedTarget.pinId && (
+              <button
+                type="button"
+                className="wb-mmo-waypoint-btn"
+                onClick={() => deleteMapPin(trackedTarget.pinId!)}
+                style={{
+                  background: "rgba(220,38,38,0.35)",
+                  borderColor: "#f87171",
+                  color: "#fecaca",
+                }}
+              >
+                ピン削除
+              </button>
+            )}
             <button
               type="button"
               className="wb-mmo-waypoint-btn"
@@ -7626,6 +8021,25 @@ export default function WorldBoxClient() {
                 {engineeringOpen ? "ラボ閉じる" : "機械制作ラボ"}
               </button>
             )}
+            {stationUi === "dealer" && (
+              <button
+                type="button"
+                style={{
+                  ...btn,
+                  minHeight: hud.buttonMinHeight,
+                  padding: "2px 10px",
+                  background: "#0284c7",
+                  borderColor: "#38bdf8",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 5,
+                }}
+                onClick={() => setDealerOpen((v) => !v)}
+              >
+                <WbIcon name="car" size={13} color="#e0f2fe" />{" "}
+                {dealerOpen ? "閉じる" : "ディーラーを開く"}
+              </button>
+            )}
             {(stationUi === "prison_work" ||
               stationUi === "prison_desk" ||
               stationUi === "prison_escape" ||
@@ -7651,6 +8065,90 @@ export default function WorldBoxClient() {
               </button>
             )}
             {plazaMsg && <span role="status">{plazaMsg}</span>}
+          </div>
+        )}
+        {!stationUi && spaceUi === "world" && doorPrompt && (
+          <div
+            style={{
+              position: "absolute",
+              bottom: "calc(68px + env(safe-area-inset-bottom, 0px))",
+              left: "50%",
+              transform: "translateX(-50%)",
+              display: "flex",
+              gap: 8,
+              alignItems: "center",
+              padding: "6px 8px 6px 14px",
+              borderRadius: 10,
+              background: "rgba(11,16,26,0.88)",
+              border: "1px solid rgba(56,189,248,0.45)",
+              color: "#fff",
+              fontSize: 13,
+              whiteSpace: "nowrap",
+              zIndex: 4,
+            }}
+          >
+            <span>
+              {doorPrompt.settlementName} ・ {doorPrompt.building.label}
+            </span>
+            <button
+              type="button"
+              style={{
+                ...btn,
+                minHeight: hud.buttonMinHeight,
+                padding: "2px 12px",
+                background: "#0284c7",
+                borderColor: "#38bdf8",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 5,
+              }}
+              onClick={() => {
+                lastWorldDoorReturnRef.current = {
+                  space: doorPrompt.interiorSpace,
+                  x: doorPrompt.building.porchX + 0.5,
+                  y: doorPrompt.building.porchY + 0.5,
+                };
+                instanceWarpRef.current?.(doorPrompt.interiorSpace, { x: 10, y: 11.6 });
+              }}
+            >
+              <WbIcon name="door" size={13} color="#e0f2fe" /> 入店する
+            </button>
+          </div>
+        )}
+        {!stationUi && parseInteriorSpace(spaceUi) !== null && (
+          <div
+            style={{
+              position: "absolute",
+              bottom: "calc(10px + env(safe-area-inset-bottom, 0px))",
+              left: "50%",
+              transform: "translateX(-50%)",
+              display: "flex",
+              gap: 8,
+              alignItems: "center",
+              padding: "6px 8px 6px 14px",
+              borderRadius: 10,
+              background: "rgba(11,16,26,0.82)",
+              border: "1px solid rgba(74,222,128,0.4)",
+              color: "#fff",
+              fontSize: 12.5,
+              whiteSpace: "nowrap",
+              zIndex: 4,
+            }}
+          >
+            <span>店舗内（南のEXITマットまたはボタンで外へ）</span>
+            <button
+              type="button"
+              style={{
+                ...btn,
+                minHeight: hud.buttonMinHeight,
+                padding: "2px 10px",
+                background: "#15803d",
+                borderColor: "#4ade80",
+              }}
+              onClick={() => warpActionRef.current("world")}
+            >
+              外へ出る
+            </button>
           </div>
         )}
         {showMap && (
@@ -8813,7 +9311,7 @@ export default function WorldBoxClient() {
           </div>
         )}
 
-        {boardOpen && spaceUi === "lobby" && (
+        {boardOpen && (spaceUi === "lobby" || Boolean(parseInteriorSpace(spaceUi))) && (
           <div style={panelOverlay} className="wb-panel">
             <div style={{ ...stickyPanelHead, display: "flex", alignItems: "center", gap: 10 }}>
               <strong>グローバル掲示板</strong>
@@ -8982,8 +9480,176 @@ export default function WorldBoxClient() {
         {racingOpen && spaceUi === "lobby" && (
           <WorldBoxRacingPanel onClose={() => setRacingOpen(false)} />
         )}
-        {stockOpen && spaceUi === "lobby" && (
+        {stockOpen && (spaceUi === "lobby" || Boolean(parseInteriorSpace(spaceUi))) && (
           <WorldBoxStockPanel onClose={() => setStockOpen(false)} />
+        )}
+        {dealerOpen && (
+          <WorldBoxDealerPanel
+            fallbackCoins={invProfile?.coins}
+            onProfileChange={(p) => setInvProfile(p)}
+            onVehicleChange={(v) => setEquippedVehicle(v)}
+            onStatusChange={() => void refreshMmoRef.current?.()}
+            onClose={() => setDealerOpen(false)}
+          />
+        )}
+        {npcDialog && (
+          <div
+            className="wb-panel"
+            role="dialog"
+            aria-label={npcDialog.name}
+            style={{ ...panelOverlay, width: "min(440px, calc(100vw - 24px))", zIndex: 26 }}
+          >
+            <div style={{ ...stickyPanelHead, display: "flex", alignItems: "center", gap: 8 }}>
+              <span
+                style={{
+                  display: "inline-block",
+                  width: 10,
+                  height: 10,
+                  borderRadius: "50%",
+                  background: npcDialog.shirtColor,
+                  border: "1px solid #fff",
+                }}
+              />
+              <div>
+                <strong>{npcDialog.name}</strong>
+                <span style={{ marginLeft: 6, fontSize: 11, color: "#38bdf8" }}>
+                  [{npcDialog.roleLabel}]
+                </span>
+              </div>
+              <span style={{ flex: 1 }} />
+              <button type="button" style={btn} onClick={() => setNpcDialog(null)}>
+                閉じる
+              </button>
+            </div>
+            <div style={{ fontSize: 11.5, color: "#94a3b8", marginBottom: 8 }}>
+              {npcDialog.settlementName}（{npcDialog.biomeLabel}）・名産: {npcDialog.specialty} ・{" "}
+              {npcDialog.activity}
+            </div>
+            <div
+              className="wb-mmo-card"
+              style={{
+                background: "rgba(15, 23, 42, 0.72)",
+                borderColor: "rgba(56, 189, 248, 0.35)",
+                marginBottom: 10,
+                lineHeight: 1.5,
+              }}
+            >
+              {npcDialog.phrases[0] ?? `${npcDialog.settlementName}へようこそ！`}
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {npcDialog.buildingKind === "vehicle_dealer" && (
+                <button
+                  type="button"
+                  className="wb-mmo-btn wb-mmo-btn-cyan"
+                  onClick={() => {
+                    const intrTarget = npcDialog.interiorSpace;
+                    const doorRet = npcDialog.doorReturn;
+                    setNpcDialog(null);
+                    if (spaceUi === intrTarget) {
+                      setDealerOpen(true);
+                    } else if (intrTarget) {
+                      if (doorRet)
+                        lastWorldDoorReturnRef.current = {
+                          space: intrTarget,
+                          x: doorRet.x,
+                          y: doorRet.y,
+                        };
+                      instanceWarpRef.current?.(intrTarget, { x: 10, y: 11.6 });
+                    }
+                  }}
+                >
+                  <WbIcon name="car" size={13} color="#e0f2fe" />{" "}
+                  {spaceUi === npcDialog.interiorSpace
+                    ? "車両カタログを開く"
+                    : "ディーラー店内に入る"}
+                </button>
+              )}
+              {npcDialog.buildingKind &&
+                npcDialog.buildingKind !== "vehicle_dealer" &&
+                npcDialog.interiorSpace && (
+                  <button
+                    type="button"
+                    className="wb-mmo-btn wb-mmo-btn-cyan"
+                    onClick={() => {
+                      const kind = npcDialog.buildingKind;
+                      const intrTarget = npcDialog.interiorSpace!;
+                      const doorRet = npcDialog.doorReturn;
+                      setNpcDialog(null);
+                      if (spaceUi === intrTarget) {
+                        if (
+                          kind === "cafe" ||
+                          kind === "convenience" ||
+                          kind === "smith_workshop"
+                        ) {
+                          setShowEconomy(true);
+                        } else if (kind === "bank_kiosk") {
+                          setFinanceOpen(true);
+                        } else if (kind === "city_hall") {
+                          setBoardOpen(true);
+                        }
+                      } else {
+                        if (doorRet) {
+                          lastWorldDoorReturnRef.current = {
+                            space: intrTarget,
+                            x: doorRet.x,
+                            y: doorRet.y,
+                          };
+                        }
+                        instanceWarpRef.current?.(intrTarget, { x: 10, y: 11.6 });
+                      }
+                    }}
+                  >
+                    <WbIcon name="door" size={13} color="#e0f2fe" />{" "}
+                    {spaceUi === npcDialog.interiorSpace
+                      ? `${npcDialog.buildingLabel ?? "店舗"}の窓口を開く`
+                      : `${npcDialog.buildingLabel ?? "建物"}に入る`}
+                  </button>
+                )}
+              {npcDialog.role === "guard" && (
+                <button
+                  type="button"
+                  className="wb-mmo-btn wb-mmo-btn-amber"
+                  onClick={() => {
+                    setNpcDialog(null);
+                    setPrisonOpen(true);
+                  }}
+                >
+                  <WbIcon name="shield" size={13} color="#fef3c7" /> 警察・懸賞手配を見る
+                </button>
+              )}
+              {(npcDialog.role === "barista" || npcDialog.role === "merchant") && (
+                <button
+                  type="button"
+                  className="wb-mmo-btn"
+                  style={{ background: "rgba(255,255,255,0.1)", color: "#f8fafc" }}
+                  onClick={() => {
+                    setNpcDialog(null);
+                    setJobOpen(true);
+                  }}
+                >
+                  <WbIcon name="briefcase" size={13} color="#fde047" /> 街のお仕事 / 配達
+                </button>
+              )}
+              {npcDialog.cx !== undefined && npcDialog.cy !== undefined && spaceUi === "world" && (
+                <button
+                  type="button"
+                  className="wb-mmo-btn"
+                  style={{ background: "rgba(255,255,255,0.1)", color: "#f8fafc" }}
+                  onClick={() => {
+                    setWaypoint({
+                      space: "world",
+                      x: npcDialog.cx!,
+                      y: npcDialog.cy!,
+                      label: npcDialog.settlementName,
+                    });
+                    setNpcDialog(null);
+                  }}
+                >
+                  <WbIcon name="compass" size={13} color="#38bdf8" /> この街中心を追跡
+                </button>
+              )}
+            </div>
+          </div>
         )}
         {marketOpen && <WorldBoxMarketPanel onClose={() => setMarketOpen(false)} />}
         {financeOpen && <WorldBoxFinancePanel onClose={() => setFinanceOpen(false)} />}
