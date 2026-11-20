@@ -155,3 +155,155 @@ export function loadFarmSprites(): Record<string, HTMLImageElement> {
   }
   return out;
 }
+
+export const VEHICLE_SPRITE_SRC: Record<string, string> = {
+  electric_scooter: "/img/worldbox/vehicles/electric_scooter_16dir.webp",
+  delivery_moped: "/img/worldbox/vehicles/delivery_moped_16dir.webp",
+  cargo_truck: "/img/worldbox/vehicles/cargo_truck_16dir.webp",
+  police_cruiser: "/img/worldbox/vehicles/police_cruiser_16dir.webp",
+};
+
+export function loadVehicleSprites(): Record<string, HTMLImageElement> {
+  const out: Record<string, HTMLImageElement> = {};
+  for (const [k, v] of Object.entries(VEHICLE_SPRITE_SRC)) {
+    const img = new Image();
+    img.src = v;
+    out[k] = img;
+  }
+  return out;
+}
+
+export const RACING_HORSE_SPRITE_SRC: Record<string, string> = {
+  鹿毛: "/img/worldbox/racing/horse_bay_16dir.webp",
+  栗毛: "/img/worldbox/racing/horse_chestnut_16dir.webp",
+  黒鹿毛: "/img/worldbox/racing/horse_dark_bay_16dir.webp",
+  芦毛: "/img/worldbox/racing/horse_grey_16dir.webp",
+  青鹿毛: "/img/worldbox/racing/horse_brown_16dir.webp",
+  青毛: "/img/worldbox/racing/horse_black_16dir.webp",
+  栃栗毛: "/img/worldbox/racing/horse_liver_chestnut_16dir.webp",
+  白毛: "/img/worldbox/racing/horse_white_16dir.webp",
+};
+
+export function loadRacingSprites(): Record<string, HTMLImageElement> {
+  const out: Record<string, HTMLImageElement> = {};
+  for (const [k, v] of Object.entries(RACING_HORSE_SPRITE_SRC)) {
+    const img = new Image();
+    img.src = v;
+    out[k] = img;
+  }
+  return out;
+}
+
+export const BUILDING_SPRITE_SRC: Record<string, string> = Object.fromEntries(
+  [
+    "city_hall",
+    "vehicle_dealer",
+    "convenience",
+    "cafe",
+    "bank_kiosk",
+    "smith_workshop",
+    "house",
+    "cottage",
+  ].flatMap((kind) =>
+    (["s", "n", "e", "w"] as const).map((facing) => [
+      `${kind}_${facing}`,
+      `/img/worldbox/buildings/${kind}_${facing}.webp`,
+    ]),
+  ),
+);
+
+export function loadBuildingSprites(): Record<string, HTMLImageElement> {
+  const out: Record<string, HTMLImageElement> = {};
+  for (const [k, v] of Object.entries(BUILDING_SPRITE_SRC)) {
+    const img = new Image();
+    img.src = v;
+    out[k] = img;
+  }
+  return out;
+}
+
+export const WORLD_OBJECT_SPRITE_SRC: Record<string, string> = {
+  surface_objects: "/img/worldbox/objects/surface_objects.webp",
+  world_props: "/img/worldbox/objects/world_props.webp",
+};
+
+export function loadWorldObjectSprites(): Record<string, HTMLImageElement> {
+  const out: Record<string, HTMLImageElement> = {};
+  for (const [k, v] of Object.entries(WORLD_OBJECT_SPRITE_SRC)) {
+    const img = new Image();
+    img.src = v;
+    out[k] = img;
+  }
+  return out;
+}
+
+function parseHexRgb(hex: string): [number, number, number] {
+  const clean = hex.replace("#", "");
+  if (clean.length < 6) return [180, 180, 190];
+  return [
+    parseInt(clean.slice(0, 2), 16) || 0,
+    parseInt(clean.slice(2, 4), 16) || 0,
+    parseInt(clean.slice(4, 6), 16) || 0,
+  ];
+}
+
+/**
+ * Cache a biome-tinted copy of neutral-roofed residential buildings (`house`, `cottage`)
+ * by remapping their cool neutral roof/wall grayscale swatches into the settlement palette.
+ */
+export function getBiomeTintedBuildingCanvas(
+  cache: Map<string, HTMLCanvasElement>,
+  key: string,
+  img: HTMLImageElement,
+  kind: string,
+  roofColor: string,
+  wallColor: string,
+): HTMLCanvasElement | HTMLImageElement {
+  if (kind !== "house" && kind !== "cottage") return img;
+  const cacheKey = `${key}:${roofColor}:${wallColor}`;
+  const existing = cache.get(cacheKey);
+  if (existing) return existing;
+  if (typeof document === "undefined" || img.naturalWidth <= 0) return img;
+  const c = document.createElement("canvas");
+  c.width = img.naturalWidth;
+  c.height = img.naturalHeight;
+  const cctx = c.getContext("2d");
+  if (!cctx) return img;
+  cctx.drawImage(img, 0, 0);
+  try {
+    const data = cctx.getImageData(0, 0, c.width, c.height);
+    const px = data.data;
+    const [rr, rg, rb] = parseHexRgb(roofColor);
+    const [wr, wg, wb] = parseHexRgb(wallColor);
+    for (let i = 0; i < px.length; i += 4) {
+      if (px[i + 3] < 200) continue;
+      const r = px[i];
+      const g = px[i + 1];
+      const b = px[i + 2];
+      // Preserve dark outlines, blue/yellow windows, red chimneys, brown flowerboxes, blue-slate trim
+      const sat = Math.max(r, g, b) - Math.min(r, g, b);
+      if (sat > 12 || r < 52) continue;
+      // Wall cel range is bright neutral (~192..255), Roof cel range is mid neutral (~54..186)
+      if (r >= 190) {
+        const k = Math.min(1.12, r / 228);
+        px[i] = Math.min(255, Math.round(wr * k));
+        px[i + 1] = Math.min(255, Math.round(wg * k));
+        px[i + 2] = Math.min(255, Math.round(wb * k));
+      } else {
+        const k = Math.min(1.22, r / 150);
+        px[i] = Math.min(255, Math.round(rr * k));
+        px[i + 1] = Math.min(255, Math.round(rg * k));
+        px[i + 2] = Math.min(255, Math.round(rb * k));
+      }
+    }
+    cctx.putImageData(data, 0, 0);
+    if (cache.size > 64) {
+      const first = cache.keys().next().value;
+      if (first) cache.delete(first);
+    }
+    cache.set(cacheKey, c);
+    return c;
+  } catch {
+    return img;
+  }
+}

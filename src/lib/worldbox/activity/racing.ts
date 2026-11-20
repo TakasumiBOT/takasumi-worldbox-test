@@ -440,23 +440,29 @@ export function horseTrackPose(
   horseId: number,
   progress: number,
   track: { cx: number; cy: number; rx: number; ry: number; innerRx: number; innerRy: number },
-): { x: number; y: number } {
+): { x: number; y: number; angleDeg: number } {
   const entry = core.entries.find((e) => e.horse.id === horseId);
-  if (!entry) return { x: track.cx, y: track.cy };
+  if (!entry) return { x: track.cx, y: track.cy, angleDeg: 0 };
   const rankIdx = core.placings.indexOf(horseId);
   const n = core.entries.length;
   const early = STYLE_EARLY[entry.horse.style] + (entry.gate / n) * 0.1;
   const finalPos = n <= 1 ? 0 : rankIdx / (n - 1);
   const t = Math.min(1, Math.max(0, progress));
   const converge = t * t * (3 - 2 * t);
+  const dConvergeDt = 6 * t * (1 - t);
   const posNorm = early * (1 - converge) + finalPos * converge;
   const spread = 0.5;
-  const baseAngle = Math.PI + t * Math.PI * 2 * (core.track.direction === "左" ? 1 : -1);
-  const angle = baseAngle - posNorm * spread * (core.track.direction === "左" ? 1 : -1);
+  const dirSign = core.track.direction === "左" ? 1 : -1;
+  const baseAngle = Math.PI + t * Math.PI * 2 * dirSign;
+  const angle = baseAngle - posNorm * spread * dirSign;
+  const dAngleDt = (Math.PI * 2 - (finalPos - early) * dConvergeDt * spread) * dirSign;
   const lane = n <= 1 ? 0.5 : (entry.gate - 1) / (n - 1);
   const rx = track.innerRx + (track.rx - track.innerRx) * (0.25 + lane * 0.5);
   const ry = track.innerRy + (track.ry - track.innerRy) * (0.25 + lane * 0.5);
-  return { x: track.cx + Math.cos(angle) * rx, y: track.cy + Math.sin(angle) * ry };
+  const vx = -rx * Math.sin(angle) * dAngleDt;
+  const vy = ry * Math.cos(angle) * dAngleDt;
+  const angleDeg = ((((Math.atan2(vy, vx) * 180) / Math.PI) % 360) + 360) % 360;
+  return { x: track.cx + Math.cos(angle) * rx, y: track.cy + Math.sin(angle) * ry, angleDeg };
 }
 
 export function validateBetAmount(value: unknown): number | null {

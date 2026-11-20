@@ -122,6 +122,13 @@ export function sanitizePresenceSpace(raw: unknown): PresenceSpace {
   return "world";
 }
 
+const VALID_VEHICLE_IDS = new Set([
+  "electric_scooter",
+  "delivery_moped",
+  "cargo_truck",
+  "police_cruiser",
+]);
+
 export type Heartbeat = {
   name: string;
   x: number;
@@ -134,6 +141,7 @@ export type Heartbeat = {
   rank?: number;
   party?: string;
   sit?: boolean;
+  vehicle?: string;
   avatar?: string;
   tab?: string;
   tabAt?: number;
@@ -191,6 +199,9 @@ export function sanitizeHeartbeat(raw: unknown, bounds: CoordBounds): Heartbeat 
         : 1,
     party: typeof v.party === "string" ? v.party.slice(0, 48) : "",
     ...(v.sit === true ? { sit: true } : {}),
+    ...(typeof v.vehicle === "string" && VALID_VEHICLE_IDS.has(v.vehicle)
+      ? { vehicle: v.vehicle }
+      : {}),
     ...(typeof v.tab === "string" && v.tab.length > 0 ? { tab: v.tab.slice(0, 64) } : {}),
     ...(typeof v.tabAt === "number" && Number.isFinite(v.tabAt) && v.tabAt > 0
       ? { tabAt: v.tabAt }

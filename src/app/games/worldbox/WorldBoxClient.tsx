@@ -231,14 +231,33 @@ import {
 } from "@/lib/worldbox/economy/containers";
 import { isMachineItem, machineSpecFor } from "@/lib/worldbox/economy/machines";
 import {
+  BUILDING_SPRITE_SRC,
   DUNGEON_TILE_SRC,
   FARM_SPRITE_SRC,
   LOBBY_SPRITE_SRC,
+  RACING_HORSE_SPRITE_SRC,
+  VEHICLE_SPRITE_SRC,
+  WORLD_OBJECT_SPRITE_SRC,
+  getBiomeTintedBuildingCanvas,
+  loadBuildingSprites,
   loadDungeonTiles,
   loadFarmSprites,
   loadLobbySprites,
+  loadRacingSprites,
   loadTextures,
+  loadVehicleSprites,
+  loadWorldObjectSprites,
 } from "@/lib/worldbox/world/textures";
+import {
+  HORSE_SPRITE_META,
+  SURFACE_OBJECT_COLS,
+  VEHICLE_SPRITE_META,
+  WORLD_PROP_COLS,
+  buildingSpriteKey,
+  computeBuildingDrawRect,
+  directionIndex16,
+  vectorHeadingDeg,
+} from "@/lib/worldbox/world/pseudo3d";
 import {
   preloadImages,
   transitionAlpha,
@@ -464,6 +483,7 @@ type PlayerState = {
 type OtherRender = {
   track: RemoteTrack;
   phase: number;
+  angleDeg?: number;
 };
 
 type CompanySignView = {
@@ -693,12 +713,45 @@ function drawSurfaceObject(
   tile: number,
   spent: boolean,
   now: number,
+  worldObjSprites?: Record<string, HTMLImageElement>,
 ) {
   const u = tile / 44;
   ctx.save();
-  if (spent) ctx.globalAlpha = 0.45;
+  if (spent) ctx.globalAlpha = 0.55;
   const cx = sx + tile / 2;
   const ground = sy + tile * 0.82;
+  const atlas = worldObjSprites?.surface_objects;
+  const colIdx = SURFACE_OBJECT_COLS[objectId];
+  if (texReady(atlas) && colIdx !== undefined) {
+    const rowIdx = spent ? 1 : objectId === "hot_spring" ? Math.floor(now / 520) % 2 : 0;
+    const drawSize = tile * 1.18;
+    const dx = Math.round(sx + (tile - drawSize) * 0.5);
+    const dy = Math.round(sy + tile * 0.96 - drawSize);
+    ctx.fillStyle = "rgba(8, 12, 20, 0.24)";
+    ctx.beginPath();
+    ctx.ellipse(cx, sy + tile * 0.86, tile * 0.34, tile * 0.13, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(atlas, colIdx * 64, rowIdx * 64, 64, 64, dx, dy, drawSize, drawSize);
+    ctx.imageSmoothingEnabled = true;
+    if ((objectId === "hot_spring" || objectId === "sulfur_vent") && !spent) {
+      ctx.fillStyle =
+        objectId === "sulfur_vent" ? "rgba(254, 240, 138, 0.52)" : "rgba(255, 255, 255, 0.58)";
+      const rise = (((now / 950 + cx) % 1) + 1) % 1;
+      ctx.beginPath();
+      ctx.arc(cx - 4 * u, ground - (11 + rise * 9) * u, (1.8 + rise * 2.4) * u, 0, Math.PI * 2);
+      ctx.arc(
+        cx + 5 * u,
+        ground - (9 + ((rise + 0.5) % 1) * 9) * u,
+        (1.6 + ((rise + 0.5) % 1) * 2.2) * u,
+        0,
+        Math.PI * 2,
+      );
+      ctx.fill();
+    }
+    ctx.restore();
+    return;
+  }
   switch (objectId) {
     case "berry_bush":
     case "herb_patch":
@@ -795,7 +848,7 @@ function drawSurfaceObject(
       ctx.ellipse(cx, ground - 8 * u, 4 * u, 2 * u, 0, 0, Math.PI * 2);
       ctx.fill();
       ctx.fillStyle = "rgba(240,240,230,0.5)";
-      const rise = (now / 900 + cx) % 1;
+      const rise = (((now / 900 + cx) % 1) + 1) % 1;
       ctx.beginPath();
       ctx.arc(cx, ground - (12 + rise * 10) * u, (2 + rise * 3) * u, 0, Math.PI * 2);
       ctx.fill();
@@ -870,7 +923,7 @@ function drawSurfaceObject(
       ctx.fill();
       if (!spent) {
         ctx.fillStyle = "rgba(255,255,255,0.55)";
-        const rise = (now / 1100 + cx) % 1;
+        const rise = (((now / 1100 + cx) % 1) + 1) % 1;
         ctx.beginPath();
         ctx.arc(cx - 5 * u, ground - (10 + rise * 9) * u, 2.4 * u, 0, Math.PI * 2);
         ctx.arc(cx + 6 * u, ground - (8 + ((rise + 0.5) % 1) * 9) * u, 2 * u, 0, Math.PI * 2);
@@ -1078,6 +1131,10 @@ export default function WorldBoxClient() {
         ...Object.values(LOBBY_SPRITE_SRC),
         ...Object.values(FARM_SPRITE_SRC),
         ...Object.values(DUNGEON_TILE_SRC),
+        ...Object.values(VEHICLE_SPRITE_SRC),
+        ...Object.values(RACING_HORSE_SPRITE_SRC),
+        ...Object.values(BUILDING_SPRITE_SRC),
+        ...Object.values(WORLD_OBJECT_SPRITE_SRC),
       ],
       { timeoutMs: SPRITE_PRELOAD_TIMEOUT_MS },
     ).then(() => {
@@ -2984,6 +3041,11 @@ export default function WorldBoxClient() {
     const dungeon = loadDungeonTiles();
     const lobbySprites = loadLobbySprites();
     const farmSprites = loadFarmSprites();
+    const vehicleSprites = loadVehicleSprites();
+    const racingSprites = loadRacingSprites();
+    const buildingSprites = loadBuildingSprites();
+    const worldObjectSprites = loadWorldObjectSprites();
+    const buildingTintCache = new Map<string, HTMLCanvasElement>();
     const itemIcons: Record<string, HTMLImageElement> = {};
     for (const item of ITEMS) {
       if (!item.icon) continue;
@@ -3120,6 +3182,42 @@ export default function WorldBoxClient() {
     let lastLand = { x: spawn.x, y: spawn.y };
     let wasSwimming = false;
     let playerSwimming = false;
+    let playerMoveAngleDeg = 0;
+    const drawVehicle25D = (
+      c: CanvasRenderingContext2D,
+      vehicleId: string,
+      sx: number,
+      sy: number,
+      angleDeg: number,
+      nowMs: number,
+    ): boolean => {
+      const meta = VEHICLE_SPRITE_META[vehicleId as VehicleItemId];
+      const img = vehicleSprites[vehicleId];
+      if (!meta || !texReady(img)) return false;
+      const dir = directionIndex16(angleDeg);
+      const row = meta.dirRows > 1 ? Math.floor(nowMs / 180) % meta.dirRows : 0;
+      const drawSize = TILE * meta.drawScaleTiles;
+      c.save();
+      c.fillStyle = "rgba(8, 12, 20, 0.34)";
+      c.beginPath();
+      c.ellipse(sx, sy + TILE * 0.1, drawSize * 0.34, drawSize * 0.14, 0, 0, Math.PI * 2);
+      c.fill();
+      c.imageSmoothingEnabled = false;
+      c.drawImage(
+        img,
+        dir * meta.cellSize,
+        row * meta.cellSize,
+        meta.cellSize,
+        meta.cellSize,
+        Math.round(sx - drawSize * 0.5),
+        Math.round(sy - drawSize * 0.64),
+        Math.round(drawSize),
+        Math.round(drawSize),
+      );
+      c.imageSmoothingEnabled = true;
+      c.restore();
+      return true;
+    };
     const splashes: { x: number; y: number; at: number }[] = [];
     const reducedMotion =
       typeof window.matchMedia === "function" &&
@@ -3317,6 +3415,7 @@ export default function WorldBoxClient() {
             role: invRef.current?.role ?? "free",
             rank: invRef.current ? masteryRankOf(invRef.current, invRef.current.role) : 1,
             sit: sitTileRef.current ? true : undefined,
+            vehicle: equippedVehicleRef.current ?? undefined,
           }),
         );
       } catch {
@@ -3538,6 +3637,7 @@ export default function WorldBoxClient() {
           role: invRef.current?.role ?? "free",
           rank: invRef.current ? masteryRankOf(invRef.current, invRef.current.role) : 1,
           sit: sitTileRef.current ? true : undefined,
+          vehicle: equippedVehicleRef.current ?? undefined,
           tab: tabSession.tab,
           tabAt: tabSession.tabAt,
         }),
@@ -5202,6 +5302,7 @@ export default function WorldBoxClient() {
       const speed = Math.hypot(player.vx, player.vy);
       if (player.vx < -0.2) player.face = -1;
       else if (player.vx > 0.2) player.face = 1;
+      if (speed > 0.25) playerMoveAngleDeg = vectorHeadingDeg(player.vx, player.vy);
       player.phase = advanceWalkPhase(player.phase, speed, sdt);
       const speedRatio = Math.min(1, speed / WALK_SPEED);
 
@@ -5276,6 +5377,11 @@ export default function WorldBoxClient() {
       for (const o of others.values()) {
         o.track = stepRemoteTrack(o.track, presenceNowMs, sdt, activeBounds());
         const ospeed = Math.hypot(o.track.entry.vx, o.track.entry.vy);
+        if (ospeed > 0.2) {
+          o.angleDeg = vectorHeadingDeg(o.track.entry.vx, o.track.entry.vy);
+        } else if (o.angleDeg === undefined) {
+          o.angleDeg = o.track.entry.face < 0 ? 180 : 0;
+        }
         o.phase = advanceWalkPhase(o.phase, ospeed, sdt);
       }
 
@@ -5386,7 +5492,28 @@ export default function WorldBoxClient() {
                 const stDef = structureById(st.structureId);
                 const sx = Math.round(toScreenX(st.x));
                 const sy = Math.round(toScreenY(st.y));
-                if (stDef?.kind === "entrance") {
+                const propsImg = worldObjectSprites.world_props;
+                const propCol = WORLD_PROP_COLS[st.structureId];
+                if (texReady(propsImg) && propCol !== undefined) {
+                  const drawSize = TILE * 1.3;
+                  const dx = Math.round(sx + (TILE - drawSize) * 0.5);
+                  const dy = Math.round(sy + TILE * 0.96 - drawSize);
+                  ctx.fillStyle = "rgba(8, 12, 20, 0.28)";
+                  ctx.beginPath();
+                  ctx.ellipse(
+                    sx + TILE * 0.5,
+                    sy + TILE * 0.88,
+                    TILE * 0.42,
+                    TILE * 0.16,
+                    0,
+                    0,
+                    Math.PI * 2,
+                  );
+                  ctx.fill();
+                  ctx.imageSmoothingEnabled = false;
+                  ctx.drawImage(propsImg, propCol * 64, 0, 64, 64, dx, dy, drawSize, drawSize);
+                  ctx.imageSmoothingEnabled = true;
+                } else if (stDef?.kind === "entrance") {
                   ctx.fillStyle = "#4a4a55";
                   ctx.fillRect(sx + 2, sy + 4, TILE - 4, TILE - 4);
                   ctx.fillStyle = "#0a0a10";
@@ -5742,14 +5869,40 @@ export default function WorldBoxClient() {
               draw: () => {
                 ctx.fillStyle = "rgba(10,16,24,0.28)";
                 ctx.beginPath();
-                ctx.ellipse(lx, ly + 2, TILE * 0.18, TILE * 0.08, 0, 0, Math.PI * 2);
+                ctx.ellipse(lx, ly + 2, TILE * 0.22, TILE * 0.09, 0, 0, Math.PI * 2);
                 ctx.fill();
-                ctx.fillStyle = "#334155";
-                ctx.fillRect(lx - 2, ly - TILE * 0.72, 4, TILE * 0.72);
-                ctx.fillStyle = nightAmt > 0.12 ? "#fde047" : "#cbd5e1";
-                ctx.beginPath();
-                ctx.arc(lx, ly - TILE * 0.78, 5, 0, Math.PI * 2);
-                ctx.fill();
+                const propsImg = worldObjectSprites.world_props;
+                const lit = nightAmt > 0.12;
+                if (texReady(propsImg)) {
+                  const colIdx = lit ? WORLD_PROP_COLS.lamp_night : WORLD_PROP_COLS.lamp_day;
+                  if (lit) {
+                    ctx.fillStyle = `rgba(253, 224, 71, ${(0.18 * Math.min(1, nightAmt * 1.4)).toFixed(3)})`;
+                    ctx.beginPath();
+                    ctx.arc(lx, ly - TILE * 0.72, TILE * 0.45, 0, Math.PI * 2);
+                    ctx.fill();
+                  }
+                  const lSize = TILE * 1.15;
+                  ctx.imageSmoothingEnabled = false;
+                  ctx.drawImage(
+                    propsImg,
+                    colIdx * 64,
+                    0,
+                    64,
+                    64,
+                    Math.round(lx - lSize * 0.5),
+                    Math.round(ly - lSize * 0.86),
+                    Math.round(lSize),
+                    Math.round(lSize),
+                  );
+                  ctx.imageSmoothingEnabled = true;
+                } else {
+                  ctx.fillStyle = "#334155";
+                  ctx.fillRect(lx - 2, ly - TILE * 0.72, 4, TILE * 0.72);
+                  ctx.fillStyle = lit ? "#fde047" : "#cbd5e1";
+                  ctx.beginPath();
+                  ctx.arc(lx, ly - TILE * 0.78, 5, 0, Math.PI * 2);
+                  ctx.fill();
+                }
               },
             });
           }
@@ -5780,62 +5933,110 @@ export default function WorldBoxClient() {
                 ctx.fillStyle = "rgba(15,23,42,0.55)";
                 ctx.fillRect(porchPx + 11, porchPy + 15, TILE - 22, TILE - 26);
 
-                // Drop shadow & plinth
-                ctx.fillStyle = "rgba(8,12,20,0.32)";
-                ctx.fillRect(bx + 4, by + bh - 4, bw - 4, 8);
-                // Main exterior masonry / timber wall
-                ctx.fillStyle = b.wallColor;
-                ctx.fillRect(bx + 2, by + TILE * 0.42, bw - 4, bh - TILE * 0.42);
-                ctx.fillStyle = b.trimColor;
-                ctx.fillRect(bx + 2, by + bh - 7, bw - 4, 7);
-                ctx.strokeStyle = "rgba(15,23,42,0.78)";
-                ctx.lineWidth = 1.5;
-                ctx.strokeRect(bx + 2, by + TILE * 0.42, bw - 4, bh - TILE * 0.42);
-                // Pitched roof overhang
-                ctx.fillStyle = b.roofColor;
-                ctx.fillRect(bx - 1, by, bw + 2, TILE * 0.56);
-                ctx.fillStyle = "rgba(255,255,255,0.22)";
-                ctx.fillRect(bx, by + 3, bw, 4);
-                ctx.fillStyle = "rgba(15,23,42,0.25)";
-                ctx.fillRect(bx - 1, by + TILE * 0.56 - 4, bw + 2, 4);
-                // Storefront awning for commercial buildings
-                if (b.kind === "cafe" || b.kind === "convenience" || b.kind === "vehicle_dealer") {
-                  const stripeW = Math.max(8, (bw - 12) / 6);
-                  for (let si = 0; si < 6; si++) {
-                    ctx.fillStyle = si % 2 === 0 ? b.signColor : "#f8fafc";
-                    ctx.fillRect(bx + 6 + si * stripeW, by + TILE * 0.56, stripeW, 7);
+                const bKey = buildingSpriteKey(b.kind, b.facing);
+                const rawBImg = buildingSprites[bKey];
+                if (texReady(rawBImg)) {
+                  ctx.fillStyle = "rgba(8,12,20,0.3)";
+                  ctx.fillRect(bx + 3, by + bh - 4, bw - 2, 8);
+                  const tinted = getBiomeTintedBuildingCanvas(
+                    buildingTintCache,
+                    bKey,
+                    rawBImg,
+                    b.kind,
+                    b.roofColor,
+                    b.wallColor,
+                  );
+                  const rect = computeBuildingDrawRect(
+                    bx,
+                    by,
+                    bw,
+                    bh,
+                    TILE,
+                    rawBImg.naturalWidth,
+                    rawBImg.naturalHeight,
+                  );
+                  ctx.imageSmoothingEnabled = false;
+                  ctx.drawImage(
+                    tinted,
+                    Math.round(rect.x),
+                    Math.round(rect.y),
+                    Math.round(rect.w),
+                    Math.round(rect.h),
+                  );
+                  ctx.imageSmoothingEnabled = true;
+
+                  if (nightAmt > 0.12) {
+                    ctx.fillStyle = "rgba(253, 230, 138, 0.42)";
+                    ctx.fillRect(bx + 10, by + bh - 8, bw - 20, 4);
                   }
-                }
-                // Warm lit windows
-                const cols = Math.max(2, b.w - 1);
-                for (let ci = 0; ci < cols; ci++) {
-                  const wx = bx + 12 + ci * ((bw - 24) / cols);
-                  const wy = by + TILE * 0.85;
+                  // Ground-level entrance mat / threshold marker (avoids painting over north/side roofs)
+                  ctx.fillStyle = b.signColor;
+                  ctx.fillRect(doorPx + 8, doorPy + TILE - 7, TILE - 16, 4);
+                  ctx.fillStyle = nightAmt > 0.12 ? "#fcd34d" : "#fef08a";
+                  ctx.fillRect(doorPx + 10, doorPy + TILE - 5, TILE - 20, 4);
+                } else {
+                  // Drop shadow & plinth
+                  ctx.fillStyle = "rgba(8,12,20,0.32)";
+                  ctx.fillRect(bx + 4, by + bh - 4, bw - 4, 8);
+                  // Main exterior masonry / timber wall
+                  ctx.fillStyle = b.wallColor;
+                  ctx.fillRect(bx + 2, by + TILE * 0.42, bw - 4, bh - TILE * 0.42);
+                  ctx.fillStyle = b.trimColor;
+                  ctx.fillRect(bx + 2, by + bh - 7, bw - 4, 7);
+                  ctx.strokeStyle = "rgba(15,23,42,0.78)";
+                  ctx.lineWidth = 1.5;
+                  ctx.strokeRect(bx + 2, by + TILE * 0.42, bw - 4, bh - TILE * 0.42);
+                  // Pitched roof overhang
+                  ctx.fillStyle = b.roofColor;
+                  ctx.fillRect(bx - 1, by, bw + 2, TILE * 0.56);
+                  ctx.fillStyle = "rgba(255,255,255,0.22)";
+                  ctx.fillRect(bx, by + 3, bw, 4);
+                  ctx.fillStyle = "rgba(15,23,42,0.25)";
+                  ctx.fillRect(bx - 1, by + TILE * 0.56 - 4, bw + 2, 4);
+                  // Storefront awning for commercial buildings
+                  if (
+                    b.kind === "cafe" ||
+                    b.kind === "convenience" ||
+                    b.kind === "vehicle_dealer"
+                  ) {
+                    const stripeW = Math.max(8, (bw - 12) / 6);
+                    for (let si = 0; si < 6; si++) {
+                      ctx.fillStyle = si % 2 === 0 ? b.signColor : "#f8fafc";
+                      ctx.fillRect(bx + 6 + si * stripeW, by + TILE * 0.56, stripeW, 7);
+                    }
+                  }
+                  // Warm lit windows
+                  const cols = Math.max(2, b.w - 1);
+                  for (let ci = 0; ci < cols; ci++) {
+                    const wx = bx + 12 + ci * ((bw - 24) / cols);
+                    const wy = by + TILE * 0.85;
+                    ctx.fillStyle = "#1e293b";
+                    ctx.fillRect(wx - 1.5, wy - 1.5, 13, 12);
+                    ctx.fillStyle = nightAmt > 0.12 ? "#fde68a" : "#bae6fd";
+                    ctx.fillRect(wx, wy, 10, 9);
+                  }
+                  // Physical enterable doorway portal at exact (doorX, doorY)
                   ctx.fillStyle = "#1e293b";
-                  ctx.fillRect(wx - 1.5, wy - 1.5, 13, 12);
-                  ctx.fillStyle = nightAmt > 0.12 ? "#fde68a" : "#bae6fd";
-                  ctx.fillRect(wx, wy, 10, 9);
+                  ctx.fillRect(doorPx + 8, doorPy + TILE - 28, TILE - 16, 28);
+                  ctx.fillStyle = nightAmt > 0.12 ? "#fcd34d" : "#fef08a";
+                  ctx.fillRect(doorPx + 11, doorPy + TILE - 25, TILE - 22, 23);
+                  ctx.fillStyle = b.signColor;
+                  ctx.fillRect(doorPx + 7, doorPy + TILE - 31, TILE - 14, 4);
                 }
-                // Physical enterable doorway portal at exact (doorX, doorY)
-                ctx.fillStyle = "#1e293b";
-                ctx.fillRect(doorPx + 8, doorPy + TILE - 28, TILE - 16, 28);
-                ctx.fillStyle = nightAmt > 0.12 ? "#fcd34d" : "#fef08a";
-                ctx.fillRect(doorPx + 11, doorPy + TILE - 25, TILE - 22, 23);
-                ctx.fillStyle = b.signColor;
-                ctx.fillRect(doorPx + 7, doorPy + TILE - 31, TILE - 14, 4);
 
                 // Shop sign nameplate + IN pill
                 ctx.font = "700 10.5px sans-serif";
                 ctx.textAlign = "center";
                 const tagTitle = `[${b.signText}] ${b.label}`;
                 const tw = Math.min(bw + 32, ctx.measureText(tagTitle).width + 12);
+                const signY = texReady(rawBImg) ? by - 30 : by - 17;
                 ctx.fillStyle = "rgba(12,18,30,0.88)";
-                ctx.fillRect(bx + bw / 2 - tw / 2, by - 17, tw, 15);
+                ctx.fillRect(bx + bw / 2 - tw / 2, signY, tw, 15);
                 ctx.strokeStyle = b.signColor;
                 ctx.lineWidth = 1;
-                ctx.strokeRect(bx + bw / 2 - tw / 2, by - 17, tw, 15);
+                ctx.strokeRect(bx + bw / 2 - tw / 2, signY, tw, 15);
                 ctx.fillStyle = "#f8fafc";
-                ctx.fillText(tagTitle, bx + bw / 2, by - 6);
+                ctx.fillText(tagTitle, bx + bw / 2, signY + 11);
               },
             });
           }
@@ -5942,15 +6143,30 @@ export default function WorldBoxClient() {
       for (const o of others.values()) {
         const nationColor = nationsRef.current.playerNations[o.track.entry.id]?.color ?? null;
         const oSwim = space === "world" && isWaterAt(worldMap, o.track.rx, o.track.ry);
+        const rVeh = vehicleSpecFor(o.track.entry.vehicle);
         drawList.push({
           y: o.track.ry + PLAYER_RADIUS,
-          draw: () =>
-            drawAvatar(
-              ctx,
-              space !== "world" ? Math.round(lobbyOx + o.track.rx * TILE) : toScreenX(o.track.rx),
+          draw: () => {
+            const rsx =
+              space !== "world" ? Math.round(lobbyOx + o.track.rx * TILE) : toScreenX(o.track.rx);
+            const rsy =
               space !== "world"
                 ? Math.round(lobbyOy + o.track.ry * TILE) + TILE * PLAYER_RADIUS
-                : toScreenY(o.track.ry) + TILE * PLAYER_RADIUS,
+                : toScreenY(o.track.ry) + TILE * PLAYER_RADIUS;
+            let avatarOffsetY = 0;
+            if (rVeh && !oSwim) {
+              if (!drawVehicle25D(ctx, rVeh.id, rsx, rsy, o.angleDeg ?? 0, nowMs)) {
+                const w = TILE * 1.15;
+                const h = TILE * 0.48;
+                ctx.fillStyle = rVeh.bodyColor;
+                ctx.fillRect(rsx - w / 2, rsy - h * 0.65, w, h);
+              }
+              avatarOffsetY = VEHICLE_SPRITE_META[rVeh.id].avatarOffsetTiles * TILE;
+            }
+            drawAvatar(
+              ctx,
+              rsx,
+              rsy + avatarOffsetY,
               o.track.entry.face,
               o.phase,
               Math.min(1, Math.hypot(o.track.entry.vx, o.track.entry.vy) / WALK_SPEED),
@@ -5963,7 +6179,8 @@ export default function WorldBoxClient() {
               },
               o.track.entry.sit === true,
               iconFor(o.track.entry.avatar),
-            ),
+            );
+          },
         });
       }
       if (space !== "world") {
@@ -5986,7 +6203,27 @@ export default function WorldBoxClient() {
               draw: () => {
                 const bx = Math.round(lobbyOx + o.x * TILE);
                 const by = Math.round(lobbyOy + o.y * TILE);
-                if (isDoor) {
+                const atlas = worldObjectSprites.surface_objects;
+                if (texReady(atlas)) {
+                  const colIdx = isDoor
+                    ? SURFACE_OBJECT_COLS.gold_door
+                    : SURFACE_OBJECT_COLS.ruins_chest;
+                  const rowIdx = isDoor ? 0 : openedChest ? 1 : 0;
+                  const dSize = TILE * 1.12;
+                  ctx.imageSmoothingEnabled = false;
+                  ctx.drawImage(
+                    atlas,
+                    colIdx * 64,
+                    rowIdx * 64,
+                    64,
+                    64,
+                    Math.round(bx + (TILE - dSize) * 0.5),
+                    Math.round(by + TILE * 0.96 - dSize),
+                    Math.round(dSize),
+                    Math.round(dSize),
+                  );
+                  ctx.imageSmoothingEnabled = true;
+                } else if (isDoor) {
                   ctx.fillStyle = "#7a6420";
                   ctx.fillRect(bx + 3, by + 2, TILE - 6, TILE - 2);
                   ctx.fillStyle = "#e8c85a";
@@ -6015,15 +6252,6 @@ export default function WorldBoxClient() {
             const respawnMs =
               o.sprite === "cave_chest" ? 6 * 60 * 60 * 1000 : (def?.respawnMs ?? 0);
             if (vein && takenAt > 0 && Date.now() - takenAt < respawnMs) continue;
-            const colors: Record<string, string> = {
-              coal_vein: "#3a3a42",
-              copper_vein: "#c47b4a",
-              rare_vein: "#e8c85a",
-              crystal_cluster: "#9fe8ff",
-              mithril_vein: "#b9f2d8",
-              cave_chest: "#8a5a2b",
-            };
-            const color = colors[o.sprite] ?? "#999";
             const opened =
               o.sprite === "cave_chest" && takenAt > 0 && Date.now() - takenAt < respawnMs;
             drawList.push({
@@ -6031,23 +6259,7 @@ export default function WorldBoxClient() {
               draw: () => {
                 const bx = Math.round(lobbyOx + o.x * TILE);
                 const by = Math.round(lobbyOy + o.y * TILE);
-                if (o.sprite === "cave_chest") {
-                  ctx.fillStyle = opened ? "#5d4020" : color;
-                  ctx.fillRect(bx + 4, by + 10, TILE - 8, TILE - 14);
-                  ctx.fillStyle = "#e8c85a";
-                  ctx.fillRect(bx + 4, by + 16, TILE - 8, 3);
-                } else {
-                  ctx.fillStyle = "#55565f";
-                  ctx.fillRect(bx + 2, by + 2, TILE - 4, TILE - 4);
-                  ctx.fillStyle = color;
-                  ctx.beginPath();
-                  ctx.moveTo(bx + TILE * 0.5, by + 5);
-                  ctx.lineTo(bx + TILE - 7, by + TILE * 0.55);
-                  ctx.lineTo(bx + TILE * 0.62, by + TILE - 6);
-                  ctx.lineTo(bx + 7, by + TILE * 0.6);
-                  ctx.closePath();
-                  ctx.fill();
-                }
+                drawSurfaceObject(ctx, o.sprite, bx, by, TILE, opened, now, worldObjectSprites);
               },
             });
             continue;
@@ -6071,22 +6283,25 @@ export default function WorldBoxClient() {
                 ctx.lineWidth = 1.6;
                 ctx.stroke();
 
-                const cw2 = TILE * 1.18;
-                const ch2 = TILE * 0.52;
-                ctx.fillStyle = spec?.bodyColor ?? bay.accent;
-                ctx.fillRect(bx - cw2 / 2, by - ch2 * 0.7, cw2, ch2);
-                ctx.strokeStyle = spec?.trimColor ?? "#f8fafc";
-                ctx.lineWidth = 1.5;
-                ctx.strokeRect(bx - cw2 / 2, by - ch2 * 0.7, cw2, ch2);
-                ctx.fillStyle = "#bae6fd";
-                ctx.fillRect(bx - cw2 * 0.25, by - ch2 * 0.55, cw2 * 0.5, ch2 * 0.35);
+                const spinDeg = (now * 0.045) % 360;
+                if (!drawVehicle25D(ctx, bay.vehicleId, bx, by + 2, spinDeg, now)) {
+                  const cw2 = TILE * 1.18;
+                  const ch2 = TILE * 0.52;
+                  ctx.fillStyle = spec?.bodyColor ?? bay.accent;
+                  ctx.fillRect(bx - cw2 / 2, by - ch2 * 0.7, cw2, ch2);
+                  ctx.strokeStyle = spec?.trimColor ?? "#f8fafc";
+                  ctx.lineWidth = 1.5;
+                  ctx.strokeRect(bx - cw2 / 2, by - ch2 * 0.7, cw2, ch2);
+                  ctx.fillStyle = "#bae6fd";
+                  ctx.fillRect(bx - cw2 * 0.25, by - ch2 * 0.55, cw2 * 0.5, ch2 * 0.35);
+                }
 
                 ctx.font = "700 10px sans-serif";
                 ctx.textAlign = "center";
                 ctx.fillStyle = "#e2e8f0";
-                ctx.fillText(bay.label, bx, by - ch2 * 0.9);
+                ctx.fillText(bay.label, bx, by - TILE * 0.65);
                 ctx.fillStyle = "#fde047";
-                ctx.fillText(`¥${bay.price.toLocaleString()}`, bx, by + TILE * 0.6);
+                ctx.fillText(`¥${bay.price.toLocaleString()}`, bx, by + TILE * 0.62);
               },
             });
           }
@@ -6149,28 +6364,34 @@ export default function WorldBoxClient() {
               ? Math.round(lobbyOy + player.y * TILE) + TILE * PLAYER_RADIUS
               : toScreenY(player.y) + TILE * PLAYER_RADIUS) - slimeBouncePx;
           const vSpec = vehicleSpecFor(equippedVehicleRef.current);
+          let avatarOffsetY = 0;
           if (vSpec && !playerSwimming) {
-            const w = TILE * 1.15;
-            const h = TILE * 0.48;
-            ctx.fillStyle = "rgba(0,0,0,0.35)";
-            ctx.beginPath();
-            ctx.ellipse(sx, sy + 2, w * 0.55, h * 0.5, 0, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.fillStyle = vSpec.bodyColor;
-            ctx.fillRect(sx - w / 2, sy - h * 0.65, w, h);
-            ctx.strokeStyle = vSpec.trimColor;
-            ctx.lineWidth = 1.5;
-            ctx.strokeRect(sx - w / 2, sy - h * 0.65, w, h);
-            if (vSpec.hasSiren) {
-              const flash = Math.floor(now / 180) % 2 === 0;
-              ctx.fillStyle = flash ? "#ef4444" : "#3b82f6";
-              ctx.fillRect(sx - 6, sy - h * 0.8, 12, 4);
+            if (drawVehicle25D(ctx, vSpec.id, sx, sy, playerMoveAngleDeg, now)) {
+              avatarOffsetY = VEHICLE_SPRITE_META[vSpec.id].avatarOffsetTiles * TILE;
+            } else {
+              const w = TILE * 1.15;
+              const h = TILE * 0.48;
+              ctx.fillStyle = "rgba(0,0,0,0.35)";
+              ctx.beginPath();
+              ctx.ellipse(sx, sy + 2, w * 0.55, h * 0.5, 0, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.fillStyle = vSpec.bodyColor;
+              ctx.fillRect(sx - w / 2, sy - h * 0.65, w, h);
+              ctx.strokeStyle = vSpec.trimColor;
+              ctx.lineWidth = 1.5;
+              ctx.strokeRect(sx - w / 2, sy - h * 0.65, w, h);
+              if (vSpec.hasSiren) {
+                const flash = Math.floor(now / 180) % 2 === 0;
+                ctx.fillStyle = flash ? "#ef4444" : "#3b82f6";
+                ctx.fillRect(sx - 6, sy - h * 0.8, 12, 4);
+              }
+              avatarOffsetY = -5;
             }
           }
           drawAvatar(
             ctx,
             sx,
-            vSpec && !playerSwimming ? sy - 5 : sy,
+            sy + avatarOffsetY,
             player.face,
             player.phase,
             speedRatio,
@@ -6206,19 +6427,59 @@ export default function WorldBoxClient() {
               draw: () => {
                 const sx = Math.round(lobbyOx + pose.x * TILE);
                 const sy = Math.round(lobbyOy + pose.y * TILE);
-                ctx.beginPath();
-                ctx.arc(sx, sy, TILE * 0.3, 0, Math.PI * 2);
-                ctx.fillStyle = coat;
-                ctx.fill();
-                ctx.lineWidth = 2;
-                ctx.strokeStyle = "rgba(0,0,0,0.45)";
-                ctx.stroke();
-                ctx.fillStyle =
-                  e.horse.coat === "芦毛" || e.horse.coat === "白毛" ? "#222" : "#fff";
-                ctx.font = `700 ${Math.round(TILE * 0.34)}px sans-serif`;
-                ctx.textAlign = "center";
-                ctx.textBaseline = "middle";
-                ctx.fillText(String(gate), sx, sy + 1);
+                const hImg = racingSprites[e.horse.coat];
+                if (texReady(hImg)) {
+                  const dir = directionIndex16(pose.angleDeg);
+                  const frame = Math.floor((now / 105 + gate * 0.7) % HORSE_SPRITE_META.frames);
+                  const hSize = TILE * HORSE_SPRITE_META.drawScaleTiles;
+                  ctx.fillStyle = "rgba(8, 12, 20, 0.3)";
+                  ctx.beginPath();
+                  ctx.ellipse(sx, sy + TILE * 0.14, hSize * 0.32, hSize * 0.12, 0, 0, Math.PI * 2);
+                  ctx.fill();
+                  ctx.imageSmoothingEnabled = false;
+                  ctx.drawImage(
+                    hImg,
+                    dir * HORSE_SPRITE_META.cellSize,
+                    frame * HORSE_SPRITE_META.cellSize,
+                    HORSE_SPRITE_META.cellSize,
+                    HORSE_SPRITE_META.cellSize,
+                    Math.round(sx - hSize * 0.5),
+                    Math.round(sy - hSize * 0.68),
+                    Math.round(hSize),
+                    Math.round(hSize),
+                  );
+                  ctx.imageSmoothingEnabled = true;
+
+                  // Crisp gate number pill above saddle
+                  const badgeY = sy - hSize * 0.48;
+                  ctx.fillStyle = coat;
+                  ctx.beginPath();
+                  ctx.arc(sx, badgeY, TILE * 0.19, 0, Math.PI * 2);
+                  ctx.fill();
+                  ctx.lineWidth = 1.5;
+                  ctx.strokeStyle = "rgba(15, 23, 42, 0.85)";
+                  ctx.stroke();
+                  ctx.fillStyle =
+                    e.horse.coat === "芦毛" || e.horse.coat === "白毛" ? "#1e293b" : "#ffffff";
+                  ctx.font = `800 ${Math.round(TILE * 0.23)}px sans-serif`;
+                  ctx.textAlign = "center";
+                  ctx.textBaseline = "middle";
+                  ctx.fillText(String(gate), sx, badgeY + 0.5);
+                } else {
+                  ctx.beginPath();
+                  ctx.arc(sx, sy, TILE * 0.3, 0, Math.PI * 2);
+                  ctx.fillStyle = coat;
+                  ctx.fill();
+                  ctx.lineWidth = 2;
+                  ctx.strokeStyle = "rgba(0,0,0,0.45)";
+                  ctx.stroke();
+                  ctx.fillStyle =
+                    e.horse.coat === "芦毛" || e.horse.coat === "白毛" ? "#222" : "#fff";
+                  ctx.font = `700 ${Math.round(TILE * 0.34)}px sans-serif`;
+                  ctx.textAlign = "center";
+                  ctx.textBaseline = "middle";
+                  ctx.fillText(String(gate), sx, sy + 1);
+                }
               },
             });
           }
@@ -6471,7 +6732,16 @@ export default function WorldBoxClient() {
               const harvestedAt = surfaceObjStateRef.current.get(`${o.x},${o.y}`) ?? null;
               const ready = objectRespawned(odef, harvestedAt, now);
               if (!ready && odef.respawnMs > 0) continue;
-              drawSurfaceObject(ctx, o.objectId, toScreenX(o.x), toScreenY(o.y), TILE, !ready, now);
+              drawSurfaceObject(
+                ctx,
+                o.objectId,
+                toScreenX(o.x),
+                toScreenY(o.y),
+                TILE,
+                !ready,
+                now,
+                worldObjectSprites,
+              );
               if (
                 ready &&
                 Math.max(Math.abs(o.x + 0.5 - player.x), Math.abs(o.y + 0.5 - player.y)) <= 2
