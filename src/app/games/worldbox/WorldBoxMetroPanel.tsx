@@ -376,7 +376,7 @@ export default function WorldBoxMetroPanel({
           {onSetWaypoint && (
             <div>
               <div style={{ fontSize: 11.5, color: "#94a3b8", marginBottom: 6, fontWeight: 700 }}>
-                現地施設3Dナビ案内（各窓口は現地で直接操作）
+                現地施設ナビ案内（各窓口は現地で直接操作）
               </div>
               <div
                 style={{

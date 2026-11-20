@@ -6,35 +6,20 @@ import path from "node:path";
 const ROOT = process.cwd();
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel), "utf8");
 
-describe("WorldBox 3D WebGL Renderer, Counter Deduplication & Immersive Jobs", () => {
-  it("installs Three.js and implements WorldBox3DScene with instancing, raycasting, and interiors", () => {
+describe("WorldBox 2D Preservation, Counter Deduplication & Immersive Jobs", () => {
+  it("keeps pure 2D Discord-avatar renderer without Three.js bundle bloat or 3D HUD clutter", () => {
     const pkg = JSON.parse(read("package.json"));
-    assert.ok(pkg.dependencies?.three, "three dependency should be installed");
-    const sceneSrc = read("src/app/games/worldbox/WorldBox3DScene.ts");
-    assert.match(sceneSrc, /export class WorldBox3DScene/);
-    assert.match(sceneSrc, /static tryCreate\(/);
-    assert.match(sceneSrc, /screenToWorldTile\(/);
-    assert.match(sceneSrc, /projectWorldToScreen\(/);
-    assert.match(sceneSrc, /THREE\.InstancedMesh/);
-    assert.match(sceneSrc, /THREE\.Raycaster/);
-    assert.match(sceneSrc, /interiorSpec/);
-    assert.match(sceneSrc, /showroomPool/);
-    assert.match(sceneSrc, /beaconMesh/);
-    assert.match(sceneSrc, /beaconRing/);
-  });
-
-  it("mounts 3D WebGL canvas in WorldBoxClient with 3D default, camera orbit/zoom, and 2D fallback", () => {
+    assert.equal(pkg.dependencies?.three, undefined, "three dependency should not be bundled");
+    assert.equal(
+      fs.existsSync(path.join(ROOT, "src/app/games/worldbox/WorldBox3DScene.ts")),
+      false,
+      "WorldBox3DScene.ts should be removed",
+    );
     const clientSrc = read("src/app/games/worldbox/WorldBoxClient.tsx");
-    assert.match(clientSrc, /useState<"3d" \| "2d">\("3d"\)/);
-    assert.match(clientSrc, /ref=\{glCanvasRef\}/);
-    assert.match(clientSrc, /WorldBox3DScene\.tryCreate\(glCanvasRef\.current\)/);
-    assert.match(clientSrc, /scene3d\.screenToWorldTile\(/);
-    assert.match(clientSrc, /scene3d\.render\(/);
-    assert.match(clientSrc, /scene3d\?\.dispose\(\)/);
-    assert.match(clientSrc, /keys\.has\("q"\)/);
-    assert.match(clientSrc, /keys\.has\("e"\)/);
-    assert.match(clientSrc, /addEventListener\("wheel",\s*onWheel/);
-    assert.match(clientSrc, /id:\s*"view3d"/);
+    assert.ok(!clientSrc.includes("WorldBox3DScene"), "WorldBoxClient must not import 3D scene");
+    assert.ok(!clientSrc.includes("glCanvasRef"), "WorldBoxClient must not mount WebGL canvas");
+    assert.ok(clientSrc.includes("myIconUrl"), "2D renderer preserves Discord user avatar icon");
+    assert.ok(clientSrc.includes("drawAvatar("), "2D renderer preserves sprite/avatar rendering");
   });
 
   it("removes redundant facility launchers from hamburger menuActions and METRO OS", () => {
@@ -44,6 +29,7 @@ describe("WorldBox 3D WebGL Renderer, Counter Deduplication & Immersive Jobs", (
     const menuBody = menuMatch[1];
 
     for (const removedId of [
+      "view3d",
       "market",
       "finance",
       "jobs",
@@ -55,10 +41,10 @@ describe("WorldBox 3D WebGL Renderer, Counter Deduplication & Immersive Jobs", (
     ]) {
       assert.ok(
         !menuBody.includes(`id: "${removedId}"`),
-        `menuActions must not contain duplicate launcher id: "${removedId}"`,
+        `menuActions must not contain removed/duplicate launcher id: "${removedId}"`,
       );
     }
-    for (const keptId of ["warp", "view3d", "map", "economy", "company", "metro", "mapview"]) {
+    for (const keptId of ["warp", "map", "economy", "company", "metro", "mapview"]) {
       assert.ok(
         menuBody.includes(`id: "${keptId}"`),
         `menuActions should keep essential entry id: "${keptId}"`,
@@ -153,7 +139,6 @@ describe("WorldBox 3D WebGL Renderer, Counter Deduplication & Immersive Jobs", (
   it("contains zero Unicode emojis across all new and updated WorldBox files", () => {
     const EMOJI_RE = /\p{Extended_Pictographic}/u;
     const files = [
-      "src/app/games/worldbox/WorldBox3DScene.ts",
       "src/app/games/worldbox/WorldBoxJobMinigames.tsx",
       "src/app/games/worldbox/WorldBoxJobPanel.tsx",
       "src/app/games/worldbox/WorldBoxFinancePanel.tsx",
