@@ -547,9 +547,12 @@ export default function WorldBoxMetroPanel({
                 justifyContent: "space-between",
                 alignItems: "center",
                 gap: 8,
+                flexWrap: "wrap",
               }}
             >
-              <span>所持車両なし — 機械制作ラボで製作できます</span>
+              <span>
+                所持車両なし — ロビー南東・各都市のディーラーで購入、または制作ラボで製作可能
+              </span>
               <button
                 type="button"
                 className="wb-mmo-btn wb-mmo-btn-cyan"

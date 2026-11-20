@@ -47,7 +47,8 @@ export type PoiIconId =
   | "telescope"
   | "card"
   | "gift"
-  | "vent";
+  | "vent"
+  | "car";
 
 export interface SpacePoi {
   id: string;
@@ -170,6 +171,15 @@ export const SPACE_POIS: readonly SpacePoi[] = [
     label: "南東商業ギルド・金庫",
     badge: "gov",
     color: "#fbbf24",
+  },
+  {
+    id: "lobby:dealer_se",
+    space: "lobby",
+    x: 109,
+    y: 73,
+    label: "南東モビリティ・車両ディーラー",
+    badge: "car",
+    color: "#38bdf8",
   },
   {
     id: "lobby:resort",
