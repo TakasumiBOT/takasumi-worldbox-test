@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useState, type CSSProperties } from "react";
 import { WbIcon } from "./WbIcon";
+import VehiclePseudo3DViewer, { VehicleCardThumb } from "./VehiclePseudo3DViewer";
 import type { PlayerProfile } from "@/lib/worldbox/player/profile";
 import {
   VEHICLE_IDS,
@@ -50,87 +51,6 @@ const ERROR_TEXT: Record<string, string> = {
   unknown_vehicle: "不明な車両モデルです。",
 };
 
-function VehicleSvgPreview({ spec }: { spec: VehicleSpec }) {
-  if (spec.id === "electric_scooter") {
-    return (
-      <svg width="72" height="40" viewBox="0 0 72 40" aria-hidden="true">
-        <rect x="14" y="27" width="38" height="4" rx="2" fill={spec.bodyColor} />
-        <line
-          x1="48"
-          y1="27"
-          x2="43"
-          y2="8"
-          stroke={spec.trimColor}
-          strokeWidth="3"
-          strokeLinecap="round"
-        />
-        <line
-          x1="38"
-          y1="8"
-          x2="48"
-          y2="8"
-          stroke={spec.bodyColor}
-          strokeWidth="3"
-          strokeLinecap="round"
-        />
-        <circle cx="18" cy="33" r="5" fill="#0f172a" stroke={spec.trimColor} strokeWidth="2" />
-        <circle cx="52" cy="33" r="5" fill="#0f172a" stroke={spec.trimColor} strokeWidth="2" />
-      </svg>
-    );
-  }
-  if (spec.id === "delivery_moped") {
-    return (
-      <svg width="72" height="40" viewBox="0 0 72 40" aria-hidden="true">
-        <rect
-          x="8"
-          y="13"
-          width="16"
-          height="12"
-          rx="2"
-          fill="#f8fafc"
-          stroke={spec.bodyColor}
-          strokeWidth="2"
-        />
-        <path d="M12 28 Q26 20 40 20 L52 16 L58 28 Z" fill={spec.bodyColor} />
-        <line
-          x1="47"
-          y1="10"
-          x2="54"
-          y2="27"
-          stroke={spec.trimColor}
-          strokeWidth="2.6"
-          strokeLinecap="round"
-        />
-        <circle cx="19" cy="32" r="5.5" fill="#0f172a" stroke="#cbd5e1" strokeWidth="2" />
-        <circle cx="54" cy="32" r="5.5" fill="#0f172a" stroke="#cbd5e1" strokeWidth="2" />
-      </svg>
-    );
-  }
-  if (spec.id === "cargo_truck") {
-    return (
-      <svg width="72" height="40" viewBox="0 0 72 40" aria-hidden="true">
-        <rect x="6" y="9" width="38" height="20" rx="2" fill={spec.bodyColor} />
-        <path d="M45 14 H58 L65 21 V29 H45 Z" fill={spec.trimColor} />
-        <rect x="48" y="16" width="11" height="6" rx="1" fill="#bae6fd" />
-        <circle cx="17" cy="32" r="5.5" fill="#0f172a" stroke="#e2e8f0" strokeWidth="2" />
-        <circle cx="55" cy="32" r="5.5" fill="#0f172a" stroke="#e2e8f0" strokeWidth="2" />
-      </svg>
-    );
-  }
-  return (
-    <svg width="72" height="40" viewBox="0 0 72 40" aria-hidden="true">
-      <rect x="29" y="8" width="12" height="4" rx="1.5" fill="#ef4444" />
-      <rect x="35" y="8" width="6" height="4" rx="1" fill="#38bdf8" />
-      <path d="M8 22 L17 13 H47 L59 20 L65 23 V29 H8 Z" fill={spec.bodyColor} />
-      <rect x="24" y="20" width="22" height="9" fill={spec.trimColor} />
-      <rect x="21" y="15" width="12" height="5" rx="1" fill="#bae6fd" />
-      <rect x="35" y="15" width="12" height="5" rx="1" fill="#bae6fd" />
-      <circle cx="19" cy="32" r="5.5" fill="#0f172a" stroke="#e2e8f0" strokeWidth="2" />
-      <circle cx="53" cy="32" r="5.5" fill="#0f172a" stroke="#e2e8f0" strokeWidth="2" />
-    </svg>
-  );
-}
-
 export default function WorldBoxDealerPanel({
   title,
   fallbackCoins,
@@ -148,6 +68,7 @@ export default function WorldBoxDealerPanel({
 }) {
   const [ownedVehicles, setOwnedVehicles] = useState<VehicleItemId[]>([]);
   const [equippedVehicle, setEquippedVehicle] = useState<VehicleItemId | null>(null);
+  const [previewVehicleId, setPreviewVehicleId] = useState<VehicleItemId>("electric_scooter");
   const [balance, setBalance] = useState<number | null>(fallbackCoins ?? null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [msg, setMsg] = useState("");
@@ -161,6 +82,9 @@ export default function WorldBoxDealerPanel({
       const d = await res.json();
       setOwnedVehicles(Array.isArray(d.ownedVehicles) ? d.ownedVehicles : []);
       setEquippedVehicle(d.equippedVehicle ?? null);
+      if (d.equippedVehicle && VEHICLE_IDS.includes(d.equippedVehicle)) {
+        setPreviewVehicleId(d.equippedVehicle);
+      }
       if (typeof d.balance === "number") setBalance(d.balance);
     } catch {
       /* noop */
@@ -270,11 +194,14 @@ export default function WorldBoxDealerPanel({
         </div>
       )}
 
+      <VehiclePseudo3DViewer vehicleId={previewVehicleId} />
+
       <div style={{ display: "grid", gap: 10 }}>
         {VEHICLE_IDS.map((vid) => {
           const spec = VEHICLE_SPECS[vid];
           const owned = ownedVehicles.includes(vid);
           const equipped = equippedVehicle === vid;
+          const inspecting = previewVehicleId === vid;
           const speedPct = Math.min(100, Math.round((spec.speed / 10) * 100));
           const roadSpeed = Math.min(9.8, Number((spec.speed * 1.06).toFixed(2)));
           const affordable = balance === null || balance >= spec.price;
@@ -283,16 +210,21 @@ export default function WorldBoxDealerPanel({
             <div
               key={vid}
               className="wb-mmo-card"
+              onClick={() => setPreviewVehicleId(vid)}
               style={{
                 display: "grid",
                 gridTemplateColumns: "82px 1fr auto",
                 gap: 12,
                 alignItems: "center",
+                cursor: "pointer",
                 borderColor: equipped
-                  ? "rgba(74, 222, 128, 0.55)"
-                  : owned
-                    ? "rgba(56, 189, 248, 0.4)"
-                    : "rgba(148, 163, 184, 0.25)",
+                  ? "rgba(74, 222, 128, 0.65)"
+                  : inspecting
+                    ? "rgba(56, 189, 248, 0.72)"
+                    : owned
+                      ? "rgba(56, 189, 248, 0.4)"
+                      : "rgba(148, 163, 184, 0.25)",
+                background: inspecting ? "rgba(15, 31, 52, 0.85)" : undefined,
               }}
             >
               <div
@@ -301,12 +233,14 @@ export default function WorldBoxDealerPanel({
                   height: 54,
                   borderRadius: 10,
                   background: "rgba(15,23,42,0.75)",
-                  border: "1px solid rgba(148,163,184,0.22)",
+                  border: inspecting
+                    ? "1px solid rgba(56,189,248,0.55)"
+                    : "1px solid rgba(148,163,184,0.22)",
                   display: "grid",
                   placeItems: "center",
                 }}
               >
-                <VehicleSvgPreview spec={spec} />
+                <VehicleCardThumb vehicleId={vid} active={inspecting || equipped} />
               </div>
 
               <div style={{ display: "grid", gap: 4 }}>
@@ -369,7 +303,10 @@ export default function WorldBoxDealerPanel({
                 </div>
               </div>
 
-              <div style={{ display: "grid", justifyItems: "end", gap: 6 }}>
+              <div
+                style={{ display: "grid", justifyItems: "end", gap: 6 }}
+                onClick={(e) => e.stopPropagation()}
+              >
                 <div style={{ fontWeight: 800, color: "#fde047", fontSize: 13.5 }}>
                   ¥{spec.price.toLocaleString()}
                 </div>

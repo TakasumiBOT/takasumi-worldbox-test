@@ -61,6 +61,7 @@ export async function GET(request: Request) {
     rank: e.rank ?? 1,
     party: e.party ?? "",
     ...(e.sit === true ? { sit: true } : {}),
+    ...(e.vehicle ? { vehicle: e.vehicle } : {}),
     ts: e.ts,
   }));
   return NextResponse.json({ players, now: Date.now() }, { headers: NO_STORE });

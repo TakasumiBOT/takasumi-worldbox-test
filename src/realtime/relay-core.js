@@ -20,6 +20,7 @@ const APARTMENT_SPACE_RE = /^apartment:[a-zA-Z0-9_-]{1,24}$/;
 const INTERIOR_SPACE_RE = /^interior:(-?\d+),(-?\d+):([a-z0-9_]{1,20})$/;
 const INSTANCE_BOUNDS = { cave: 64, ruins: 48, dungeon: 52 };
 const ROLE_IDS = ["blade", "guard", "scout", "miner", "medic", "teleporter"];
+const VEHICLE_IDS = ["electric_scooter", "delivery_moped", "cargo_truck", "police_cruiser"];
 
 function boundsForSpace(space) {
   if (SPACE_BOUNDS[space]) {
@@ -89,6 +90,9 @@ function sanitizeHeartbeat(raw) {
         : 1,
     party: typeof raw.party === "string" ? raw.party.slice(0, 48) : "",
     ...(raw.sit === true ? { sit: true } : {}),
+    ...(typeof raw.vehicle === "string" && VEHICLE_IDS.includes(raw.vehicle)
+      ? { vehicle: raw.vehicle }
+      : {}),
   };
 }
 
