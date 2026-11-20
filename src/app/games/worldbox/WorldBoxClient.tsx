@@ -294,7 +294,6 @@ import WorldBoxMetroPanel from "./WorldBoxMetroPanel";
 import WorldBoxTradePanel from "./WorldBoxTradePanel";
 import WorldBoxRealEstatePanel from "./WorldBoxRealEstatePanel";
 import WorldBoxGovernancePanel from "./WorldBoxGovernancePanel";
-import { WorldBox3DScene } from "./WorldBox3DScene";
 import {
   APARTMENT_EXIT,
   apartmentTileAt,
@@ -949,13 +948,6 @@ const STATION_LABEL: Record<LobbyStation, string> = {
 export default function WorldBoxClient() {
   const { prefix, embedded, identity, retryIdentity } = useGamesNav();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const glCanvasRef = useRef<HTMLCanvasElement | null>(null);
-  const [renderMode, setRenderMode] = useState<"3d" | "2d">("3d");
-  const renderModeRef = useRef<"3d" | "2d">("3d");
-  renderModeRef.current = renderMode;
-  const cameraYawRef = useRef(0);
-  const cameraPitchRef = useRef(0.82);
-  const cameraDistRef = useRef(17);
   const minimapRef = useRef<HTMLCanvasElement | null>(null);
   const compassCaveArrowRef = useRef<HTMLSpanElement | null>(null);
   const compassCaveDistRef = useRef<HTMLSpanElement | null>(null);
@@ -2925,10 +2917,6 @@ export default function WorldBoxClient() {
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    const scene3d = glCanvasRef.current ? WorldBox3DScene.tryCreate(glCanvasRef.current) : null;
-    if (!scene3d && renderModeRef.current === "3d") {
-      setRenderMode("2d");
-    }
 
     const lobby = buildLobby();
     let tentTierSeen = -1;
@@ -3755,10 +3743,6 @@ export default function WorldBoxClient() {
     };
     const toTile = (e: PointerEvent) => {
       const p = canvasPos(e);
-      if (renderModeRef.current === "3d" && scene3d) {
-        const hit = scene3d.screenToWorldTile(p.x, p.y, p.w, p.h);
-        if (hit) return hit;
-      }
       return {
         x: Math.floor(cam.x + (p.x - p.w / 2) / TILE),
         y: Math.floor(cam.y + (p.y - p.h / 2) / TILE),
@@ -4315,17 +4299,10 @@ export default function WorldBoxClient() {
       joy.dx = 0;
       joy.dy = 0;
     };
-    const onWheel = (e: WheelEvent) => {
-      if (renderModeRef.current !== "3d" || !scene3d) return;
-      e.preventDefault();
-      const delta = Math.sign(e.deltaY) * 1.4;
-      cameraDistRef.current = Math.max(9, Math.min(32, cameraDistRef.current + delta));
-    };
     canvas.addEventListener("pointerdown", onPointerDown);
     canvas.addEventListener("pointermove", onPointerMove);
     canvas.addEventListener("pointerup", onPointerUp);
     canvas.addEventListener("pointercancel", onPointerUp);
-    canvas.addEventListener("wheel", onWheel, { passive: false });
 
     const onPageHide = () => {
       saveNow(true);
@@ -4988,23 +4965,10 @@ export default function WorldBoxClient() {
         ix = 0;
         iy = 0;
       }
-      if (renderModeRef.current === "3d" && scene3d) {
-        if (keys.has("q")) cameraYawRef.current -= 1.85 * dt;
-        if (keys.has("e")) cameraYawRef.current += 1.85 * dt;
-      }
       const ilen = Math.hypot(ix, iy);
       if (ilen > 1) {
         ix /= ilen;
         iy /= ilen;
-      }
-      if (renderModeRef.current === "3d" && scene3d && (ix !== 0 || iy !== 0)) {
-        const yaw = cameraYawRef.current;
-        const cosY = Math.cos(yaw);
-        const sinY = Math.sin(yaw);
-        const rx = ix * cosY + iy * sinY;
-        const ry = -ix * sinY + iy * cosY;
-        ix = rx;
-        iy = ry;
       }
       if (telescopeOpenRef.current) {
         if (!telescopeCam) telescopeCam = { x: player.x, y: player.y };
@@ -5332,1568 +5296,1219 @@ export default function WorldBoxClient() {
       let lobbyOx = 0;
       let lobbyOy = 0;
       let drawLobbySprite: (o: LobbyObject) => void = () => {};
-      const use3d = renderModeRef.current === "3d" && scene3d !== null;
-      const projectOverlay = (wx: number, wy: number, wz = 0.8) => {
-        if (use3d && scene3d) {
-          return scene3d.projectWorldToScreen(wx, wy, wz, cw, ch);
-        }
-        return {
-          x: space === "world" ? toScreenX(wx) : Math.round(lobbyOx + wx * TILE),
-          y: space === "world" ? toScreenY(wy) : Math.round(lobbyOy + wy * TILE),
-          visible: true,
-        };
-      };
-      if (use3d && scene3d) {
-        const dayPhase3d = phaseAtTime(nowMs / 1000);
-        const night3d = nightAmount(dayPhase3d);
-        const indoor3d = space === "world" ? null : indoorData();
-        const intr3d = space === "world" ? null : interiorNow();
-        const remotes3d = [...others.values()].map((o) => {
-          const ospeed = Math.hypot(o.track.entry.vx, o.track.entry.vy);
-          const oface: 1 | -1 = o.track.entry.vx < -0.15 ? -1 : 1;
-          return {
-            id: o.track.entry.id,
-            name: o.track.entry.name || "プレイヤー",
-            x: o.track.rx,
-            y: o.track.ry,
-            face: oface,
-            phase: o.phase,
-            speed: ospeed,
-            shirtColor: nationsRef.current.playerNations[o.track.entry.id]?.color ?? "#38bdf8",
-          };
-        });
-        scene3d.render({
-          cw,
-          ch,
-          nowMs,
-          dayPhase: dayPhase3d,
-          nightAmt: night3d,
-          space,
-          camX: cam.x,
-          camY: cam.y,
-          playerX: player.x,
-          playerY: player.y,
-          playerFace: player.face,
-          playerPhase: player.phase,
-          playerSpeed: speed,
-          playerSwimming,
-          equippedVehicle: equippedVehicleRef.current,
-          effTileAt,
-          tilesOverrides: tilesRef.current,
-          indoor: indoor3d,
-          interiorSpec: intr3d,
-          remotes: remotes3d,
-          nations: nationsRef.current.nations.map((n) => ({
-            id: n.id,
-            name: n.name,
-            color: n.color,
-            capital: n.capital,
-          })),
-          pins: mapPinsRef.current,
-          trackedTarget: trackedTargetRef.current,
-          cameraYaw: cameraYawRef.current,
-          cameraPitch: cameraPitchRef.current,
-          cameraDist: cameraDistRef.current,
-        });
-
-        const drawLabelPill = (
-          sx: number,
-          sy: number,
-          text: string,
-          borderColor = "rgba(56,189,248,0.65)",
-          textColor = "#f8fafc",
-          bg = "rgba(10,16,28,0.84)",
-        ) => {
-          if (sx < -120 || sy < -40 || sx > cw + 120 || sy > ch + 40) return;
-          ctx.save();
-          ctx.font = "700 11px sans-serif";
-          ctx.textAlign = "center";
-          const tw = ctx.measureText(text).width + 14;
-          const bx = sx - tw / 2;
-          const by = sy - 18;
-          ctx.fillStyle = bg;
-          ctx.strokeStyle = borderColor;
-          ctx.lineWidth = 1.2;
-          ctx.beginPath();
-          ctx.roundRect(bx, by, tw, 18, 6);
-          ctx.fill();
-          ctx.stroke();
-          ctx.fillStyle = textColor;
-          ctx.fillText(text, sx, by + 13);
-          ctx.restore();
-        };
-
-        if (space === "world") {
-          for (const stl of settlementsNear(cam.x, cam.y, 26)) {
-            for (const b of stl.buildings) {
-              if (Math.hypot(b.x + b.w / 2 - cam.x, b.y + b.h / 2 - cam.y) > 22) continue;
-              const p = scene3d.projectWorldToScreen(b.x + b.w / 2, b.y + b.h / 2, 2.75, cw, ch);
-              if (p.visible) {
-                drawLabelPill(p.x, p.y, `[${b.signText}] ${b.label}`, b.signColor);
-              }
-            }
-            for (const cit of stl.citizens) {
-              const pose = evaluateCitizenPose(stl, cit, dayPhase3d, nowMs);
-              if (pose.sleeping) continue;
-              const distC = Math.hypot(pose.x - player.x, pose.y - player.y);
-              if (distC > 18) continue;
-              const p = scene3d.projectWorldToScreen(pose.x, pose.y, 1.7, cw, ch);
-              if (!p.visible) continue;
-              drawLabelPill(p.x, p.y, cit.name, cit.shirtColor, "#e2e8f0", "rgba(15,23,42,0.78)");
-              if (distC <= 3.8 && cit.phrases.length > 0) {
-                const phrase =
-                  cit.phrases[Math.floor((nowMs / 6500 + cit.phaseOffset) % cit.phrases.length)] ??
-                  pose.activity;
-                const bp = scene3d.projectWorldToScreen(pose.x, pose.y, 2.35, cw, ch);
-                if (bp.visible) {
-                  drawLabelPill(bp.x, bp.y, phrase, "#38bdf8", "#f0f9ff", "rgba(12,24,42,0.92)");
-                }
-              }
-            }
-          }
-          for (const n of nationsRef.current.nations) {
-            if (Math.hypot(n.capital.x - cam.x, n.capital.y - cam.y) > 26) continue;
-            const p = scene3d.projectWorldToScreen(
-              n.capital.x + 0.5,
-              n.capital.y + 0.5,
-              2.8,
-              cw,
-              ch,
-            );
-            if (p.visible) drawLabelPill(p.x, p.y, `[国都] ${n.name}`, n.color, "#fef08a");
-          }
-          for (const pin of mapPinsRef.current) {
-            if (pin.space !== "world") continue;
-            if (Math.hypot(pin.x - cam.x, pin.y - cam.y) > 28) continue;
-            const p = scene3d.projectWorldToScreen(pin.x + 0.5, pin.y + 0.5, 2.1, cw, ch);
-            if (p.visible) drawLabelPill(p.x, p.y, pin.label, pin.color || "#38bdf8");
-          }
-        } else {
-          if (intr3d) {
-            const ep = scene3d.projectWorldToScreen(
-              intr3d.exitMat.x + intr3d.exitMat.w / 2,
-              intr3d.exitMat.y + intr3d.exitMat.h / 2,
-              0.9,
-              cw,
-              ch,
-            );
-            if (ep.visible) drawLabelPill(ep.x, ep.y, "EXIT / 通りへ出る", "#4ade80", "#bbf7d0");
-            for (const bay of intr3d.dealerBays) {
-              const p = scene3d.projectWorldToScreen(bay.x + 0.5, bay.y + 0.5, 1.75, cw, ch);
-              if (p.visible) {
-                drawLabelPill(
-                  p.x,
-                  p.y,
-                  `${bay.label} ・ ${bay.price.toLocaleString()}G`,
-                  bay.accent,
-                  "#fef08a",
-                );
-              }
-            }
-            for (const stf of intr3d.staff) {
-              const p = scene3d.projectWorldToScreen(stf.x, stf.y, 1.7, cw, ch);
-              if (p.visible) {
-                drawLabelPill(p.x, p.y, `[${stf.roleLabel}] ${stf.name}`, stf.shirtColor);
-              }
-              if (Math.hypot(stf.x - player.x, stf.y - player.y) <= 3.6 && stf.phrases.length > 0) {
-                const phrase = stf.phrases[Math.floor((nowMs / 6000) % stf.phrases.length)];
-                const bp = scene3d.projectWorldToScreen(stf.x, stf.y, 2.35, cw, ch);
-                if (bp.visible && phrase) {
-                  drawLabelPill(bp.x, bp.y, phrase, "#38bdf8", "#f0f9ff", "rgba(12,24,42,0.92)");
-                }
-              }
-            }
-          } else if (indoor3d) {
-            for (const o of indoor3d.objects) {
-              if (!o.station) continue;
-              const cxo = o.x + o.w / 2;
-              const cyo = o.y + o.h / 2;
-              if (Math.hypot(cxo - player.x, cyo - player.y) > 13) continue;
-              const label =
-                o.station === "shop" && o.genre
-                  ? (genreById(o.genre)?.name ?? STATION_LABEL[o.station])
-                  : o.station === "arcade" && o.arcade
-                    ? (getWebGame(o.arcade)?.title ?? STATION_LABEL[o.station])
-                    : STATION_LABEL[o.station];
-              const p = scene3d.projectWorldToScreen(cxo, cyo, 1.9, cw, ch);
-              if (p.visible) {
-                drawLabelPill(
-                  p.x,
-                  p.y,
-                  label,
-                  o.station === "dealer" ? "#38bdf8" : "rgba(251,191,36,0.7)",
-                  "#fef9c3",
-                );
-              }
-            }
-          }
-        }
-
-        for (const rm of remotes3d) {
-          const p = scene3d.projectWorldToScreen(rm.x, rm.y, 1.85, cw, ch);
-          if (p.visible) drawLabelPill(p.x, p.y, rm.name, rm.shirtColor);
-        }
-
-        const trNow3d = trackedTargetRef.current;
-        if (trNow3d) {
-          let txTile: number | null = null;
-          let tyTile: number | null = null;
-          let sameSpace = false;
-          if (trNow3d.kind === "player") {
-            const otherPl = others.get(trNow3d.presenceId);
-            if (otherPl) {
-              txTile = otherPl.track.rx;
-              tyTile = otherPl.track.ry;
-              sameSpace = true;
-            }
-          } else if (trNow3d.space === space) {
-            txTile = trNow3d.x + 0.5;
-            tyTile = trNow3d.y + 0.5;
-            sameSpace = true;
-          }
-          if (sameSpace && txTile !== null && tyTile !== null) {
-            const dist = Math.hypot(txTile - player.x, tyTile - player.y);
-            if (trackedDistElRef.current) {
-              trackedDistElRef.current.textContent = `${Math.round(dist)}m`;
-            }
-            const pPlay = scene3d.projectWorldToScreen(player.x, player.y, 0.4, cw, ch);
-            const pTgt = scene3d.projectWorldToScreen(txTile, tyTile, 0.8, cw, ch);
-            const ang = Math.atan2(pTgt.y - pPlay.y, pTgt.x - pPlay.x);
-            if (dist > 2) {
-              const ax = pPlay.x + Math.cos(ang) * 46;
-              const ay = pPlay.y + Math.sin(ang) * 46;
-              ctx.save();
-              ctx.translate(ax, ay);
-              ctx.rotate(ang);
-              ctx.fillStyle = dist <= 4.5 ? "#4ade80" : (trNow3d.color ?? "#38bdf8");
-              ctx.beginPath();
-              ctx.moveTo(11, 0);
-              ctx.lineTo(-6, -6);
-              ctx.lineTo(-3, 0);
-              ctx.lineTo(-6, 6);
-              ctx.closePath();
-              ctx.fill();
-              ctx.restore();
-            }
-            if (pTgt.visible) {
-              drawLabelPill(
-                pTgt.x,
-                pTgt.y - 20,
-                `${trNow3d.label} (${Math.round(dist)}m)`,
-                trNow3d.color ?? "#38bdf8",
-                "#e0f2fe",
-              );
-            }
-          } else if (trackedDistElRef.current) {
-            trackedDistElRef.current.textContent =
-              trNow3d.kind === "player" ? "他エリア/圏外" : "別エリア";
-          }
-        }
-      } else {
-        if (space === "world") {
-          const tx0 = Math.floor(cam.x - cw / TILE / 2 - 1);
-          const tx1 = Math.ceil(cam.x + cw / TILE / 2 + 1);
-          const ty0 = Math.floor(cam.y - ch / TILE / 2 - 1);
-          const ty1 = Math.ceil(cam.y + ch / TILE / 2 + 1);
-          ctx.imageSmoothingEnabled = false;
-          const tileOriginX = Math.round(toScreenX(tx0));
-          const tileOriginY = Math.round(toScreenY(ty0));
-          const tileSx = (tx: number) => tileOriginX + (tx - tx0) * TILE;
-          const tileSy = (ty: number) => tileOriginY + (ty - ty0) * TILE;
-          for (let ty = ty0; ty <= ty1; ty++) {
-            for (let tx = tx0; tx <= tx1; tx++) {
-              const id = mapTileAt(worldMap, tx, ty);
-              const sx = tileSx(tx);
-              const sy = tileSy(ty);
-              const dungeonKey = TILE_DUNGEON[id];
-              const baseTex = dungeonKey ? dungeon[dungeonKey] : textures[TILE_TEXTURE[id]];
-              if (texReady(baseTex)) ctx.drawImage(baseTex, sx, sy, TILE + 1, TILE + 1);
-              else {
-                ctx.fillStyle = TILE_FALLBACK[id] ?? "#57a639";
-                ctx.fillRect(sx, sy, TILE + 1, TILE + 1);
-              }
-            }
-          }
-          {
-            const roadStls = settlementsNear(cam.x, cam.y, 44);
-            for (const stl of roadStls) {
-              const rMinX = Math.max(tx0, stl.cx - stl.radius);
-              const rMaxX = Math.min(tx1, stl.cx + stl.radius);
-              const rMinY = Math.max(ty0, stl.cy - stl.radius);
-              const rMaxY = Math.min(ty1, stl.cy + stl.radius);
-              for (let ty = rMinY; ty <= rMaxY; ty++) {
-                for (let tx = rMinX; tx <= rMaxX; tx++) {
-                  const surfKind =
-                    settlementSurfaceAt(stl, tx, ty) ?? settlementRoadAt(stl, tx, ty);
-                  if (!surfKind) continue;
-                  const roadSx = tileSx(tx);
-                  const roadSy = tileSy(ty);
-                  if (surfKind === "plaza") {
-                    ctx.fillStyle = "#94a3b8";
-                    ctx.fillRect(roadSx, roadSy, TILE + 1, TILE + 1);
-                    ctx.strokeStyle = "rgba(30,41,59,0.24)";
-                    ctx.lineWidth = 1;
-                    ctx.strokeRect(roadSx + 1, roadSy + 1, TILE - 2, TILE - 2);
-                  } else if (surfKind === "pier") {
-                    ctx.fillStyle = "#8c5a32";
-                    ctx.fillRect(roadSx, roadSy, TILE + 1, TILE + 1);
-                    ctx.fillStyle = "#5c391e";
-                    for (let pyOff = 6; pyOff < TILE; pyOff += 10) {
-                      ctx.fillRect(roadSx, roadSy + pyOff, TILE + 1, 2);
-                    }
-                    ctx.fillStyle = "#cbd5e1";
-                    ctx.fillRect(roadSx + 3, roadSy + 3, 4, 4);
-                    ctx.fillRect(roadSx + TILE - 7, roadSy + 3, 4, 4);
-                  } else if (surfKind === "farm") {
-                    ctx.fillStyle = "#5c3d22";
-                    ctx.fillRect(roadSx, roadSy, TILE + 1, TILE + 1);
-                    ctx.fillStyle = "#3e2714";
-                    for (let fyOff = 7; fyOff < TILE; fyOff += 11) {
-                      ctx.fillRect(roadSx + 2, roadSy + fyOff, TILE - 4, 3);
-                    }
-                    ctx.fillStyle = "#22c55e";
-                    for (let fxOff = 6; fxOff < TILE - 4; fxOff += 10) {
-                      ctx.fillRect(roadSx + fxOff, roadSy + 4, 5, 5);
-                      ctx.fillRect(roadSx + fxOff, roadSy + 22, 5, 5);
-                    }
-                  } else {
-                    ctx.fillStyle = "#475569";
-                    ctx.fillRect(roadSx, roadSy, TILE + 1, TILE + 1);
-                    ctx.fillStyle = "rgba(226,232,240,0.45)";
-                    if (tx === stl.cx && ty % 2 === 0)
-                      ctx.fillRect(roadSx + TILE / 2 - 1, roadSy + 6, 2, TILE - 12);
-                    else if (ty === stl.cy && tx % 2 === 0)
-                      ctx.fillRect(roadSx + 6, roadSy + TILE / 2 - 1, TILE - 12, 2);
-                  }
-                }
-              }
-            }
-          }
-
-          {
-            const ccx0 = Math.floor(tx0 / CHUNK_SIZE);
-            const ccx1 = Math.floor(tx1 / CHUNK_SIZE);
-            const ccy0 = Math.floor(ty0 / CHUNK_SIZE);
-            const ccy1 = Math.floor(ty1 / CHUNK_SIZE);
-            for (let ccy = ccy0; ccy <= ccy1; ccy++) {
-              for (let ccx = ccx0; ccx <= ccx1; ccx++) {
-                for (const st of structuresForChunk(MAP_SEED, ccx, ccy)) {
-                  const stDef = structureById(st.structureId);
-                  const sx = Math.round(toScreenX(st.x));
-                  const sy = Math.round(toScreenY(st.y));
-                  if (stDef?.kind === "entrance") {
-                    ctx.fillStyle = "#4a4a55";
-                    ctx.fillRect(sx + 2, sy + 4, TILE - 4, TILE - 4);
-                    ctx.fillStyle = "#0a0a10";
-                    ctx.beginPath();
-                    ctx.arc(sx + TILE / 2, sy + TILE - 6, TILE * 0.26, Math.PI, 0);
-                    ctx.rect(sx + TILE / 2 - TILE * 0.26, sy + TILE - 6, TILE * 0.52, 4);
-                    ctx.fill();
-                  } else {
-                    ctx.fillStyle = "rgba(120,116,100,0.9)";
-                    ctx.fillRect(sx + 6, sy + 8, TILE - 12, TILE - 10);
-                    ctx.fillStyle = "rgba(90,86,70,0.9)";
-                    ctx.fillRect(sx + 4, sy + 5, TILE - 8, 4);
-                  }
-                  if (Math.hypot(player.x - (st.x + 0.5), player.y - (st.y + 0.5)) <= 5) {
-                    ctx.font = "11px sans-serif";
-                    ctx.textAlign = "center";
-                    ctx.fillStyle = "rgba(10,10,14,0.65)";
-                    const label = stDef?.name ?? "";
-                    const w = ctx.measureText(label).width + 10;
-                    ctx.fillRect(sx + TILE / 2 - w / 2, sy - 16, w, 14);
-                    ctx.fillStyle = "#fff";
-                    ctx.fillText(label, sx + TILE / 2, sy - 5);
-                  }
-                }
-              }
-            }
-          }
-
-          for (let ty = ty0; ty <= ty1; ty++) {
-            for (let tx = tx0; tx <= tx1; tx++) {
-              const ov = tilesRef.current[tileKey(tx, ty)];
-              if (!isOverrideActive(ov, nowMs)) continue;
-              const sx = tileSx(tx);
-              const sy = tileSy(ty);
-              if (ov!.farmland) {
-                const img = farmSprites.farmland;
-                if (texReady(img)) ctx.drawImage(img, sx, sy, TILE + 1, TILE + 1);
-                else {
-                  ctx.fillStyle = "#8a5a2b";
-                  ctx.fillRect(sx, sy, TILE + 1, TILE + 1);
-                }
-              }
-              if (ov!.stump) {
-                const img = farmSprites.stump;
-                if (texReady(img)) ctx.drawImage(img, sx, sy, TILE, TILE);
-              }
-              if (ov!.crop) {
-                const img = farmSprites[`crop${cropStage(ov!.crop, nowMs)}`];
-                if (texReady(img)) ctx.drawImage(img, sx, sy, TILE, TILE);
-              }
-              if (ov!.hp !== undefined) {
-                const frac = terrainHpFraction(ov!, mapTileAt(worldMap, tx, ty));
-                if (frac < 1) drawBlockCracks(ctx, sx, sy, tx, ty, frac);
-              }
-              if (ov!.block) {
-                const img = itemIcons[ov!.block.itemId];
-                const bx = Math.round(sx);
-                const by = Math.round(sy);
-                const isRug = ov!.block.itemId === "rug";
-                const isFlat =
-                  isRug || (isFloorItem(ov!.block.itemId) && ov!.block.itemId !== "bridge_block");
-                const ps = isFlat ? 1 : popScaleFor(tileKey(tx, ty), now);
-                ctx.save();
-                if (ps !== 1) {
-                  ctx.translate(bx + TILE / 2, by + TILE / 2);
-                  ctx.scale(ps, ps);
-                  ctx.translate(-(bx + TILE / 2), -(by + TILE / 2));
-                }
-                if (isFlat) {
-                  if (texReady(img))
-                    ctx.drawImage(
-                      img,
-                      bx + 2,
-                      Math.round(by + TILE * 0.36),
-                      TILE - 4,
-                      Math.round(TILE * 0.6),
-                    );
-                  else {
-                    ctx.fillStyle = isRug ? "#8a4a56" : "#7a6a55";
-                    ctx.fillRect(
-                      bx + 2,
-                      Math.round(by + TILE * 0.36),
-                      TILE - 4,
-                      Math.round(TILE * 0.6),
-                    );
-                  }
-                } else if (isGateItem(ov!.block.itemId) && ov!.gateOpen === true) {
-                  if (texReady(img)) ctx.drawImage(img, bx, by, Math.round(TILE * 0.28), TILE);
-                  else {
-                    ctx.fillStyle = "#8a6a42";
-                    ctx.fillRect(bx, by + 4, Math.round(TILE * 0.28), TILE - 8);
-                  }
-                } else if (texReady(img)) ctx.drawImage(img, bx, by, TILE, TILE);
-                else {
-                  ctx.fillStyle = "#9a7b4f";
-                  ctx.fillRect(bx + 5, by + 5, TILE - 10, TILE - 10);
-                }
-                drawBlockCracks(ctx, bx, by, tx, ty, blockHpFraction(ov!.block));
-                if (ov!.deco) {
-                  const decoImg = itemIcons[ov!.deco];
-                  if (texReady(decoImg)) {
-                    const ds = Math.round(TILE * 0.55);
-                    ctx.drawImage(
-                      decoImg,
-                      Math.round(bx + (TILE - ds) / 2),
-                      Math.round(by + TILE * 0.06),
-                      ds,
-                      ds,
-                    );
-                  }
-                }
-                if (ov!.display) {
-                  const dispImg = itemIcons[ov!.display];
-                  if (texReady(dispImg)) {
-                    const ds = Math.round(TILE * 0.6);
-                    ctx.drawImage(
-                      dispImg,
-                      Math.round(bx + (TILE - ds) / 2),
-                      Math.round(by + TILE * 0.02),
-                      ds,
-                      ds,
-                    );
-                  }
-                }
-                if (ov!.signText) {
-                  ctx.save();
-                  ctx.font = "bold 10px sans-serif";
-                  ctx.textAlign = "center";
-                  const tw = Math.min(TILE - 2, ctx.measureText(ov!.signText).width + 8);
-                  ctx.fillStyle = "rgba(20,14,8,0.72)";
-                  ctx.fillRect(
-                    Math.round(bx + (TILE - tw) / 2),
-                    Math.round(by + TILE * 0.3),
-                    Math.round(tw),
-                    14,
-                  );
-                  ctx.fillStyle = "#ffe9b8";
-                  ctx.fillText(
-                    ov!.signText,
-                    Math.round(bx + TILE / 2),
-                    Math.round(by + TILE * 0.3) + 10,
-                    TILE - 4,
-                  );
-                  ctx.restore();
-                }
-                if (isMachineItem(ov!.block.itemId)) {
-                  const bid = ov!.block.itemId;
-                  const spec = machineSpecFor(bid);
-                  const pulse = 0.5 + 0.5 * Math.sin(now / 260 + tx * 0.7 + ty * 0.9);
-                  ctx.save();
-                  if (bid === "power_generator") {
-                    ctx.strokeStyle = `rgba(56,189,248,${(0.28 + 0.28 * pulse).toFixed(2)})`;
-                    ctx.lineWidth = 1.8;
-                    ctx.beginPath();
-                    ctx.arc(bx + TILE / 2, by + TILE / 2, TILE * 0.55 + pulse * 4, 0, Math.PI * 2);
-                    ctx.stroke();
-                  } else if (bid === "security_camera") {
-                    const sweep = (now / 900 + tx) % (Math.PI * 2);
-                    ctx.fillStyle = "rgba(239,68,68,0.16)";
-                    ctx.beginPath();
-                    ctx.moveTo(bx + TILE / 2, by + TILE / 2);
-                    ctx.arc(bx + TILE / 2, by + TILE / 2, TILE * 0.85, sweep, sweep + 0.8);
-                    ctx.closePath();
-                    ctx.fill();
-                  } else if (bid === "smart_vending") {
-                    ctx.fillStyle = "rgba(20,184,166,0.92)";
-                    ctx.fillRect(bx + TILE - 20, by + 2, 18, 9);
-                    ctx.fillStyle = "#fff";
-                    ctx.font = "bold 7px sans-serif";
-                    ctx.textAlign = "center";
-                    ctx.fillText("24H", bx + TILE - 11, by + 9);
-                  }
-                  ctx.fillStyle = pulse > 0.5 ? spec.accentColor : "#38bdf8";
-                  ctx.beginPath();
-                  ctx.arc(bx + TILE - 6, by + 6, 3, 0, Math.PI * 2);
-                  ctx.fill();
-                  ctx.restore();
-                }
-                ctx.restore();
-              }
-            }
-          }
-
-          const prof = invRef.current;
-          const slot = prof?.hotbar[selSlotRef.current] ?? null;
-          const selDef = slot ? itemById(slot.id) : null;
-          if (
-            prof &&
-            selDef &&
-            (selDef.category === "block" || selDef.facility === true || !!selDef.placesBlock)
-          ) {
-            const px = Math.floor(player.x);
-            const py = Math.floor(player.y);
-            for (let dy = -1; dy <= 1; dy++) {
-              for (let dx = -1; dx <= 1; dx++) {
-                const vx = px + dx;
-                const vy = py + dy;
-                const v = tileView(terrainMap, tilesRef.current, vx, vy, nowMs, null);
-                if (actionForTile(v, { blockId: selDef.id })?.action !== "place_block") continue;
-                ctx.fillStyle = "rgba(140,255,150,0.20)";
-                ctx.fillRect(toScreenX(vx), toScreenY(vy), TILE, TILE);
-                ctx.strokeStyle = "rgba(225,255,225,0.55)";
-                ctx.lineWidth = 1.5;
-                ctx.strokeRect(toScreenX(vx) + 1, toScreenY(vy) + 1, TILE - 2, TILE - 2);
-              }
-            }
-          }
-
-          ctx.imageSmoothingEnabled = true;
-
-          for (const n of nationsRef.current.nations) {
-            const csx = toScreenX(n.capital.x + 0.5);
-            const csy = toScreenY(n.capital.y + 1);
-            if (csx < -TILE * 2 || csy < -TILE * 2 || csx > cw + TILE * 2 || csy > ch + TILE * 2)
-              continue;
-            drawCapital(ctx, csx, csy, n);
-          }
-        } else {
-          ctx.fillStyle = "#14121c";
-          ctx.fillRect(0, 0, cw, ch);
-          lobbyOx = Math.round(cw / 2 - cam.x * TILE);
-          lobbyOy = Math.round(ch / 2 - cam.y * TILE);
-          drawLobbySprite = (o: LobbyObject) => {
-            const img = lobbySprites[o.sprite];
-            const sx = lobbyOx + o.x * TILE;
-            const sy = lobbyOy + o.y * TILE;
-            ctx.imageSmoothingEnabled = false;
-            if (texReady(img)) ctx.drawImage(img, sx, sy, o.w * TILE, o.h * TILE);
+      if (space === "world") {
+        const tx0 = Math.floor(cam.x - cw / TILE / 2 - 1);
+        const tx1 = Math.ceil(cam.x + cw / TILE / 2 + 1);
+        const ty0 = Math.floor(cam.y - ch / TILE / 2 - 1);
+        const ty1 = Math.ceil(cam.y + ch / TILE / 2 + 1);
+        ctx.imageSmoothingEnabled = false;
+        const tileOriginX = Math.round(toScreenX(tx0));
+        const tileOriginY = Math.round(toScreenY(ty0));
+        const tileSx = (tx: number) => tileOriginX + (tx - tx0) * TILE;
+        const tileSy = (ty: number) => tileOriginY + (ty - ty0) * TILE;
+        for (let ty = ty0; ty <= ty1; ty++) {
+          for (let tx = tx0; tx <= tx1; tx++) {
+            const id = mapTileAt(worldMap, tx, ty);
+            const sx = tileSx(tx);
+            const sy = tileSy(ty);
+            const dungeonKey = TILE_DUNGEON[id];
+            const baseTex = dungeonKey ? dungeon[dungeonKey] : textures[TILE_TEXTURE[id]];
+            if (texReady(baseTex)) ctx.drawImage(baseTex, sx, sy, TILE + 1, TILE + 1);
             else {
-              ctx.fillStyle = "rgba(130,130,140,0.85)";
-              ctx.fillRect(sx, sy, o.w * TILE, o.h * TILE);
-            }
-            ctx.imageSmoothingEnabled = true;
-          };
-          const indoor = indoorData();
-          const lx0 = Math.max(0, Math.floor(cam.x - cw / TILE / 2 - 1));
-          const lx1 = Math.min(indoor.width - 1, Math.ceil(cam.x + cw / TILE / 2 + 1));
-          const ly0 = Math.max(0, Math.floor(cam.y - ch / TILE / 2 - 1));
-          const ly1 = Math.min(indoor.height - 1, Math.ceil(cam.y + ch / TILE / 2 + 1));
-          ctx.imageSmoothingEnabled = false;
-          for (let ty = ly0; ty <= ly1; ty++) {
-            for (let tx = lx0; tx <= lx1; tx++) {
-              const id =
-                parseInstanceSpace(space) || parseInteriorSpace(space)
-                  ? (indoor.tiles[ty * indoor.width + tx] ?? 0)
-                  : parseApartmentSpace(space)
-                    ? apartmentTileAt(indoor.tiles, tx, ty)
-                    : space === "tent"
-                      ? tentTileAt(indoor.tiles, indoor.width, indoor.height, tx, ty)
-                      : space === "prison"
-                        ? prisonTileAt(indoor.tiles, tx, ty)
-                        : space === "lobby2"
-                          ? lobby2TileAt(indoor.tiles, tx, ty)
-                          : space === "lobby3"
-                            ? lobby3TileAt(indoor.tiles, tx, ty)
-                            : lobbyTileAt(indoor.tiles, tx, ty);
-              if (id === L_VOID) continue;
-              const sx = lobbyOx + tx * TILE;
-              const sy = lobbyOy + ty * TILE;
-              const key = LOBBY_FLOOR_SPRITE[id];
-              const img = key ? lobbySprites[key] : textures[TILE_TEXTURE[T_SAND]];
-              if (texReady(img)) ctx.drawImage(img, sx, sy, TILE, TILE);
-              else {
-                ctx.fillStyle = LOBBY_FLOOR_FALLBACK[id] ?? "#888888";
-                ctx.fillRect(sx, sy, TILE, TILE);
-              }
-              if (id === L_PLAZA) {
-                ctx.fillStyle = "rgba(255,255,255,0.10)";
-                ctx.fillRect(sx, sy, TILE, TILE);
-              }
+              ctx.fillStyle = TILE_FALLBACK[id] ?? "#57a639";
+              ctx.fillRect(sx, sy, TILE + 1, TILE + 1);
             }
           }
-          {
-            const intrDraw = interiorNow();
-            if (intrDraw) {
-              const ex = Math.round(lobbyOx + intrDraw.exitMat.x * TILE);
-              const ey = Math.round(lobbyOy + intrDraw.exitMat.y * TILE);
-              const ew = intrDraw.exitMat.w * TILE;
-              const eh = intrDraw.exitMat.h * TILE;
-              ctx.fillStyle = "rgba(74, 222, 128, 0.35)";
-              ctx.fillRect(ex + 2, ey + 2, ew - 4, eh - 4);
-              ctx.strokeStyle = "#4ade80";
-              ctx.lineWidth = 2;
-              ctx.strokeRect(ex + 2, ey + 2, ew - 4, eh - 4);
-              ctx.font = "800 10.5px sans-serif";
-              ctx.textAlign = "center";
-              ctx.fillStyle = "#ecfdf5";
-              ctx.fillText("EXIT / 外へ", ex + ew / 2, ey + eh / 2 + 4);
-            }
-          }
-          {
-            const ruinsDraw = ruinsNow();
-            if (ruinsDraw) {
-              const scoutNear = invRef.current?.role === "scout";
-              for (const trap of ruinsDraw.traps) {
-                if (ruinsStateRef.current.traps[String(trap.idx)]) continue;
-                if (trap.x < lx0 || trap.x > lx1 || trap.y < ly0 || trap.y > ly1) continue;
-                const sx = lobbyOx + trap.x * TILE;
-                const sy = lobbyOy + trap.y * TILE;
-                const near =
-                  scoutNear && Math.hypot(trap.x + 0.5 - player.x, trap.y + 0.5 - player.y) <= 3;
-                ctx.strokeStyle = near ? "rgba(255,90,60,0.9)" : "rgba(30,26,20,0.35)";
-                ctx.lineWidth = near ? 2 : 1;
-                ctx.beginPath();
-                ctx.moveTo(sx + 6, sy + TILE - 7);
-                ctx.lineTo(sx + TILE / 2, sy + TILE / 2 + 3);
-                ctx.lineTo(sx + TILE - 8, sy + 9);
-                ctx.stroke();
-                if (near) ctx.strokeRect(sx + 2.5, sy + 2.5, TILE - 5, TILE - 5);
-              }
-            }
-          }
-          {
-            const caveDraw2 = caveLayerNow();
-            if (caveDraw2 && invRef.current?.role === "miner") {
-              const pulse = 0.35 + 0.25 * Math.sin(now / 240);
-              ctx.strokeStyle = `rgba(255,210,62,${pulse})`;
-              ctx.lineWidth = 2;
-              for (const v of caveDraw2.veins) {
-                if (caveStateRef.current.veins[`${v.x},${v.y}`]) continue;
-                if (v.x < lx0 || v.x > lx1 || v.y < ly0 || v.y > ly1) continue;
-                ctx.strokeRect(
-                  lobbyOx + v.x * TILE + 2.5,
-                  lobbyOy + v.y * TILE + 2.5,
-                  TILE - 5,
-                  TILE - 5,
-                );
-              }
-            }
-          }
-          for (const o of indoor.objects) {
-            if (!FLAT_LOBBY_SPRITES.has(o.sprite)) continue;
-            if (o.x + o.w < lx0 || o.x > lx1 || o.y + o.h < ly0 || o.y > ly1) continue;
-            drawLobbySprite(o);
-          }
-          ctx.imageSmoothingEnabled = true;
         }
-
-        const drawList: { y: number; draw: () => void }[] = [];
-        if (space === "world") {
-          const dayPhase = phaseAtTime(nowMs / 1000);
-          const nightAmt = nightAmount(dayPhase);
-          const nearStls = settlementsNear(cam.x, cam.y, 44);
-          for (const stl of nearStls) {
-            for (const lamp of stl.lamps) {
-              const lx = toScreenX(lamp.x + 0.5);
-              const ly = toScreenY(lamp.y + 0.85);
-              if (lx < -TILE * 2 || ly < -TILE * 2 || lx > cw + TILE * 2 || ly > ch + TILE * 2) {
-                continue;
-              }
-              drawList.push({
-                y: lamp.y + 0.9,
-                draw: () => {
-                  ctx.fillStyle = "rgba(10,16,24,0.28)";
-                  ctx.beginPath();
-                  ctx.ellipse(lx, ly + 2, TILE * 0.18, TILE * 0.08, 0, 0, Math.PI * 2);
-                  ctx.fill();
-                  ctx.fillStyle = "#334155";
-                  ctx.fillRect(lx - 2, ly - TILE * 0.72, 4, TILE * 0.72);
-                  ctx.fillStyle = nightAmt > 0.12 ? "#fde047" : "#cbd5e1";
-                  ctx.beginPath();
-                  ctx.arc(lx, ly - TILE * 0.78, 5, 0, Math.PI * 2);
-                  ctx.fill();
-                },
-              });
-            }
-
-            for (const b of stl.buildings) {
-              const bx = toScreenX(b.x);
-              const by = toScreenY(b.y);
-              const bw = b.w * TILE;
-              const bh = b.h * TILE;
-              if (
-                bx + bw < -TILE * 2 ||
-                by + bh < -TILE * 2 ||
-                bx > cw + TILE * 2 ||
-                by > ch + TILE * 2
-              ) {
-                continue;
-              }
-              const doorPx = toScreenX(b.doorX);
-              const doorPy = toScreenY(b.doorY);
-              const porchPx = toScreenX(b.porchX);
-              const porchPy = toScreenY(b.porchY);
-              drawList.push({
-                y: b.y + b.h,
-                draw: () => {
-                  // Welcome mat on street outside doorway
-                  ctx.fillStyle = b.signColor;
-                  ctx.fillRect(porchPx + 8, porchPy + 12, TILE - 16, TILE - 20);
-                  ctx.fillStyle = "rgba(15,23,42,0.55)";
-                  ctx.fillRect(porchPx + 11, porchPy + 15, TILE - 22, TILE - 26);
-
-                  // Drop shadow & plinth
-                  ctx.fillStyle = "rgba(8,12,20,0.32)";
-                  ctx.fillRect(bx + 4, by + bh - 4, bw - 4, 8);
-                  // Main exterior masonry / timber wall
-                  ctx.fillStyle = b.wallColor;
-                  ctx.fillRect(bx + 2, by + TILE * 0.42, bw - 4, bh - TILE * 0.42);
-                  ctx.fillStyle = b.trimColor;
-                  ctx.fillRect(bx + 2, by + bh - 7, bw - 4, 7);
-                  ctx.strokeStyle = "rgba(15,23,42,0.78)";
-                  ctx.lineWidth = 1.5;
-                  ctx.strokeRect(bx + 2, by + TILE * 0.42, bw - 4, bh - TILE * 0.42);
-                  // Pitched roof overhang
-                  ctx.fillStyle = b.roofColor;
-                  ctx.fillRect(bx - 1, by, bw + 2, TILE * 0.56);
-                  ctx.fillStyle = "rgba(255,255,255,0.22)";
-                  ctx.fillRect(bx, by + 3, bw, 4);
-                  ctx.fillStyle = "rgba(15,23,42,0.25)";
-                  ctx.fillRect(bx - 1, by + TILE * 0.56 - 4, bw + 2, 4);
-                  // Storefront awning for commercial buildings
-                  if (
-                    b.kind === "cafe" ||
-                    b.kind === "convenience" ||
-                    b.kind === "vehicle_dealer"
-                  ) {
-                    const stripeW = Math.max(8, (bw - 12) / 6);
-                    for (let si = 0; si < 6; si++) {
-                      ctx.fillStyle = si % 2 === 0 ? b.signColor : "#f8fafc";
-                      ctx.fillRect(bx + 6 + si * stripeW, by + TILE * 0.56, stripeW, 7);
-                    }
-                  }
-                  // Warm lit windows
-                  const cols = Math.max(2, b.w - 1);
-                  for (let ci = 0; ci < cols; ci++) {
-                    const wx = bx + 12 + ci * ((bw - 24) / cols);
-                    const wy = by + TILE * 0.85;
-                    ctx.fillStyle = "#1e293b";
-                    ctx.fillRect(wx - 1.5, wy - 1.5, 13, 12);
-                    ctx.fillStyle = nightAmt > 0.12 ? "#fde68a" : "#bae6fd";
-                    ctx.fillRect(wx, wy, 10, 9);
-                  }
-                  // Physical enterable doorway portal at exact (doorX, doorY)
-                  ctx.fillStyle = "#1e293b";
-                  ctx.fillRect(doorPx + 8, doorPy + TILE - 28, TILE - 16, 28);
-                  ctx.fillStyle = nightAmt > 0.12 ? "#fcd34d" : "#fef08a";
-                  ctx.fillRect(doorPx + 11, doorPy + TILE - 25, TILE - 22, 23);
-                  ctx.fillStyle = b.signColor;
-                  ctx.fillRect(doorPx + 7, doorPy + TILE - 31, TILE - 14, 4);
-
-                  // Shop sign nameplate + IN pill
-                  ctx.font = "700 10.5px sans-serif";
-                  ctx.textAlign = "center";
-                  const tagTitle = `[${b.signText}] ${b.label}`;
-                  const tw = Math.min(bw + 32, ctx.measureText(tagTitle).width + 12);
-                  ctx.fillStyle = "rgba(12,18,30,0.88)";
-                  ctx.fillRect(bx + bw / 2 - tw / 2, by - 17, tw, 15);
-                  ctx.strokeStyle = b.signColor;
+        {
+          const roadStls = settlementsNear(cam.x, cam.y, 44);
+          for (const stl of roadStls) {
+            const rMinX = Math.max(tx0, stl.cx - stl.radius);
+            const rMaxX = Math.min(tx1, stl.cx + stl.radius);
+            const rMinY = Math.max(ty0, stl.cy - stl.radius);
+            const rMaxY = Math.min(ty1, stl.cy + stl.radius);
+            for (let ty = rMinY; ty <= rMaxY; ty++) {
+              for (let tx = rMinX; tx <= rMaxX; tx++) {
+                const surfKind = settlementSurfaceAt(stl, tx, ty) ?? settlementRoadAt(stl, tx, ty);
+                if (!surfKind) continue;
+                const roadSx = tileSx(tx);
+                const roadSy = tileSy(ty);
+                if (surfKind === "plaza") {
+                  ctx.fillStyle = "#94a3b8";
+                  ctx.fillRect(roadSx, roadSy, TILE + 1, TILE + 1);
+                  ctx.strokeStyle = "rgba(30,41,59,0.24)";
                   ctx.lineWidth = 1;
-                  ctx.strokeRect(bx + bw / 2 - tw / 2, by - 17, tw, 15);
-                  ctx.fillStyle = "#f8fafc";
-                  ctx.fillText(tagTitle, bx + bw / 2, by - 6);
-                },
-              });
-            }
-
-            for (const cit of stl.citizens) {
-              const pose = evaluateCitizenPose(stl, cit, dayPhase, nowMs);
-              if (pose.sleeping) continue;
-              const sx = toScreenX(pose.x);
-              const sy = toScreenY(pose.y) + TILE * PLAYER_RADIUS;
-              if (sx < -TILE * 3 || sy < -TILE * 3 || sx > cw + TILE * 3 || sy > ch + TILE * 3) {
-                continue;
-              }
-              const nearPlayer = Math.hypot(pose.x - player.x, pose.y - player.y) <= 3.6;
-              const roleSym =
-                cit.role === "guard"
-                  ? "[警]"
-                  : cit.role === "barista"
-                    ? "[茶]"
-                    : cit.role === "dealer_staff"
-                      ? "[車]"
-                      : cit.role === "merchant"
-                        ? "[商]"
-                        : cit.role === "banker"
-                          ? "[銀]"
-                          : cit.role === "smith"
-                            ? "[鍛]"
-                            : cit.role === "mayor"
-                              ? "[庁]"
-                              : cit.role === "farmer"
-                                ? "[農]"
-                                : "[市]";
-              drawList.push({
-                y: pose.y + PLAYER_RADIUS,
-                draw: () => {
-                  drawAvatar(
-                    ctx,
-                    sx,
-                    sy,
-                    pose.face,
-                    pose.walkPhase,
-                    Math.min(1, pose.walkSpeed / WALK_SPEED),
-                    cit.name,
-                    cit.shirtColor,
-                    false,
-                    { roleSymbol: roleSym, rank: 1 },
-                    false,
-                    null,
-                  );
-                  if (nearPlayer && cit.phrases.length > 0) {
-                    const phrase =
-                      cit.phrases[
-                        Math.floor((nowMs / 6500 + cit.phaseOffset) % cit.phrases.length)
-                      ] ?? pose.activity;
-                    ctx.save();
-                    ctx.font = "600 11px sans-serif";
-                    ctx.textAlign = "center";
-                    const btw = ctx.measureText(phrase).width + 14;
-                    const bx0 = sx - btw / 2;
-                    const by0 = sy - TILE * 1.95;
-                    ctx.fillStyle = "rgba(15, 23, 42, 0.9)";
-                    ctx.strokeStyle = "rgba(56, 189, 248, 0.6)";
-                    ctx.lineWidth = 1.2;
-                    ctx.beginPath();
-                    ctx.roundRect(bx0, by0, btw, 20, 6);
-                    ctx.fill();
-                    ctx.stroke();
-                    ctx.fillStyle = "#e2e8f0";
-                    ctx.fillText(phrase, sx, by0 + 13.5);
-                    ctx.restore();
+                  ctx.strokeRect(roadSx + 1, roadSy + 1, TILE - 2, TILE - 2);
+                } else if (surfKind === "pier") {
+                  ctx.fillStyle = "#8c5a32";
+                  ctx.fillRect(roadSx, roadSy, TILE + 1, TILE + 1);
+                  ctx.fillStyle = "#5c391e";
+                  for (let pyOff = 6; pyOff < TILE; pyOff += 10) {
+                    ctx.fillRect(roadSx, roadSy + pyOff, TILE + 1, 2);
                   }
-                },
-              });
-            }
-          }
-
-          for (const pin of mapPinsRef.current) {
-            if (pin.space !== "world") continue;
-            const sx = toScreenX(pin.x + 0.5);
-            const sy = toScreenY(pin.y + 0.5);
-            if (sx < -TILE * 2 || sy < -TILE * 2 || sx > cw + TILE * 2 || sy > ch + TILE * 2) {
-              continue;
-            }
-            drawList.push({
-              y: pin.y + 0.7,
-              draw: () => {
-                const bob = Math.sin(now / 260) * 2;
-                ctx.fillStyle = "rgba(8,12,20,0.35)";
-                ctx.beginPath();
-                ctx.ellipse(sx, sy + 2, 7, 3, 0, 0, Math.PI * 2);
-                ctx.fill();
-                drawCanvasPinGlyph(ctx, pin.icon, sx, sy - 14 + bob, 9.5, pin.color);
-                ctx.font = "700 10.5px sans-serif";
-                ctx.textAlign = "center";
-                const label = pin.label;
-                const tw = ctx.measureText(label).width + 8;
-                ctx.fillStyle = "rgba(10,16,28,0.85)";
-                ctx.fillRect(sx - tw / 2, sy - 34 + bob, tw, 14);
-                ctx.fillStyle = "#ffffff";
-                ctx.fillText(label, sx, sy - 23.5 + bob);
-              },
-            });
-          }
-        }
-        for (const o of others.values()) {
-          const nationColor = nationsRef.current.playerNations[o.track.entry.id]?.color ?? null;
-          const oSwim = space === "world" && isWaterAt(worldMap, o.track.rx, o.track.ry);
-          drawList.push({
-            y: o.track.ry + PLAYER_RADIUS,
-            draw: () =>
-              drawAvatar(
-                ctx,
-                space !== "world" ? Math.round(lobbyOx + o.track.rx * TILE) : toScreenX(o.track.rx),
-                space !== "world"
-                  ? Math.round(lobbyOy + o.track.ry * TILE) + TILE * PLAYER_RADIUS
-                  : toScreenY(o.track.ry) + TILE * PLAYER_RADIUS,
-                o.track.entry.face,
-                o.phase,
-                Math.min(1, Math.hypot(o.track.entry.vx, o.track.entry.vy) / WALK_SPEED),
-                o.track.entry.name || null,
-                nationColor,
-                oSwim,
-                {
-                  roleSymbol: roleById((o.track.entry.role ?? "free") as AdventureRoleId).symbol,
-                  rank: o.track.entry.rank ?? 1,
-                },
-                o.track.entry.sit === true,
-                iconFor(o.track.entry.avatar),
-              ),
-          });
-        }
-        if (space !== "world") {
-          const caveDraw = caveLayerNow();
-          const ruinsObjDraw = ruinsNow();
-          for (const o of indoorData().objects) {
-            if (FLAT_LOBBY_SPRITES.has(o.sprite)) continue;
-            const sx = lobbyOx + o.x * TILE;
-            const sy = lobbyOy + o.y * TILE;
-            if (sx < -TILE * 4 || sy < -TILE * 4 || sx > cw + TILE * 4 || sy > ch + TILE * 4)
-              continue;
-            if (ruinsObjDraw && (o.sprite === "ruins_chest" || o.sprite === "gold_door")) {
-              const isDoor = o.sprite === "gold_door";
-              const door = ruinsObjDraw.doors.find((d) => d.x === o.x && d.y === o.y);
-              const chest = ruinsObjDraw.chests.find((c) => c.x === o.x && c.y === o.y);
-              if (isDoor && door && ruinsStateRef.current.doors[String(door.idx)]) continue;
-              const openedChest = !!chest && ruinsStateRef.current.chests[String(chest.idx)];
-              drawList.push({
-                y: o.y + o.h,
-                draw: () => {
-                  const bx = Math.round(lobbyOx + o.x * TILE);
-                  const by = Math.round(lobbyOy + o.y * TILE);
-                  if (isDoor) {
-                    ctx.fillStyle = "#7a6420";
-                    ctx.fillRect(bx + 3, by + 2, TILE - 6, TILE - 2);
-                    ctx.fillStyle = "#e8c85a";
-                    ctx.fillRect(bx + 3, by + 2, TILE - 6, 4);
-                    ctx.fillRect(bx + TILE / 2 - 2, by + TILE / 2 - 2, 4, 4);
-                  } else {
-                    ctx.fillStyle = openedChest ? "#5d5040" : "#6e5a43";
-                    ctx.fillRect(bx + 4, by + 10, TILE - 8, TILE - 14);
-                    ctx.fillStyle = chest?.main ? "#e8c85a" : "#b9a888";
-                    ctx.fillRect(bx + 4, by + 16, TILE - 8, 3);
+                  ctx.fillStyle = "#cbd5e1";
+                  ctx.fillRect(roadSx + 3, roadSy + 3, 4, 4);
+                  ctx.fillRect(roadSx + TILE - 7, roadSy + 3, 4, 4);
+                } else if (surfKind === "farm") {
+                  ctx.fillStyle = "#5c3d22";
+                  ctx.fillRect(roadSx, roadSy, TILE + 1, TILE + 1);
+                  ctx.fillStyle = "#3e2714";
+                  for (let fyOff = 7; fyOff < TILE; fyOff += 11) {
+                    ctx.fillRect(roadSx + 2, roadSy + fyOff, TILE - 4, 3);
                   }
-                },
-              });
-              continue;
-            }
-            if (
-              caveDraw &&
-              (o.sprite === "cave_chest" ||
-                caveDraw.veins.some((v) => v.objectId === o.sprite && v.x === o.x && v.y === o.y))
-            ) {
-              const vein = caveDraw.veins.find((v) => v.x === o.x && v.y === o.y);
-              const takenAt = vein
-                ? (caveStateRef.current.veins[vein.key] ?? 0)
-                : caveStateRef.current.chest;
-              const def = specialObjectById(o.sprite);
-              const respawnMs =
-                o.sprite === "cave_chest" ? 6 * 60 * 60 * 1000 : (def?.respawnMs ?? 0);
-              if (vein && takenAt > 0 && Date.now() - takenAt < respawnMs) continue;
-              const colors: Record<string, string> = {
-                coal_vein: "#3a3a42",
-                copper_vein: "#c47b4a",
-                rare_vein: "#e8c85a",
-                crystal_cluster: "#9fe8ff",
-                mithril_vein: "#b9f2d8",
-                cave_chest: "#8a5a2b",
-              };
-              const color = colors[o.sprite] ?? "#999";
-              const opened =
-                o.sprite === "cave_chest" && takenAt > 0 && Date.now() - takenAt < respawnMs;
-              drawList.push({
-                y: o.y + o.h,
-                draw: () => {
-                  const bx = Math.round(lobbyOx + o.x * TILE);
-                  const by = Math.round(lobbyOy + o.y * TILE);
-                  if (o.sprite === "cave_chest") {
-                    ctx.fillStyle = opened ? "#5d4020" : color;
-                    ctx.fillRect(bx + 4, by + 10, TILE - 8, TILE - 14);
-                    ctx.fillStyle = "#e8c85a";
-                    ctx.fillRect(bx + 4, by + 16, TILE - 8, 3);
-                  } else {
-                    ctx.fillStyle = "#55565f";
-                    ctx.fillRect(bx + 2, by + 2, TILE - 4, TILE - 4);
-                    ctx.fillStyle = color;
-                    ctx.beginPath();
-                    ctx.moveTo(bx + TILE * 0.5, by + 5);
-                    ctx.lineTo(bx + TILE - 7, by + TILE * 0.55);
-                    ctx.lineTo(bx + TILE * 0.62, by + TILE - 6);
-                    ctx.lineTo(bx + 7, by + TILE * 0.6);
-                    ctx.closePath();
-                    ctx.fill();
+                  ctx.fillStyle = "#22c55e";
+                  for (let fxOff = 6; fxOff < TILE - 4; fxOff += 10) {
+                    ctx.fillRect(roadSx + fxOff, roadSy + 4, 5, 5);
+                    ctx.fillRect(roadSx + fxOff, roadSy + 22, 5, 5);
                   }
-                },
-              });
-              continue;
-            }
-            drawList.push({ y: o.y + o.h, draw: () => drawLobbySprite(o) });
-          }
-          const intrDraw2 = interiorNow();
-          if (intrDraw2) {
-            for (const bay of intrDraw2.dealerBays) {
-              const spec = vehicleSpecFor(bay.vehicleId);
-              const bx = Math.round(lobbyOx + (bay.x + 0.5) * TILE);
-              const by = Math.round(lobbyOy + (bay.y + 0.5) * TILE);
-              drawList.push({
-                y: bay.y + 0.9,
-                draw: () => {
-                  ctx.fillStyle = "rgba(15,23,42,0.72)";
-                  ctx.beginPath();
-                  ctx.ellipse(bx, by + 6, TILE * 0.72, TILE * 0.34, 0, 0, Math.PI * 2);
-                  ctx.fill();
-                  ctx.strokeStyle = bay.accent;
-                  ctx.lineWidth = 1.6;
-                  ctx.stroke();
-
-                  const cw2 = TILE * 1.18;
-                  const ch2 = TILE * 0.52;
-                  ctx.fillStyle = spec?.bodyColor ?? bay.accent;
-                  ctx.fillRect(bx - cw2 / 2, by - ch2 * 0.7, cw2, ch2);
-                  ctx.strokeStyle = spec?.trimColor ?? "#f8fafc";
-                  ctx.lineWidth = 1.5;
-                  ctx.strokeRect(bx - cw2 / 2, by - ch2 * 0.7, cw2, ch2);
-                  ctx.fillStyle = "#bae6fd";
-                  ctx.fillRect(bx - cw2 * 0.25, by - ch2 * 0.55, cw2 * 0.5, ch2 * 0.35);
-
-                  ctx.font = "700 10px sans-serif";
-                  ctx.textAlign = "center";
-                  ctx.fillStyle = "#e2e8f0";
-                  ctx.fillText(bay.label, bx, by - ch2 * 0.9);
-                  ctx.fillStyle = "#fde047";
-                  ctx.fillText(`¥${bay.price.toLocaleString()}`, bx, by + TILE * 0.6);
-                },
-              });
-            }
-            for (const stf of intrDraw2.staff) {
-              drawList.push({
-                y: stf.y + 1,
-                draw: () => {
-                  const sx = Math.round(lobbyOx + stf.x * TILE);
-                  const sy = Math.round(lobbyOy + (stf.y + 0.6) * TILE);
-                  drawAvatar(
-                    ctx,
-                    sx,
-                    sy,
-                    1,
-                    0,
-                    0,
-                    stf.name,
-                    stf.shirtColor,
-                    false,
-                    { roleSymbol: `[${stf.roleLabel.slice(0, 2)}]`, rank: 1 },
-                    false,
-                    null,
-                  );
-                },
-              });
-            }
-          } else {
-            for (const n of indoorData().npcs) {
-              drawList.push({
-                y: n.y + 1,
-                draw: () =>
-                  drawAvatar(
-                    ctx,
-                    Math.round(lobbyOx + (n.x + 0.5) * TILE),
-                    Math.round(lobbyOy + (n.y + 1) * TILE),
-                    1,
-                    0,
-                    0,
-                    null,
-                  ),
-              });
-            }
-          }
-        }
-        const selfFloorOv =
-          space === "world"
-            ? tilesRef.current[tileKey(Math.floor(player.x), Math.floor(player.y))]
-            : undefined;
-        const slimeBouncePx =
-          selfFloorOv?.block?.itemId === "slime_block" && isOverrideActive(selfFloorOv, Date.now())
-            ? Math.abs(Math.sin(now / 170)) * TILE * 0.16
-            : 0;
-        drawList.push({
-          y: player.y + PLAYER_RADIUS,
-          draw: () => {
-            const sx =
-              space !== "world" ? Math.round(lobbyOx + player.x * TILE) : toScreenX(player.x);
-            const sy =
-              (space !== "world"
-                ? Math.round(lobbyOy + player.y * TILE) + TILE * PLAYER_RADIUS
-                : toScreenY(player.y) + TILE * PLAYER_RADIUS) - slimeBouncePx;
-            const vSpec = vehicleSpecFor(equippedVehicleRef.current);
-            if (vSpec && !playerSwimming) {
-              const w = TILE * 1.15;
-              const h = TILE * 0.48;
-              ctx.fillStyle = "rgba(0,0,0,0.35)";
-              ctx.beginPath();
-              ctx.ellipse(sx, sy + 2, w * 0.55, h * 0.5, 0, 0, Math.PI * 2);
-              ctx.fill();
-              ctx.fillStyle = vSpec.bodyColor;
-              ctx.fillRect(sx - w / 2, sy - h * 0.65, w, h);
-              ctx.strokeStyle = vSpec.trimColor;
-              ctx.lineWidth = 1.5;
-              ctx.strokeRect(sx - w / 2, sy - h * 0.65, w, h);
-              if (vSpec.hasSiren) {
-                const flash = Math.floor(now / 180) % 2 === 0;
-                ctx.fillStyle = flash ? "#ef4444" : "#3b82f6";
-                ctx.fillRect(sx - 6, sy - h * 0.8, 12, 4);
+                } else {
+                  ctx.fillStyle = "#475569";
+                  ctx.fillRect(roadSx, roadSy, TILE + 1, TILE + 1);
+                  ctx.fillStyle = "rgba(226,232,240,0.45)";
+                  if (tx === stl.cx && ty % 2 === 0)
+                    ctx.fillRect(roadSx + TILE / 2 - 1, roadSy + 6, 2, TILE - 12);
+                  else if (ty === stl.cy && tx % 2 === 0)
+                    ctx.fillRect(roadSx + 6, roadSy + TILE / 2 - 1, TILE - 12, 2);
+                }
               }
             }
-            drawAvatar(
-              ctx,
-              sx,
-              vSpec && !playerSwimming ? sy - 5 : sy,
-              player.face,
-              player.phase,
-              speedRatio,
-              null,
-              null,
-              playerSwimming,
-              null,
-              sitTileRef.current !== null,
-              iconFor(myIconUrl),
-            );
-          },
-        });
-        if (space === "lobby") {
-          const sched = scheduleAt(Date.now());
-          if (sched.runningPostMs !== null) {
-            if (!raceAnimCache || raceAnimCache.postMs !== sched.runningPostMs) {
-              raceAnimCache = {
-                postMs: sched.runningPostMs,
-                core: generateRaceCore(sched.runningPostMs),
-              };
-            }
-            const core = raceAnimCache.core;
-            const progress = Math.min(
-              1,
-              Math.max(0, (Date.now() - sched.runningPostMs) / RACE_DURATION_MS),
-            );
-            for (const e of core.entries) {
-              const pose = horseTrackPose(core, e.horse.id, progress, RACETRACK);
-              const coat = COAT_COLORS[e.horse.coat] ?? "#8a5a2b";
-              const gate = e.gate;
-              drawList.push({
-                y: pose.y + 0.3,
-                draw: () => {
-                  const sx = Math.round(lobbyOx + pose.x * TILE);
-                  const sy = Math.round(lobbyOy + pose.y * TILE);
-                  ctx.beginPath();
-                  ctx.arc(sx, sy, TILE * 0.3, 0, Math.PI * 2);
-                  ctx.fillStyle = coat;
-                  ctx.fill();
-                  ctx.lineWidth = 2;
-                  ctx.strokeStyle = "rgba(0,0,0,0.45)";
-                  ctx.stroke();
-                  ctx.fillStyle =
-                    e.horse.coat === "芦毛" || e.horse.coat === "白毛" ? "#222" : "#fff";
-                  ctx.font = `700 ${Math.round(TILE * 0.34)}px sans-serif`;
-                  ctx.textAlign = "center";
-                  ctx.textBaseline = "middle";
-                  ctx.fillText(String(gate), sx, sy + 1);
-                },
-              });
-            }
-          } else {
-            raceAnimCache = null;
-          }
-        }
-        drawList.sort((a, b) => a.y - b.y);
-        for (const d of drawList) d.draw();
-
-        if (space === "lobby") {
-          for (const plot of guildShopPlotsRef.current) {
-            const anchor = GUILD_PLOT_ANCHORS[plot.idx];
-            if (!anchor) continue;
-            const gx = Math.round(lobbyOx + (anchor.x + 0.5) * TILE);
-            const gy = Math.round(lobbyOy + anchor.y * TILE);
-            if (gx < -TILE * 4 || gy < -TILE * 2 || gx > cw + TILE * 4 || gy > ch + TILE * 2)
-              continue;
-            ctx.font = "600 11px sans-serif";
-            ctx.textAlign = "center";
-            ctx.lineWidth = 3;
-            ctx.strokeStyle = "rgba(10,16,10,0.65)";
-            ctx.strokeText(plot.guildName, gx, gy - 5);
-            ctx.fillStyle = "#ffffff";
-            ctx.fillText(plot.guildName, gx, gy - 5);
-          }
-        }
-
-        for (const hq of companyHqsRef.current) {
-          const gx =
-            space === "world"
-              ? Math.round(toScreenX(hq.x + 0.5))
-              : Math.round(lobbyOx + (hq.x + 0.5) * TILE);
-          const gy =
-            space === "world" ? Math.round(toScreenY(hq.y)) : Math.round(lobbyOy + hq.y * TILE);
-          if (gx < -TILE * 3 || gy < -TILE * 2 || gx > cw + TILE * 3 || gy > ch + TILE * 2)
-            continue;
-          ctx.fillStyle = "#ffb340";
-          ctx.strokeStyle = "rgba(255,255,255,0.9)";
-          ctx.lineWidth = 1.5;
-          ctx.beginPath();
-          ctx.moveTo(gx, gy - 11);
-          ctx.lineTo(gx + 5, gy - 4);
-          ctx.lineTo(gx, gy + 3);
-          ctx.lineTo(gx - 5, gy - 4);
-          ctx.closePath();
-          ctx.fill();
-          ctx.stroke();
-          ctx.font = "600 11px sans-serif";
-          ctx.textAlign = "center";
-          ctx.lineWidth = 3;
-          ctx.strokeStyle = "rgba(10,16,10,0.65)";
-          const label = `${hq.name} 本社`;
-          ctx.strokeText(label, gx, gy - 15);
-          ctx.fillStyle = "#ffffff";
-          ctx.fillText(label, gx, gy - 15);
-        }
-
-        if (space === "prison") {
-          const ts = Date.now();
-          const sweep = isPrisonGuardSweepingVent(ts);
-          const phase = (ts % 16_000) / 16_000;
-          const guardX = phase < 0.3 ? 6.5 : 13.5 - Math.abs(phase - 0.65) * 10;
-          const guardY = 25.5;
-          const gx = Math.round(lobbyOx + guardX * TILE);
-          const gy = Math.round(lobbyOy + guardY * TILE);
-          ctx.save();
-          ctx.fillStyle = sweep ? "rgba(239, 68, 68, 0.24)" : "rgba(250, 204, 21, 0.14)";
-          ctx.beginPath();
-          ctx.moveTo(gx, gy);
-          const dir = phase < 0.3 ? Math.PI : 0;
-          ctx.arc(gx, gy, TILE * 3.4, dir - 0.55, dir + 0.55);
-          ctx.closePath();
-          ctx.fill();
-          ctx.fillStyle = "#1e3a8a";
-          ctx.beginPath();
-          ctx.arc(gx, gy, TILE * 0.32, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.strokeStyle = "#facc15";
-          ctx.lineWidth = 2;
-          ctx.stroke();
-          ctx.font = "700 11px sans-serif";
-          ctx.textAlign = "center";
-          ctx.fillStyle = sweep ? "#fca5a5" : "#fef08a";
-          ctx.fillText(sweep ? "巡回看守 [警戒中]" : "巡回看守", gx, gy - 16);
-          ctx.restore();
-        }
-
-        const trNow = trackedTargetRef.current;
-        if (trNow) {
-          let txTile: number | null = null;
-          let tyTile: number | null = null;
-          let sameSpace = false;
-          if (trNow.kind === "player") {
-            const otherPl = others.get(trNow.presenceId);
-            if (otherPl) {
-              txTile = otherPl.track.rx;
-              tyTile = otherPl.track.ry;
-              sameSpace = true;
-            }
-          } else if (trNow.space === space) {
-            txTile = trNow.x + 0.5;
-            tyTile = trNow.y + 0.5;
-            sameSpace = true;
-          }
-
-          if (sameSpace && txTile !== null && tyTile !== null) {
-            const pxScreen =
-              space === "world" ? toScreenX(player.x) : Math.round(lobbyOx + player.x * TILE);
-            const pyScreen =
-              space === "world" ? toScreenY(player.y) : Math.round(lobbyOy + player.y * TILE);
-            const txScreen =
-              space === "world" ? toScreenX(txTile) : Math.round(lobbyOx + txTile * TILE);
-            const tyScreen =
-              space === "world" ? toScreenY(tyTile) : Math.round(lobbyOy + tyTile * TILE);
-            const dist = Math.hypot(txTile - player.x, tyTile - player.y);
-            if (trackedDistElRef.current) {
-              trackedDistElRef.current.textContent = `${Math.round(dist)}m`;
-            }
-            const near = dist <= 4.5;
-            const ang = Math.atan2(tyScreen - pyScreen, txScreen - pxScreen);
-
-            ctx.save();
-            ctx.strokeStyle = near ? "#4ade80" : (trNow.color ?? "#38bdf8");
-            ctx.lineWidth = 3;
-            ctx.beginPath();
-            ctx.arc(txScreen, tyScreen, TILE * (0.55 + Math.sin(now / 180) * 0.12), 0, Math.PI * 2);
-            ctx.stroke();
-
-            if (dist > 2) {
-              const ax = pxScreen + Math.cos(ang) * TILE * 1.3;
-              const ay = pyScreen + Math.sin(ang) * TILE * 1.3;
-              ctx.translate(ax, ay);
-              ctx.rotate(ang);
-              ctx.fillStyle = near ? "#4ade80" : (trNow.color ?? "#38bdf8");
-              ctx.beginPath();
-              ctx.moveTo(10, 0);
-              ctx.lineTo(-6, -6);
-              ctx.lineTo(-3, 0);
-              ctx.lineTo(-6, 6);
-              ctx.closePath();
-              ctx.fill();
-            }
-            ctx.restore();
-          } else if (trackedDistElRef.current) {
-            trackedDistElRef.current.textContent =
-              trNow.kind === "player" ? "他エリア/圏外" : "別エリア";
-          }
-        }
-
-        if (space !== "world") {
-          const indoor = indoorData();
-          const ruinsDraw = ruinsNow();
-          const caveDraw = caveLayerNow();
-          for (const o of indoor.objects) {
-            const key = o.station ?? o.sprite;
-            const isTarget =
-              !!o.station ||
-              FLAT_LOBBY_SPRITES.has(o.sprite) ||
-              o.sprite === "ruins_chest" ||
-              o.sprite === "gold_door" ||
-              o.sprite === "cave_chest";
-            if (!isTarget) continue;
-            if (ruinsDraw && o.sprite === "ruins_chest") {
-              const chest = ruinsDraw.chests.find((c) => c.x === o.x && c.y === o.y);
-              if (chest && ruinsStateRef.current.chests[String(chest.idx)]) continue;
-            }
-            if (ruinsDraw && o.sprite === "gold_door") {
-              const door = ruinsDraw.doors.find((d) => d.x === o.x && d.y === o.y);
-              if (door && ruinsStateRef.current.doors[String(door.idx)]) continue;
-            }
-            if (caveDraw && o.sprite === "cave_chest") {
-              const takenAt = caveStateRef.current.chest;
-              if (takenAt > 0 && Date.now() - takenAt < 6 * 60 * 60 * 1000) continue;
-            }
-            if (!isWithinAffordanceRange(player.x, player.y, o.x, o.y, o.w, o.h)) continue;
-            const sx = Math.round(lobbyOx + o.x * TILE);
-            const sy = Math.round(lobbyOy + o.y * TILE);
-            if (sx < -TILE * 2 || sy < -TILE * 2 || sx > cw + TILE * 2 || sy > ch + TILE * 2)
-              continue;
-            let seenAt = seenAffordanceRef.current.get(key);
-            if (seenAt === undefined) {
-              seenAt = now;
-              seenAffordanceRef.current.set(key, now);
-            }
-            const age = now - seenAt;
-            const alpha = reducedMotion ? 0.35 : nudgeRingAlpha(now, age);
-            const bob = reducedMotion ? 0 : nudgeBobPx(age);
-            ctx.strokeStyle = `rgba(${AFFORDANCE_RING_RGB},${alpha.toFixed(3)})`;
-            ctx.lineWidth = 2;
-            ctx.strokeRect(sx + 2.5, sy + 2.5 + bob, o.w * TILE - 5, o.h * TILE - 5);
           }
         }
 
         {
-          const deny = denyFxRef.current;
-          if (deny) {
-            const fb = deniedFeedback(now - deny.at);
-            if (!fb) denyFxRef.current = null;
-            else {
-              const dx0 =
-                space !== "world"
-                  ? Math.round(lobbyOx + deny.x * TILE)
-                  : Math.round(toScreenX(deny.x));
-              const dy0 =
-                space !== "world"
-                  ? Math.round(lobbyOy + deny.y * TILE)
-                  : Math.round(toScreenY(deny.y));
-              ctx.strokeStyle = `rgba(${DENIED_RING_RGB},${fb.alpha.toFixed(3)})`;
-              ctx.lineWidth = 2;
-              ctx.strokeRect(
-                dx0 + 2.5 + (reducedMotion ? 0 : fb.dx),
-                dy0 + 2.5,
-                TILE - 5,
-                TILE - 5,
-              );
-            }
-          }
-        }
-
-        if (space === "world") {
-          const activeFish = fishingRef.current;
-          if (activeFish && now > activeFish.biteAt + 1100) fishingRef.current = null;
-          const fcx0 = Math.floor((cam.x - cw / TILE / 2) / CHUNK_SIZE);
-          const fcx1 = Math.ceil((cam.x + cw / TILE / 2) / CHUNK_SIZE);
-          const fcy0 = Math.floor((cam.y - ch / TILE / 2) / CHUNK_SIZE);
-          const fcy1 = Math.ceil((cam.y + ch / TILE / 2) / CHUNK_SIZE);
-          for (let fcy = fcy0; fcy <= fcy1; fcy++) {
-            for (let fcx = fcx0; fcx <= fcx1; fcx++) {
-              for (const o of objectsForChunk(MAP_SEED, fcx, fcy)) {
-                if (o.objectId !== "fishing_spot") continue;
-                const caughtAt = fishCaughtRef.current.get(`${o.x},${o.y}`) ?? 0;
-                if (caughtAt && now - caughtAt < 10 * 60 * 1000) continue;
-                const sx = toScreenX(o.x + 0.5);
-                const sy = toScreenY(o.y + 0.55);
-                const bob = Math.sin(now / 600 + o.x * 1.7 + o.y) * 2;
-                ctx.fillStyle = "rgba(10,30,50,0.55)";
-                ctx.beginPath();
-                ctx.ellipse(sx, sy + bob, TILE * 0.3, TILE * 0.13, 0, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.beginPath();
-                ctx.moveTo(sx + TILE * 0.28, sy + bob);
-                ctx.lineTo(sx + TILE * 0.44, sy - TILE * 0.08 + bob);
-                ctx.lineTo(sx + TILE * 0.44, sy + TILE * 0.08 + bob);
-                ctx.closePath();
-                ctx.fill();
-              }
-            }
-          }
-          for (let fcy = fcy0; fcy <= fcy1; fcy++) {
-            for (let fcx = fcx0; fcx <= fcx1; fcx++) {
-              for (const o of objectsForChunk(MAP_SEED, fcx, fcy)) {
-                if (o.objectId === "fishing_spot") continue;
-                const odef = specialObjectById(o.objectId);
-                if (!odef) continue;
-                const harvestedAt = surfaceObjStateRef.current.get(`${o.x},${o.y}`) ?? null;
-                const ready = objectRespawned(odef, harvestedAt, now);
-                if (!ready && odef.respawnMs > 0) continue;
-                drawSurfaceObject(
-                  ctx,
-                  o.objectId,
-                  toScreenX(o.x),
-                  toScreenY(o.y),
-                  TILE,
-                  !ready,
-                  now,
-                );
-                if (
-                  ready &&
-                  Math.max(Math.abs(o.x + 0.5 - player.x), Math.abs(o.y + 0.5 - player.y)) <= 2
-                ) {
-                  const alpha = reducedMotion ? 0.3 : 0.28 + 0.14 * Math.sin(now / 300);
-                  ctx.strokeStyle = `rgba(${AFFORDANCE_RING_RGB},${alpha.toFixed(3)})`;
-                  ctx.lineWidth = 2;
-                  ctx.strokeRect(toScreenX(o.x) + 2.5, toScreenY(o.y) + 2.5, TILE - 5, TILE - 5);
+          const ccx0 = Math.floor(tx0 / CHUNK_SIZE);
+          const ccx1 = Math.floor(tx1 / CHUNK_SIZE);
+          const ccy0 = Math.floor(ty0 / CHUNK_SIZE);
+          const ccy1 = Math.floor(ty1 / CHUNK_SIZE);
+          for (let ccy = ccy0; ccy <= ccy1; ccy++) {
+            for (let ccx = ccx0; ccx <= ccx1; ccx++) {
+              for (const st of structuresForChunk(MAP_SEED, ccx, ccy)) {
+                const stDef = structureById(st.structureId);
+                const sx = Math.round(toScreenX(st.x));
+                const sy = Math.round(toScreenY(st.y));
+                if (stDef?.kind === "entrance") {
+                  ctx.fillStyle = "#4a4a55";
+                  ctx.fillRect(sx + 2, sy + 4, TILE - 4, TILE - 4);
+                  ctx.fillStyle = "#0a0a10";
+                  ctx.beginPath();
+                  ctx.arc(sx + TILE / 2, sy + TILE - 6, TILE * 0.26, Math.PI, 0);
+                  ctx.rect(sx + TILE / 2 - TILE * 0.26, sy + TILE - 6, TILE * 0.52, 4);
+                  ctx.fill();
+                } else {
+                  ctx.fillStyle = "rgba(120,116,100,0.9)";
+                  ctx.fillRect(sx + 6, sy + 8, TILE - 12, TILE - 10);
+                  ctx.fillStyle = "rgba(90,86,70,0.9)";
+                  ctx.fillRect(sx + 4, sy + 5, TILE - 8, 4);
+                }
+                if (Math.hypot(player.x - (st.x + 0.5), player.y - (st.y + 0.5)) <= 5) {
+                  ctx.font = "11px sans-serif";
+                  ctx.textAlign = "center";
+                  ctx.fillStyle = "rgba(10,10,14,0.65)";
+                  const label = stDef?.name ?? "";
+                  const w = ctx.measureText(label).width + 10;
+                  ctx.fillRect(sx + TILE / 2 - w / 2, sy - 16, w, 14);
+                  ctx.fillStyle = "#fff";
+                  ctx.fillText(label, sx + TILE / 2, sy - 5);
                 }
               }
             }
           }
-          const f = fishingRef.current;
-          if (f) {
-            const sx = toScreenX(f.x + 0.5);
-            const sy = toScreenY(f.y + 0.5);
-            ctx.strokeStyle = "rgba(255,255,255,0.5)";
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.moveTo(toScreenX(player.x + 0.4), toScreenY(player.y - 0.4));
-            ctx.lineTo(sx, sy);
-            ctx.stroke();
-            const biting = now >= f.biteAt;
-            ctx.fillStyle = biting ? "#e84a3c" : "#f2f2f2";
-            ctx.beginPath();
-            ctx.arc(sx, sy + (biting ? 2 : 0), 3, 0, Math.PI * 2);
-            ctx.fill();
-            if (biting) {
-              const age = Math.min(1, (now - f.biteAt) / 1100);
-              ctx.strokeStyle = `rgba(255,255,255,${(0.8 * (1 - age)).toFixed(3)})`;
-              ctx.lineWidth = 2;
-              ctx.beginPath();
-              ctx.ellipse(
-                sx,
-                sy,
-                TILE * (0.15 + 0.35 * age),
-                TILE * (0.06 + 0.14 * age),
-                0,
-                0,
-                Math.PI * 2,
-              );
-              ctx.stroke();
+        }
+
+        for (let ty = ty0; ty <= ty1; ty++) {
+          for (let tx = tx0; tx <= tx1; tx++) {
+            const ov = tilesRef.current[tileKey(tx, ty)];
+            if (!isOverrideActive(ov, nowMs)) continue;
+            const sx = tileSx(tx);
+            const sy = tileSy(ty);
+            if (ov!.farmland) {
+              const img = farmSprites.farmland;
+              if (texReady(img)) ctx.drawImage(img, sx, sy, TILE + 1, TILE + 1);
+              else {
+                ctx.fillStyle = "#8a5a2b";
+                ctx.fillRect(sx, sy, TILE + 1, TILE + 1);
+              }
+            }
+            if (ov!.stump) {
+              const img = farmSprites.stump;
+              if (texReady(img)) ctx.drawImage(img, sx, sy, TILE, TILE);
+            }
+            if (ov!.crop) {
+              const img = farmSprites[`crop${cropStage(ov!.crop, nowMs)}`];
+              if (texReady(img)) ctx.drawImage(img, sx, sy, TILE, TILE);
+            }
+            if (ov!.hp !== undefined) {
+              const frac = terrainHpFraction(ov!, mapTileAt(worldMap, tx, ty));
+              if (frac < 1) drawBlockCracks(ctx, sx, sy, tx, ty, frac);
+            }
+            if (ov!.block) {
+              const img = itemIcons[ov!.block.itemId];
+              const bx = Math.round(sx);
+              const by = Math.round(sy);
+              const isRug = ov!.block.itemId === "rug";
+              const isFlat =
+                isRug || (isFloorItem(ov!.block.itemId) && ov!.block.itemId !== "bridge_block");
+              const ps = isFlat ? 1 : popScaleFor(tileKey(tx, ty), now);
+              ctx.save();
+              if (ps !== 1) {
+                ctx.translate(bx + TILE / 2, by + TILE / 2);
+                ctx.scale(ps, ps);
+                ctx.translate(-(bx + TILE / 2), -(by + TILE / 2));
+              }
+              if (isFlat) {
+                if (texReady(img))
+                  ctx.drawImage(
+                    img,
+                    bx + 2,
+                    Math.round(by + TILE * 0.36),
+                    TILE - 4,
+                    Math.round(TILE * 0.6),
+                  );
+                else {
+                  ctx.fillStyle = isRug ? "#8a4a56" : "#7a6a55";
+                  ctx.fillRect(
+                    bx + 2,
+                    Math.round(by + TILE * 0.36),
+                    TILE - 4,
+                    Math.round(TILE * 0.6),
+                  );
+                }
+              } else if (isGateItem(ov!.block.itemId) && ov!.gateOpen === true) {
+                if (texReady(img)) ctx.drawImage(img, bx, by, Math.round(TILE * 0.28), TILE);
+                else {
+                  ctx.fillStyle = "#8a6a42";
+                  ctx.fillRect(bx, by + 4, Math.round(TILE * 0.28), TILE - 8);
+                }
+              } else if (texReady(img)) ctx.drawImage(img, bx, by, TILE, TILE);
+              else {
+                ctx.fillStyle = "#9a7b4f";
+                ctx.fillRect(bx + 5, by + 5, TILE - 10, TILE - 10);
+              }
+              drawBlockCracks(ctx, bx, by, tx, ty, blockHpFraction(ov!.block));
+              if (ov!.deco) {
+                const decoImg = itemIcons[ov!.deco];
+                if (texReady(decoImg)) {
+                  const ds = Math.round(TILE * 0.55);
+                  ctx.drawImage(
+                    decoImg,
+                    Math.round(bx + (TILE - ds) / 2),
+                    Math.round(by + TILE * 0.06),
+                    ds,
+                    ds,
+                  );
+                }
+              }
+              if (ov!.display) {
+                const dispImg = itemIcons[ov!.display];
+                if (texReady(dispImg)) {
+                  const ds = Math.round(TILE * 0.6);
+                  ctx.drawImage(
+                    dispImg,
+                    Math.round(bx + (TILE - ds) / 2),
+                    Math.round(by + TILE * 0.02),
+                    ds,
+                    ds,
+                  );
+                }
+              }
+              if (ov!.signText) {
+                ctx.save();
+                ctx.font = "bold 10px sans-serif";
+                ctx.textAlign = "center";
+                const tw = Math.min(TILE - 2, ctx.measureText(ov!.signText).width + 8);
+                ctx.fillStyle = "rgba(20,14,8,0.72)";
+                ctx.fillRect(
+                  Math.round(bx + (TILE - tw) / 2),
+                  Math.round(by + TILE * 0.3),
+                  Math.round(tw),
+                  14,
+                );
+                ctx.fillStyle = "#ffe9b8";
+                ctx.fillText(
+                  ov!.signText,
+                  Math.round(bx + TILE / 2),
+                  Math.round(by + TILE * 0.3) + 10,
+                  TILE - 4,
+                );
+                ctx.restore();
+              }
+              if (isMachineItem(ov!.block.itemId)) {
+                const bid = ov!.block.itemId;
+                const spec = machineSpecFor(bid);
+                const pulse = 0.5 + 0.5 * Math.sin(now / 260 + tx * 0.7 + ty * 0.9);
+                ctx.save();
+                if (bid === "power_generator") {
+                  ctx.strokeStyle = `rgba(56,189,248,${(0.28 + 0.28 * pulse).toFixed(2)})`;
+                  ctx.lineWidth = 1.8;
+                  ctx.beginPath();
+                  ctx.arc(bx + TILE / 2, by + TILE / 2, TILE * 0.55 + pulse * 4, 0, Math.PI * 2);
+                  ctx.stroke();
+                } else if (bid === "security_camera") {
+                  const sweep = (now / 900 + tx) % (Math.PI * 2);
+                  ctx.fillStyle = "rgba(239,68,68,0.16)";
+                  ctx.beginPath();
+                  ctx.moveTo(bx + TILE / 2, by + TILE / 2);
+                  ctx.arc(bx + TILE / 2, by + TILE / 2, TILE * 0.85, sweep, sweep + 0.8);
+                  ctx.closePath();
+                  ctx.fill();
+                } else if (bid === "smart_vending") {
+                  ctx.fillStyle = "rgba(20,184,166,0.92)";
+                  ctx.fillRect(bx + TILE - 20, by + 2, 18, 9);
+                  ctx.fillStyle = "#fff";
+                  ctx.font = "bold 7px sans-serif";
+                  ctx.textAlign = "center";
+                  ctx.fillText("24H", bx + TILE - 11, by + 9);
+                }
+                ctx.fillStyle = pulse > 0.5 ? spec.accentColor : "#38bdf8";
+                ctx.beginPath();
+                ctx.arc(bx + TILE - 6, by + 6, 3, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+              }
+              ctx.restore();
             }
           }
         }
 
+        const prof = invRef.current;
+        const slot = prof?.hotbar[selSlotRef.current] ?? null;
+        const selDef = slot ? itemById(slot.id) : null;
         if (
-          parseInstanceSpace(space)?.kind === "cave" ||
-          parseInstanceSpace(space)?.kind === "dungeon"
+          prof &&
+          selDef &&
+          (selDef.category === "block" || selDef.facility === true || !!selDef.placesBlock)
         ) {
-          if (!darkCanvasRef.current) darkCanvasRef.current = document.createElement("canvas");
-          const dark = darkCanvasRef.current;
-          if (dark.width !== cw || dark.height !== ch) {
-            dark.width = cw;
-            dark.height = ch;
-          }
-          const dctx = dark.getContext("2d");
-          if (dctx) {
-            dctx.setTransform(1, 0, 0, 1, 0, 0);
-            dctx.clearRect(0, 0, cw, ch);
-            const radius = lightRadiusTiles(invRef.current?.items) * TILE;
-            const cxp = Math.round(lobbyOx + player.x * TILE);
-            const cyp = Math.round(lobbyOy + player.y * TILE);
-            const grad = dctx.createRadialGradient(cxp, cyp, radius * 0.55, cxp, cyp, radius);
-            grad.addColorStop(0, "rgba(5,6,14,0)");
-            grad.addColorStop(1, "rgba(5,6,14,0.93)");
-            dctx.fillStyle = grad;
-            dctx.fillRect(0, 0, cw, ch);
-            dctx.globalCompositeOperation = "destination-out";
-            for (const [key, ov] of Object.entries(tilesRef.current)) {
-              const itemId = ov.block?.itemId;
-              const rTiles = placedLightRadiusTiles(itemId);
-              if (!rTiles) continue;
-              const comma = key.indexOf(",");
-              const lx = Number(key.slice(0, comma));
-              const ly = Number(key.slice(comma + 1));
-              const sx = Math.round(lobbyOx + (lx + 0.5) * TILE);
-              const sy = Math.round(lobbyOy + (ly + 0.5) * TILE);
-              const r = rTiles * TILE;
-              if (sx < -r || sy < -r || sx > cw + r || sy > ch + r) continue;
-              const g = dctx.createRadialGradient(sx, sy, r * 0.4, sx, sy, r);
-              g.addColorStop(0, "rgba(0,0,0,0.95)");
-              g.addColorStop(1, "rgba(0,0,0,0)");
-              dctx.fillStyle = g;
-              dctx.beginPath();
-              dctx.arc(sx, sy, r, 0, Math.PI * 2);
-              dctx.fill();
+          const px = Math.floor(player.x);
+          const py = Math.floor(player.y);
+          for (let dy = -1; dy <= 1; dy++) {
+            for (let dx = -1; dx <= 1; dx++) {
+              const vx = px + dx;
+              const vy = py + dy;
+              const v = tileView(terrainMap, tilesRef.current, vx, vy, nowMs, null);
+              if (actionForTile(v, { blockId: selDef.id })?.action !== "place_block") continue;
+              ctx.fillStyle = "rgba(140,255,150,0.20)";
+              ctx.fillRect(toScreenX(vx), toScreenY(vy), TILE, TILE);
+              ctx.strokeStyle = "rgba(225,255,225,0.55)";
+              ctx.lineWidth = 1.5;
+              ctx.strokeRect(toScreenX(vx) + 1, toScreenY(vy) + 1, TILE - 2, TILE - 2);
             }
-            dctx.globalCompositeOperation = "source-over";
-            ctx.drawImage(dark, 0, 0, cw, ch);
           }
         }
 
-        if (space === "world" && splashes.length > 0) {
-          for (let i = splashes.length - 1; i >= 0; i--) {
-            const s = splashes[i];
-            const age = (now - s.at) / 450;
-            if (age >= 1) {
-              splashes.splice(i, 1);
+        ctx.imageSmoothingEnabled = true;
+
+        for (const n of nationsRef.current.nations) {
+          const csx = toScreenX(n.capital.x + 0.5);
+          const csy = toScreenY(n.capital.y + 1);
+          if (csx < -TILE * 2 || csy < -TILE * 2 || csx > cw + TILE * 2 || csy > ch + TILE * 2)
+            continue;
+          drawCapital(ctx, csx, csy, n);
+        }
+      } else {
+        ctx.fillStyle = "#14121c";
+        ctx.fillRect(0, 0, cw, ch);
+        lobbyOx = Math.round(cw / 2 - cam.x * TILE);
+        lobbyOy = Math.round(ch / 2 - cam.y * TILE);
+        drawLobbySprite = (o: LobbyObject) => {
+          const img = lobbySprites[o.sprite];
+          const sx = lobbyOx + o.x * TILE;
+          const sy = lobbyOy + o.y * TILE;
+          ctx.imageSmoothingEnabled = false;
+          if (texReady(img)) ctx.drawImage(img, sx, sy, o.w * TILE, o.h * TILE);
+          else {
+            ctx.fillStyle = "rgba(130,130,140,0.85)";
+            ctx.fillRect(sx, sy, o.w * TILE, o.h * TILE);
+          }
+          ctx.imageSmoothingEnabled = true;
+        };
+        const indoor = indoorData();
+        const lx0 = Math.max(0, Math.floor(cam.x - cw / TILE / 2 - 1));
+        const lx1 = Math.min(indoor.width - 1, Math.ceil(cam.x + cw / TILE / 2 + 1));
+        const ly0 = Math.max(0, Math.floor(cam.y - ch / TILE / 2 - 1));
+        const ly1 = Math.min(indoor.height - 1, Math.ceil(cam.y + ch / TILE / 2 + 1));
+        ctx.imageSmoothingEnabled = false;
+        for (let ty = ly0; ty <= ly1; ty++) {
+          for (let tx = lx0; tx <= lx1; tx++) {
+            const id =
+              parseInstanceSpace(space) || parseInteriorSpace(space)
+                ? (indoor.tiles[ty * indoor.width + tx] ?? 0)
+                : parseApartmentSpace(space)
+                  ? apartmentTileAt(indoor.tiles, tx, ty)
+                  : space === "tent"
+                    ? tentTileAt(indoor.tiles, indoor.width, indoor.height, tx, ty)
+                    : space === "prison"
+                      ? prisonTileAt(indoor.tiles, tx, ty)
+                      : space === "lobby2"
+                        ? lobby2TileAt(indoor.tiles, tx, ty)
+                        : space === "lobby3"
+                          ? lobby3TileAt(indoor.tiles, tx, ty)
+                          : lobbyTileAt(indoor.tiles, tx, ty);
+            if (id === L_VOID) continue;
+            const sx = lobbyOx + tx * TILE;
+            const sy = lobbyOy + ty * TILE;
+            const key = LOBBY_FLOOR_SPRITE[id];
+            const img = key ? lobbySprites[key] : textures[TILE_TEXTURE[T_SAND]];
+            if (texReady(img)) ctx.drawImage(img, sx, sy, TILE, TILE);
+            else {
+              ctx.fillStyle = LOBBY_FLOOR_FALLBACK[id] ?? "#888888";
+              ctx.fillRect(sx, sy, TILE, TILE);
+            }
+            if (id === L_PLAZA) {
+              ctx.fillStyle = "rgba(255,255,255,0.10)";
+              ctx.fillRect(sx, sy, TILE, TILE);
+            }
+          }
+        }
+        {
+          const intrDraw = interiorNow();
+          if (intrDraw) {
+            const ex = Math.round(lobbyOx + intrDraw.exitMat.x * TILE);
+            const ey = Math.round(lobbyOy + intrDraw.exitMat.y * TILE);
+            const ew = intrDraw.exitMat.w * TILE;
+            const eh = intrDraw.exitMat.h * TILE;
+            ctx.fillStyle = "rgba(74, 222, 128, 0.35)";
+            ctx.fillRect(ex + 2, ey + 2, ew - 4, eh - 4);
+            ctx.strokeStyle = "#4ade80";
+            ctx.lineWidth = 2;
+            ctx.strokeRect(ex + 2, ey + 2, ew - 4, eh - 4);
+            ctx.font = "800 10.5px sans-serif";
+            ctx.textAlign = "center";
+            ctx.fillStyle = "#ecfdf5";
+            ctx.fillText("EXIT / 外へ", ex + ew / 2, ey + eh / 2 + 4);
+          }
+        }
+        {
+          const ruinsDraw = ruinsNow();
+          if (ruinsDraw) {
+            const scoutNear = invRef.current?.role === "scout";
+            for (const trap of ruinsDraw.traps) {
+              if (ruinsStateRef.current.traps[String(trap.idx)]) continue;
+              if (trap.x < lx0 || trap.x > lx1 || trap.y < ly0 || trap.y > ly1) continue;
+              const sx = lobbyOx + trap.x * TILE;
+              const sy = lobbyOy + trap.y * TILE;
+              const near =
+                scoutNear && Math.hypot(trap.x + 0.5 - player.x, trap.y + 0.5 - player.y) <= 3;
+              ctx.strokeStyle = near ? "rgba(255,90,60,0.9)" : "rgba(30,26,20,0.35)";
+              ctx.lineWidth = near ? 2 : 1;
+              ctx.beginPath();
+              ctx.moveTo(sx + 6, sy + TILE - 7);
+              ctx.lineTo(sx + TILE / 2, sy + TILE / 2 + 3);
+              ctx.lineTo(sx + TILE - 8, sy + 9);
+              ctx.stroke();
+              if (near) ctx.strokeRect(sx + 2.5, sy + 2.5, TILE - 5, TILE - 5);
+            }
+          }
+        }
+        {
+          const caveDraw2 = caveLayerNow();
+          if (caveDraw2 && invRef.current?.role === "miner") {
+            const pulse = 0.35 + 0.25 * Math.sin(now / 240);
+            ctx.strokeStyle = `rgba(255,210,62,${pulse})`;
+            ctx.lineWidth = 2;
+            for (const v of caveDraw2.veins) {
+              if (caveStateRef.current.veins[`${v.x},${v.y}`]) continue;
+              if (v.x < lx0 || v.x > lx1 || v.y < ly0 || v.y > ly1) continue;
+              ctx.strokeRect(
+                lobbyOx + v.x * TILE + 2.5,
+                lobbyOy + v.y * TILE + 2.5,
+                TILE - 5,
+                TILE - 5,
+              );
+            }
+          }
+        }
+        for (const o of indoor.objects) {
+          if (!FLAT_LOBBY_SPRITES.has(o.sprite)) continue;
+          if (o.x + o.w < lx0 || o.x > lx1 || o.y + o.h < ly0 || o.y > ly1) continue;
+          drawLobbySprite(o);
+        }
+        ctx.imageSmoothingEnabled = true;
+      }
+
+      const drawList: { y: number; draw: () => void }[] = [];
+      if (space === "world") {
+        const dayPhase = phaseAtTime(nowMs / 1000);
+        const nightAmt = nightAmount(dayPhase);
+        const nearStls = settlementsNear(cam.x, cam.y, 44);
+        for (const stl of nearStls) {
+          for (const lamp of stl.lamps) {
+            const lx = toScreenX(lamp.x + 0.5);
+            const ly = toScreenY(lamp.y + 0.85);
+            if (lx < -TILE * 2 || ly < -TILE * 2 || lx > cw + TILE * 2 || ly > ch + TILE * 2) {
               continue;
             }
-            ctx.strokeStyle = `rgba(255,255,255,${(0.65 * (1 - age)).toFixed(3)})`;
+            drawList.push({
+              y: lamp.y + 0.9,
+              draw: () => {
+                ctx.fillStyle = "rgba(10,16,24,0.28)";
+                ctx.beginPath();
+                ctx.ellipse(lx, ly + 2, TILE * 0.18, TILE * 0.08, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = "#334155";
+                ctx.fillRect(lx - 2, ly - TILE * 0.72, 4, TILE * 0.72);
+                ctx.fillStyle = nightAmt > 0.12 ? "#fde047" : "#cbd5e1";
+                ctx.beginPath();
+                ctx.arc(lx, ly - TILE * 0.78, 5, 0, Math.PI * 2);
+                ctx.fill();
+              },
+            });
+          }
+
+          for (const b of stl.buildings) {
+            const bx = toScreenX(b.x);
+            const by = toScreenY(b.y);
+            const bw = b.w * TILE;
+            const bh = b.h * TILE;
+            if (
+              bx + bw < -TILE * 2 ||
+              by + bh < -TILE * 2 ||
+              bx > cw + TILE * 2 ||
+              by > ch + TILE * 2
+            ) {
+              continue;
+            }
+            const doorPx = toScreenX(b.doorX);
+            const doorPy = toScreenY(b.doorY);
+            const porchPx = toScreenX(b.porchX);
+            const porchPy = toScreenY(b.porchY);
+            drawList.push({
+              y: b.y + b.h,
+              draw: () => {
+                // Welcome mat on street outside doorway
+                ctx.fillStyle = b.signColor;
+                ctx.fillRect(porchPx + 8, porchPy + 12, TILE - 16, TILE - 20);
+                ctx.fillStyle = "rgba(15,23,42,0.55)";
+                ctx.fillRect(porchPx + 11, porchPy + 15, TILE - 22, TILE - 26);
+
+                // Drop shadow & plinth
+                ctx.fillStyle = "rgba(8,12,20,0.32)";
+                ctx.fillRect(bx + 4, by + bh - 4, bw - 4, 8);
+                // Main exterior masonry / timber wall
+                ctx.fillStyle = b.wallColor;
+                ctx.fillRect(bx + 2, by + TILE * 0.42, bw - 4, bh - TILE * 0.42);
+                ctx.fillStyle = b.trimColor;
+                ctx.fillRect(bx + 2, by + bh - 7, bw - 4, 7);
+                ctx.strokeStyle = "rgba(15,23,42,0.78)";
+                ctx.lineWidth = 1.5;
+                ctx.strokeRect(bx + 2, by + TILE * 0.42, bw - 4, bh - TILE * 0.42);
+                // Pitched roof overhang
+                ctx.fillStyle = b.roofColor;
+                ctx.fillRect(bx - 1, by, bw + 2, TILE * 0.56);
+                ctx.fillStyle = "rgba(255,255,255,0.22)";
+                ctx.fillRect(bx, by + 3, bw, 4);
+                ctx.fillStyle = "rgba(15,23,42,0.25)";
+                ctx.fillRect(bx - 1, by + TILE * 0.56 - 4, bw + 2, 4);
+                // Storefront awning for commercial buildings
+                if (b.kind === "cafe" || b.kind === "convenience" || b.kind === "vehicle_dealer") {
+                  const stripeW = Math.max(8, (bw - 12) / 6);
+                  for (let si = 0; si < 6; si++) {
+                    ctx.fillStyle = si % 2 === 0 ? b.signColor : "#f8fafc";
+                    ctx.fillRect(bx + 6 + si * stripeW, by + TILE * 0.56, stripeW, 7);
+                  }
+                }
+                // Warm lit windows
+                const cols = Math.max(2, b.w - 1);
+                for (let ci = 0; ci < cols; ci++) {
+                  const wx = bx + 12 + ci * ((bw - 24) / cols);
+                  const wy = by + TILE * 0.85;
+                  ctx.fillStyle = "#1e293b";
+                  ctx.fillRect(wx - 1.5, wy - 1.5, 13, 12);
+                  ctx.fillStyle = nightAmt > 0.12 ? "#fde68a" : "#bae6fd";
+                  ctx.fillRect(wx, wy, 10, 9);
+                }
+                // Physical enterable doorway portal at exact (doorX, doorY)
+                ctx.fillStyle = "#1e293b";
+                ctx.fillRect(doorPx + 8, doorPy + TILE - 28, TILE - 16, 28);
+                ctx.fillStyle = nightAmt > 0.12 ? "#fcd34d" : "#fef08a";
+                ctx.fillRect(doorPx + 11, doorPy + TILE - 25, TILE - 22, 23);
+                ctx.fillStyle = b.signColor;
+                ctx.fillRect(doorPx + 7, doorPy + TILE - 31, TILE - 14, 4);
+
+                // Shop sign nameplate + IN pill
+                ctx.font = "700 10.5px sans-serif";
+                ctx.textAlign = "center";
+                const tagTitle = `[${b.signText}] ${b.label}`;
+                const tw = Math.min(bw + 32, ctx.measureText(tagTitle).width + 12);
+                ctx.fillStyle = "rgba(12,18,30,0.88)";
+                ctx.fillRect(bx + bw / 2 - tw / 2, by - 17, tw, 15);
+                ctx.strokeStyle = b.signColor;
+                ctx.lineWidth = 1;
+                ctx.strokeRect(bx + bw / 2 - tw / 2, by - 17, tw, 15);
+                ctx.fillStyle = "#f8fafc";
+                ctx.fillText(tagTitle, bx + bw / 2, by - 6);
+              },
+            });
+          }
+
+          for (const cit of stl.citizens) {
+            const pose = evaluateCitizenPose(stl, cit, dayPhase, nowMs);
+            if (pose.sleeping) continue;
+            const sx = toScreenX(pose.x);
+            const sy = toScreenY(pose.y) + TILE * PLAYER_RADIUS;
+            if (sx < -TILE * 3 || sy < -TILE * 3 || sx > cw + TILE * 3 || sy > ch + TILE * 3) {
+              continue;
+            }
+            const nearPlayer = Math.hypot(pose.x - player.x, pose.y - player.y) <= 3.6;
+            const roleSym =
+              cit.role === "guard"
+                ? "[警]"
+                : cit.role === "barista"
+                  ? "[茶]"
+                  : cit.role === "dealer_staff"
+                    ? "[車]"
+                    : cit.role === "merchant"
+                      ? "[商]"
+                      : cit.role === "banker"
+                        ? "[銀]"
+                        : cit.role === "smith"
+                          ? "[鍛]"
+                          : cit.role === "mayor"
+                            ? "[庁]"
+                            : cit.role === "farmer"
+                              ? "[農]"
+                              : "[市]";
+            drawList.push({
+              y: pose.y + PLAYER_RADIUS,
+              draw: () => {
+                drawAvatar(
+                  ctx,
+                  sx,
+                  sy,
+                  pose.face,
+                  pose.walkPhase,
+                  Math.min(1, pose.walkSpeed / WALK_SPEED),
+                  cit.name,
+                  cit.shirtColor,
+                  false,
+                  { roleSymbol: roleSym, rank: 1 },
+                  false,
+                  null,
+                );
+                if (nearPlayer && cit.phrases.length > 0) {
+                  const phrase =
+                    cit.phrases[
+                      Math.floor((nowMs / 6500 + cit.phaseOffset) % cit.phrases.length)
+                    ] ?? pose.activity;
+                  ctx.save();
+                  ctx.font = "600 11px sans-serif";
+                  ctx.textAlign = "center";
+                  const btw = ctx.measureText(phrase).width + 14;
+                  const bx0 = sx - btw / 2;
+                  const by0 = sy - TILE * 1.95;
+                  ctx.fillStyle = "rgba(15, 23, 42, 0.9)";
+                  ctx.strokeStyle = "rgba(56, 189, 248, 0.6)";
+                  ctx.lineWidth = 1.2;
+                  ctx.beginPath();
+                  ctx.roundRect(bx0, by0, btw, 20, 6);
+                  ctx.fill();
+                  ctx.stroke();
+                  ctx.fillStyle = "#e2e8f0";
+                  ctx.fillText(phrase, sx, by0 + 13.5);
+                  ctx.restore();
+                }
+              },
+            });
+          }
+        }
+
+        for (const pin of mapPinsRef.current) {
+          if (pin.space !== "world") continue;
+          const sx = toScreenX(pin.x + 0.5);
+          const sy = toScreenY(pin.y + 0.5);
+          if (sx < -TILE * 2 || sy < -TILE * 2 || sx > cw + TILE * 2 || sy > ch + TILE * 2) {
+            continue;
+          }
+          drawList.push({
+            y: pin.y + 0.7,
+            draw: () => {
+              const bob = Math.sin(now / 260) * 2;
+              ctx.fillStyle = "rgba(8,12,20,0.35)";
+              ctx.beginPath();
+              ctx.ellipse(sx, sy + 2, 7, 3, 0, 0, Math.PI * 2);
+              ctx.fill();
+              drawCanvasPinGlyph(ctx, pin.icon, sx, sy - 14 + bob, 9.5, pin.color);
+              ctx.font = "700 10.5px sans-serif";
+              ctx.textAlign = "center";
+              const label = pin.label;
+              const tw = ctx.measureText(label).width + 8;
+              ctx.fillStyle = "rgba(10,16,28,0.85)";
+              ctx.fillRect(sx - tw / 2, sy - 34 + bob, tw, 14);
+              ctx.fillStyle = "#ffffff";
+              ctx.fillText(label, sx, sy - 23.5 + bob);
+            },
+          });
+        }
+      }
+      for (const o of others.values()) {
+        const nationColor = nationsRef.current.playerNations[o.track.entry.id]?.color ?? null;
+        const oSwim = space === "world" && isWaterAt(worldMap, o.track.rx, o.track.ry);
+        drawList.push({
+          y: o.track.ry + PLAYER_RADIUS,
+          draw: () =>
+            drawAvatar(
+              ctx,
+              space !== "world" ? Math.round(lobbyOx + o.track.rx * TILE) : toScreenX(o.track.rx),
+              space !== "world"
+                ? Math.round(lobbyOy + o.track.ry * TILE) + TILE * PLAYER_RADIUS
+                : toScreenY(o.track.ry) + TILE * PLAYER_RADIUS,
+              o.track.entry.face,
+              o.phase,
+              Math.min(1, Math.hypot(o.track.entry.vx, o.track.entry.vy) / WALK_SPEED),
+              o.track.entry.name || null,
+              nationColor,
+              oSwim,
+              {
+                roleSymbol: roleById((o.track.entry.role ?? "free") as AdventureRoleId).symbol,
+                rank: o.track.entry.rank ?? 1,
+              },
+              o.track.entry.sit === true,
+              iconFor(o.track.entry.avatar),
+            ),
+        });
+      }
+      if (space !== "world") {
+        const caveDraw = caveLayerNow();
+        const ruinsObjDraw = ruinsNow();
+        for (const o of indoorData().objects) {
+          if (FLAT_LOBBY_SPRITES.has(o.sprite)) continue;
+          const sx = lobbyOx + o.x * TILE;
+          const sy = lobbyOy + o.y * TILE;
+          if (sx < -TILE * 4 || sy < -TILE * 4 || sx > cw + TILE * 4 || sy > ch + TILE * 4)
+            continue;
+          if (ruinsObjDraw && (o.sprite === "ruins_chest" || o.sprite === "gold_door")) {
+            const isDoor = o.sprite === "gold_door";
+            const door = ruinsObjDraw.doors.find((d) => d.x === o.x && d.y === o.y);
+            const chest = ruinsObjDraw.chests.find((c) => c.x === o.x && c.y === o.y);
+            if (isDoor && door && ruinsStateRef.current.doors[String(door.idx)]) continue;
+            const openedChest = !!chest && ruinsStateRef.current.chests[String(chest.idx)];
+            drawList.push({
+              y: o.y + o.h,
+              draw: () => {
+                const bx = Math.round(lobbyOx + o.x * TILE);
+                const by = Math.round(lobbyOy + o.y * TILE);
+                if (isDoor) {
+                  ctx.fillStyle = "#7a6420";
+                  ctx.fillRect(bx + 3, by + 2, TILE - 6, TILE - 2);
+                  ctx.fillStyle = "#e8c85a";
+                  ctx.fillRect(bx + 3, by + 2, TILE - 6, 4);
+                  ctx.fillRect(bx + TILE / 2 - 2, by + TILE / 2 - 2, 4, 4);
+                } else {
+                  ctx.fillStyle = openedChest ? "#5d5040" : "#6e5a43";
+                  ctx.fillRect(bx + 4, by + 10, TILE - 8, TILE - 14);
+                  ctx.fillStyle = chest?.main ? "#e8c85a" : "#b9a888";
+                  ctx.fillRect(bx + 4, by + 16, TILE - 8, 3);
+                }
+              },
+            });
+            continue;
+          }
+          if (
+            caveDraw &&
+            (o.sprite === "cave_chest" ||
+              caveDraw.veins.some((v) => v.objectId === o.sprite && v.x === o.x && v.y === o.y))
+          ) {
+            const vein = caveDraw.veins.find((v) => v.x === o.x && v.y === o.y);
+            const takenAt = vein
+              ? (caveStateRef.current.veins[vein.key] ?? 0)
+              : caveStateRef.current.chest;
+            const def = specialObjectById(o.sprite);
+            const respawnMs =
+              o.sprite === "cave_chest" ? 6 * 60 * 60 * 1000 : (def?.respawnMs ?? 0);
+            if (vein && takenAt > 0 && Date.now() - takenAt < respawnMs) continue;
+            const colors: Record<string, string> = {
+              coal_vein: "#3a3a42",
+              copper_vein: "#c47b4a",
+              rare_vein: "#e8c85a",
+              crystal_cluster: "#9fe8ff",
+              mithril_vein: "#b9f2d8",
+              cave_chest: "#8a5a2b",
+            };
+            const color = colors[o.sprite] ?? "#999";
+            const opened =
+              o.sprite === "cave_chest" && takenAt > 0 && Date.now() - takenAt < respawnMs;
+            drawList.push({
+              y: o.y + o.h,
+              draw: () => {
+                const bx = Math.round(lobbyOx + o.x * TILE);
+                const by = Math.round(lobbyOy + o.y * TILE);
+                if (o.sprite === "cave_chest") {
+                  ctx.fillStyle = opened ? "#5d4020" : color;
+                  ctx.fillRect(bx + 4, by + 10, TILE - 8, TILE - 14);
+                  ctx.fillStyle = "#e8c85a";
+                  ctx.fillRect(bx + 4, by + 16, TILE - 8, 3);
+                } else {
+                  ctx.fillStyle = "#55565f";
+                  ctx.fillRect(bx + 2, by + 2, TILE - 4, TILE - 4);
+                  ctx.fillStyle = color;
+                  ctx.beginPath();
+                  ctx.moveTo(bx + TILE * 0.5, by + 5);
+                  ctx.lineTo(bx + TILE - 7, by + TILE * 0.55);
+                  ctx.lineTo(bx + TILE * 0.62, by + TILE - 6);
+                  ctx.lineTo(bx + 7, by + TILE * 0.6);
+                  ctx.closePath();
+                  ctx.fill();
+                }
+              },
+            });
+            continue;
+          }
+          drawList.push({ y: o.y + o.h, draw: () => drawLobbySprite(o) });
+        }
+        const intrDraw2 = interiorNow();
+        if (intrDraw2) {
+          for (const bay of intrDraw2.dealerBays) {
+            const spec = vehicleSpecFor(bay.vehicleId);
+            const bx = Math.round(lobbyOx + (bay.x + 0.5) * TILE);
+            const by = Math.round(lobbyOy + (bay.y + 0.5) * TILE);
+            drawList.push({
+              y: bay.y + 0.9,
+              draw: () => {
+                ctx.fillStyle = "rgba(15,23,42,0.72)";
+                ctx.beginPath();
+                ctx.ellipse(bx, by + 6, TILE * 0.72, TILE * 0.34, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = bay.accent;
+                ctx.lineWidth = 1.6;
+                ctx.stroke();
+
+                const cw2 = TILE * 1.18;
+                const ch2 = TILE * 0.52;
+                ctx.fillStyle = spec?.bodyColor ?? bay.accent;
+                ctx.fillRect(bx - cw2 / 2, by - ch2 * 0.7, cw2, ch2);
+                ctx.strokeStyle = spec?.trimColor ?? "#f8fafc";
+                ctx.lineWidth = 1.5;
+                ctx.strokeRect(bx - cw2 / 2, by - ch2 * 0.7, cw2, ch2);
+                ctx.fillStyle = "#bae6fd";
+                ctx.fillRect(bx - cw2 * 0.25, by - ch2 * 0.55, cw2 * 0.5, ch2 * 0.35);
+
+                ctx.font = "700 10px sans-serif";
+                ctx.textAlign = "center";
+                ctx.fillStyle = "#e2e8f0";
+                ctx.fillText(bay.label, bx, by - ch2 * 0.9);
+                ctx.fillStyle = "#fde047";
+                ctx.fillText(`¥${bay.price.toLocaleString()}`, bx, by + TILE * 0.6);
+              },
+            });
+          }
+          for (const stf of intrDraw2.staff) {
+            drawList.push({
+              y: stf.y + 1,
+              draw: () => {
+                const sx = Math.round(lobbyOx + stf.x * TILE);
+                const sy = Math.round(lobbyOy + (stf.y + 0.6) * TILE);
+                drawAvatar(
+                  ctx,
+                  sx,
+                  sy,
+                  1,
+                  0,
+                  0,
+                  stf.name,
+                  stf.shirtColor,
+                  false,
+                  { roleSymbol: `[${stf.roleLabel.slice(0, 2)}]`, rank: 1 },
+                  false,
+                  null,
+                );
+              },
+            });
+          }
+        } else {
+          for (const n of indoorData().npcs) {
+            drawList.push({
+              y: n.y + 1,
+              draw: () =>
+                drawAvatar(
+                  ctx,
+                  Math.round(lobbyOx + (n.x + 0.5) * TILE),
+                  Math.round(lobbyOy + (n.y + 1) * TILE),
+                  1,
+                  0,
+                  0,
+                  null,
+                ),
+            });
+          }
+        }
+      }
+      const selfFloorOv =
+        space === "world"
+          ? tilesRef.current[tileKey(Math.floor(player.x), Math.floor(player.y))]
+          : undefined;
+      const slimeBouncePx =
+        selfFloorOv?.block?.itemId === "slime_block" && isOverrideActive(selfFloorOv, Date.now())
+          ? Math.abs(Math.sin(now / 170)) * TILE * 0.16
+          : 0;
+      drawList.push({
+        y: player.y + PLAYER_RADIUS,
+        draw: () => {
+          const sx =
+            space !== "world" ? Math.round(lobbyOx + player.x * TILE) : toScreenX(player.x);
+          const sy =
+            (space !== "world"
+              ? Math.round(lobbyOy + player.y * TILE) + TILE * PLAYER_RADIUS
+              : toScreenY(player.y) + TILE * PLAYER_RADIUS) - slimeBouncePx;
+          const vSpec = vehicleSpecFor(equippedVehicleRef.current);
+          if (vSpec && !playerSwimming) {
+            const w = TILE * 1.15;
+            const h = TILE * 0.48;
+            ctx.fillStyle = "rgba(0,0,0,0.35)";
+            ctx.beginPath();
+            ctx.ellipse(sx, sy + 2, w * 0.55, h * 0.5, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = vSpec.bodyColor;
+            ctx.fillRect(sx - w / 2, sy - h * 0.65, w, h);
+            ctx.strokeStyle = vSpec.trimColor;
+            ctx.lineWidth = 1.5;
+            ctx.strokeRect(sx - w / 2, sy - h * 0.65, w, h);
+            if (vSpec.hasSiren) {
+              const flash = Math.floor(now / 180) % 2 === 0;
+              ctx.fillStyle = flash ? "#ef4444" : "#3b82f6";
+              ctx.fillRect(sx - 6, sy - h * 0.8, 12, 4);
+            }
+          }
+          drawAvatar(
+            ctx,
+            sx,
+            vSpec && !playerSwimming ? sy - 5 : sy,
+            player.face,
+            player.phase,
+            speedRatio,
+            null,
+            null,
+            playerSwimming,
+            null,
+            sitTileRef.current !== null,
+            iconFor(myIconUrl),
+          );
+        },
+      });
+      if (space === "lobby") {
+        const sched = scheduleAt(Date.now());
+        if (sched.runningPostMs !== null) {
+          if (!raceAnimCache || raceAnimCache.postMs !== sched.runningPostMs) {
+            raceAnimCache = {
+              postMs: sched.runningPostMs,
+              core: generateRaceCore(sched.runningPostMs),
+            };
+          }
+          const core = raceAnimCache.core;
+          const progress = Math.min(
+            1,
+            Math.max(0, (Date.now() - sched.runningPostMs) / RACE_DURATION_MS),
+          );
+          for (const e of core.entries) {
+            const pose = horseTrackPose(core, e.horse.id, progress, RACETRACK);
+            const coat = COAT_COLORS[e.horse.coat] ?? "#8a5a2b";
+            const gate = e.gate;
+            drawList.push({
+              y: pose.y + 0.3,
+              draw: () => {
+                const sx = Math.round(lobbyOx + pose.x * TILE);
+                const sy = Math.round(lobbyOy + pose.y * TILE);
+                ctx.beginPath();
+                ctx.arc(sx, sy, TILE * 0.3, 0, Math.PI * 2);
+                ctx.fillStyle = coat;
+                ctx.fill();
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = "rgba(0,0,0,0.45)";
+                ctx.stroke();
+                ctx.fillStyle =
+                  e.horse.coat === "芦毛" || e.horse.coat === "白毛" ? "#222" : "#fff";
+                ctx.font = `700 ${Math.round(TILE * 0.34)}px sans-serif`;
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText(String(gate), sx, sy + 1);
+              },
+            });
+          }
+        } else {
+          raceAnimCache = null;
+        }
+      }
+      drawList.sort((a, b) => a.y - b.y);
+      for (const d of drawList) d.draw();
+
+      if (space === "lobby") {
+        for (const plot of guildShopPlotsRef.current) {
+          const anchor = GUILD_PLOT_ANCHORS[plot.idx];
+          if (!anchor) continue;
+          const gx = Math.round(lobbyOx + (anchor.x + 0.5) * TILE);
+          const gy = Math.round(lobbyOy + anchor.y * TILE);
+          if (gx < -TILE * 4 || gy < -TILE * 2 || gx > cw + TILE * 4 || gy > ch + TILE * 2)
+            continue;
+          ctx.font = "600 11px sans-serif";
+          ctx.textAlign = "center";
+          ctx.lineWidth = 3;
+          ctx.strokeStyle = "rgba(10,16,10,0.65)";
+          ctx.strokeText(plot.guildName, gx, gy - 5);
+          ctx.fillStyle = "#ffffff";
+          ctx.fillText(plot.guildName, gx, gy - 5);
+        }
+      }
+
+      for (const hq of companyHqsRef.current) {
+        const gx =
+          space === "world"
+            ? Math.round(toScreenX(hq.x + 0.5))
+            : Math.round(lobbyOx + (hq.x + 0.5) * TILE);
+        const gy =
+          space === "world" ? Math.round(toScreenY(hq.y)) : Math.round(lobbyOy + hq.y * TILE);
+        if (gx < -TILE * 3 || gy < -TILE * 2 || gx > cw + TILE * 3 || gy > ch + TILE * 2) continue;
+        ctx.fillStyle = "#ffb340";
+        ctx.strokeStyle = "rgba(255,255,255,0.9)";
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(gx, gy - 11);
+        ctx.lineTo(gx + 5, gy - 4);
+        ctx.lineTo(gx, gy + 3);
+        ctx.lineTo(gx - 5, gy - 4);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.font = "600 11px sans-serif";
+        ctx.textAlign = "center";
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = "rgba(10,16,10,0.65)";
+        const label = `${hq.name} 本社`;
+        ctx.strokeText(label, gx, gy - 15);
+        ctx.fillStyle = "#ffffff";
+        ctx.fillText(label, gx, gy - 15);
+      }
+
+      if (space === "prison") {
+        const ts = Date.now();
+        const sweep = isPrisonGuardSweepingVent(ts);
+        const phase = (ts % 16_000) / 16_000;
+        const guardX = phase < 0.3 ? 6.5 : 13.5 - Math.abs(phase - 0.65) * 10;
+        const guardY = 25.5;
+        const gx = Math.round(lobbyOx + guardX * TILE);
+        const gy = Math.round(lobbyOy + guardY * TILE);
+        ctx.save();
+        ctx.fillStyle = sweep ? "rgba(239, 68, 68, 0.24)" : "rgba(250, 204, 21, 0.14)";
+        ctx.beginPath();
+        ctx.moveTo(gx, gy);
+        const dir = phase < 0.3 ? Math.PI : 0;
+        ctx.arc(gx, gy, TILE * 3.4, dir - 0.55, dir + 0.55);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = "#1e3a8a";
+        ctx.beginPath();
+        ctx.arc(gx, gy, TILE * 0.32, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = "#facc15";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.font = "700 11px sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillStyle = sweep ? "#fca5a5" : "#fef08a";
+        ctx.fillText(sweep ? "巡回看守 [警戒中]" : "巡回看守", gx, gy - 16);
+        ctx.restore();
+      }
+
+      const trNow = trackedTargetRef.current;
+      if (trNow) {
+        let txTile: number | null = null;
+        let tyTile: number | null = null;
+        let sameSpace = false;
+        if (trNow.kind === "player") {
+          const otherPl = others.get(trNow.presenceId);
+          if (otherPl) {
+            txTile = otherPl.track.rx;
+            tyTile = otherPl.track.ry;
+            sameSpace = true;
+          }
+        } else if (trNow.space === space) {
+          txTile = trNow.x + 0.5;
+          tyTile = trNow.y + 0.5;
+          sameSpace = true;
+        }
+
+        if (sameSpace && txTile !== null && tyTile !== null) {
+          const pxScreen =
+            space === "world" ? toScreenX(player.x) : Math.round(lobbyOx + player.x * TILE);
+          const pyScreen =
+            space === "world" ? toScreenY(player.y) : Math.round(lobbyOy + player.y * TILE);
+          const txScreen =
+            space === "world" ? toScreenX(txTile) : Math.round(lobbyOx + txTile * TILE);
+          const tyScreen =
+            space === "world" ? toScreenY(tyTile) : Math.round(lobbyOy + tyTile * TILE);
+          const dist = Math.hypot(txTile - player.x, tyTile - player.y);
+          if (trackedDistElRef.current) {
+            trackedDistElRef.current.textContent = `${Math.round(dist)}m`;
+          }
+          const near = dist <= 4.5;
+          const ang = Math.atan2(tyScreen - pyScreen, txScreen - pxScreen);
+
+          ctx.save();
+          ctx.strokeStyle = near ? "#4ade80" : (trNow.color ?? "#38bdf8");
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.arc(txScreen, tyScreen, TILE * (0.55 + Math.sin(now / 180) * 0.12), 0, Math.PI * 2);
+          ctx.stroke();
+
+          if (dist > 2) {
+            const ax = pxScreen + Math.cos(ang) * TILE * 1.3;
+            const ay = pyScreen + Math.sin(ang) * TILE * 1.3;
+            ctx.translate(ax, ay);
+            ctx.rotate(ang);
+            ctx.fillStyle = near ? "#4ade80" : (trNow.color ?? "#38bdf8");
+            ctx.beginPath();
+            ctx.moveTo(10, 0);
+            ctx.lineTo(-6, -6);
+            ctx.lineTo(-3, 0);
+            ctx.lineTo(-6, 6);
+            ctx.closePath();
+            ctx.fill();
+          }
+          ctx.restore();
+        } else if (trackedDistElRef.current) {
+          trackedDistElRef.current.textContent =
+            trNow.kind === "player" ? "他エリア/圏外" : "別エリア";
+        }
+      }
+
+      if (space !== "world") {
+        const indoor = indoorData();
+        const ruinsDraw = ruinsNow();
+        const caveDraw = caveLayerNow();
+        for (const o of indoor.objects) {
+          const key = o.station ?? o.sprite;
+          const isTarget =
+            !!o.station ||
+            FLAT_LOBBY_SPRITES.has(o.sprite) ||
+            o.sprite === "ruins_chest" ||
+            o.sprite === "gold_door" ||
+            o.sprite === "cave_chest";
+          if (!isTarget) continue;
+          if (ruinsDraw && o.sprite === "ruins_chest") {
+            const chest = ruinsDraw.chests.find((c) => c.x === o.x && c.y === o.y);
+            if (chest && ruinsStateRef.current.chests[String(chest.idx)]) continue;
+          }
+          if (ruinsDraw && o.sprite === "gold_door") {
+            const door = ruinsDraw.doors.find((d) => d.x === o.x && d.y === o.y);
+            if (door && ruinsStateRef.current.doors[String(door.idx)]) continue;
+          }
+          if (caveDraw && o.sprite === "cave_chest") {
+            const takenAt = caveStateRef.current.chest;
+            if (takenAt > 0 && Date.now() - takenAt < 6 * 60 * 60 * 1000) continue;
+          }
+          if (!isWithinAffordanceRange(player.x, player.y, o.x, o.y, o.w, o.h)) continue;
+          const sx = Math.round(lobbyOx + o.x * TILE);
+          const sy = Math.round(lobbyOy + o.y * TILE);
+          if (sx < -TILE * 2 || sy < -TILE * 2 || sx > cw + TILE * 2 || sy > ch + TILE * 2)
+            continue;
+          let seenAt = seenAffordanceRef.current.get(key);
+          if (seenAt === undefined) {
+            seenAt = now;
+            seenAffordanceRef.current.set(key, now);
+          }
+          const age = now - seenAt;
+          const alpha = reducedMotion ? 0.35 : nudgeRingAlpha(now, age);
+          const bob = reducedMotion ? 0 : nudgeBobPx(age);
+          ctx.strokeStyle = `rgba(${AFFORDANCE_RING_RGB},${alpha.toFixed(3)})`;
+          ctx.lineWidth = 2;
+          ctx.strokeRect(sx + 2.5, sy + 2.5 + bob, o.w * TILE - 5, o.h * TILE - 5);
+        }
+      }
+
+      {
+        const deny = denyFxRef.current;
+        if (deny) {
+          const fb = deniedFeedback(now - deny.at);
+          if (!fb) denyFxRef.current = null;
+          else {
+            const dx0 =
+              space !== "world"
+                ? Math.round(lobbyOx + deny.x * TILE)
+                : Math.round(toScreenX(deny.x));
+            const dy0 =
+              space !== "world"
+                ? Math.round(lobbyOy + deny.y * TILE)
+                : Math.round(toScreenY(deny.y));
+            ctx.strokeStyle = `rgba(${DENIED_RING_RGB},${fb.alpha.toFixed(3)})`;
+            ctx.lineWidth = 2;
+            ctx.strokeRect(dx0 + 2.5 + (reducedMotion ? 0 : fb.dx), dy0 + 2.5, TILE - 5, TILE - 5);
+          }
+        }
+      }
+
+      if (space === "world") {
+        const activeFish = fishingRef.current;
+        if (activeFish && now > activeFish.biteAt + 1100) fishingRef.current = null;
+        const fcx0 = Math.floor((cam.x - cw / TILE / 2) / CHUNK_SIZE);
+        const fcx1 = Math.ceil((cam.x + cw / TILE / 2) / CHUNK_SIZE);
+        const fcy0 = Math.floor((cam.y - ch / TILE / 2) / CHUNK_SIZE);
+        const fcy1 = Math.ceil((cam.y + ch / TILE / 2) / CHUNK_SIZE);
+        for (let fcy = fcy0; fcy <= fcy1; fcy++) {
+          for (let fcx = fcx0; fcx <= fcx1; fcx++) {
+            for (const o of objectsForChunk(MAP_SEED, fcx, fcy)) {
+              if (o.objectId !== "fishing_spot") continue;
+              const caughtAt = fishCaughtRef.current.get(`${o.x},${o.y}`) ?? 0;
+              if (caughtAt && now - caughtAt < 10 * 60 * 1000) continue;
+              const sx = toScreenX(o.x + 0.5);
+              const sy = toScreenY(o.y + 0.55);
+              const bob = Math.sin(now / 600 + o.x * 1.7 + o.y) * 2;
+              ctx.fillStyle = "rgba(10,30,50,0.55)";
+              ctx.beginPath();
+              ctx.ellipse(sx, sy + bob, TILE * 0.3, TILE * 0.13, 0, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.beginPath();
+              ctx.moveTo(sx + TILE * 0.28, sy + bob);
+              ctx.lineTo(sx + TILE * 0.44, sy - TILE * 0.08 + bob);
+              ctx.lineTo(sx + TILE * 0.44, sy + TILE * 0.08 + bob);
+              ctx.closePath();
+              ctx.fill();
+            }
+          }
+        }
+        for (let fcy = fcy0; fcy <= fcy1; fcy++) {
+          for (let fcx = fcx0; fcx <= fcx1; fcx++) {
+            for (const o of objectsForChunk(MAP_SEED, fcx, fcy)) {
+              if (o.objectId === "fishing_spot") continue;
+              const odef = specialObjectById(o.objectId);
+              if (!odef) continue;
+              const harvestedAt = surfaceObjStateRef.current.get(`${o.x},${o.y}`) ?? null;
+              const ready = objectRespawned(odef, harvestedAt, now);
+              if (!ready && odef.respawnMs > 0) continue;
+              drawSurfaceObject(ctx, o.objectId, toScreenX(o.x), toScreenY(o.y), TILE, !ready, now);
+              if (
+                ready &&
+                Math.max(Math.abs(o.x + 0.5 - player.x), Math.abs(o.y + 0.5 - player.y)) <= 2
+              ) {
+                const alpha = reducedMotion ? 0.3 : 0.28 + 0.14 * Math.sin(now / 300);
+                ctx.strokeStyle = `rgba(${AFFORDANCE_RING_RGB},${alpha.toFixed(3)})`;
+                ctx.lineWidth = 2;
+                ctx.strokeRect(toScreenX(o.x) + 2.5, toScreenY(o.y) + 2.5, TILE - 5, TILE - 5);
+              }
+            }
+          }
+        }
+        const f = fishingRef.current;
+        if (f) {
+          const sx = toScreenX(f.x + 0.5);
+          const sy = toScreenY(f.y + 0.5);
+          ctx.strokeStyle = "rgba(255,255,255,0.5)";
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(toScreenX(player.x + 0.4), toScreenY(player.y - 0.4));
+          ctx.lineTo(sx, sy);
+          ctx.stroke();
+          const biting = now >= f.biteAt;
+          ctx.fillStyle = biting ? "#e84a3c" : "#f2f2f2";
+          ctx.beginPath();
+          ctx.arc(sx, sy + (biting ? 2 : 0), 3, 0, Math.PI * 2);
+          ctx.fill();
+          if (biting) {
+            const age = Math.min(1, (now - f.biteAt) / 1100);
+            ctx.strokeStyle = `rgba(255,255,255,${(0.8 * (1 - age)).toFixed(3)})`;
             ctx.lineWidth = 2;
             ctx.beginPath();
             ctx.ellipse(
-              toScreenX(s.x),
-              toScreenY(s.y),
-              TILE * (0.25 + 0.45 * age),
-              TILE * (0.09 + 0.16 * age),
+              sx,
+              sy,
+              TILE * (0.15 + 0.35 * age),
+              TILE * (0.06 + 0.14 * age),
               0,
               0,
               Math.PI * 2,
@@ -6901,249 +6516,314 @@ export default function WorldBoxClient() {
             ctx.stroke();
           }
         }
+      }
 
-        const drawParticles = (glowPass: boolean) => {
-          for (const p of fxSys.particles) {
-            const isGlow = p.shape === "glow";
-            if (isGlow !== glowPass) continue;
-            const sx = space !== "world" ? Math.round(lobbyOx + p.x * TILE) : toScreenX(p.x);
-            const sy = space !== "world" ? Math.round(lobbyOy + p.y * TILE) : toScreenY(p.y);
-            if (sx < -TILE || sy < -TILE || sx > cw + TILE || sy > ch + TILE) continue;
-            const ratio = fxLifeRatio(p);
-            const sizePx = Math.max(1.5, p.size * TILE);
-            ctx.fillStyle = p.color;
-            ctx.strokeStyle = p.color;
-            if (p.shape === "chip" || p.shape === "leaf") {
-              ctx.save();
-              ctx.globalAlpha = Math.min(1, ratio * 1.6);
-              ctx.translate(sx, sy);
-              ctx.rotate(p.rot);
-              ctx.fillRect(-sizePx / 2, -sizePx / 4, sizePx, sizePx / 2);
-              ctx.restore();
-            } else if (p.shape === "spark") {
-              ctx.save();
-              ctx.globalAlpha = Math.min(1, ratio * 1.8);
-              ctx.translate(sx, sy);
-              ctx.rotate(Math.atan2(p.vy, p.vx));
-              ctx.fillRect(-sizePx / 2, -1, sizePx, 2);
-              ctx.restore();
-            } else if (p.shape === "ring") {
-              const prog = 1 - ratio;
-              ctx.save();
-              ctx.globalAlpha = 0.65 * ratio;
-              ctx.lineWidth = 2;
-              ctx.beginPath();
-              ctx.ellipse(
-                sx,
-                sy,
-                sizePx * (0.6 + 2.2 * prog),
-                sizePx * (0.25 + 0.8 * prog),
-                0,
-                0,
-                Math.PI * 2,
-              );
-              ctx.stroke();
-              ctx.restore();
-            } else if (p.shape === "puff") {
-              ctx.save();
-              ctx.globalAlpha = 0.32 * ratio;
-              ctx.beginPath();
-              ctx.arc(sx, sy, sizePx * (1.15 - 0.35 * ratio), 0, Math.PI * 2);
-              ctx.fill();
-              ctx.restore();
-            } else if (p.shape === "glow") {
-              ctx.save();
-              ctx.globalCompositeOperation = "lighter";
-              ctx.globalAlpha = 0.75 * ratio;
-              ctx.beginPath();
-              ctx.arc(sx, sy, sizePx / 2, 0, Math.PI * 2);
-              ctx.fill();
-              ctx.restore();
-            } else {
-              ctx.save();
-              ctx.globalAlpha = Math.min(1, ratio * 1.7);
-              ctx.beginPath();
-              ctx.arc(sx, sy, sizePx / 2, 0, Math.PI * 2);
-              ctx.fill();
-              ctx.restore();
-            }
-          }
-        };
-        if (space === "world" && now - lastAmbientAt > 150 && !reducedMotion) {
-          lastAmbientAt = now;
-          const ptile = mapTileAt(worldMap, Math.floor(player.x), Math.floor(player.y));
-          const nowSec = nowMs / 1000;
-          const phase = phaseAtTime(nowSec);
-          const isTreeTile = ptile === T_TREE || ptile === T_SNOW_TREE;
-          const blend = weatherBlendAt(nowSec);
-          const dryKind = weatherAmbientKind("clear", ptile, isTreeTile, nightAmount(phase));
-          const kind = dryKind === "snow" ? "snow" : blend.rainStrength >= 0.5 ? "rain" : dryKind;
-          const ax0 = cam.x - cw / TILE / 2 - 1;
-          const ax1 = cam.x + cw / TILE / 2 + 1;
-          const ay0 = cam.y - ch / TILE / 2 - 1;
-          const pk = phaseKind(phase);
-          if (lastPhaseKind !== "" && pk !== lastPhaseKind) {
-            for (let i = 0; i < 4; i++) spawnAmbient(fxSys, kind, ax0, ax1, ay0);
-          }
-          lastPhaseKind = pk;
-          if (dryKind === "snow") {
-            spawnAmbient(fxSys, "snow", ax0, ax1, ay0);
-          } else {
-            const rainN = Math.round(3 * blend.rainStrength);
-            for (let i = 0; i < rainN; i++) spawnAmbient(fxSys, "rain", ax0, ax1, ay0);
-            if (blend.rainStrength < 0.5) spawnAmbient(fxSys, dryKind, ax0, ax1, ay0);
-          }
+      if (
+        parseInstanceSpace(space)?.kind === "cave" ||
+        parseInstanceSpace(space)?.kind === "dungeon"
+      ) {
+        if (!darkCanvasRef.current) darkCanvasRef.current = document.createElement("canvas");
+        const dark = darkCanvasRef.current;
+        if (dark.width !== cw || dark.height !== ch) {
+          dark.width = cw;
+          dark.height = ch;
         }
-        drawParticles(false);
-
-        {
-          const inCaveFx = space !== "world";
-          const sx = (wx: number) => (inCaveFx ? Math.round(lobbyOx + wx * TILE) : toScreenX(wx));
-          const sy = (wy: number) => (inCaveFx ? Math.round(lobbyOy + wy * TILE) : toScreenY(wy));
-          skillFxRef.current = skillFxRef.current.filter(
-            (entry) => skillFxProgress(entry.effect, now) < 1,
-          );
-          for (const entry of skillFxRef.current) {
-            const eff = entry.effect;
-            const stage = skillFxStage(eff, now);
-            if (stage > entry.stage) {
-              entry.stage = stage;
-              spawnSkillFx(fxSys, eff, stage);
-            }
-            const prog = Math.max(0, skillFxProgress(eff, now));
-            const cxp = sx(eff.x);
-            const cyp = sy(eff.y);
-            ctx.save();
-            {
-              const rise = Math.min(1, prog * 1.5);
-              const colW = TILE * 0.55 * (1 - prog * 0.35);
-              ctx.globalAlpha = 0.5 * (1 - prog * 0.55);
-              ctx.fillStyle = "#ffe9a8";
-              ctx.fillRect(cxp - colW / 2, cyp - TILE * 3.4 * rise, colW, TILE * 3.4 * rise);
-              ctx.globalAlpha = 0.85 * (1 - prog);
-              ctx.strokeStyle = "#ffd23e";
-              ctx.lineWidth = 2;
-              ctx.beginPath();
-              ctx.ellipse(
-                cxp,
-                cyp,
-                (0.3 + prog * 1.2) * TILE,
-                (0.3 + prog * 1.2) * TILE * 0.45,
-                0,
-                0,
-                Math.PI * 2,
-              );
-              ctx.stroke();
-            }
-            ctx.restore();
-          }
-        }
-
-        if (space === "world" || parseInstanceSpace(space)) {
-          const sk = swingProgress(swing.startedAt, now);
-          if (sk < 1) {
-            const inCave = space !== "world";
-            const cxp = inCave ? Math.round(lobbyOx + player.x * TILE) : toScreenX(player.x);
-            const cyp =
-              (inCave ? Math.round(lobbyOy + player.y * TILE) : toScreenY(player.y)) - TILE * 0.45;
-            const ang = attackSwingAngle(sk);
-            ctx.save();
-            ctx.translate(cxp, cyp);
-            ctx.scale(swing.face, 1);
-            ctx.strokeStyle = `rgba(255,255,255,${(slashAlpha(sk) * 0.85 * (swing.whiff ? WHIFF_ALPHA_SCALE : 1)).toFixed(3)})`;
-            ctx.lineWidth = swing.whiff ? 1.5 : 3;
-            ctx.beginPath();
-            ctx.arc(0, 0, TILE * 0.78, ang - 1.15, ang + 0.35);
-            ctx.stroke();
-            const img = !swing.whiff && swing.itemId ? itemIcons[swing.itemId] : undefined;
-            if (texReady(img)) {
-              ctx.rotate(ang);
-              ctx.drawImage(img, TILE * 0.3, -TILE * 0.3, TILE * 0.62, TILE * 0.62);
-            }
-            ctx.restore();
-          }
-        }
-
-        if (space === "world" && nowMs - lastFountainFxAt > 500) {
-          lastFountainFxAt = nowMs;
+        const dctx = dark.getContext("2d");
+        if (dctx) {
+          dctx.setTransform(1, 0, 0, 1, 0, 0);
+          dctx.clearRect(0, 0, cw, ch);
+          const radius = lightRadiusTiles(invRef.current?.items) * TILE;
+          const cxp = Math.round(lobbyOx + player.x * TILE);
+          const cyp = Math.round(lobbyOy + player.y * TILE);
+          const grad = dctx.createRadialGradient(cxp, cyp, radius * 0.55, cxp, cyp, radius);
+          grad.addColorStop(0, "rgba(5,6,14,0)");
+          grad.addColorStop(1, "rgba(5,6,14,0.93)");
+          dctx.fillStyle = grad;
+          dctx.fillRect(0, 0, cw, ch);
+          dctx.globalCompositeOperation = "destination-out";
           for (const [key, ov] of Object.entries(tilesRef.current)) {
-            if (ov.block?.itemId !== "fountain") continue;
+            const itemId = ov.block?.itemId;
+            const rTiles = placedLightRadiusTiles(itemId);
+            if (!rTiles) continue;
             const comma = key.indexOf(",");
-            const fx0 = Number(key.slice(0, comma));
-            const fy0 = Number(key.slice(comma + 1));
-            if (Math.abs(fx0 + 0.5 - player.x) > 14 || Math.abs(fy0 + 0.5 - player.y) > 10)
-              continue;
-            spawnBurst(fxSys, "splash", fx0 + 0.5, fy0 + 0.4);
+            const lx = Number(key.slice(0, comma));
+            const ly = Number(key.slice(comma + 1));
+            const sx = Math.round(lobbyOx + (lx + 0.5) * TILE);
+            const sy = Math.round(lobbyOy + (ly + 0.5) * TILE);
+            const r = rTiles * TILE;
+            if (sx < -r || sy < -r || sx > cw + r || sy > ch + r) continue;
+            const g = dctx.createRadialGradient(sx, sy, r * 0.4, sx, sy, r);
+            g.addColorStop(0, "rgba(0,0,0,0.95)");
+            g.addColorStop(1, "rgba(0,0,0,0)");
+            dctx.fillStyle = g;
+            dctx.beginPath();
+            dctx.arc(sx, sy, r, 0, Math.PI * 2);
+            dctx.fill();
           }
+          dctx.globalCompositeOperation = "source-over";
+          ctx.drawImage(dark, 0, 0, cw, ch);
         }
+      }
 
-        const night = nightAmount(phaseAtTime(nowMs / 1000));
-        if (space === "world" && night > 0.01) {
-          if (!darkCanvasRef.current) darkCanvasRef.current = document.createElement("canvas");
-          const dark = darkCanvasRef.current;
-          if (dark.width !== cw || dark.height !== ch) {
-            dark.width = cw;
-            dark.height = ch;
+      if (space === "world" && splashes.length > 0) {
+        for (let i = splashes.length - 1; i >= 0; i--) {
+          const s = splashes[i];
+          const age = (now - s.at) / 450;
+          if (age >= 1) {
+            splashes.splice(i, 1);
+            continue;
           }
-          const dctx = dark.getContext("2d");
-          if (dctx) {
-            dctx.setTransform(1, 0, 0, 1, 0, 0);
-            dctx.clearRect(0, 0, cw, ch);
-            dctx.fillStyle = `rgba(9,13,42,${(night * 0.36).toFixed(3)})`;
-            dctx.fillRect(0, 0, cw, ch);
-            dctx.globalCompositeOperation = "destination-out";
-            const punch = (sx: number, sy: number, rTiles: number) => {
-              const r = rTiles * TILE;
-              if (sx < -r || sy < -r || sx > cw + r || sy > ch + r) return;
-              const g = dctx.createRadialGradient(sx, sy, r * 0.4, sx, sy, r);
-              g.addColorStop(0, "rgba(0,0,0,0.95)");
-              g.addColorStop(1, "rgba(0,0,0,0)");
-              dctx.fillStyle = g;
-              dctx.beginPath();
-              dctx.arc(sx, sy, r, 0, Math.PI * 2);
-              dctx.fill();
-            };
-            punch(
-              toScreenX(player.x),
-              toScreenY(player.y),
-              lightRadiusTiles(invRef.current?.items),
+          ctx.strokeStyle = `rgba(255,255,255,${(0.65 * (1 - age)).toFixed(3)})`;
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.ellipse(
+            toScreenX(s.x),
+            toScreenY(s.y),
+            TILE * (0.25 + 0.45 * age),
+            TILE * (0.09 + 0.16 * age),
+            0,
+            0,
+            Math.PI * 2,
+          );
+          ctx.stroke();
+        }
+      }
+
+      const drawParticles = (glowPass: boolean) => {
+        for (const p of fxSys.particles) {
+          const isGlow = p.shape === "glow";
+          if (isGlow !== glowPass) continue;
+          const sx = space !== "world" ? Math.round(lobbyOx + p.x * TILE) : toScreenX(p.x);
+          const sy = space !== "world" ? Math.round(lobbyOy + p.y * TILE) : toScreenY(p.y);
+          if (sx < -TILE || sy < -TILE || sx > cw + TILE || sy > ch + TILE) continue;
+          const ratio = fxLifeRatio(p);
+          const sizePx = Math.max(1.5, p.size * TILE);
+          ctx.fillStyle = p.color;
+          ctx.strokeStyle = p.color;
+          if (p.shape === "chip" || p.shape === "leaf") {
+            ctx.save();
+            ctx.globalAlpha = Math.min(1, ratio * 1.6);
+            ctx.translate(sx, sy);
+            ctx.rotate(p.rot);
+            ctx.fillRect(-sizePx / 2, -sizePx / 4, sizePx, sizePx / 2);
+            ctx.restore();
+          } else if (p.shape === "spark") {
+            ctx.save();
+            ctx.globalAlpha = Math.min(1, ratio * 1.8);
+            ctx.translate(sx, sy);
+            ctx.rotate(Math.atan2(p.vy, p.vx));
+            ctx.fillRect(-sizePx / 2, -1, sizePx, 2);
+            ctx.restore();
+          } else if (p.shape === "ring") {
+            const prog = 1 - ratio;
+            ctx.save();
+            ctx.globalAlpha = 0.65 * ratio;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.ellipse(
+              sx,
+              sy,
+              sizePx * (0.6 + 2.2 * prog),
+              sizePx * (0.25 + 0.8 * prog),
+              0,
+              0,
+              Math.PI * 2,
             );
-            for (const [key, ov] of Object.entries(tilesRef.current)) {
-              const rTiles = placedLightRadiusTiles(ov.block?.itemId);
-              if (!rTiles) continue;
-              const comma = key.indexOf(",");
-              const lx = Number(key.slice(0, comma));
-              const ly = Number(key.slice(comma + 1));
-              punch(toScreenX(lx + 0.5), toScreenY(ly + 0.5), rTiles);
-            }
-            for (const stl of settlementsNear(cam.x, cam.y, 44)) {
-              for (const lamp of stl.lamps) {
-                punch(toScreenX(lamp.x + 0.5), toScreenY(lamp.y + 0.5), 4.6);
-              }
-            }
-            dctx.globalCompositeOperation = "source-over";
-            ctx.drawImage(dark, 0, 0, cw, ch);
-            for (const stl of settlementsNear(cam.x, cam.y, 44)) {
-              for (const lamp of stl.lamps) {
-                const lsx = toScreenX(lamp.x + 0.5);
-                const lsy = toScreenY(lamp.y + 0.5);
-                const r = TILE * 2.2;
-                if (lsx < -r || lsy < -r || lsx > cw + r || lsy > ch + r) continue;
-                const g = ctx.createRadialGradient(lsx, lsy, 2, lsx, lsy, r);
-                g.addColorStop(0, `rgba(253, 224, 71, ${(night * 0.22).toFixed(3)})`);
-                g.addColorStop(1, "rgba(253, 224, 71, 0)");
-                ctx.fillStyle = g;
-                ctx.beginPath();
-                ctx.arc(lsx, lsy, r, 0, Math.PI * 2);
-                ctx.fill();
-              }
-            }
+            ctx.stroke();
+            ctx.restore();
+          } else if (p.shape === "puff") {
+            ctx.save();
+            ctx.globalAlpha = 0.32 * ratio;
+            ctx.beginPath();
+            ctx.arc(sx, sy, sizePx * (1.15 - 0.35 * ratio), 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+          } else if (p.shape === "glow") {
+            ctx.save();
+            ctx.globalCompositeOperation = "lighter";
+            ctx.globalAlpha = 0.75 * ratio;
+            ctx.beginPath();
+            ctx.arc(sx, sy, sizePx / 2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
           } else {
-            ctx.fillStyle = `rgba(9,13,42,${(night * 0.36).toFixed(3)})`;
-            ctx.fillRect(0, 0, cw, ch);
+            ctx.save();
+            ctx.globalAlpha = Math.min(1, ratio * 1.7);
+            ctx.beginPath();
+            ctx.arc(sx, sy, sizePx / 2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
           }
         }
-        if (space === "world") drawParticles(true);
+      };
+      if (space === "world" && now - lastAmbientAt > 150 && !reducedMotion) {
+        lastAmbientAt = now;
+        const ptile = mapTileAt(worldMap, Math.floor(player.x), Math.floor(player.y));
+        const nowSec = nowMs / 1000;
+        const phase = phaseAtTime(nowSec);
+        const isTreeTile = ptile === T_TREE || ptile === T_SNOW_TREE;
+        const blend = weatherBlendAt(nowSec);
+        const dryKind = weatherAmbientKind("clear", ptile, isTreeTile, nightAmount(phase));
+        const kind = dryKind === "snow" ? "snow" : blend.rainStrength >= 0.5 ? "rain" : dryKind;
+        const ax0 = cam.x - cw / TILE / 2 - 1;
+        const ax1 = cam.x + cw / TILE / 2 + 1;
+        const ay0 = cam.y - ch / TILE / 2 - 1;
+        const pk = phaseKind(phase);
+        if (lastPhaseKind !== "" && pk !== lastPhaseKind) {
+          for (let i = 0; i < 4; i++) spawnAmbient(fxSys, kind, ax0, ax1, ay0);
+        }
+        lastPhaseKind = pk;
+        if (dryKind === "snow") {
+          spawnAmbient(fxSys, "snow", ax0, ax1, ay0);
+        } else {
+          const rainN = Math.round(3 * blend.rainStrength);
+          for (let i = 0; i < rainN; i++) spawnAmbient(fxSys, "rain", ax0, ax1, ay0);
+          if (blend.rainStrength < 0.5) spawnAmbient(fxSys, dryKind, ax0, ax1, ay0);
+        }
+      }
+      drawParticles(false);
+
+      {
+        const inCaveFx = space !== "world";
+        const sx = (wx: number) => (inCaveFx ? Math.round(lobbyOx + wx * TILE) : toScreenX(wx));
+        const sy = (wy: number) => (inCaveFx ? Math.round(lobbyOy + wy * TILE) : toScreenY(wy));
+        skillFxRef.current = skillFxRef.current.filter(
+          (entry) => skillFxProgress(entry.effect, now) < 1,
+        );
+        for (const entry of skillFxRef.current) {
+          const eff = entry.effect;
+          const stage = skillFxStage(eff, now);
+          if (stage > entry.stage) {
+            entry.stage = stage;
+            spawnSkillFx(fxSys, eff, stage);
+          }
+          const prog = Math.max(0, skillFxProgress(eff, now));
+          const cxp = sx(eff.x);
+          const cyp = sy(eff.y);
+          ctx.save();
+          {
+            const rise = Math.min(1, prog * 1.5);
+            const colW = TILE * 0.55 * (1 - prog * 0.35);
+            ctx.globalAlpha = 0.5 * (1 - prog * 0.55);
+            ctx.fillStyle = "#ffe9a8";
+            ctx.fillRect(cxp - colW / 2, cyp - TILE * 3.4 * rise, colW, TILE * 3.4 * rise);
+            ctx.globalAlpha = 0.85 * (1 - prog);
+            ctx.strokeStyle = "#ffd23e";
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.ellipse(
+              cxp,
+              cyp,
+              (0.3 + prog * 1.2) * TILE,
+              (0.3 + prog * 1.2) * TILE * 0.45,
+              0,
+              0,
+              Math.PI * 2,
+            );
+            ctx.stroke();
+          }
+          ctx.restore();
+        }
+      }
+
+      if (space === "world" || parseInstanceSpace(space)) {
+        const sk = swingProgress(swing.startedAt, now);
+        if (sk < 1) {
+          const inCave = space !== "world";
+          const cxp = inCave ? Math.round(lobbyOx + player.x * TILE) : toScreenX(player.x);
+          const cyp =
+            (inCave ? Math.round(lobbyOy + player.y * TILE) : toScreenY(player.y)) - TILE * 0.45;
+          const ang = attackSwingAngle(sk);
+          ctx.save();
+          ctx.translate(cxp, cyp);
+          ctx.scale(swing.face, 1);
+          ctx.strokeStyle = `rgba(255,255,255,${(slashAlpha(sk) * 0.85 * (swing.whiff ? WHIFF_ALPHA_SCALE : 1)).toFixed(3)})`;
+          ctx.lineWidth = swing.whiff ? 1.5 : 3;
+          ctx.beginPath();
+          ctx.arc(0, 0, TILE * 0.78, ang - 1.15, ang + 0.35);
+          ctx.stroke();
+          const img = !swing.whiff && swing.itemId ? itemIcons[swing.itemId] : undefined;
+          if (texReady(img)) {
+            ctx.rotate(ang);
+            ctx.drawImage(img, TILE * 0.3, -TILE * 0.3, TILE * 0.62, TILE * 0.62);
+          }
+          ctx.restore();
+        }
+      }
+
+      if (space === "world" && nowMs - lastFountainFxAt > 500) {
+        lastFountainFxAt = nowMs;
+        for (const [key, ov] of Object.entries(tilesRef.current)) {
+          if (ov.block?.itemId !== "fountain") continue;
+          const comma = key.indexOf(",");
+          const fx0 = Number(key.slice(0, comma));
+          const fy0 = Number(key.slice(comma + 1));
+          if (Math.abs(fx0 + 0.5 - player.x) > 14 || Math.abs(fy0 + 0.5 - player.y) > 10) continue;
+          spawnBurst(fxSys, "splash", fx0 + 0.5, fy0 + 0.4);
+        }
+      }
+
+      const night = nightAmount(phaseAtTime(nowMs / 1000));
+      if (space === "world" && night > 0.01) {
+        if (!darkCanvasRef.current) darkCanvasRef.current = document.createElement("canvas");
+        const dark = darkCanvasRef.current;
+        if (dark.width !== cw || dark.height !== ch) {
+          dark.width = cw;
+          dark.height = ch;
+        }
+        const dctx = dark.getContext("2d");
+        if (dctx) {
+          dctx.setTransform(1, 0, 0, 1, 0, 0);
+          dctx.clearRect(0, 0, cw, ch);
+          dctx.fillStyle = `rgba(9,13,42,${(night * 0.36).toFixed(3)})`;
+          dctx.fillRect(0, 0, cw, ch);
+          dctx.globalCompositeOperation = "destination-out";
+          const punch = (sx: number, sy: number, rTiles: number) => {
+            const r = rTiles * TILE;
+            if (sx < -r || sy < -r || sx > cw + r || sy > ch + r) return;
+            const g = dctx.createRadialGradient(sx, sy, r * 0.4, sx, sy, r);
+            g.addColorStop(0, "rgba(0,0,0,0.95)");
+            g.addColorStop(1, "rgba(0,0,0,0)");
+            dctx.fillStyle = g;
+            dctx.beginPath();
+            dctx.arc(sx, sy, r, 0, Math.PI * 2);
+            dctx.fill();
+          };
+          punch(toScreenX(player.x), toScreenY(player.y), lightRadiusTiles(invRef.current?.items));
+          for (const [key, ov] of Object.entries(tilesRef.current)) {
+            const rTiles = placedLightRadiusTiles(ov.block?.itemId);
+            if (!rTiles) continue;
+            const comma = key.indexOf(",");
+            const lx = Number(key.slice(0, comma));
+            const ly = Number(key.slice(comma + 1));
+            punch(toScreenX(lx + 0.5), toScreenY(ly + 0.5), rTiles);
+          }
+          for (const stl of settlementsNear(cam.x, cam.y, 44)) {
+            for (const lamp of stl.lamps) {
+              punch(toScreenX(lamp.x + 0.5), toScreenY(lamp.y + 0.5), 4.6);
+            }
+          }
+          dctx.globalCompositeOperation = "source-over";
+          ctx.drawImage(dark, 0, 0, cw, ch);
+          for (const stl of settlementsNear(cam.x, cam.y, 44)) {
+            for (const lamp of stl.lamps) {
+              const lsx = toScreenX(lamp.x + 0.5);
+              const lsy = toScreenY(lamp.y + 0.5);
+              const r = TILE * 2.2;
+              if (lsx < -r || lsy < -r || lsx > cw + r || lsy > ch + r) continue;
+              const g = ctx.createRadialGradient(lsx, lsy, 2, lsx, lsy, r);
+              g.addColorStop(0, `rgba(253, 224, 71, ${(night * 0.22).toFixed(3)})`);
+              g.addColorStop(1, "rgba(253, 224, 71, 0)");
+              ctx.fillStyle = g;
+              ctx.beginPath();
+              ctx.arc(lsx, lsy, r, 0, Math.PI * 2);
+              ctx.fill();
+            }
+          }
+        } else {
+          ctx.fillStyle = `rgba(9,13,42,${(night * 0.36).toFixed(3)})`;
+          ctx.fillRect(0, 0, cw, ch);
+        }
       }
 
       if (worldFloatTextsRef.current.length > 0) {
@@ -7153,10 +6833,10 @@ export default function WorldBoxClient() {
         for (const ft of worldFloatTextsRef.current) {
           if (ft.space !== space) continue;
           const age = Math.max(0, Math.min(1, (now - ft.startedAt) / 1800));
-          const pos = projectOverlay(ft.x, ft.y, 1.5 + age * 1.1);
-          if (!pos.visible) continue;
-          const sx = pos.x;
-          const sy = use3d ? pos.y : pos.y - age * TILE * 1.15;
+          const sx = space === "world" ? toScreenX(ft.x) : Math.round(lobbyOx + ft.x * TILE);
+          const sy =
+            (space === "world" ? toScreenY(ft.y) : Math.round(lobbyOy + ft.y * TILE)) -
+            age * TILE * 1.15;
           ctx.save();
           ctx.globalAlpha = Math.max(0, 1 - age * age);
           ctx.font = "800 13px sans-serif";
@@ -7169,6 +6849,7 @@ export default function WorldBoxClient() {
           ctx.restore();
         }
       }
+      if (space === "world") drawParticles(true);
 
       const base = stickBase(cw, ch);
       ctx.fillStyle = joy.active ? "rgba(255,255,255,0.16)" : "rgba(255,255,255,0.08)";
@@ -7187,9 +6868,8 @@ export default function WorldBoxClient() {
       ctx.fill();
 
       if (staminaGaugeVisible(stamina)) {
-        const pPos = projectOverlay(player.x, player.y, 1.45);
-        const px = pPos.x;
-        const py = pPos.y;
+        const px = space !== "world" ? Math.round(lobbyOx + player.x * TILE) : toScreenX(player.x);
+        const py = space !== "world" ? Math.round(lobbyOy + player.y * TILE) : toScreenY(player.y);
         const size = TILE * AVATAR_TILES;
         const gx = px - size * 0.72;
         const gy = py - size * 0.8;
@@ -7403,8 +7083,6 @@ export default function WorldBoxClient() {
       canvas.removeEventListener("pointermove", onPointerMove);
       canvas.removeEventListener("pointerup", onPointerUp);
       canvas.removeEventListener("pointercancel", onPointerUp);
-      canvas.removeEventListener("wheel", onWheel);
-      scene3d?.dispose();
       saveNow(true);
       leavePresence();
     };
@@ -7584,12 +7262,6 @@ export default function WorldBoxClient() {
       },
     },
     {
-      id: "view3d",
-      label: renderMode === "3d" ? "2D俯瞰に切替" : "3Dマップに切替",
-      show: true,
-      run: () => setRenderMode((m) => (m === "3d" ? "2d" : "3d")),
-    },
-    {
       id: "map",
       label: showMap ? "マップを隠す" : "マップを出す",
       show: true,
@@ -7756,25 +7428,10 @@ export default function WorldBoxClient() {
         }}
       >
         <canvas
-          ref={glCanvasRef}
-          aria-hidden="true"
-          style={{
-            position: "absolute",
-            inset: 0,
-            width: "100%",
-            height: "100%",
-            display: renderMode === "3d" ? "block" : "none",
-            pointerEvents: "none",
-            zIndex: 0,
-          }}
-        />
-        <canvas
           ref={canvasRef}
           onContextMenu={(e) => e.preventDefault()}
-          aria-label="TAKASUMI WORLD BOX のマップ。スティックか WASD で歩けます"
+          aria-label="TAKASUMI WORLD BOX の見下ろしマップ。スティックか WASD で歩けます"
           style={{
-            position: "relative",
-            zIndex: 1,
             width: "100%",
             height: "100%",
             display: "block",
@@ -7949,136 +7606,29 @@ export default function WorldBoxClient() {
         >
           ≡
         </button>
-        <div
-          style={{
-            position: "absolute",
-            right: "calc(10px + env(safe-area-inset-right, 0px))",
-            top: "calc(10px + env(safe-area-inset-top, 0px))",
-            zIndex: 6,
-            display: "flex",
-            alignItems: "center",
-            gap: 4,
-          }}
-        >
+        {canFullscreen && (
           <button
             type="button"
-            aria-label={renderMode === "3d" ? "2D表示へ切替" : "3D表示へ切替"}
-            aria-pressed={renderMode === "3d"}
-            onClick={() => setRenderMode((m) => (m === "3d" ? "2d" : "3d"))}
+            aria-label={isFullscreen ? "全画面を終わる" : "全画面にする"}
+            aria-pressed={isFullscreen}
+            onClick={toggleFullscreen}
             style={{
               ...btn,
+              position: "absolute",
+              right: "calc(10px + env(safe-area-inset-right, 0px))",
+              top: "calc(10px + env(safe-area-inset-top, 0px))",
               minHeight: hud.buttonMinHeight,
-              padding: "4px 10px",
+              zIndex: 5,
+              padding: "4px 12px",
               fontSize: 12,
-              fontWeight: 800,
               lineHeight: 1,
-              background: renderMode === "3d" ? "rgba(14,165,233,0.72)" : "rgba(0,0,0,0.55)",
-              borderColor: renderMode === "3d" ? "#38bdf8" : "rgba(255,255,255,0.25)",
+              background: "rgba(0,0,0,0.55)",
               color: "#fff",
             }}
           >
-            {renderMode === "3d" ? "3D" : "2D"}
+            {isFullscreen ? "戻す" : "全画面"}
           </button>
-          {renderMode === "3d" && (
-            <>
-              <button
-                type="button"
-                aria-label="カメラ左回転 (Q)"
-                title="カメラ左回転 (Q)"
-                onClick={() => {
-                  cameraYawRef.current -= Math.PI / 6;
-                }}
-                style={{
-                  ...btn,
-                  minHeight: hud.buttonMinHeight,
-                  padding: "4px 8px",
-                  fontSize: 11,
-                  lineHeight: 1,
-                  background: "rgba(0,0,0,0.55)",
-                  color: "#e2e8f0",
-                }}
-              >
-                Q
-              </button>
-              <button
-                type="button"
-                aria-label="カメラ右回転 (E)"
-                title="カメラ右回転 (E)"
-                onClick={() => {
-                  cameraYawRef.current += Math.PI / 6;
-                }}
-                style={{
-                  ...btn,
-                  minHeight: hud.buttonMinHeight,
-                  padding: "4px 8px",
-                  fontSize: 11,
-                  lineHeight: 1,
-                  background: "rgba(0,0,0,0.55)",
-                  color: "#e2e8f0",
-                }}
-              >
-                E
-              </button>
-              <button
-                type="button"
-                aria-label="ズームアウト"
-                title="ズームアウト"
-                onClick={() => {
-                  cameraDistRef.current = Math.min(32, cameraDistRef.current + 3);
-                }}
-                style={{
-                  ...btn,
-                  minHeight: hud.buttonMinHeight,
-                  padding: "4px 8px",
-                  fontSize: 13,
-                  lineHeight: 1,
-                  background: "rgba(0,0,0,0.55)",
-                  color: "#e2e8f0",
-                }}
-              >
-                −
-              </button>
-              <button
-                type="button"
-                aria-label="ズームイン"
-                title="ズームイン"
-                onClick={() => {
-                  cameraDistRef.current = Math.max(9, cameraDistRef.current - 3);
-                }}
-                style={{
-                  ...btn,
-                  minHeight: hud.buttonMinHeight,
-                  padding: "4px 8px",
-                  fontSize: 13,
-                  lineHeight: 1,
-                  background: "rgba(0,0,0,0.55)",
-                  color: "#e2e8f0",
-                }}
-              >
-                +
-              </button>
-            </>
-          )}
-          {canFullscreen && (
-            <button
-              type="button"
-              aria-label={isFullscreen ? "全画面を終わる" : "全画面にする"}
-              aria-pressed={isFullscreen}
-              onClick={toggleFullscreen}
-              style={{
-                ...btn,
-                minHeight: hud.buttonMinHeight,
-                padding: "4px 12px",
-                fontSize: 12,
-                lineHeight: 1,
-                background: "rgba(0,0,0,0.55)",
-                color: "#fff",
-              }}
-            >
-              {isFullscreen ? "戻す" : "全画面"}
-            </button>
-          )}
-        </div>
+        )}
         {menuOpen && (
           <div
             data-wb-se="self"
